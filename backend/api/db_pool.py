@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 _thread_local = local()
 
 # Configuração do DuckDB
-DB_PATH = os.getenv("HERMES_DUCKDB_PATH", r"G:\icp_radar\dados_receita\cnpj.duckdb")
+DB_PATH = os.getenv("HERMES_DUCKDB_PATH", "/data/cnpj.duckdb")
 
 # Configurações de conexão otimizadas
 DUCKDB_CONFIG = {
