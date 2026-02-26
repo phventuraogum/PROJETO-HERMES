@@ -1,0 +1,121 @@
+#!/bin/bash
+# Cria nginx.prod.http-only.conf em /opt/hermes (para quando o arquivo não veio do git)
+set -e
+cd /opt/hermes
+cat > nginx.prod.http-only.conf << 'EOF'
+# ============================================================
+#  Hermes — Nginx SOMENTE HTTP (uso temporário para obter certificado)
+# ============================================================
+
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=30r/m;
+limit_req_zone $binary_remote_addr zone=web_limit:10m rate=60r/m;
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name hermescraper.com www.hermescraper.com;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    server_tokens off;
+    client_max_body_size 1M;
+
+    location ~ ^/(docs|redoc|openapi\.json) { return 404; }
+    location ~ /\. { deny all; return 404; }
+
+    location / {
+        limit_req zone=web_limit burst=20 nodelay;
+        proxy_pass http://web:80;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/ {
+        limit_req zone=api_limit burst=10 nodelay;
+        rewrite ^/api/(.*) /$1 break;
+        proxy_pass http://api:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+        proxy_connect_timeout 10s;
+    }
+
+    location /auth/ {
+        limit_req zone=api_limit burst=3 nodelay;
+        proxy_pass http://api:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /plans {
+        limit_req zone=web_limit burst=5 nodelay;
+        proxy_pass http://api:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location ~ ^/(prospeccao|mapa-calor|credits|pipeline|crm|subscribe)(/|$) {
+        limit_req zone=api_limit burst=10 nodelay;
+        proxy_pass http://api:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+    }
+
+    location = /health {
+        proxy_pass http://api:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /webhooks/asaas {
+        allow 54.94.136.0/24;
+        allow 54.207.0.0/16;
+        allow 18.229.0.0/16;
+        allow 18.230.0.0/16;
+        allow 18.231.0.0/16;
+        allow 15.228.0.0/16;
+        allow 177.71.192.0/18;
+        deny all;
+        limit_req zone=api_limit burst=10 nodelay;
+        proxy_pass http://api:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /admin {
+        limit_req zone=api_limit burst=3 nodelay;
+        proxy_pass http://api:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    access_log /var/log/nginx/hermes_access.log;
+    error_log  /var/log/nginx/hermes_error.log warn;
+}
+EOF
+echo "Arquivo nginx.prod.http-only.conf criado em $(pwd)"
+ls -la nginx.prod.http-only.conf
