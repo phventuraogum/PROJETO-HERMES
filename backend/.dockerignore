@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+
+# Dados (montados via volume)
+dados_receita/
+*.duckdb
+*.duckdb.wal
+
+# Ambiente virtual
+.venv*/
+venv/
+env/
+
+# Secrets
+.env
+.env.*
+
+# Git / IDE
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Docs
+*.md
+
+# Testes
+test_*.py
+*_test.py
+tests/
+.pytest_cache/
+
+# Logs / Temp
+*.log
+*.tmp
+*.bak
+*.cache
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+.dockerignore

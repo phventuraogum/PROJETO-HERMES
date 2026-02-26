@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build output (será gerado no container)
+dist/
+dist-ssr/
+build/
+
+# Environment (NUNCA no container)
+.env
+.env.*
+.env.local
+.env.*.local
+.env.production
+.env.staging
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+
+# Testes
+coverage/
+.nyc_output/
+
+# Documentação
+*.md
+README.md
+LICENSE
+ANALISE_E_MELHORIAS.md
+relatorio_disco_c.md
+
+# Scripts de limpeza (não necessários no container)
+limpar_docker.ps1
+compactar_docker_vhdx.ps1
+
+# Arquivos temporários
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.yml
+docker-compose.prod.yml
+Dockerfile
+.dockerignore
+
+# Scripts e configs nao necessarios no container web
+scripts/
+nginx.prod.conf

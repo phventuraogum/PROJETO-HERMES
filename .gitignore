@@ -1,0 +1,80 @@
+# =============================================================
+# HERMES INSIGHT ENGINE — .gitignore (Monorepo)
+# =============================================================
+
+# ── SECRETS — NUNCA COMMITAR ────────────────────────────────
+.env
+.env.local
+.env.production
+.env.staging
+.env.*.local
+
+# Certificados SSL
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+
+# ── Logs ─────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Node (frontend) ─────────────────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+*.local
+bun.lockb
+
+# ── Python (backend) ────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+build/
+*.egg
+
+# Ambientes virtuais
+venv/
+env/
+ENV/
+.venv/
+.venv*/
+
+# ── Dados pesados ────────────────────────────────────────────
+*.duckdb
+*.duckdb.wal
+backend/dados_receita/
+backend/dados_sidra/
+backend/outputs/
+backend/db/
+
+# ── Testes ───────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Editor / OS ──────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+*~
+*.tmp
+*.bak
+*.cache
