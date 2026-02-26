@@ -1,162 +1,175 @@
-# Hermes Insight Engine
+<p align="center">
+  <strong>README</strong> · <a href="#licença">Licença</a>
+</p>
 
-Plataforma SaaS de prospecao B2B inteligente com enriquecimento de dados, pipeline de leads e integracoes CRM.
+---
 
-## Monorepo
+<p align="center">
+  <strong style="font-size: 2em;">Hermes Insight Engine</strong>
+</p>
+
+<p align="center">
+  <b>Prospecção B2B inteligente para o mercado moderno</b>
+</p>
+
+<p align="center">
+  <a href="#prospecção-e-dados">Prospecção</a> ·
+  <a href="#enriquecimento">Enriquecimento</a> ·
+  <a href="#pipeline-e-crm">Pipeline</a> ·
+  <a href="#stack-tecnológica">Stack</a> ·
+  <a href="#começando">Começando</a> ·
+  <a href="#deploy-em-produção">Deploy</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/React-18-61dafb?logo=react" alt="React 18" />
+  <img src="https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/FastAPI-Python_3.12-009688?logo=fastapi" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/Docker-Compose-2496ed?logo=docker" alt="Docker" />
+  <img src="https://img.shields.io/badge/License-Proprietary-red" alt="License" />
+</p>
+
+---
+
+Hermes é uma **plataforma SaaS de prospecção B2B** que une busca em milhões de CNPJs da Receita Federal, enriquecimento automático (e-mail, telefone, redes sociais), pipeline visual e exportação para CRMs — com controle por créditos e planos. Autenticação multi-tenant, rate limiting e segurança em produção. **Uma plataforma, zero compromissos.**
+
+*Feita para times de vendas e marketing que precisam encontrar e qualificar empresas no Brasil.*
+
+---
+
+### Uso rápido — desenvolvimento local
+
+```bash
+# Clone e instale dependências
+git clone https://github.com/phventuraogum/PROJETO-HERMES.git
+cd PROJETO-HERMES
+npm install
+
+# Sobe o frontend com proxy para a API (backend em outra janela)
+npm run dev
+# → http://localhost:8080
+```
+
+O Vite faz proxy das rotas da API para o backend; inicie a API separadamente (por exemplo `uvicorn` na porta 8000).
+
+### Ou suba tudo com Docker
+
+```bash
+# Configure .env a partir do exemplo e rode
+docker compose -f docker-compose.prod.yml up -d
+
+# Health check
+curl -s http://localhost/health
+```
+
+Redis, API, worker, frontend e Nginx sobem em conjunto. Consulte a documentação interna para variáveis de ambiente obrigatórias.
+
+---
+
+## Principais recursos
+
+### Prospecção e dados
+
+- **Base nacional** — Dezenas de milhões de CNPJs da Receita Federal em DuckDB: consultas rápidas e filtros complexos.
+- **Filtros avançados** — CNAE, porte, UF, município, faturamento, natureza jurídica e combinações.
+- **Execução assíncrona** — Prospecções pesadas em background com progresso em tempo real (SSE) e resultados persistidos.
+
+### Enriquecimento
+
+- **Múltiplas fontes** — Waterfall de provedores para e-mail e telefone; scraping e APIs especializadas quando configuradas.
+- **Score de qualidade** — Pontuação de fit (ICP) e qualidade dos dados por lead para priorização.
+- **Resumos com IA** — Opcional: resumos e sugestões de abordagem via modelo de linguagem.
+
+### Pipeline e CRM
+
+- **Kanban** — Leads em estágios (Novo, Contato, Proposta, Fechado), com notas e histórico por organização.
+- **Exportação** — Um clique para Ploomes, Pipedrive, HubSpot e RD Station.
+- **Mapa de calor** — Distribuição geográfica dos resultados para priorizar regiões.
+
+### Infraestrutura e segurança
+
+- **Containers** — Frontend (Nginx), API (FastAPI), worker (RQ), Redis e Nginx reverso via Docker Compose.
+- **Segurança** — Rate limiting (Nginx + app), validação de entrada, headers de segurança, fail-closed em produção.
+- **Deploy** — Scripts de setup de VPS (Docker, firewall, swap) e deploy com health checks e validação de config.
+
+---
+
+## Stack tecnológica
+
+| Camada        | Tecnologias |
+|---------------|-------------|
+| **Frontend**  | React 18, TypeScript, Vite 7, Tailwind CSS, shadcn/ui, Radix, React Query, React Router, Leaflet, Recharts |
+| **Backend**   | FastAPI (Python 3.12), DuckDB, Redis 7, RQ |
+| **Auth e dados** | Supabase (Auth, Postgres, RLS, RPC) |
+| **Pagamentos**   | Gateway de pagamento com webhooks validados |
+| **Scraping e IA** | Scrapling, BeautifulSoup; OpenAI (opcional) |
+| **Produção**  | Docker, Docker Compose, Nginx |
+
+A documentação interna da API e variáveis de ambiente não são expostas neste README.
+
+---
+
+## Estrutura do projeto
+
+Monorepo: frontend e backend na mesma raiz.
 
 ```
 hermes-insight-engine/
-  ├── backend/               # API (FastAPI + DuckDB + Redis)
-  │   ├── api/               # Routers, services, enrichment
-  │   ├── middleware/         # Auth JWT, rate limiting, plan limits
-  │   ├── config.py          # Settings centralizados
-  │   ├── Dockerfile         # Build de producao
-  │   └── requirements.txt   # Dependencias Python
-  ├── src/                   # Frontend React
-  │   ├── pages/             # Paginas da aplicacao
-  │   ├── components/        # Componentes reutilizaveis
-  │   ├── auth/              # Contexto de autenticacao
-  │   └── tenancy/           # Multi-tenant (org context)
-  ├── scripts/               # Deploy, migracoes, backup
-  ├── docker-compose.prod.yml
-  ├── Dockerfile             # Frontend (multi-stage Vite → Nginx)
-  ├── nginx.prod.conf        # Reverse proxy producao
-  └── nginx.conf             # Nginx interno do container web
+├── backend/                 # API e workers
+│   ├── api/                 # Routers, prospecção e enriquecimento
+│   ├── middleware/          # Auth, rate limit, limites de plano
+│   ├── config.py
+│   ├── requirements.txt
+│   └── Dockerfile
+├── src/                     # Frontend React
+│   ├── pages/                # Landing, Login, Configure, Results, Pipeline, Dashboard…
+│   ├── components/           # Layout, dashboard, UI (shadcn)
+│   ├── auth/
+│   └── tenancy/              # Multi-tenant
+├── scripts/                  # Migrações SQL, deploy, backup
+├── docker-compose.prod.yml
+├── Dockerfile                # Frontend (Vite → Nginx)
+└── nginx.prod.conf
 ```
 
-## Stack
+A base DuckDB não é versionada; em produção é montada via volume.
 
-### Frontend
-| Camada | Tecnologia |
-|--------|-----------|
-| Framework | React 18 + TypeScript + Vite 7 |
-| UI | Tailwind CSS + shadcn/ui + Radix |
-| Mapas | Leaflet + React-Leaflet |
-| Graficos | Recharts |
-| Auth | Supabase Auth (JWT) |
-| State | React Query (TanStack) |
-| Routing | React Router DOM v6 |
+---
 
-### Backend
-| Camada | Tecnologia |
-|--------|-----------|
-| Framework | FastAPI (Python 3.12) |
-| Banco | DuckDB (56M+ CNPJs Receita Federal) |
-| Cache/Fila | Redis 7 + RQ |
-| Auth | JWT local + Supabase fallback |
-| Pagamentos | Asaas Pay (HMAC webhook) |
-| Scraping | Scrapling + BeautifulSoup |
-| IA | OpenAI GPT |
+## Começando
 
-## Paginas
+**Pré-requisitos:** Node.js 20+, Python 3.12+, Redis, conta Supabase e (opcional) Docker.
 
-| Pagina | Arquivo | Descricao |
-|--------|---------|-----------|
-| Landing | `src/pages/Landing.tsx` | LP de vendas com pricing |
-| Login | `src/pages/Login.tsx` | Autenticacao via Supabase |
-| Configure | `src/pages/Configure.tsx` | Configuracao ICP |
-| Results | `src/pages/Results.tsx` | Resultados enriquecidos |
-| Pipeline | `src/pages/Pipeline.tsx` | Kanban de leads |
-| Dashboard | `src/pages/Dashboard.tsx` | Metricas e KPIs |
-| Heatmap | `src/pages/Heatmap.tsx` | Mapa de calor geografico |
-| Creditos | `src/pages/ComprarCreditos.tsx` | Compra de creditos (Asaas) |
-| Settings | `src/pages/Settings.tsx` | Configuracoes da conta |
-| Historico | `src/pages/History.tsx` | Historico de prospeccoes |
+1. **Clone** o repositório.
+2. **Backend:** ambiente virtual, `pip install -r backend/requirements.txt`, configure variáveis (veja `.env.example` no backend).
+3. **Frontend:** `npm install` na raiz, configure variáveis de build (`.env.example` na raiz).
+4. **Supabase:** execute `scripts/all_migrations.sql` no SQL Editor do projeto.
+5. **Redis:** acessível e URL configurada no backend.
 
-## API Endpoints
+Chaves de API e tokens são definidos apenas por variáveis de ambiente e não são documentados aqui.
 
-### Publicos
-- `GET /health` — Health check
-- `GET /plans` — Planos disponiveis
+---
 
-### Auth
-- `POST /auth/signup` — Registro (rate limited)
-- `POST /auth/signup-with-plan` — Registro + plano pago
+## Deploy em produção
 
-### Prospeccao (JWT)
-- `POST /prospeccao/run` — Executar prospeccao
-- `POST /prospeccao/run-stream` — Prospeccao com SSE
-- `POST /mapa-calor` — Mapa de calor
+1. **Primeira vez:** rode o script de setup da VPS em `scripts/` (Docker, firewall, swap, diretórios, volume DuckDB).
+2. **A cada deploy:** use o script de deploy que valida config, faz build dos containers, sobe os serviços e executa health checks.
 
-### Creditos
-- `GET /credits/packages` — Pacotes
-- `POST /credits/buy` — Comprar (Asaas)
-- `POST /subscribe/{plan}` — Assinar plano
-- `POST /webhooks/asaas` — Webhook (HMAC + IP allowlist)
+Variáveis de ambiente vêm de arquivo não versionado (ex.: `.env`); detalhes na documentação interna.
 
-## Docker
+---
 
-O frontend e servido via Nginx em container. O build usa multi-stage:
+## Licença
 
-```
-Stage 1: node:20-alpine  -> npm ci && npm run build
-Stage 2: nginx:1.27-alpine -> serve /dist
-```
+Proprietário. Todos os direitos reservados.
 
-Build local:
-```bash
-docker compose -f docker-compose.prod.yml build web
-```
+---
 
-## Producao
+## Agradecimentos
 
-O `docker-compose.prod.yml` orquestra 5 servicos:
+Este projeto utiliza, entre outras, as seguintes tecnologias ou projetos de código aberto:
 
-| Servico | Descricao |
-|---------|-----------|
-| `redis` | Cache + rate limiting + fila |
-| `api` | FastAPI backend (icp_radar) |
-| `worker` | RQ worker para jobs async |
-| `web` | Este frontend (Nginx) |
-| `nginx` | Reverse proxy + security headers |
+- [Scrapling](https://github.com/D4Vinci/Scrapling) — framework de web scraping adaptativo (BSD-3-Clause).
+- Supabase, FastAPI, React, Vite e as demais bibliotecas das dependências do frontend e do backend.
 
-### Variaveis de Ambiente
-
-Copie `.env.production` para `.env` e preencha:
-
-| Variavel | Obrigatoria | Descricao |
-|----------|-------------|-----------|
-| `SUPABASE_URL` | Sim | URL do projeto Supabase |
-| `SUPABASE_ANON_KEY` | Sim | Chave publica |
-| `SUPABASE_SERVICE_ROLE_KEY` | Sim | Chave de servico (nunca expor) |
-| `SUPABASE_JWT_SECRET` | Sim | Para validacao local de tokens |
-| `REDIS_PASSWORD` | Sim | Gerar com `openssl rand -hex 32` |
-| `CORS_ORIGINS` | Sim | Dominio de producao |
-| `ASAAS_API_KEY` | Sim | Chave da API Asaas Pay |
-| `ASAAS_WEBHOOK_TOKEN` | Sim | Token para validar webhooks |
-| `OPENAI_API_KEY` | Nao | Para resumos IA |
-
-### Deploy na VPS
-
-```bash
-# 1. Setup (primeira vez)
-bash scripts/setup_and_deploy.sh
-
-# 2. Deploy
-bash scripts/deploy.sh
-```
-
-O deploy valida configuracoes criticas, builda containers, e roda health checks automaticamente.
-
-## Desenvolvimento Local
-
-```bash
-npm install
-npm run dev
-# Acesse http://localhost:8080
-```
-
-O Vite proxy redireciona `/prospeccao`, `/docs`, `/openapi.json` para `localhost:8000` (API).
-
-## Migracao Supabase
-
-Rode `scripts/all_migrations.sql` no **Supabase Dashboard > SQL Editor**. Inclui:
-
-- Tabelas: `plans`, `organizations`, `org_members`, `payments`, `pipeline_leads`, `pipeline_notes`
-- RLS (Row Level Security) em todas as tabelas
-- Funcoes RPC: `consume_usage`, `increment_credits`
-- Trigger para plano free automatico no signup
-
-## Licenca
-
-Proprietario. Todos os direitos reservados.
+Respeite os termos de uso dos serviços e fontes de dados utilizados.
