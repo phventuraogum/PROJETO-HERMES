@@ -1,10 +1,11 @@
 import { supabase } from "@/lib/supabase";
 
 // URL base do Hermes (FastAPI)
+// Em produção (mesmo domínio), usar origem atual + /api para evitar CSP/CORS e não depender de env no build.
 const API_BASE_RAW =
   (import.meta.env.VITE_HERMES_API_BASE_URL as string | undefined) ??
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-  "http://127.0.0.1:8000";
+  (typeof window !== "undefined" ? `${window.location.origin}/api` : "http://127.0.0.1:8000");
 
 const API_BASE = API_BASE_RAW.replace(/\/+$/, "");
 
