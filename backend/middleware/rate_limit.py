@@ -93,8 +93,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             
         except Exception as e:
             logger.error(f"Erro ao verificar rate limit: {e}")
-            # Em caso de erro, permite (fail open)
-            return True, self.limit_per_minute, 60
+            # Fail-closed: em caso de erro no Redis, bloqueia para proteger a API.
+            # Se quiser fail-open, troque por: return True, self.limit_per_minute, 60
+            return False, 0, 60
     
     async def dispatch(self, request: Request, call_next):
         """Processa requisição com rate limiting"""

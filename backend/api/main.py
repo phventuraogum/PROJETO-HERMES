@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from api.db_pool import get_connection, healthcheck as db_healthcheck
 from api.cache_service import cache_service
 from api.prospeccao_service import rodar_prospeccao_otimizada
+from middleware.auth import require_auth
 from api.utils import (
     digits,
     formatar_telefone,
@@ -51,10 +52,14 @@ load_dotenv()
 
 DB_PATH = os.getenv("HERMES_DUCKDB_PATH", "/data/cnpj.duckdb")
 
+_is_prod = os.getenv("ENVIRONMENT", "development").lower() == "production"
 app = FastAPI(
     title="Projeto Hermes - API de Prospecção B2B",
     version="1.5.1",
     description="Backend do Projeto Hermes, consultando a base da Receita (DuckDB) + SIDRA + Sócios + Enriquecimento Web + IA.",
+    docs_url=None if _is_prod else "/docs",
+    redoc_url=None if _is_prod else "/redoc",
+    openapi_url=None if _is_prod else "/openapi.json",
 )
 
 REDIS_URL = os.getenv("REDIS_URL", "").strip()
@@ -75,22 +80,27 @@ def _enqueue_enrichment(cnpjs: List[str]) -> None:
     except Exception as e:
         print("[ENRIQUECIMENTO] falha ao enfileirar no Redis:", repr(e))
 
-origins = [
+_cors_env = os.getenv("CORS_ORIGINS", "")
+_dev_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:8080",
     "http://127.0.0.1:8080",
-    "http://localhost:80",
 ]
+origins: list[str] = (
+    [o.strip() for o in _cors_env.split(",") if o.strip()]
+    if _cors_env
+    else _dev_origins
+)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Org-Id", "X-API-Key"],
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -1603,7 +1613,7 @@ async def health():
 
 
 @app.get("/admin/orgs")
-async def list_orgs(request: Request):
+async def list_orgs(request: Request, _user: dict = Depends(require_auth)):
     """
     Lista organizações do tenant (multi-tenant).
     Por enquanto retorna uma org default; depois integrar com DB/auth.

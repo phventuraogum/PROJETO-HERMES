@@ -7,12 +7,44 @@ import os
 import json
 import httpx
 import asyncio
+import ipaddress
+from urllib.parse import urlparse
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, HTTPException, Header, BackgroundTasks, Depends
 from pydantic import BaseModel
 from redis import Redis
 
 from middleware.auth import require_auth
+
+
+def _validar_url_webhook(url: str) -> None:
+    """
+    Rejeita URLs que apontem para IPs privados/localhost (proteção anti-SSRF).
+    Permite apenas URLs HTTPS públicas.
+    """
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        raise HTTPException(status_code=400, detail="URL de webhook inválida")
+
+    if parsed.scheme not in ("https", "http"):
+        raise HTTPException(status_code=400, detail="Webhook deve usar HTTP ou HTTPS")
+
+    hostname = parsed.hostname or ""
+    if not hostname:
+        raise HTTPException(status_code=400, detail="URL de webhook sem host")
+
+    # Bloqueia localhost e variações
+    if hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+        raise HTTPException(status_code=400, detail="URL de webhook aponta para host local")
+
+    # Bloqueia IPs privados / reservados
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            raise HTTPException(status_code=400, detail="URL de webhook aponta para IP privado")
+    except ValueError:
+        pass  # hostname DNS — não é IP direto, seguro
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
@@ -76,7 +108,9 @@ def register_webhook(
     """Registra uma nova URL para receber eventos."""
     if WEBHOOK_SECRET and x_secret != WEBHOOK_SECRET:
         raise HTTPException(status_code=401, detail="Unauthorized")
-        
+
+    _validar_url_webhook(sub.url)
+
     r = get_redis()
     r.sadd("hermes:webhooks", sub.url)
     return {"status": "registered", "url": sub.url}
