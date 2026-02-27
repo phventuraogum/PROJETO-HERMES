@@ -35,15 +35,15 @@ const App = () => (
       <Sonner />
 
       <Routes>
-        {/* LANDING PAGE (publica - para venda) */}
-        <Route path="/landing" element={<Landing />} />
+        {/* LANDING PAGE (publica - página inicial) */}
+        <Route path="/" element={<Landing />} />
 
         {/* LOGIN */}
         <Route path="/login" element={<Login />} />
 
         {/* ROTAS PROTEGIDAS */}
         <Route
-          path="/"
+          path="/app"
           element={
             <AuthedLayout>
               <Configure />

@@ -42,7 +42,7 @@ function LeftPanel() {
   return (
     <div className="flex flex-col h-full p-8 lg:p-10 xl:p-12 overflow-y-auto">
       {/* Logo */}
-      <Link to="/landing" className="inline-flex items-center gap-2.5 mb-10 group shrink-0">
+      <Link to="/" className="inline-flex items-center gap-2.5 mb-10 group shrink-0">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] ring-1 ring-white/[0.08] group-hover:ring-primary/30 transition-all">
           <Target className="h-4 w-4 text-primary" />
         </div>
@@ -122,7 +122,7 @@ const Login = () => {
   const { signInWithPassword } = useAuth();
 
   const state = (location.state as LocationState | null) ?? null;
-  const redirectTo = state?.from?.pathname && state.from.pathname !== "/login" ? state.from.pathname : "/";
+  const redirectTo = state?.from?.pathname && state.from.pathname !== "/login" ? state.from.pathname : "/app";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -191,7 +191,7 @@ const Login = () => {
         )}>
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-2.5 mb-10">
-            <Link to="/landing" className="flex items-center gap-2.5">
+            <Link to="/" className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/[0.1] ring-1 ring-primary/20">
                 <Target className="h-4 w-4 text-primary" />
               </div>
@@ -306,7 +306,7 @@ const Login = () => {
           {/* Sign up */}
           <p className="text-center text-[13px] text-muted-foreground/45">
             Nao tem conta?{" "}
-            <Link to="/landing" className="text-primary hover:text-primary/80 font-medium transition-colors">Crie gratis</Link>
+            <Link to="/" className="text-primary hover:text-primary/80 font-medium transition-colors">Crie gratis</Link>
           </p>
 
           {/* Footer */}

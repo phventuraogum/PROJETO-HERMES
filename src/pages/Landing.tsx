@@ -774,8 +774,8 @@ export default function Landing() {
       {/* ── SIGNUP MODAL ───────────────────────────────────────────────── */}
       {showSignup && (
         <SignupModal planName={selectedPlan} onClose={() => setShowSignup(false)} onSuccess={(token) => {
-          if (isSupabaseConfigured && supabase && token) { supabase.auth.setSession({ access_token: token, refresh_token: "" }).then(() => navigate("/", { replace: true })); }
-          else { localStorage.setItem("hermes_token", token || "dev-session-token"); navigate("/", { replace: true }); }
+          if (isSupabaseConfigured && supabase && token) { supabase.auth.setSession({ access_token: token, refresh_token: "" }).then(() => navigate("/app", { replace: true })); }
+          else { localStorage.setItem("hermes_token", token || "dev-session-token"); navigate("/app", { replace: true }); }
         }} />
       )}
     </div>
