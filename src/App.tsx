@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 
 import Layout from "./components/layout/Layout";
 import Login from "./pages/Login";
@@ -16,12 +16,15 @@ import Heatmap from "./pages/Heatmap";
 import Settings from "./pages/Settings";
 import ComprarCreditos from "./pages/ComprarCreditos";
 import NotFound from "./pages/NotFound";
+import { RequireAuth } from "./auth/RequireAuth";
 
 const queryClient = new QueryClient();
 
 function AuthedLayout({ children }: { children: JSX.Element }) {
   return (
-    <Layout>{children}</Layout>
+    <RequireAuth>
+      <Layout>{children}</Layout>
+    </RequireAuth>
   );
 }
 

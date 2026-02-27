@@ -1,20 +1,24 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
-
-function clearHermesAuth() {
-  // limpa tudo que o RequireAuth considera token
-  const keys = ["hermes_token", "token", "access_token", "auth_token"];
-  keys.forEach((k) => localStorage.removeItem(k));
-}
+import { LogOut, Loader2 } from "lucide-react";
+import { useAuth } from "@/auth/AuthContext";
 
 const LogoutButton = () => {
   const navigate = useNavigate();
+  const { signOut } = useAuth();
+  const [loading, setLoading] = useState(false);
 
-  const onLogout = () => {
-    clearHermesAuth();
-    // demo mode: sem login; volta pro início
-    navigate("/", { replace: true });
+  const onLogout = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      await signOut();
+    } catch {
+      // ignora erro de rede — limpa sessão local de qualquer forma
+    } finally {
+      navigate("/login", { replace: true });
+    }
   };
 
   return (
@@ -22,11 +26,16 @@ const LogoutButton = () => {
       type="button"
       variant="outline"
       onClick={onLogout}
-      className="gap-2"
+      disabled={loading}
+      className="gap-2 w-full"
       title="Sair"
     >
-      <LogOut className="h-4 w-4" />
-      sair
+      {loading ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <LogOut className="h-4 w-4" />
+      )}
+      Sair
     </Button>
   );
 };
