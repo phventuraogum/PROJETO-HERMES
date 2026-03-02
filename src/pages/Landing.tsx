@@ -90,7 +90,7 @@ function useSpotlight() {
 type Plan = { name: string; label: string; price: number; priceAnnual: number; searches: number; enrichments: number; exports: number; crm: boolean; pipeline: boolean; multiUser: boolean; highlight?: boolean };
 
 const PLANS: Plan[] = [
-  { name: "free", label: "Gratis", price: 0, priceAnnual: 0, searches: 50, enrichments: 15, exports: 5, crm: false, pipeline: false, multiUser: false },
+  { name: "free", label: "Grátis", price: 0, priceAnnual: 0, searches: 50, enrichments: 15, exports: 5, crm: false, pipeline: false, multiUser: false },
   { name: "starter", label: "Starter", price: 597, priceAnnual: 477, searches: 500, enrichments: 150, exports: 50, crm: true, pipeline: false, multiUser: false },
   { name: "pro", label: "Pro", price: 947, priceAnnual: 757, searches: 2000, enrichments: 800, exports: 200, crm: true, pipeline: true, multiUser: false, highlight: true },
   { name: "enterprise", label: "Enterprise", price: 1297, priceAnnual: 1037, searches: 10000, enrichments: 5000, exports: 1000, crm: true, pipeline: true, multiUser: true },
@@ -98,51 +98,51 @@ const PLANS: Plan[] = [
 
 const WORKFLOW_STEPS = [
   { icon: Filter, num: "01", title: "Configure sua busca", desc: "Defina CNAE, cidade, porte, capital e segmento. Use mais de 30 filtros para refinar o ICP perfeito.", color: "from-primary to-cyan-400" },
-  { icon: Brain, num: "02", title: "IA enriquece tudo", desc: "Nosso motor encontra sites, emails, telefones, WhatsApp e redes sociais automaticamente.", color: "from-violet-500 to-secondary" },
-  { icon: Send, num: "03", title: "Aborde e converta", desc: "Exporte para CRM, gere mensagens com IA e gerencie tudo no pipeline integrado.", color: "from-amber-500 to-orange-400" },
+  { icon: Brain, num: "02", title: "IA enriquece tudo", desc: "Nosso motor encontra sites, e-mails, telefones, WhatsApp e redes sociais automaticamente.", color: "from-violet-500 to-secondary" },
+  { icon: Send, num: "03", title: "Aborde e converta", desc: "Exporte para o CRM, gere mensagens com IA e gerencie tudo no pipeline integrado.", color: "from-amber-500 to-orange-400" },
 ];
 
 const FEATURES_GRID = [
-  { icon: Database, title: "56M+ CNPJs", desc: "Base completa da Receita Federal com socios, capital e CNAE." },
+  { icon: Database, title: "56M+ CNPJs", desc: "Base completa da Receita Federal com sócios, capital e CNAE." },
   { icon: Filter, title: "30+ filtros", desc: "Cidade, UF, CNAE, porte, capital, segmento — combine como quiser." },
-  { icon: Brain, title: "IA generativa", desc: "Resumos, scores e abordagens criadas por inteligencia artificial." },
-  { icon: BarChart3, title: "Dashboard", desc: "Metricas de ICP, mapa de calor e distribuicao por segmento." },
-  { icon: FileSpreadsheet, title: "Export CRM", desc: "Pipedrive, HubSpot, RD Station, Ploomes — 1 clique." },
-  { icon: MessageSquare, title: "Mensagens IA", desc: "Abordagens personalizadas por WhatsApp, email e LinkedIn." },
-  { icon: Layers, title: "Pipeline", desc: "Gerencie leads com estagios, notas e status SDR." },
-  { icon: MapPin, title: "Mapa de calor", desc: "Visualize concentracao de empresas por regiao e UF." },
-  { icon: Activity, title: "Score ICP", desc: "Cada lead recebe um score de 0-10 baseado no seu perfil ideal." },
+  { icon: Brain, title: "IA generativa", desc: "Resumos, scores e abordagens criadas por inteligência artificial." },
+  { icon: BarChart3, title: "Dashboard", desc: "Métricas de ICP, mapa de calor e distribuição por segmento." },
+  { icon: FileSpreadsheet, title: "Exportar para CRM", desc: "Integre com os principais CRMs do mercado em 1 clique." },
+  { icon: MessageSquare, title: "Mensagens com IA", desc: "Abordagens personalizadas por WhatsApp, e-mail e LinkedIn." },
+  { icon: Layers, title: "Pipeline", desc: "Gerencie leads com estágios, notas e status SDR." },
+  { icon: MapPin, title: "Mapa de calor", desc: "Visualize a concentração de empresas por região e UF." },
+  { icon: Activity, title: "Score ICP", desc: "Cada lead recebe um score de 0 a 10 baseado no seu perfil ideal." },
 ];
 
 const PERSONAS = [
-  { icon: MousePointerClick, role: "SDR / Pre-vendedor", desc: "Listas com leads qualificados dentro do ICP, com contato validado. Pare de perder tempo com dados ruins." },
-  { icon: TrendingUp, role: "Gestor comercial", desc: "Metricas de prospeccao, pipeline e taxa de conversao. Decisoes com dados, nao com achismo." },
-  { icon: Rocket, role: "Fundador / CEO", desc: "Da segmentacao ao fechamento em uma plataforma. Escale outbound sem contratar mais gente." },
+  { icon: MousePointerClick, role: "SDR / Pré-vendedor", desc: "Listas com leads qualificados dentro do ICP, com contato validado. Pare de perder tempo com dados ruins." },
+  { icon: TrendingUp, role: "Gestor comercial", desc: "Métricas de prospecção, pipeline e taxa de conversão. Decisões com dados, não com achismo." },
+  { icon: Rocket, role: "Fundador / CEO", desc: "Da segmentação ao fechamento em uma plataforma. Escale o outbound sem contratar mais pessoas." },
 ];
 
 const TESTIMONIALS = [
-  { name: "Marcos R.", role: "Head de Vendas", text: "Reduzimos o tempo de prospeccao de 4 horas para 20 minutos. O enriquecimento com IA e absurdo." },
-  { name: "Julia A.", role: "SDR Senior", text: "A qualidade dos leads melhorou muito. O score ICP me ajuda a priorizar quem abordar primeiro." },
-  { name: "Rafael S.", role: "CEO, TechFlow", text: "Testamos Apollo e Speedio. Hermes entrega o mesmo por uma fracao do preco, com pipeline integrado." },
+  { name: "M. R.", role: "Head de Vendas", text: "Reduzimos o tempo de prospecção de 4 horas para 20 minutos. O enriquecimento com IA é incrível." },
+  { name: "J. A.", role: "SDR Sênior", text: "A qualidade dos leads melhorou muito. O score ICP me ajuda a priorizar quem abordar primeiro." },
+  { name: "R. S.", role: "CEO", text: "Testamos outras ferramentas do mercado. O Hermes entrega o mesmo resultado por uma fração do preço, com pipeline integrado." },
 ];
 
 const COMPARISONS = [
-  { name: "Speedio", price: "R$ 719", searches: "300/mes", crm: true, ia: false, pipeline: false },
-  { name: "Econodata", price: "R$ 799", searches: "Variavel", crm: true, ia: false, pipeline: false },
-  { name: "Apollo.io", price: "US$ 49", searches: "Ilimitado", crm: true, ia: true, pipeline: false },
-  { name: "Hermes", price: "R$ 597", searches: "500/mes", crm: true, ia: true, pipeline: true },
+  { name: "Plataforma A", price: "R$ 719", searches: "300/mês", crm: true, ia: false, pipeline: false },
+  { name: "Plataforma B", price: "R$ 799", searches: "Variável", crm: true, ia: false, pipeline: false },
+  { name: "Plataforma C", price: "US$ 49", searches: "Ilimitado", crm: true, ia: true, pipeline: false },
+  { name: "Hermes", price: "R$ 597", searches: "500/mês", crm: true, ia: true, pipeline: true },
 ];
 
 const FAQS = [
-  { q: "Preciso de cartao de credito para comecar?", a: "Nao. O plano Gratis nao exige cartao. Voce recebe 50 buscas por mes sem pagar nada." },
-  { q: "De onde vem os dados?", a: "Base publica da Receita Federal (56M+ CNPJs), combinada com enriquecimento web automatico e IA para encontrar contatos." },
+  { q: "Preciso de cartão de crédito para começar?", a: "Não. O plano Grátis não exige cartão. Você recebe 50 buscas por mês sem pagar nada." },
+  { q: "De onde vêm os dados?", a: "Base pública da Receita Federal (56M+ CNPJs), combinada com enriquecimento web automático e IA para encontrar contatos." },
   { q: "Posso cancelar a qualquer momento?", a: "Sim. Sem fidelidade, sem multas. Cancele quando quiser." },
-  { q: "O enriquecimento encontra dados reais?", a: "Sim. Nosso motor busca sites oficiais, emails corporativos, telefones diretos e WhatsApp via scraping inteligente." },
-  { q: "Qual a diferenca para Speedio ou Econodata?", a: "Ate 40% mais barato, com IA generativa, resumos automaticos, pipeline integrado e export direto para CRM — tudo em uma plataforma." },
-  { q: "Quanto tempo leva para comecar?", a: "30 segundos. Crie a conta, configure os filtros e rode sua primeira prospeccao. Sem onboarding, sem call de vendas." },
+  { q: "O enriquecimento encontra dados reais?", a: "Sim. Nosso motor busca sites oficiais, e-mails corporativos, telefones diretos e WhatsApp via scraping inteligente." },
+  { q: "Qual a diferença em relação a outras plataformas?", a: "Até 40% mais barato, com IA generativa, resumos automáticos, pipeline integrado e exportação direta para CRM — tudo em uma só plataforma." },
+  { q: "Quanto tempo leva para começar?", a: "30 segundos. Crie a conta, configure os filtros e rode sua primeira prospecção. Sem onboarding, sem ligação de vendas." },
 ];
 
-const CRM_LOGOS = ["Pipedrive", "HubSpot", "RD Station", "Ploomes", "Salesforce", "Bitrix24"];
+const CRM_LOGOS = ["CRM de Vendas", "Automação de Marketing", "Gestão de Pipeline", "Plataforma B2B", "Funil Comercial", "Controle de Leads"];
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /*  TYPING ANIMATION                                                          */
@@ -232,7 +232,7 @@ function Marquee({ items }: { items: string[] }) {
 function ProductDemo() {
   const [activeTab, setActiveTab] = useState(0);
   const tabs = [
-    { label: "Prospeccao", icon: Search },
+    { label: "Prospecção", icon: Search },
     { label: "Dashboard", icon: BarChart3 },
     { label: "Pipeline", icon: Layers },
   ];
@@ -291,7 +291,7 @@ function DemoProspeccao() {
         {[
           { l: "Empresas", v: "2.847", c: "text-primary" },
           { l: "Com contato", v: "78%", c: "text-emerald-400" },
-          { l: "Score medio", v: "7.4", c: "text-amber-400" },
+          { l: "Score médio", v: "7.4", c: "text-amber-400" },
           { l: "Enriquecidas", v: "2.219", c: "text-secondary" },
         ].map((s, i) => (
           <div key={i} className="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3 text-center">
@@ -302,10 +302,10 @@ function DemoProspeccao() {
       </div>
       <div className="space-y-1.5">
         {[
-          { n: "TECH SOLUTIONS LTDA", s: 9.2, c: "Sao Paulo - SP", seg: "Tecnologia", cap: "R$ 2.5M" },
-          { n: "GRUPO SAUDE PLUS SA", s: 8.7, c: "Belo Horizonte - MG", seg: "Saude", cap: "R$ 4.1M" },
-          { n: "INDÚSTRIA MAXXI", s: 8.1, c: "Curitiba - PR", seg: "Industria", cap: "R$ 1.8M" },
-          { n: "LOGISTICA EXPRESS LTDA", s: 7.6, c: "Florianopolis - SC", seg: "Logistica", cap: "R$ 890K" },
+          { n: "EMPRESA ALFA LTDA", s: 9.2, c: "São Paulo - SP", seg: "Tecnologia", cap: "R$ 2,5M" },
+          { n: "EMPRESA BETA S/A", s: 8.7, c: "Belo Horizonte - MG", seg: "Saúde", cap: "R$ 4,1M" },
+          { n: "EMPRESA GAMA LTDA", s: 8.1, c: "Curitiba - PR", seg: "Indústria", cap: "R$ 1,8M" },
+          { n: "EMPRESA DELTA LTDA", s: 7.6, c: "Florianópolis - SC", seg: "Logística", cap: "R$ 890K" },
         ].map((r, i) => (
           <div key={i} className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.01] px-4 py-2.5 text-sm hover:bg-white/[0.03] transition-colors">
             <div className="flex items-center gap-3 min-w-0">
@@ -419,14 +419,14 @@ export default function Landing() {
           </div>
           <div className="hidden md:flex items-center gap-8 text-[13px] text-muted-foreground/70">
             <a href="#features" className="hover:text-foreground transition-colors">Recursos</a>
-            <button onClick={scrollToPricing} className="hover:text-foreground transition-colors">Precos</button>
+            <button onClick={scrollToPricing} className="hover:text-foreground transition-colors">Preços</button>
             <a href="#compare" className="hover:text-foreground transition-colors">Comparativo</a>
             <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => navigate("/login")} className="text-muted-foreground/70 hover:text-foreground text-[13px] h-8">Entrar</Button>
             <Button size="sm" onClick={() => handleSelectPlan("free")} className="bg-primary text-primary-foreground hover:bg-primary/90 gap-1 text-[13px] h-8 px-3.5 shadow-[0_0_15px_-3px_hsl(189_94%_55%/0.3)]">
-              Comecar gratis <ArrowRight className="h-3 w-3" />
+              Começar grátis <ArrowRight className="h-3 w-3" />
             </Button>
           </div>
         </div>
@@ -446,7 +446,7 @@ export default function Landing() {
           <FadeIn>
             <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] px-4 py-1.5 mb-8">
               <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-muted-foreground/70">Plataforma de inteligencia B2B</span>
+              <span className="text-xs text-muted-foreground/70">Plataforma de inteligência B2B</span>
             </div>
           </FadeIn>
 
@@ -455,28 +455,28 @@ export default function Landing() {
               Encontre leads.
               <br />
               <span className="bg-gradient-to-r from-primary via-[hsl(210,90%,65%)] to-secondary bg-clip-text text-transparent bg-[length:200%_auto] animate-[gradient-shift_8s_ease-in-out_infinite]">
-                <TypingWords words={["Enriqueca com IA.", "Feche negocios.", "Escale vendas."]} />
+                <TypingWords words={["Enriqueça com IA.", "Feche negócios.", "Escale vendas."]} />
               </span>
             </h1>
           </FadeIn>
 
           <FadeIn delay={200}>
             <p className="mt-6 text-[15px] md:text-base text-muted-foreground/80 max-w-xl mx-auto leading-relaxed">
-              56 milhoes de CNPJs. Enriquecimento automatico. Score ICP inteligente.
-              Export para CRM em 1 clique. Tudo a partir de R$ 0.
+              56 milhões de CNPJs. Enriquecimento automático. Score ICP inteligente.
+              Exportação para CRM em 1 clique. Tudo a partir de R$ 0.
             </p>
           </FadeIn>
 
           <FadeIn delay={300}>
             <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
               <Button size="lg" onClick={() => handleSelectPlan("free")} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-7 text-sm font-medium shadow-[0_0_30px_-6px_hsl(189_94%_55%/0.5)] hover:shadow-[0_0_40px_-4px_hsl(189_94%_55%/0.6)] transition-all">
-                Comecar gratis <ArrowRight className="h-3.5 w-3.5" />
+                Começar grátis <ArrowRight className="h-3.5 w-3.5" />
               </Button>
               <Button size="lg" variant="ghost" onClick={scrollToPricing} className="gap-2 text-muted-foreground/70 hover:text-foreground h-11 px-7 text-sm">
                 Ver planos <ArrowDown className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <p className="mt-3 text-[11px] text-muted-foreground/40">Sem cartao. Setup em 30 segundos.</p>
+            <p className="mt-3 text-[11px] text-muted-foreground/40">Sem cartão. Setup em 30 segundos.</p>
           </FadeIn>
         </div>
 
@@ -495,7 +495,7 @@ export default function Landing() {
             <StatCounter end={56} suffix="M+" label="CNPJs na base" />
             <StatCounter end={30} suffix="+" label="Filtros" />
             <StatCounter end={78} suffix="%" label="Taxa de contato" />
-            <StatCounter end={10} suffix="x" label="Mais rapido" />
+            <StatCounter end={10} suffix="x" label="Mais rápido" />
           </div>
         </div>
       </section>
@@ -586,7 +586,7 @@ export default function Landing() {
         <div className="container mx-auto px-6 max-w-5xl">
           <FadeIn className="text-center mb-16">
             <p className="text-[11px] font-semibold text-primary uppercase tracking-[0.2em] mb-3">Depoimentos</p>
-            <h2 className="text-3xl md:text-4xl font-bold">O que nossos usuarios dizem</h2>
+            <h2 className="text-3xl md:text-4xl font-bold">O que nossos usuários dizem</h2>
           </FadeIn>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {TESTIMONIALS.map((t, i) => (
@@ -617,10 +617,10 @@ export default function Landing() {
         </div>
         <div className="container relative mx-auto px-6 max-w-6xl">
           <FadeIn className="text-center mb-10">
-            <p className="text-[11px] font-semibold text-primary uppercase tracking-[0.2em] mb-3">Precos</p>
+            <p className="text-[11px] font-semibold text-primary uppercase tracking-[0.2em] mb-3">Preços</p>
             <h2 className="text-3xl md:text-4xl font-bold">
               Simples. Transparente.{" "}
-              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">10% mais barato.</span>
+              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Melhor custo-benefício.</span>
             </h2>
             <p className="mt-2 text-sm text-muted-foreground/60">Sem fidelidade. Cancele quando quiser.</p>
 
@@ -648,23 +648,23 @@ export default function Landing() {
                       <h3 className="text-sm font-semibold text-muted-foreground/80">{plan.label}</h3>
                       <div className="mt-2 flex items-baseline gap-0.5">
                         <span className="text-3xl font-bold tracking-tight">R$ {price}</span>
-                        {price > 0 && <span className="text-xs text-muted-foreground/40">/mes</span>}
+                        {price > 0 && <span className="text-xs text-muted-foreground/40">/mês</span>}
                       </div>
-                      {annual && plan.price > 0 && <p className="text-[11px] text-muted-foreground/30 mt-0.5 line-through">R$ {plan.price}/mes</p>}
+                      {annual && plan.price > 0 && <p className="text-[11px] text-muted-foreground/30 mt-0.5 line-through">R$ {plan.price}/mês</p>}
                     </div>
                     <ul className="space-y-2 text-[13px] flex-1 mb-5">
-                      <PlanRow ok label={`${plan.searches.toLocaleString("pt-BR")} buscas/mes`} />
+                      <PlanRow ok label={`${plan.searches.toLocaleString("pt-BR")} buscas/mês`} />
                       <PlanRow ok label={`${plan.enrichments.toLocaleString("pt-BR")} enriquecimentos`} />
-                      <PlanRow ok label={`${plan.exports.toLocaleString("pt-BR")} exports`} />
-                      <PlanRow ok={plan.crm} label="Integracao CRM" />
+                      <PlanRow ok label={`${plan.exports.toLocaleString("pt-BR")} exportações`} />
+                      <PlanRow ok={plan.crm} label="Integração com CRM" />
                       <PlanRow ok={plan.pipeline} label="Pipeline de leads" />
-                      <PlanRow ok={plan.multiUser} label="Multi-usuarios" />
+                      <PlanRow ok={plan.multiUser} label="Multiusuários" />
                     </ul>
                     <Button onClick={() => handleSelectPlan(plan.name)} className={cn(
                       "w-full gap-1.5 h-9 text-[13px]",
                       plan.highlight ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_-3px_hsl(189_94%_55%/0.35)]" : "bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.06]"
                     )}>
-                      {price > 0 ? "Assinar" : "Comecar gratis"} <ArrowRight className="h-3 w-3" />
+                      {price > 0 ? "Assinar" : "Começar grátis"} <ArrowRight className="h-3 w-3" />
                     </Button>
                   </div>
                 </FadeIn>
@@ -687,7 +687,7 @@ export default function Landing() {
                 <thead>
                   <tr className="border-b border-white/[0.06] bg-white/[0.02]">
                     <th className="text-left py-3 px-4 font-medium text-muted-foreground/60 text-xs">Plataforma</th>
-                    <th className="text-center py-3 px-2 font-medium text-muted-foreground/60 text-xs">Preco</th>
+                    <th className="text-center py-3 px-2 font-medium text-muted-foreground/60 text-xs">Preço</th>
                     <th className="text-center py-3 px-2 font-medium text-muted-foreground/60 text-xs">CRM</th>
                     <th className="text-center py-3 px-2 font-medium text-muted-foreground/60 text-xs">IA</th>
                     <th className="text-center py-3 px-2 font-medium text-muted-foreground/60 text-xs">Pipeline</th>
@@ -717,7 +717,7 @@ export default function Landing() {
       <section className="py-16 border-t border-white/[0.03]">
         <div className="container mx-auto px-6 max-w-5xl text-center">
           <FadeIn>
-            <p className="text-[11px] font-semibold text-primary uppercase tracking-[0.2em] mb-6">Integracoes</p>
+            <p className="text-[11px] font-semibold text-primary uppercase tracking-[0.2em] mb-6">Integrações</p>
             <Marquee items={CRM_LOGOS} />
           </FadeIn>
         </div>
@@ -748,11 +748,11 @@ export default function Landing() {
         <div className="container relative mx-auto px-6 text-center max-w-xl">
           <FadeIn>
             <h2 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">Pronto para prospectar de verdade?</h2>
-            <p className="text-muted-foreground/70 mb-8 text-[15px]">Sua proxima venda comeca com o lead certo.</p>
+            <p className="text-muted-foreground/70 mb-8 text-[15px]">Sua próxima venda começa com o lead certo.</p>
             <Button size="lg" onClick={() => handleSelectPlan("free")} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-8 text-sm font-medium shadow-[0_0_40px_-8px_hsl(189_94%_55%/0.5)]">
-              Criar conta gratis <ArrowRight className="h-4 w-4" />
+              Criar conta grátis <ArrowRight className="h-4 w-4" />
             </Button>
-            <p className="mt-3 text-[11px] text-muted-foreground/35">Setup em 30s. Sem cartao. Sem compromisso.</p>
+            <p className="mt-3 text-[11px] text-muted-foreground/35">Setup em 30s. Sem cartão. Sem compromisso.</p>
           </FadeIn>
         </div>
       </section>
@@ -842,8 +842,8 @@ function SignupModal({ planName, onClose, onSuccess }: { planName: string; onClo
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !password.trim()) { toast.error("Preencha todos os campos."); return; }
-    if (password.length < 6) { toast.error("Senha: minimo 6 caracteres."); return; }
-    if (isPaid) { const d = cpfCnpj.replace(/\D/g, ""); if (d.length !== 11 && d.length !== 14) { toast.error("CPF/CNPJ invalido."); return; } }
+    if (password.length < 6) { toast.error("Senha: mínimo 6 caracteres."); return; }
+    if (isPaid) { const d = cpfCnpj.replace(/\D/g, ""); if (d.length !== 11 && d.length !== 14) { toast.error("CPF/CNPJ inválido."); return; } }
     setLoading(true);
     try {
       const ep = isPaid ? "/auth/signup-with-plan" : "/auth/signup";
@@ -866,8 +866,8 @@ function SignupModal({ planName, onClose, onSuccess }: { planName: string; onClo
           <div className="mb-5 flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 ring-1 ring-white/[0.08]"><Zap className="h-4 w-4 text-primary" /></div>
             <div>
-              <p className="text-sm font-semibold">{isPaid ? `Assinar ${plan.label}` : "Criar conta gratis"}</p>
-              {isPaid && <p className="text-[11px] text-muted-foreground/50">R$ {plan.price}/mes</p>}
+              <p className="text-sm font-semibold">{isPaid ? `Assinar ${plan.label}` : "Criar conta grátis"}</p>
+              {isPaid && <p className="text-[11px] text-muted-foreground/50">R$ {plan.price}/mês</p>}
             </div>
           </div>
           <form onSubmit={submit} className="space-y-3">
@@ -898,9 +898,9 @@ function SignupModal({ planName, onClose, onSuccess }: { planName: string; onClo
               </>
             )}
             <Button type="submit" disabled={loading} className="w-full h-10 mt-1 bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_-3px_hsl(189_94%_55%/0.35)] text-sm">
-              {loading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Criando...</> : <>{isPaid ? "Criar conta e assinar" : "Criar conta gratis"}<ArrowRight className="h-3.5 w-3.5 ml-1.5" /></>}
+              {loading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Criando...</> : <>{isPaid ? "Criar conta e assinar" : "Criar conta grátis"}<ArrowRight className="h-3.5 w-3.5 ml-1.5" /></>}
             </Button>
-            <p className="text-center text-[11px] text-muted-foreground/40">Ja tem conta? <button type="button" onClick={() => { onClose(); window.location.href = "/login"; }} className="text-primary hover:underline">Entrar</button></p>
+            <p className="text-center text-[11px] text-muted-foreground/40">Já tem conta? <button type="button" onClick={() => { onClose(); window.location.href = "/login"; }} className="text-primary hover:underline">Entrar</button></p>
           </form>
         </div>
       </div>
