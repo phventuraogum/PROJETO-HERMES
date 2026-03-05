@@ -107,7 +107,7 @@ def close_all_connections():
                     conn.close()
                 except:
                     pass
-            delattr(_thread_local, attr_name, None)
+            delattr(_thread_local, attr_name)
     
     logger.info("Todas as conexões DuckDB foram fechadas")
 

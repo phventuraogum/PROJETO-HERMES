@@ -29,13 +29,17 @@ def _validate_jwt_local(token: str, secret: str, issuer: str, audience: str) -> 
     if not PYJWT_AVAILABLE or not secret:
         return None
     try:
+        decode_opts = {"verify_exp": True}
+        if not issuer:
+            decode_opts["verify_iss"] = False
+
         payload = pyjwt.decode(
             token,
             secret,
             algorithms=["HS256"],
             audience=audience,
-            issuer=issuer,
-            options={"verify_exp": True},
+            issuer=issuer or None,
+            options=decode_opts,
         )
         return {
             "id": payload.get("sub"),
@@ -82,19 +86,52 @@ def _validate_via_supabase_http(token: str, supabase_url: str, anon_key: str) ->
         return None
 
 
+async def verify_token_async(token: str) -> Optional[dict]:
+    """
+    Verifica um token JWT (versão async).
+    Tenta validação local primeiro, depois fallback para HTTP.
+    """
+    from config import settings
+    import asyncio
+
+    if settings.SUPABASE_JWT_SECRET and PYJWT_AVAILABLE:
+        issuer = settings.SUPABASE_JWT_ISSUER
+        if not issuer and settings.SUPABASE_URL:
+            issuer = f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1"
+        user = _validate_jwt_local(
+            token,
+            secret=settings.SUPABASE_JWT_SECRET,
+            issuer=issuer,
+            audience=settings.SUPABASE_JWT_AUDIENCE,
+        )
+        if user:
+            return user
+
+    if settings.SUPABASE_URL and settings.SUPABASE_ANON_KEY:
+        return await asyncio.to_thread(
+            _validate_via_supabase_http, token, settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY
+        )
+
+    logger.error("Nenhum método de validação configurado (JWT_SECRET e SUPABASE_URL ausentes)")
+    return None
+
+
 def verify_token(token: str) -> Optional[dict]:
     """
-    Verifica um token JWT.
+    Verifica um token JWT (versão sync — para uso em contextos não-async).
     Tenta validação local primeiro, depois fallback para HTTP.
     """
     from config import settings
 
     # Tenta validação local (rápida)
     if settings.SUPABASE_JWT_SECRET and PYJWT_AVAILABLE:
+        issuer = settings.SUPABASE_JWT_ISSUER
+        if not issuer and settings.SUPABASE_URL:
+            issuer = f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1"
         user = _validate_jwt_local(
             token,
             secret=settings.SUPABASE_JWT_SECRET,
-            issuer=settings.SUPABASE_JWT_ISSUER,
+            issuer=issuer,
             audience=settings.SUPABASE_JWT_AUDIENCE,
         )
         if user:
@@ -148,7 +185,7 @@ async def require_auth(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user = verify_token(token)
+    user = await verify_token_async(token)
 
     if not user:
         raise HTTPException(

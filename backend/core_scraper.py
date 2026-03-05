@@ -228,7 +228,7 @@ async def buscar_google(termo: str, num_results: int = 5) -> List[Dict[str, str]
                     _montar_resultado(r.get("title", ""), r.get("href", ""), r.get("body", ""))
                     for r in gen
                 ]
-        loop = _aio.get_event_loop()
+        loop = _aio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             fut = loop.run_in_executor(pool, _ddgs_sync)
             resultados = await _aio.wait_for(fut, timeout=15.0)

@@ -16,7 +16,6 @@ from pydantic import BaseModel, Field, ConfigDict
 
 from api.db_pool import get_connection, healthcheck as db_healthcheck
 from api.cache_service import cache_service
-from api.prospeccao_service import rodar_prospeccao_otimizada
 from middleware.auth import require_auth
 from api.utils import (
     digits,
@@ -29,12 +28,19 @@ from api.utils import (
     calcular_score_icp_legado as calcular_score_icp
 )
 
-from redis import Redis
-from rq import Queue
+try:
+    from redis import Redis
+    from rq import Queue
+except ImportError:
+    Redis = None  # type: ignore
+    Queue = None  # type: ignore
 
 # ===== IMPORTS PARA ENRIQUECIMENTO WEB ============================
 import httpx
-from bs4 import BeautifulSoup  # type: ignore
+try:
+    from bs4 import BeautifulSoup  # type: ignore
+except ImportError:
+    BeautifulSoup = None  # type: ignore
 
 try:
     from ddgs import DDGS  # type: ignore
@@ -69,7 +75,7 @@ def _enqueue_enrichment(cnpjs: List[str]) -> None:
     Enfileira enriquecimento no Redis (fire-and-forget).
     Se REDIS_URL não estiver configurado, não faz nada.
     """
-    if not REDIS_URL:
+    if not REDIS_URL or Redis is None or Queue is None:
         return
 
     try:
@@ -142,7 +148,7 @@ class ProspeccaoConfig(BaseModel):
     Modelo que o FRONT envia.
     """
 
-    model_config = ConfigDict(validate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True)
 
     termo: str = Field("", alias="termo_base")
     cidade: str = ""
@@ -567,7 +573,10 @@ def _buscar_resultados_busca(query: str, max_results: int = 3) -> List[dict]:
 # ==========================================================
 # IA - Configuração unificada (OpenAI ou OpenRouter)
 # ==========================================================
-from openai import AsyncOpenAI
+try:
+    from openai import AsyncOpenAI
+except ImportError:
+    AsyncOpenAI = None  # type: ignore
 
 AI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("OPENROUTER_API_KEY")
 _is_openrouter = bool(os.getenv("OPENROUTER_API_KEY")) and not os.getenv("OPENAI_API_KEY")
@@ -578,8 +587,11 @@ AI_CHAT_URL = (
 )
 AI_MODEL = "openai/gpt-4o-mini" if _is_openrouter else "gpt-4o-mini"
 
-if not AI_API_KEY:
-    print("[IA] AVISO: nenhuma chave de IA configurada (OPENAI_API_KEY / OPENROUTER_API_KEY).")
+if not AI_API_KEY or AsyncOpenAI is None:
+    if AsyncOpenAI is None:
+        print("[IA] AVISO: pacote openai não instalado. IA desabilitada.")
+    else:
+        print("[IA] AVISO: nenhuma chave de IA configurada (OPENAI_API_KEY / OPENROUTER_API_KEY).")
     ai_client = None
 else:
     provider = "OpenRouter" if _is_openrouter else "OpenAI"
@@ -1043,40 +1055,6 @@ def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=Non
     print(f"[WHATSAPP ULTRA] Concluído: {total_encontrados}/{len(alvos)} WhatsApps encontrados")
 
 
-def _persistir_enriquecimento_whatsapp(empresas: List["Empresa"]) -> None:
-    """Persiste whatsapp_enriquecido e redes_sociais_socios no DuckDB."""
-    registros = [
-        e for e in empresas
-        if e.whatsapp_enriquecido or e.email_enriquecido or e.site
-    ]
-    if not registros:
-        return
-
-    try:
-        with get_connection(read_only=False) as con:
-            con.execute("""
-                CREATE TABLE IF NOT EXISTS empresas_enriquecidas (
-                    cnpj VARCHAR PRIMARY KEY,
-                    site VARCHAR,
-                    email_web VARCHAR,
-                    telefone_web VARCHAR,
-                    whatsapp_web VARCHAR
-                )
-            """)
-            for emp in registros:
-                con.execute(
-                    "INSERT OR REPLACE INTO empresas_enriquecidas VALUES (?,?,?,?,?)",
-                    [
-                        emp.cnpj,
-                        emp.site or None,
-                        emp.email_enriquecido or None,
-                        emp.telefone_enriquecido or None,
-                        emp.whatsapp_enriquecido or emp.whatsapp_publico or None,
-                    ],
-                )
-        print(f"[PERSIST] Salvos {len(registros)} registros enriquecidos no DuckDB")
-    except Exception as e:
-        print(f"[PERSIST] Erro ao salvar no DuckDB: {repr(e)}")
 
 
 def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> ProspeccaoResultado:

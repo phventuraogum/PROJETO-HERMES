@@ -12,7 +12,7 @@ import os
 import re
 import asyncio
 import httpx
-from typing import Dict, Optional, List
+from typing import Any, Dict, Optional, List
 from bs4 import BeautifulSoup
 
 # =================================================================
@@ -217,7 +217,7 @@ async def buscar_google_maps(empresa_nome: str, cidade: str = "", cnpj: str = ""
 # LINKEDIN ULTRA-DISCOVERY (5 CAMADAS)
 # =================================================================
 
-async def buscar_linkedin_multiplas_fontes(nome_socio: str, empresa_nome: str, cidade: str = "") -> Dict[str, any]:
+async def buscar_linkedin_multiplas_fontes(nome_socio: str, empresa_nome: str, cidade: str = "") -> Dict[str, Any]:
     """
     Camada EXTRA: Busca LinkedIn em múltiplas fontes além do Google.
     Retorna link + confiança + fonte de descoberta.

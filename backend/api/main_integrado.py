@@ -5,6 +5,7 @@ Monta todos os routers modulares e importa endpoints legados
 que ainda nao foram migrados para routers proprios.
 """
 import os
+import asyncio
 import logging
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -271,7 +272,7 @@ try:
     ):
         """Gera insights de IA sobre os leads prospectados."""
         from api.main import AI_API_KEY
-        resultado_base = rodar_prospeccao_icp(config)
+        resultado_base = await asyncio.to_thread(rodar_prospeccao_icp, config)
         if not AI_API_KEY:
             return {
                 "ia_ativa": False,
