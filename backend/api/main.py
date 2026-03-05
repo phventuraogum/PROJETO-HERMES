@@ -936,38 +936,6 @@ def enriquecer_empresas_online(empresas: List["Empresa"], on_progress=None) -> N
                     existing.append(SocioRedeSocial(nome=nome_s, links=[link_s]))
             emp.redes_sociais_socios = existing
 
-    try:
-        with get_connection(read_only=False) as con:
-            con.execute(
-                """
-                CREATE TABLE IF NOT EXISTS empresas_enriquecidas (
-                    cnpj VARCHAR PRIMARY KEY,
-                    site VARCHAR,
-                    email_enriquecido VARCHAR,
-                    telefone_enriquecido VARCHAR,
-                    whatsapp_publico VARCHAR,
-                    whatsapp_enriquecido VARCHAR,
-                    outras_informacoes VARCHAR
-                );
-                """
-            )
-            for emp in empresas:
-                if emp.site or emp.email_enriquecido or emp.whatsapp_publico:
-                    con.execute(
-                        """
-                        INSERT OR REPLACE INTO empresas_enriquecidas
-                        (cnpj, site, email_enriquecido, telefone_enriquecido, whatsapp_publico, whatsapp_enriquecido, outras_informacoes)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        [
-                            emp.cnpj, emp.site, emp.email_enriquecido,
-                            emp.telefone_enriquecido, emp.whatsapp_publico,
-                            emp.whatsapp_enriquecido, emp.outras_informacoes,
-                        ],
-                    )
-    except Exception as e:
-        print(f"[ENRIQUECIMENTO] Persistência DuckDB opcional falhou (dados já estão em memória): {repr(e)}")
-
     print("[ENRIQUECIMENTO] Lote de enriquecimento concluído para todas as empresas.")
 
 
@@ -1579,12 +1547,6 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
             _enriquecer_whatsapp_ultra_inline(empresas, on_progress=lambda i, t, n: _emit("enriching_whatsapp_ultra", i, t, n))
         except Exception as e:
             print("[WHATSAPP ULTRA] erro geral:", repr(e))
-
-        # Persistir dados WhatsApp Ultra no DuckDB
-        try:
-            _persistir_enriquecimento_whatsapp(empresas)
-        except Exception as e:
-            print("[PERSIST WHATSAPP] erro:", repr(e))
 
     total_empresas = len(empresas)
 
