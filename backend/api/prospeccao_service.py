@@ -291,23 +291,76 @@ def rodar_prospeccao_otimizada(
         if enriquecer_background and not empresa.get("site"):
             cnpjs_para_enriquecer.append(empresa["cnpj"])
     
-    # 8. Enfileira enriquecimento em background
-    if enriquecer_background and cnpjs_para_enriquecer:
+    # 8. Enriquecimento inline via WhatsApp Ultra Discovery
+    if enriquecer_background:
         try:
-            redis_conn = Redis.from_url(settings.REDIS_URL)
-            queue = Queue("hermes", connection=redis_conn)
-            
-            # Enfileira jobs de enriquecimento
-            for cnpj in cnpjs_para_enriquecer[:50]:  # Limita a 50 por vez
-                queue.enqueue(
-                    "api.jobs_enhanced.enrich_company_by_cnpj_enhanced",
-                    cnpj,
-                    job_timeout=120
-                )
-            
-            logger.info(f"Enfileirados {len(cnpjs_para_enriquecer[:50])} jobs de enriquecimento")
-        except Exception as e:
-            logger.error(f"Erro ao enfileirar enriquecimento: {e}")
+            from whatsapp_linkedin_ultra import descobrir_whatsapp_linkedin_completo
+            import asyncio
+            import concurrent.futures
+
+            sem_whats = [
+                e for e in empresas
+                if not e.get("whatsapp_final")
+            ]
+            sem_whats.sort(key=lambda e: e.get("score_icp", 0), reverse=True)
+            sem_whats = sem_whats[:10]
+
+            async def _ultra_batch():
+                for emp in sem_whats:
+                    nome = emp.get("nome_fantasia") or emp.get("razao_social") or ""
+                    socios = []
+                    if emp.get("socios_resumo"):
+                        socios = [
+                            l.split("(")[0].strip()
+                            for l in emp["socios_resumo"].split("\n")
+                            if l.strip()
+                        ]
+                    try:
+                        res = await descobrir_whatsapp_linkedin_completo(
+                            empresa_nome=nome,
+                            site=emp.get("site"),
+                            cidade=emp.get("cidade") or "",
+                            socios=socios[:3],
+                            cnpj=emp.get("cnpj") or "",
+                            score_icp=emp.get("score_icp", 0),
+                        )
+                        whats = res.get("whatsapp", {})
+                        if whats.get("numero") and whats.get("validado"):
+                            num = whats["numero"]
+                            if not num.startswith("55") and len(num) == 11:
+                                num = "55" + num
+                            emp["whatsapp_final"] = f"https://wa.me/{num}"
+                            logger.info(f"[WHATSAPP ULTRA] {nome}: {num} via {whats.get('fonte')}")
+                    except Exception as e:
+                        logger.debug(f"[WHATSAPP ULTRA] erro {nome}: {e}")
+
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                        pool.submit(lambda: asyncio.run(_ultra_batch())).result(timeout=180)
+                else:
+                    loop.run_until_complete(_ultra_batch())
+            except Exception as e:
+                logger.error(f"[WHATSAPP ULTRA] batch error: {e}")
+
+        except ImportError:
+            logger.warning("whatsapp_linkedin_ultra não disponível para enriquecimento inline")
+
+        # Enfileira restante em background
+        if cnpjs_para_enriquecer:
+            try:
+                redis_conn = Redis.from_url(settings.REDIS_URL)
+                queue = Queue("hermes", connection=redis_conn)
+                for cnpj in cnpjs_para_enriquecer[:50]:
+                    queue.enqueue(
+                        "api.jobs_enhanced.enrich_company_by_cnpj_enhanced",
+                        cnpj,
+                        job_timeout=120
+                    )
+                logger.info(f"Enfileirados {len(cnpjs_para_enriquecer[:50])} jobs de enriquecimento")
+            except Exception as e:
+                logger.error(f"Erro ao enfileirar enriquecimento: {e}")
     
     # 6. Monta resultado
     resultado = {
