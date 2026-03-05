@@ -534,19 +534,34 @@ def _extrair_contatos_html(html: str) -> dict:
 
 
 def _buscar_resultados_busca(query: str, max_results: int = 3) -> List[dict]:
-    if DDGS is None:
-        print("[ENRIQUECIMENTO] ddgs não instalado; pulando busca web.")
-        return []
-
-    resultados: List[dict] = []
+    """
+    Busca web usando core_scraper.buscar_google (SearXNG → Google → Brave → Bing → DDGS).
+    Fallback para DDGS direto se core_scraper não estiver disponível.
+    """
     try:
-        with DDGS() as ddgs:
-            for r in ddgs.text(query, max_results=max_results):
-                resultados.append(r)
-    except Exception as e:
-        print("[ENRIQUECIMENTO] erro na busca DDGS:", repr(e))
+        import asyncio
+        import concurrent.futures
+        from core_scraper import buscar_google as _buscar_google_async
 
-    return resultados
+        def _run():
+            return asyncio.run(_buscar_google_async(query, num_results=max_results))
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            resultados = pool.submit(_run).result(timeout=30)
+        if resultados:
+            print(f"[BUSCA] core_scraper retornou {len(resultados)} resultados para: {query[:60]}")
+            return resultados
+    except Exception as e:
+        print(f"[BUSCA] core_scraper falhou, tentando DDGS direto: {repr(e)}")
+
+    if DDGS is not None:
+        try:
+            with DDGS() as ddgs:
+                return list(ddgs.text(query, max_results=max_results))
+        except Exception as e:
+            print("[BUSCA] DDGS direto também falhou:", repr(e))
+
+    return []
 
 
 # ==========================================================
@@ -885,10 +900,6 @@ def enriquecer_redes_socios(empresas: List["Empresa"]) -> None:
 
 
 def enriquecer_empresas_online(empresas: List["Empresa"], on_progress=None) -> None:
-    if DDGS is None:
-        print("[ENRIQUECIMENTO] ddgs não disponível; skip enriquecimento empresas.")
-        return
-
     if not empresas:
         return
 
@@ -986,6 +997,80 @@ def _normalizar_segmento(s: str) -> str:
 SEGMENTO_PREFIX_NORMALIZADO = {
     _normalizar_segmento(k): v for k, v in SEGMENTO_CNAE_PREFIX.items()
 }
+
+
+MAX_WHATSAPP_ULTRA_EMPRESAS = 15
+
+def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=None) -> None:
+    """
+    WhatsApp Ultra Discovery inline — busca multi-camada (widget, redes sociais,
+    busca direta, Google Maps, etc.) para empresas sem WhatsApp.
+    Limitado aos top N por score para não estourar tempo.
+    """
+    try:
+        from whatsapp_linkedin_ultra import descobrir_whatsapp_linkedin_completo
+    except ImportError:
+        print("[WHATSAPP ULTRA] módulo whatsapp_linkedin_ultra não disponível")
+        return
+
+    sem_whatsapp = [
+        e for e in empresas
+        if not e.whatsapp_publico and not e.whatsapp_enriquecido
+    ]
+    sem_whatsapp.sort(key=lambda e: (e.score_icp or 0), reverse=True)
+    alvos = sem_whatsapp[:MAX_WHATSAPP_ULTRA_EMPRESAS]
+
+    if not alvos:
+        print("[WHATSAPP ULTRA] todas as empresas já possuem WhatsApp")
+        return
+
+    print(f"[WHATSAPP ULTRA] Iniciando descoberta para {len(alvos)} empresas sem WhatsApp")
+    import asyncio
+    import concurrent.futures
+
+    for idx, emp in enumerate(alvos):
+        nome = emp.nome_fantasia or emp.razao_social or ""
+        if on_progress:
+            on_progress(idx, len(alvos), nome)
+        try:
+            socios = []
+            if emp.socios_resumo:
+                socios = [l.split("(")[0].strip() for l in emp.socios_resumo.split("\n") if l.strip()]
+
+            def _run_discovery(e=emp, n=nome, s=socios):
+                return asyncio.run(descobrir_whatsapp_linkedin_completo(
+                    empresa_nome=n,
+                    site=e.site,
+                    cidade=e.cidade or "",
+                    socios=s[:3],
+                    cnpj=e.cnpj or "",
+                    score_icp=e.score_icp or 0,
+                ))
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                resultado = pool.submit(_run_discovery).result(timeout=25)
+
+            if resultado.get("whatsapp"):
+                emp.whatsapp_enriquecido = resultado["whatsapp"]
+                print(f"[WHATSAPP ULTRA] WhatsApp encontrado para {nome}: {resultado['whatsapp']}")
+            if resultado.get("linkedin_empresa") and not (emp.redes_sociais_empresa and "linkedin" in (emp.redes_sociais_empresa or "").lower()):
+                redes = emp.redes_sociais_empresa or ""
+                emp.redes_sociais_empresa = (redes + " | " + resultado["linkedin_empresa"]).strip(" | ")
+            if resultado.get("linkedin_socios"):
+                existing = emp.redes_sociais_socios or []
+                for sl in resultado["linkedin_socios"]:
+                    n_s = sl.get("nome", "")
+                    l_s = sl.get("linkedin", "")
+                    if l_s and not any(s.nome == n_s for s in existing):
+                        existing.append(SocioRedeSocial(nome=n_s, links=[l_s]))
+                emp.redes_sociais_socios = existing
+
+        except Exception as e:
+            print(f"[WHATSAPP ULTRA] erro para {nome}: {repr(e)}")
+            continue
+
+    total_encontrados = sum(1 for e in alvos if e.whatsapp_enriquecido)
+    print(f"[WHATSAPP ULTRA] Concluído: {total_encontrados}/{len(alvos)} WhatsApps encontrados")
 
 
 def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> ProspeccaoResultado:
@@ -1451,6 +1536,13 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
             enriquecer_redes_socios(empresas)
         except Exception as e:
             print("[ENRIQUECIMENTO] erro geral redes sócios:", repr(e))
+
+        # WhatsApp Ultra Discovery — busca multi-camada para empresas sem WhatsApp
+        _emit("enriching_whatsapp_ultra", 0, 0, "Descoberta avançada de WhatsApp")
+        try:
+            _enriquecer_whatsapp_ultra_inline(empresas, on_progress=lambda i, t, n: _emit("enriching_whatsapp_ultra", i, t, n))
+        except Exception as e:
+            print("[WHATSAPP ULTRA] erro geral:", repr(e))
 
     total_empresas = len(empresas)
 
