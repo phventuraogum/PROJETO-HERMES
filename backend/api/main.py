@@ -965,108 +965,6 @@ def enriquecer_empresas_online(empresas: List["Empresa"], on_progress=None) -> N
 
 
 # ==========================================================
-# WHATSAPP ULTRA DISCOVERY (INLINE)
-# ==========================================================
-
-MAX_WHATSAPP_ULTRA_EMPRESAS = 15
-
-def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=None) -> None:
-    """
-    Executa descoberta avançada de WhatsApp para empresas que o enriquecimento
-    básico não encontrou WhatsApp. Usa o módulo whatsapp_linkedin_ultra com
-    6 camadas de busca (widget, redes sociais, busca direta, Google Maps, etc.).
-    Limitado aos top N por score para não estourar tempo/rate-limits.
-    """
-    try:
-        from whatsapp_linkedin_ultra import descobrir_whatsapp_linkedin_completo
-    except ImportError:
-        print("[WHATSAPP ULTRA] módulo whatsapp_linkedin_ultra não disponível")
-        return
-
-    candidatas = [
-        emp for emp in empresas
-        if not emp.whatsapp_publico and not emp.whatsapp_enriquecido
-    ]
-
-    candidatas.sort(key=lambda e: e.score_icp or 0, reverse=True)
-    candidatas = candidatas[:MAX_WHATSAPP_ULTRA_EMPRESAS]
-
-    if not candidatas:
-        return
-
-    total = len(candidatas)
-    print(f"[WHATSAPP ULTRA] Iniciando para {total} empresas sem WhatsApp")
-
-    import asyncio
-    import concurrent.futures
-
-    async def _run_ultra_batch():
-        for idx, emp in enumerate(candidatas):
-            nome = emp.nome_fantasia or emp.razao_social or ""
-            if on_progress:
-                on_progress(idx, total, nome)
-            try:
-                socios = []
-                if emp.socios_resumo:
-                    socios = [
-                        l.split("(")[0].strip()
-                        for l in emp.socios_resumo.split("\n")
-                        if l.strip()
-                    ]
-
-                resultado = await descobrir_whatsapp_linkedin_completo(
-                    empresa_nome=nome,
-                    site=emp.site,
-                    cidade=emp.cidade or "",
-                    socios=socios[:3],
-                    cnpj=emp.cnpj or "",
-                    score_icp=emp.score_icp or 0.0,
-                )
-
-                whats_data = resultado.get("whatsapp", {})
-                if whats_data.get("numero") and whats_data.get("validado"):
-                    num = whats_data["numero"]
-                    if not num.startswith("55") and len(num) == 11:
-                        num = "55" + num
-                    emp.whatsapp_enriquecido = f"https://wa.me/{num}"
-                    fonte = whats_data.get("fonte", "Ultra")
-                    print(f"[WHATSAPP ULTRA] {nome}: encontrado via {fonte} → {num}")
-
-                li_socios = resultado.get("linkedin_socios", [])
-                if li_socios:
-                    existing = emp.redes_sociais_socios or []
-                    existing_names = {s.nome.lower() for s in existing}
-                    for li in li_socios:
-                        nome_s = li.get("nome", "")
-                        link_s = li.get("linkedin", "")
-                        if nome_s and link_s and nome_s.lower() not in existing_names:
-                            existing.append(SocioRedeSocial(nome=nome_s, links=[link_s]))
-                            existing_names.add(nome_s.lower())
-                    emp.redes_sociais_socios = existing
-
-                ig_data = resultado.get("instagram", {})
-                if ig_data.get("url"):
-                    redes = emp.redes_sociais_empresa or []
-                    if ig_data["url"] not in redes:
-                        redes.append(ig_data["url"])
-                    emp.redes_sociais_empresa = redes
-
-            except Exception as e:
-                print(f"[WHATSAPP ULTRA] erro para {nome}: {repr(e)}")
-                continue
-
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                pool.submit(lambda: asyncio.run(_run_ultra_batch())).result(timeout=180)
-        else:
-            loop.run_until_complete(_run_ultra_batch())
-    except Exception as e:
-        print(f"[WHATSAPP ULTRA] erro ao executar batch: {repr(e)}")
-
-
-# ==========================================================
 # FUNÇÃO PRINCIPAL DE PROSPECÇÃO
 # ==========================================================
 
@@ -1553,13 +1451,6 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
             enriquecer_redes_socios(empresas)
         except Exception as e:
             print("[ENRIQUECIMENTO] erro geral redes sócios:", repr(e))
-
-        # WhatsApp Ultra Discovery — busca multi-camada para empresas sem WhatsApp
-        _emit("enriching_whatsapp_ultra", 0, 0, "Descoberta avançada de WhatsApp")
-        try:
-            _enriquecer_whatsapp_ultra_inline(empresas, on_progress=lambda i, t, n: _emit("enriching_whatsapp_ultra", i, t, n))
-        except Exception as e:
-            print("[WHATSAPP ULTRA] erro geral:", repr(e))
 
     total_empresas = len(empresas)
 

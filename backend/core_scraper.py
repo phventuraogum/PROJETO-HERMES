@@ -15,6 +15,7 @@ GOOGLE_SEARCH_API_KEY = os.getenv("GOOGLE_SEARCH_API_KEY")
 GOOGLE_SEARCH_CX      = os.getenv("GOOGLE_SEARCH_CX")
 BING_SEARCH_API_KEY   = os.getenv("BING_SEARCH_API_KEY", "")
 BRAVE_SEARCH_API_KEY  = os.getenv("BRAVE_SEARCH_API_KEY", "")
+SEARXNG_URL           = os.getenv("SEARXNG_URL", "")
 
 MAX_CONCURRENT_REQUESTS = 5  # Limita concorrência para não estourar rate limit
 REQUEST_TIMEOUT = 15.0
@@ -129,14 +130,55 @@ async def _buscar_brave(termo: str, num_results: int = 5) -> List[Dict]:
     return []
 
 
+async def _buscar_searxng(termo: str, num_results: int = 5) -> List[Dict]:
+    """
+    SearXNG self-hosted — sem rate-limit, sem API key.
+    Agrega Google, Bing, DuckDuckGo, Brave e outros automaticamente.
+    """
+    if not SEARXNG_URL:
+        return []
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(
+                f"{SEARXNG_URL}/search",
+                params={
+                    "q": termo,
+                    "format": "json",
+                    "language": "pt-BR",
+                    "categories": "general",
+                    "pageno": 1,
+                },
+            )
+            if resp.status_code == 200:
+                results = resp.json().get("results", [])
+                return [
+                    _montar_resultado(
+                        r.get("title", ""),
+                        r.get("url", ""),
+                        r.get("content", ""),
+                    )
+                    for r in results[:num_results]
+                ]
+    except Exception as e:
+        print(f"[SEARXNG] Erro: {e}")
+    return []
+
+
 async def buscar_google(termo: str, num_results: int = 5) -> List[Dict[str, str]]:
     """
-    Busca web com 4 motores em cascata:
+    Busca web com 5 motores em cascata:
+      0. SearXNG self-hosted   (sem limites — PRIORITÁRIO)
       1. Google Custom Search  (100/dia grátis, melhor qualidade)
       2. Brave Search API      (1.000/mês grátis — PRINCIPAL para LinkedIn)
       3. Bing Web Search API   (se configurado)
       4. DuckDuckGo DDGS       (fallback — bloqueia em abuso)
     """
+    # ── 0. SearXNG self-hosted (PRIORITÁRIO — sem limites) ────────────────────
+    if SEARXNG_URL:
+        res_searx = await _buscar_searxng(termo, num_results)
+        if res_searx:
+            return res_searx
+
     # ── 1. Google Custom Search ───────────────────────────────────────────────
     if GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_CX:
         url    = "https://www.googleapis.com/customsearch/v1"
