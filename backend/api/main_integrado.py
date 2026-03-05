@@ -190,13 +190,6 @@ try:
         """Executa prospecção com enriquecimento web (endpoint principal do frontend)."""
         org_id = get_org_id(request)
         logger.info(f"Prospecção iniciada | user={user.get('email')} | termo={getattr(config, 'termo', '')} | org={org_id}")
-        if getattr(config, "enriquecer_web", False) or getattr(config, "enriquecimento_web", False):
-            need = getattr(config, "limite_empresas", 20) or 20
-            if not _consume_credits(org_id, need):
-                raise HTTPException(
-                    status_code=402,
-                    detail=f"Créditos insuficientes. Necessário: {need}, saldo: {_get_credits(org_id)}.",
-                )
         try:
             return rodar_prospeccao_icp(config)
         except Exception as e:
@@ -211,13 +204,6 @@ try:
     ):
         """Executa prospecção com progresso via Server-Sent Events."""
         org_id = get_org_id(request)
-        if getattr(config, "enriquecer_web", False) or getattr(config, "enriquecimento_web", False):
-            need = getattr(config, "limite_empresas", 20) or 20
-            if not _consume_credits(org_id, need):
-                raise HTTPException(
-                    status_code=402,
-                    detail=f"Créditos insuficientes. Necessário: {need}, saldo: {_get_credits(org_id)}.",
-                )
 
         progress_queue: _queue.Queue = _queue.Queue()
 
