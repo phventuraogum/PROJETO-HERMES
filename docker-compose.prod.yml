@@ -58,6 +58,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      searxng:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
@@ -95,6 +97,8 @@ services:
       redis:
         condition: service_healthy
       api:
+        condition: service_healthy
+      searxng:
         condition: service_healthy
     restart: unless-stopped
     networks:

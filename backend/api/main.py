@@ -899,12 +899,16 @@ def enriquecer_redes_socios(empresas: List["Empresa"]) -> None:
             emp.redes_sociais_socios = existing
 
 
+MAX_ENRICH_INLINE = 30
+
 def enriquecer_empresas_online(empresas: List["Empresa"], on_progress=None) -> None:
     if not empresas:
         return
 
-    total = len(empresas)
-    for idx, emp in enumerate(empresas):
+    alvos = sorted(empresas, key=lambda e: (e.score_icp or 0), reverse=True)[:MAX_ENRICH_INLINE]
+    total = len(alvos)
+    print(f"[ENRIQUECIMENTO] Enriquecendo {total} empresas inline (de {len(empresas)} total)")
+    for idx, emp in enumerate(alvos):
         if on_progress:
             on_progress(idx, total, emp.nome_fantasia or emp.razao_social or emp.cnpj)
         dados = _enriquecer_empresa_web(emp)
@@ -1050,15 +1054,21 @@ def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=Non
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 resultado = pool.submit(_run_discovery).result(timeout=25)
 
-            if resultado.get("whatsapp"):
-                emp.whatsapp_enriquecido = resultado["whatsapp"]
-                print(f"[WHATSAPP ULTRA] WhatsApp encontrado para {nome}: {resultado['whatsapp']}")
-            if resultado.get("linkedin_empresa") and not (emp.redes_sociais_empresa and "linkedin" in (emp.redes_sociais_empresa or "").lower()):
-                redes = emp.redes_sociais_empresa or ""
-                emp.redes_sociais_empresa = (redes + " | " + resultado["linkedin_empresa"]).strip(" | ")
-            if resultado.get("linkedin_socios"):
+            whatsapp_data = resultado.get("whatsapp") or {}
+            whatsapp_numero = whatsapp_data.get("numero") if isinstance(whatsapp_data, dict) else None
+            if whatsapp_numero:
+                emp.whatsapp_enriquecido = str(whatsapp_numero)
+                print(f"[WHATSAPP ULTRA] WhatsApp encontrado para {nome}: {whatsapp_numero} (fonte: {whatsapp_data.get('fonte', '?')})")
+
+            linkinbio_data = resultado.get("linkinbio") or {}
+            if not whatsapp_numero and isinstance(linkinbio_data, dict) and linkinbio_data.get("whatsapp"):
+                emp.whatsapp_enriquecido = str(linkinbio_data["whatsapp"])
+                print(f"[WHATSAPP ULTRA] WhatsApp via Linktree para {nome}: {linkinbio_data['whatsapp']}")
+
+            linkedin_socios_data = resultado.get("linkedin_socios") or []
+            if linkedin_socios_data:
                 existing = emp.redes_sociais_socios or []
-                for sl in resultado["linkedin_socios"]:
+                for sl in linkedin_socios_data:
                     n_s = sl.get("nome", "")
                     l_s = sl.get("linkedin", "")
                     if l_s and not any(s.nome == n_s for s in existing):
