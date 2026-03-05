@@ -52,8 +52,10 @@ def _get_connection(read_only: bool = True) -> duckdb.DuckDBPyConnection:
             read_only=read_only,
             config=DUCKDB_CONFIG
         )
+        temp_dir = DUCKDB_CONFIG.get('temp_directory', '/tmp')
+        conn.execute(f"SET temp_directory='{temp_dir}'")
         setattr(_thread_local, connection_key, conn)
-        logger.debug(f"Nova conexão DuckDB criada (read_only={read_only})")
+        logger.debug(f"Nova conexão DuckDB criada (read_only={read_only}, temp={temp_dir})")
     except Exception as e:
         logger.error(f"Erro ao criar conexão DuckDB: {e}")
         raise

@@ -294,6 +294,8 @@ def enriquecer_empresa_scrapling(
         return resultado
 
     url = site_url
+    if url and str(url).strip().lower() in ("nan", "none", "null", "n/a", "-", ""):
+        url = None
     if not url:
         url = _descobrir_site(nome, cidade, uf, cnpj)
 

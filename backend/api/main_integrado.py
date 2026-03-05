@@ -146,6 +146,13 @@ try:
 except Exception as e:
     logger.warning(f"[WARN] Auth router nao disponivel: {e}")
 
+try:
+    from api.routers.sdr import router as sdr_router
+    app.include_router(sdr_router)
+    logger.info("[OK] SDR router carregado")
+except Exception as e:
+    logger.warning(f"[WARN] SDR router nao disponivel: {e}")
+
 # ============================================================
 # ENDPOINTS LEGADOS
 # Protegidos com require_auth quando HERMES_AUTH_REQUIRED=true

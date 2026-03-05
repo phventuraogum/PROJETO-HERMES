@@ -144,16 +144,24 @@ class ProspeccaoConfig(BaseModel):
 
     model_config = ConfigDict(validate_by_name=True)
 
-    termo: str = Field(..., alias="termo_base")
-    cidade: str
-    uf: str
-    capital_minima: int = Field(..., alias="capital_minimo")
-    limite_empresas: int
+    termo: str = Field("", alias="termo_base")
+    cidade: str = ""
+    uf: str = ""
+    cidades: Optional[List[str]] = None
+    ufs: Optional[List[str]] = None
+    capital_minima: int = Field(0, alias="capital_minimo")
+    capital_maxima: Optional[int] = Field(None, alias="capital_maximo")
+    limite_empresas: int = 50
     portes: Optional[List[str]] = None
     segmentos: Optional[List[str]] = None
-    # 🔹 lista de CNAEs (prefixos ou códigos completos) para refinar direto no banco
     cnaes: Optional[List[str]] = None
-    enriquecer_web: bool = Field(..., alias="enriquecimento_web")
+    incluir_cnae_secundario: bool = False
+    enriquecer_web: bool = Field(False, alias="enriquecimento_web")
+    exigir_contato: bool = Field(False, alias="exigir_contato_acionavel")
+    priorizar_com_contato: bool = True
+    excluir_cnpjs: Optional[List[str]] = None
+    idade_minima_anos: Optional[int] = None
+    idade_maxima_anos: Optional[int] = None
 
 
 class SocioRedeSocial(BaseModel):
@@ -286,6 +294,7 @@ PORTE_MAP = {
     "EPP": ["03"],
     "Médio": ["05"],
     "Grande": ["05"],
+    "Médio/Grande": ["05"],
     "Não informado": ["00", ""],
 }
 
@@ -644,6 +653,15 @@ def _eh_bom_site_corporativo(url: str, razao_social: str) -> bool:
     return True
 
 
+def _sanitize_url(val: object) -> Optional[str]:
+    if not val:
+        return None
+    s = str(val).strip()
+    if not s or s.lower() in ("nan", "none", "null", "n/a", "-", ""):
+        return None
+    return s
+
+
 def _enriquecer_empresa_web(empresa: "Empresa") -> dict:
     nome = empresa.razao_social or empresa.nome_fantasia or ""
     cidade = empresa.cidade or ""
@@ -661,7 +679,7 @@ def _enriquecer_empresa_web(empresa: "Empresa") -> dict:
 
             scrapling_result = enriquecer_empresa_scrapling(
                 nome=nome,
-                site_url=empresa.site or None,
+                site_url=_sanitize_url(empresa.site),
                 cidade=cidade,
                 uf=uf,
                 cnpj=empresa.cnpj or "",
@@ -985,15 +1003,28 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
         if on_progress:
             on_progress(stage, current, total, detail)
 
-    cidade_norm = config.cidade.strip().upper() if config.cidade else None
-    uf_norm = config.uf.strip().upper() if config.uf and config.uf != "Todas" else None
+    # Resolver listas de cidades/UFs (multi-cidade/multi-UF)
+    cidades_norm: List[str] = []
+    if config.cidades and any(c.strip() for c in config.cidades):
+        cidades_norm = [c.strip().upper() for c in config.cidades if c.strip()]
+    elif config.cidade and config.cidade.strip():
+        cidades_norm = [config.cidade.strip().upper()]
+
+    ufs_norm: List[str] = []
+    if config.ufs and any(u.strip() for u in config.ufs):
+        ufs_norm = [u.strip().upper() for u in config.ufs if u.strip() and u.strip().upper() != "TODAS"]
+    elif config.uf and config.uf.strip() and config.uf.strip().upper() != "TODAS":
+        ufs_norm = [config.uf.strip().upper()]
+
+    # Retrocompat para score_icp
+    cidade_norm = cidades_norm[0] if cidades_norm else None
+    uf_norm = ufs_norm[0] if ufs_norm else None
 
     _emit("db_query", 0, 0, "Consultando base de dados")
 
+    _valid_col = "(TRIM({col}) != '' AND LOWER(TRIM({col})) != 'nan')"
+
     with get_connection(read_only=True) as con:
-        # Usando a View Otimizada para maior performance
-        # vw_prospeccao_base já traz: cidade_nome, sidra_pib, sidra_populacao, sidra_pib_per_capita, contatos finais, etc.
-        # e já filtra por MATRIZ (MATRIZ_FILIAL='1') e ATIVAS (SITUACAO_CADASTRAL='02').
         sql = """
             SELECT
                 e.cnpj,
@@ -1008,7 +1039,6 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
                 e.telefone_receita                                  AS tel_receita_raw,
                 e.email_receita                                     AS email,
 
-                -- Contatos enriquecidos
                 e.site,
                 e.email_enriquecido                                 AS email_web,
                 e.telefone_enriquecido                              AS telefone_web,
@@ -1019,12 +1049,10 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
                 e.telefone_final,
                 e.whatsapp_final,
 
-                -- Dados contextuais SIDRA/IBGE
                 e.sidra_pib                                         AS sidra_pib_corrente,
                 e.sidra_populacao                                   AS sidra_pop_residente,
                 e.sidra_pib_per_capita                              AS sidra_pib_per_capita,
 
-                -- Endereço completo + dados cadastrais (via view — sem JOIN extra)
                 e.LOGRADOURO                                        AS estab_logradouro,
                 e.NUMERO                                            AS estab_numero,
                 e.COMPLEMENTO                                       AS estab_complemento,
@@ -1046,27 +1074,69 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
             sql += " AND (UPPER(e.RAZAO_SOCIAL) LIKE ? OR UPPER(e.NOME_FANTASIA) LIKE ?)"
             params.extend([like, like])
 
-        # ----- cidade / UF -----
-        if cidade_norm:
-            # FIX: a view usa e.cidade_nome, não m.NOME_MUNICIPIO
-            sql += " AND UPPER(e.cidade_nome) = ?"
-            params.append(cidade_norm)
+        # ----- multi-cidade -----
+        if cidades_norm:
+            if len(cidades_norm) == 1:
+                sql += " AND UPPER(e.cidade_nome) = ?"
+                params.append(cidades_norm[0])
+            else:
+                ph = ", ".join(["?"] * len(cidades_norm))
+                sql += f" AND UPPER(e.cidade_nome) IN ({ph})"
+                params.extend(cidades_norm)
 
-        if uf_norm:
-            sql += " AND UPPER(e.UF) = ?"
-            params.append(uf_norm)
+        # ----- multi-UF -----
+        if ufs_norm:
+            if len(ufs_norm) == 1:
+                sql += " AND UPPER(e.UF) = ?"
+                params.append(ufs_norm[0])
+            else:
+                ph = ", ".join(["?"] * len(ufs_norm))
+                sql += f" AND UPPER(e.UF) IN ({ph})"
+                params.extend(ufs_norm)
 
-        # ----- capital social mínima -----
-        # FIX: a view já tem CAPITAL_SOCIAL_NUM pré-calculado como DOUBLE
+        # ----- capital social mínima / máxima -----
         if config.capital_minima and config.capital_minima > 0:
             sql += " AND e.CAPITAL_SOCIAL_NUM >= ?"
             params.append(float(config.capital_minima))
 
+        if config.capital_maxima and config.capital_maxima > 0:
+            sql += " AND e.CAPITAL_SOCIAL_NUM <= ?"
+            params.append(float(config.capital_maxima))
+
+        # ----- idade da empresa -----
+        if config.idade_minima_anos and config.idade_minima_anos > 0:
+            anos_min = int(config.idade_minima_anos)
+            sql += f" AND TRY_CAST(e.DATA_INICIO_ATIVIDADE AS DATE) <= CURRENT_DATE - INTERVAL '{anos_min}' YEAR"
+        if config.idade_maxima_anos and config.idade_maxima_anos > 0:
+            anos_max = int(config.idade_maxima_anos)
+            sql += f" AND TRY_CAST(e.DATA_INICIO_ATIVIDADE AS DATE) >= CURRENT_DATE - INTERVAL '{anos_max}' YEAR"
+
+        # ----- exigir contato acionável (telefone, email ou whatsapp) -----
+        if config.exigir_contato:
+            contact_checks = [
+                f"(e.{col} IS NOT NULL AND {_valid_col.format(col='e.' + col)})"
+                for col in [
+                    "telefone_receita", "email_receita",
+                    "telefone_enriquecido", "whatsapp_publico",
+                    "whatsapp_enriquecido", "email_enriquecido",
+                ]
+            ]
+            sql += " AND (" + " OR ".join(contact_checks) + ")"
+
+        # ----- excluir CNPJs já prospectados -----
+        if config.excluir_cnpjs:
+            cnpjs_limpos = [c.strip() for c in config.excluir_cnpjs if c.strip()]
+            if cnpjs_limpos:
+                ph = ", ".join(["?"] * len(cnpjs_limpos))
+                sql += f" AND e.cnpj NOT IN ({ph})"
+                params.extend(cnpjs_limpos)
+
         # ----- cnaes / segmentos -----
+        cnae_col = "e.CNAE_PRINCIPAL"
         if config.cnaes:
             cnaes_limpos = [re.sub(r"\D", "", str(c)) for c in config.cnaes if str(c).strip() and str(c).lower() != "string"]
             if cnaes_limpos:
-                sql += " AND (" + " OR ".join(["e.CNAE_PRINCIPAL LIKE ?"] * len(cnaes_limpos)) + ")"
+                sql += " AND (" + " OR ".join([f"{cnae_col} LIKE ?"] * len(cnaes_limpos)) + ")"
                 params.extend([f"{c}%" for c in cnaes_limpos])
         elif config.segmentos:
             prefixes: List[str] = []
@@ -1075,7 +1145,7 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
                 prefixes.extend(SEGMENTO_PREFIX_NORMALIZADO.get(seg_norm, []))
             prefixes = list(set(prefixes))
             if prefixes:
-                sql += " AND (" + " OR ".join(["e.CNAE_PRINCIPAL LIKE ?"] * len(prefixes)) + ")"
+                sql += " AND (" + " OR ".join([f"{cnae_col} LIKE ?"] * len(prefixes)) + ")"
                 params.extend([f"{p}%" for p in prefixes])
 
         # ----- portes -----
@@ -1089,8 +1159,29 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
                 sql += f" AND e.PORTE_EMPRESA IN ({placeholders})"
                 params.extend(codigos_portes)
 
-        limit = config.limite_empresas or 500
-        sql += " ORDER BY capital_num DESC NULLS LAST LIMIT ?"
+        # ----- ordenação: priorizar empresas com contato -----
+        if config.priorizar_com_contato:
+            contact_score = """
+                CASE WHEN (e.whatsapp_publico IS NOT NULL AND {wap}) THEN 3 ELSE 0 END
+              + CASE WHEN (e.whatsapp_enriquecido IS NOT NULL AND {wae}) THEN 3 ELSE 0 END
+              + CASE WHEN (e.telefone_enriquecido IS NOT NULL AND {te}) THEN 2 ELSE 0 END
+              + CASE WHEN (e.email_enriquecido IS NOT NULL AND {ee}) THEN 1 ELSE 0 END
+              + CASE WHEN (e.telefone_receita IS NOT NULL AND {tr}) THEN 1 ELSE 0 END
+              + CASE WHEN (e.email_receita IS NOT NULL AND {er}) THEN 1 ELSE 0 END
+            """.format(
+                wap=_valid_col.format(col="e.whatsapp_publico"),
+                wae=_valid_col.format(col="e.whatsapp_enriquecido"),
+                te=_valid_col.format(col="e.telefone_enriquecido"),
+                ee=_valid_col.format(col="e.email_enriquecido"),
+                tr=_valid_col.format(col="e.telefone_receita"),
+                er=_valid_col.format(col="e.email_receita"),
+            )
+            sql += f" ORDER BY ({contact_score}) DESC, capital_num DESC NULLS LAST"
+        else:
+            sql += " ORDER BY capital_num DESC NULLS LAST"
+
+        limit = min(config.limite_empresas or 50, 2000)
+        sql += " LIMIT ?"
         params.append(limit)
 
         df = con.execute(sql, params).fetchdf()

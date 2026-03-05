@@ -122,6 +122,27 @@ class Settings(BaseSettings):
     )
 
     # ============================================================
+    # PLOOMES CRM
+    # ============================================================
+    PLOOMES_API_KEY: str = Field(
+        default="",
+        description="Chave de API do Ploomes (User-Key). Fallback se nao tiver na tabela organizations."
+    )
+
+    PLOOMES_FUNNEL_ID: Optional[int] = Field(
+        default=None,
+        description="ID do funil padrao no Ploomes para novos deals"
+    )
+
+    # ============================================================
+    # N8N SDR INTEGRATION
+    # ============================================================
+    N8N_SDR_API_KEY: str = Field(
+        default="",
+        description="Chave de API para autenticar chamadas do n8n (alternativa ao JWT)"
+    )
+
+    # ============================================================
     # CORS
     # ============================================================
     CORS_ORIGINS: str = Field(

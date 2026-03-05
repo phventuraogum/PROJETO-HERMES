@@ -15,27 +15,23 @@ const API_BASE = API_BASE_RAW.replace(/\/+$/, "");
 
 export type ProspeccaoConfig = {
   termo_base: string;
-
   cidade: string;
   uf: string;
-
   cidades?: string[];
   ufs?: string[];
-
   capital_minimo: number;
   capital_maximo?: number | null;
-
   limite_empresas: number;
   portes: string[];
   segmentos: string[];
-
   cnaes?: string[];
-
+  incluir_cnae_secundario?: boolean;
   enriquecimento_web: boolean;
-
   exigir_contato_acionavel?: boolean;
-
-  subsegmento_alvo?: string | null;
+  priorizar_com_contato?: boolean;
+  excluir_cnpjs?: string[];
+  idade_minima_anos?: number | null;
+  idade_maxima_anos?: number | null;
 };
 
 export type FiltrosICP = {
@@ -491,34 +487,12 @@ export async function exportBatchToCrm(
 
 export async function runProspeccao(configFront: ProspeccaoConfig): Promise<ProspeccaoResultado> {
   const payload = {
-    termo_base: configFront.termo_base,
-
-    cidade: configFront.cidade,
-    uf: configFront.uf,
-
-    cidades:
-      configFront.cidades && configFront.cidades.length > 0
-        ? configFront.cidades
-        : [configFront.cidade],
-    ufs:
-      configFront.ufs && configFront.ufs.length > 0
-        ? configFront.ufs
-        : [configFront.uf],
-
-    capital_minimo: configFront.capital_minimo,
-    capital_maximo: configFront.capital_maximo ?? null,
-
-    limite_empresas: configFront.limite_empresas,
-    portes: configFront.portes,
-    segmentos: configFront.segmentos,
-
+    ...configFront,
+    cidades: configFront.cidades ?? (configFront.cidade ? [configFront.cidade] : []),
+    ufs: configFront.ufs ?? (configFront.uf ? [configFront.uf] : []),
     cnaes: configFront.cnaes ?? [],
-
-    enriquecimento_web: configFront.enriquecimento_web,
-
     exigir_contato_acionavel: configFront.exigir_contato_acionavel ?? false,
-
-    subsegmento_alvo: configFront.subsegmento_alvo ?? null,
+    priorizar_com_contato: configFront.priorizar_com_contato ?? true,
   };
 
   const data = await hermesFetch<ProspeccaoResultado>("/prospeccao/run", {
@@ -547,26 +521,12 @@ export async function runProspeccaoStream(
   onProgress: (evt: ProgressEvent) => void,
 ): Promise<ProspeccaoResultado> {
   const payload = {
-    termo_base: configFront.termo_base,
-    cidade: configFront.cidade,
-    uf: configFront.uf,
-    cidades:
-      configFront.cidades && configFront.cidades.length > 0
-        ? configFront.cidades
-        : [configFront.cidade],
-    ufs:
-      configFront.ufs && configFront.ufs.length > 0
-        ? configFront.ufs
-        : [configFront.uf],
-    capital_minimo: configFront.capital_minimo,
-    capital_maximo: configFront.capital_maximo ?? null,
-    limite_empresas: configFront.limite_empresas,
-    portes: configFront.portes,
-    segmentos: configFront.segmentos,
+    ...configFront,
+    cidades: configFront.cidades ?? (configFront.cidade ? [configFront.cidade] : []),
+    ufs: configFront.ufs ?? (configFront.uf ? [configFront.uf] : []),
     cnaes: configFront.cnaes ?? [],
-    enriquecimento_web: configFront.enriquecimento_web,
     exigir_contato_acionavel: configFront.exigir_contato_acionavel ?? false,
-    subsegmento_alvo: configFront.subsegmento_alvo ?? null,
+    priorizar_com_contato: configFront.priorizar_com_contato ?? true,
   };
 
   const token = await getAuthToken();

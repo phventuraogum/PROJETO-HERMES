@@ -7,6 +7,7 @@ from .empresas import router as empresas_router
 from .webhooks import router as webhooks_router
 from .integrations import router as integrations_router
 from .health import router as health_router
+from .sdr import router as sdr_router
 
 __all__ = [
     "prospeccao_router",
@@ -14,4 +15,5 @@ __all__ = [
     "webhooks_router",
     "integrations_router",
     "health_router",
+    "sdr_router",
 ]

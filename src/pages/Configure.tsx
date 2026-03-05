@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { runProspeccao, runProspeccaoStream, salvarBuscaHistorico, getStorageKey, type ProspeccaoResultado, type Empresa, type ProspeccaoConfig, type ProgressEvent as HermesProgress } from "@/lib/api";
+import { runProspeccao, runProspeccaoStream, salvarBuscaHistorico, getStorageKey, getPipeline, type ProspeccaoResultado, type Empresa, type ProspeccaoConfig, type ProgressEvent as HermesProgress } from "@/lib/api";
 
 // ─── constantes ───────────────────────────────────────────────────────────────
 
@@ -128,15 +128,22 @@ const Configure = () => {
 
   // ── TODOS os estados declarados primeiro ──────────────────────────────────
   const [termoBase,              setTermoBase]              = useState("");
-  const [cidade,                 setCidade]                 = useState("BELO HORIZONTE");
+  const [cidade,                 setCidade]                 = useState("");
+  const [cidadeInput,            setCidadeInput]            = useState("");
+  const [cidades,                setCidades]                = useState<string[]>([]);
   const [uf,                     setUf]                     = useState("MG");
-  const [capitalMinimo,          setCapitalMinimo]          = useState<number>(50_000);
-  const [capitalMaximo,          setCapitalMaximo]          = useState<number | null>(2_000_000);
-  const [limiteEmpresas,         setLimiteEmpresas]         = useState<number>(20);
-  const [portesSelecionados,     setPortesSelecionados]     = useState<string[]>(["Médio/Grande"]);
-  const [segmentosSelecionados,  setSegmentosSelecionados]  = useState<string[]>(["Indústria"]);
+  const [ufs,                    setUfs]                    = useState<string[]>(["MG"]);
+  const [capitalMinimo,          setCapitalMinimo]          = useState<number>(0);
+  const [capitalMaximo,          setCapitalMaximo]          = useState<number | null>(null);
+  const [limiteEmpresas,         setLimiteEmpresas]         = useState<number>(50);
+  const [portesSelecionados,     setPortesSelecionados]     = useState<string[]>(["ME", "EPP", "Médio/Grande"]);
+  const [segmentosSelecionados,  setSegmentosSelecionados]  = useState<string[]>([]);
   const [enriquecimentoWeb,      setEnriquecimentoWeb]      = useState(false);
-  const [exigirContatoAcionavel, setExigirContatoAcionavel] = useState(true);
+  const [exigirContatoAcionavel, setExigirContatoAcionavel] = useState(false);
+  const [priorizarComContato,    setPriorizarComContato]    = useState(true);
+  const [excluirJaProspectados,  setExcluirJaProspectados]  = useState(true);
+  const [idadeMinima,            setIdadeMinima]            = useState<number | null>(null);
+  const [idadeMaxima,            setIdadeMaxima]            = useState<number | null>(null);
   const [subsegmentoAlvo,        setSubsegmentoAlvo]        = useState("");
   const [cnaeInput,              setCnaeInput]              = useState("");
   const [cnaes,                  setCnaes]                  = useState<string[]>([]);
@@ -222,7 +229,8 @@ const Configure = () => {
   const applyPreset = (p: Preset) => {
     const c = p.config;
     if (c.termo !== undefined) setTermoBase(c.termo);
-    setCidade(c.cidade); setUf(c.uf);
+    setCidade(c.cidade); setCidades([c.cidade]);
+    setUf(c.uf); setUfs([c.uf]);
     setCapitalMinimo(c.capitalMin); setCapitalMaximo(c.capitalMax);
     setPortesSelecionados(c.portes); setSegmentosSelecionados(c.segmentos);
     setLimiteEmpresas(c.limite);
@@ -230,35 +238,55 @@ const Configure = () => {
   };
 
   const resetForm = () => {
-    setTermoBase(""); setCidade("BELO HORIZONTE"); setUf("MG");
-    setCapitalMinimo(50_000); setCapitalMaximo(2_000_000); setLimiteEmpresas(20);
-    setPortesSelecionados(["Médio/Grande"]); setSegmentosSelecionados(["Indústria"]);
-    setEnriquecimentoWeb(false); setExigirContatoAcionavel(true);
+    setTermoBase(""); setCidade(""); setCidadeInput(""); setCidades([]);
+    setUf("MG"); setUfs(["MG"]);
+    setCapitalMinimo(0); setCapitalMaximo(null); setLimiteEmpresas(50);
+    setPortesSelecionados(["ME", "EPP", "Médio/Grande"]); setSegmentosSelecionados([]);
+    setEnriquecimentoWeb(false); setExigirContatoAcionavel(false);
+    setPriorizarComContato(true); setExcluirJaProspectados(true);
+    setIdadeMinima(null); setIdadeMaxima(null);
     setSubsegmentoAlvo(""); setCnaes([]); setResultado(null);
   };
 
   // ── Resumo das tags ────────────────────────────────────────────────────────
   const tags = useMemo(() => {
     const t: { label: string; cls: string }[] = [];
-    if (cidade) t.push({ label: `${cidade} / ${uf}`, cls: "border-sky-500/40 bg-sky-500/10 text-sky-300" });
+    if (cidades.length > 0) t.push({ label: cidades.join(", "), cls: "border-sky-500/40 bg-sky-500/10 text-sky-300" });
+    if (ufs.length > 0) t.push({ label: ufs.join(", "), cls: "border-sky-500/40 bg-sky-500/10 text-sky-300" });
     portesSelecionados.forEach(p => t.push({ label: p, cls: "border-violet-500/40 bg-violet-500/10 text-violet-300" }));
     segmentosSelecionados.forEach(s => t.push({ label: s, cls: "border-primary/40 bg-primary/10 text-primary" }));
-    t.push({ label: `${formatBRL(capitalMinimo)} → ${capitalMaximo ? formatBRL(capitalMaximo) : "sem limite"}`, cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" });
+    if (capitalMinimo > 0 || capitalMaximo) t.push({ label: `${formatBRL(capitalMinimo)} → ${capitalMaximo ? formatBRL(capitalMaximo) : "sem limite"}`, cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" });
     if (cnaes.length) t.push({ label: `${cnaes.length} CNAE(s)`, cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" });
     if (exigirContatoAcionavel) t.push({ label: "só com contato", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" });
+    if (priorizarComContato) t.push({ label: "prioriza contato", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" });
     if (enriquecimentoWeb) t.push({ label: "enriquecimento web", cls: "border-sky-400/40 bg-sky-400/10 text-sky-300" });
     return t;
-  }, [cidade, uf, portesSelecionados, segmentosSelecionados, capitalMinimo, capitalMaximo, cnaes, exigirContatoAcionavel, enriquecimentoWeb]);
+  }, [cidades, ufs, portesSelecionados, segmentosSelecionados, capitalMinimo, capitalMaximo, cnaes, exigirContatoAcionavel, priorizarComContato, enriquecimentoWeb]);
 
   // ── Execução ───────────────────────────────────────────────────────────────
   const handleExecutar = async () => {
-    if (!cidade || !uf) { toast.error("Preencha pelo menos cidade e UF."); return; }
+    if (ufs.length === 0 && !uf) { toast.error("Selecione pelo menos um estado (UF)."); return; }
 
-    const configPayload = {
+    const cidadesFinais = cidades.length > 0 ? cidades : (cidade ? [cidade] : []);
+    const ufsFinais = ufs.length > 0 ? ufs : (uf ? [uf] : []);
+
+    let cnpjsExcluir: string[] | undefined;
+    if (excluirJaProspectados) {
+      try {
+        const pipeline = await getPipeline();
+        cnpjsExcluir = pipeline.map(l => l.empresa.cnpj).filter(Boolean);
+        if (cnpjsExcluir.length > 0) {
+          toast.info(`Excluindo ${cnpjsExcluir.length} CNPJs já no pipeline`);
+        }
+      } catch { /* ignora se falhar */ }
+    }
+
+    const configPayload: ProspeccaoConfig = {
       termo_base:               termoBase,
-      cidade, uf,
-      cidades:                  [cidade],
-      ufs:                      [uf],
+      cidade:                   cidadesFinais[0] ?? "",
+      uf:                       ufsFinais[0] ?? "",
+      cidades:                  cidadesFinais,
+      ufs:                      ufsFinais,
       capital_minimo:           capitalMinimo,
       capital_maximo:           capitalMaximo,
       limite_empresas:          limiteEmpresas,
@@ -266,9 +294,12 @@ const Configure = () => {
       segmentos:                segmentosSelecionados,
       cnaes,
       enriquecimento_web:       enriquecimentoWeb,
-      subsegmento_alvo:         subsegmentoAlvo || null,
       exigir_contato_acionavel: exigirContatoAcionavel,
-    } as ProspeccaoConfig;
+      priorizar_com_contato:    priorizarComContato,
+      excluir_cnpjs:            cnpjsExcluir,
+      idade_minima_anos:        idadeMinima,
+      idade_maxima_anos:        idadeMaxima,
+    };
 
     try {
       setIsLoading(true);
@@ -403,25 +434,55 @@ const Configure = () => {
             <p className="text-[10px] text-muted-foreground">Filtro livre na razão social / nome fantasia.</p>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="cidade" className="text-xs">Cidade <span className="text-rose-400">*</span></Label>
+            <Label htmlFor="cidade" className="text-xs">Cidades <span className="text-zinc-500">(vazio = estado inteiro · digite e Enter)</span></Label>
             <div className="relative">
               <MapPin className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground" />
-              <Input id="cidade" placeholder="BELO HORIZONTE" value={cidade}
-                onChange={e => setCidade(e.target.value.toUpperCase())}
+              <Input id="cidade" placeholder="BH, CONTAGEM, BETIM..."
+                value={cidadeInput}
+                onChange={e => setCidadeInput(e.target.value.toUpperCase())}
+                onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === "Enter" && cidadeInput.trim()) {
+                    e.preventDefault();
+                    const nova = cidadeInput.trim().toUpperCase();
+                    if (!cidades.includes(nova)) setCidades(prev => [...prev, nova]);
+                    setCidadeInput("");
+                  }
+                }}
                 className="h-9 pl-8 bg-zinc-900 border-zinc-700" />
             </div>
-            <p className="text-[10px] text-muted-foreground">Nome em maiúsculas, como na Receita.</p>
+            {cidades.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {cidades.map(c => (
+                  <Badge key={c} variant="outline"
+                    className="gap-1 text-[11px] border-sky-500/40 bg-sky-500/10 text-sky-300 cursor-pointer hover:border-rose-500/50 hover:bg-rose-500/10 hover:text-rose-300"
+                    onClick={() => setCidades(prev => prev.filter(x => x !== c))}>
+                    {c} <X className="w-2.5 h-2.5" />
+                  </Badge>
+                ))}
+                <button type="button" onClick={() => setCidades([])}
+                  className="text-[10px] text-zinc-500 hover:text-rose-400 ml-1">limpar</button>
+              </div>
+            )}
+            <p className="text-[10px] text-muted-foreground">Vazio = busca em todo(s) o(s) estado(s). Pode adicionar várias cidades.</p>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="uf" className="text-xs">Estado (UF) <span className="text-rose-400">*</span></Label>
-            <Select value={uf} onValueChange={setUf}>
-              <SelectTrigger id="uf" className="h-9 bg-zinc-900 border-zinc-700">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {UFS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <Label className="text-xs">Estados (UF) <span className="text-rose-400">*</span> <span className="text-zinc-500">· clique para selecionar</span></Label>
+            <div className="flex flex-wrap gap-1">
+              {UFS.map(s => {
+                const on = ufs.includes(s);
+                return (
+                  <button key={s} type="button"
+                    onClick={() => setUfs(prev => on ? prev.filter(x => x !== s) : [...prev, s])}
+                    className={cn(
+                      "h-7 rounded px-2 text-xs font-medium transition-all border",
+                      on ? "border-primary/60 bg-primary/15 text-primary" : "border-zinc-700 bg-zinc-800/60 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
+                    )}>
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-muted-foreground">Selecione 1 ou vários. Multi-estado traz muito mais leads.</p>
           </div>
         </div>
       </Section>
@@ -573,10 +634,42 @@ const Configure = () => {
                 Só com contato
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Exige telefone, WhatsApp ou e-mail na Receita.
+                Filtra no banco: só traz empresas com telefone, WhatsApp ou e-mail.
               </p>
             </div>
             <Switch checked={exigirContatoAcionavel} onCheckedChange={setExigirContatoAcionavel} />
+          </div>
+
+          {/* Priorizar com contato */}
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 flex items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1.5 text-xs font-medium">
+                <Target className="w-3.5 h-3.5 text-emerald-400" />
+                Priorizar quem tem contato
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Ordena: WhatsApp primeiro, depois telefone, depois email. Maximiza leads acionáveis.
+              </p>
+            </div>
+            <Switch checked={priorizarComContato} onCheckedChange={setPriorizarComContato} />
+          </div>
+
+          {/* Idade da empresa */}
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 space-y-2">
+            <Label className="text-xs">Idade da empresa (anos)</Label>
+            <div className="flex gap-2 items-center">
+              <Input type="number" placeholder="Mín" min={0}
+                value={idadeMinima ?? ""}
+                onChange={e => setIdadeMinima(e.target.value === "" ? null : Number(e.target.value))}
+                className="h-7 w-20 bg-zinc-900 border-zinc-700 text-xs px-2" />
+              <span className="text-zinc-500 text-xs">a</span>
+              <Input type="number" placeholder="Máx" min={0}
+                value={idadeMaxima ?? ""}
+                onChange={e => setIdadeMaxima(e.target.value === "" ? null : Number(e.target.value))}
+                className="h-7 w-20 bg-zinc-900 border-zinc-700 text-xs px-2" />
+              <span className="text-zinc-500 text-xs">anos</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Ex.: 2 a 10 = empresas abertas entre 2 e 10 anos atrás.</p>
           </div>
 
           {/* Limite de empresas */}
@@ -585,7 +678,7 @@ const Configure = () => {
               Limite de empresas
             </Label>
             <div className="flex gap-1.5">
-              {[10, 20, 50, 100].map(n => (
+              {[20, 50, 100, 200, 500].map(n => (
                 <button key={n} type="button" onClick={() => setLimiteEmpresas(n)}
                   className={cn(
                     "h-7 rounded px-2 text-xs font-medium transition-all border",
@@ -596,10 +689,10 @@ const Configure = () => {
                   {n}
                 </button>
               ))}
-              <Input id="limite" type="number" min={1} max={500}
+              <Input id="limite" type="number" min={1} max={2000}
                 value={limiteEmpresas}
                 onChange={e => setLimiteEmpresas(Math.max(1, Number(e.target.value || 1)))}
-                className="h-7 w-16 bg-zinc-900 border-zinc-700 text-xs px-2"
+                className="h-7 w-20 bg-zinc-900 border-zinc-700 text-xs px-2"
               />
             </div>
             <p className="text-[10px] text-muted-foreground">
