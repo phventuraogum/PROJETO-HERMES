@@ -568,7 +568,6 @@ def _buscar_resultados_busca(query: str, max_results: int = 3) -> List[dict]:
 # IA - Configuração unificada (OpenAI ou OpenRouter)
 # ==========================================================
 from openai import AsyncOpenAI
-import httpx
 
 AI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("OPENROUTER_API_KEY")
 _is_openrouter = bool(os.getenv("OPENROUTER_API_KEY")) and not os.getenv("OPENAI_API_KEY")
@@ -830,9 +829,6 @@ def _enriquecer_empresa_web(empresa: "Empresa") -> dict:
 def _buscar_redes_para_socio(
     nome: str, cidade: Optional[str], uf: Optional[str], empresa: Optional[str] = None
 ) -> List[str]:
-    if DDGS is None:
-        return []
-
     links: List[str] = []
 
     # Busca focada em LinkedIn (prioridade para vendas B2B)
@@ -863,10 +859,6 @@ def _buscar_redes_para_socio(
 
 
 def enriquecer_redes_socios(empresas: List["Empresa"]) -> None:
-    if DDGS is None:
-        print("[ENRIQUECIMENTO] ddgs não disponível; skip redes de sócios.")
-        return
-
     MAX_SOCIOS_POR_EMPRESA = 5
 
     for emp in empresas:
@@ -1081,6 +1073,42 @@ def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=Non
 
     total_encontrados = sum(1 for e in alvos if e.whatsapp_enriquecido)
     print(f"[WHATSAPP ULTRA] Concluído: {total_encontrados}/{len(alvos)} WhatsApps encontrados")
+
+
+def _persistir_enriquecimento_whatsapp(empresas: List["Empresa"]) -> None:
+    """Persiste whatsapp_enriquecido e redes_sociais_socios no DuckDB."""
+    registros = [
+        e for e in empresas
+        if e.whatsapp_enriquecido or e.email_enriquecido or e.site
+    ]
+    if not registros:
+        return
+
+    try:
+        with get_connection(read_only=False) as con:
+            con.execute("""
+                CREATE TABLE IF NOT EXISTS empresas_enriquecidas (
+                    cnpj VARCHAR PRIMARY KEY,
+                    site VARCHAR,
+                    email_web VARCHAR,
+                    telefone_web VARCHAR,
+                    whatsapp_web VARCHAR
+                )
+            """)
+            for emp in registros:
+                con.execute(
+                    "INSERT OR REPLACE INTO empresas_enriquecidas VALUES (?,?,?,?,?)",
+                    [
+                        emp.cnpj,
+                        emp.site or None,
+                        emp.email_enriquecido or None,
+                        emp.telefone_enriquecido or None,
+                        emp.whatsapp_enriquecido or emp.whatsapp_publico or None,
+                    ],
+                )
+        print(f"[PERSIST] Salvos {len(registros)} registros enriquecidos no DuckDB")
+    except Exception as e:
+        print(f"[PERSIST] Erro ao salvar no DuckDB: {repr(e)}")
 
 
 def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> ProspeccaoResultado:
@@ -1525,8 +1553,6 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
             )
         )
 
-    con.close()
-
     if config.enriquecer_web:
         _emit("enriching", 0, len(empresas), "Iniciando enriquecimento web")
         try:
@@ -1553,6 +1579,12 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
             _enriquecer_whatsapp_ultra_inline(empresas, on_progress=lambda i, t, n: _emit("enriching_whatsapp_ultra", i, t, n))
         except Exception as e:
             print("[WHATSAPP ULTRA] erro geral:", repr(e))
+
+        # Persistir dados WhatsApp Ultra no DuckDB
+        try:
+            _persistir_enriquecimento_whatsapp(empresas)
+        except Exception as e:
+            print("[PERSIST WHATSAPP] erro:", repr(e))
 
     total_empresas = len(empresas)
 
