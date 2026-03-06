@@ -553,45 +553,56 @@ export async function runProspeccaoStream(
 
     const decoder = new TextDecoder();
     let buffer = "";
+    let resolved = false;
+
+    function processLines(lines: string[]): boolean {
+      for (const line of lines) {
+        if (line.startsWith("event: ")) continue;
+        if (line.startsWith("data: ")) {
+          const jsonStr = line.slice(6);
+          try {
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.stage) {
+              onProgress(parsed as ProgressEvent);
+            } else if (parsed.detail && !parsed.empresas) {
+              reject(new Error(parsed.detail));
+              return true;
+            } else if (parsed.empresas !== undefined) {
+              resolved = true;
+              const data = parsed as ProspeccaoResultado;
+              salvarResultadoLocal({
+                timestamp: new Date().toISOString(),
+                config: configFront,
+                resultado: data,
+              });
+              resolve(data);
+              return true;
+            }
+          } catch {}
+        }
+      }
+      return false;
+    }
 
     function pump(): void {
       reader!.read().then(({ done, value }) => {
+        if (value) {
+          buffer += decoder.decode(value, { stream: !done });
+        }
+        const lines = buffer.split("\n");
+        buffer = done ? "" : (lines.pop() || "");
+
+        if (processLines(lines)) return;
+
         if (done) {
-          reject(new Error("Stream encerrado sem resultado"));
+          if (buffer) processLines([buffer]);
+          if (!resolved) reject(new Error("Stream encerrado sem resultado"));
           return;
         }
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (line.startsWith("event: progress")) continue;
-          if (line.startsWith("event: result")) continue;
-          if (line.startsWith("event: error")) continue;
-          if (line.startsWith("data: ")) {
-            const jsonStr = line.slice(6);
-            try {
-              const parsed = JSON.parse(jsonStr);
-              if (parsed.stage) {
-                onProgress(parsed as ProgressEvent);
-              } else if (parsed.detail && !parsed.empresas) {
-                reject(new Error(parsed.detail));
-                return;
-              } else if (parsed.empresas !== undefined) {
-                const data = parsed as ProspeccaoResultado;
-                salvarResultadoLocal({
-                  timestamp: new Date().toISOString(),
-                  config: configFront,
-                  resultado: data,
-                });
-                resolve(data);
-                return;
-              }
-            } catch {}
-          }
-        }
         pump();
-      }).catch(reject);
+      }).catch((err) => {
+        if (!resolved) reject(err);
+      });
     }
     pump();
   });

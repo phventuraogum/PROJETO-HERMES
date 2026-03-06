@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { runProspeccao, runProspeccaoStream, salvarBuscaHistorico, getStorageKey, getPipeline, type ProspeccaoResultado, type Empresa, type ProspeccaoConfig, type ProgressEvent as HermesProgress } from "@/lib/api";
+import { runProspeccaoStream, salvarBuscaHistorico, getStorageKey, getPipeline, type ProspeccaoResultado, type Empresa, type ProspeccaoConfig, type ProgressEvent as HermesProgress } from "@/lib/api";
 
 // ─── constantes ───────────────────────────────────────────────────────────────
 
@@ -330,13 +330,7 @@ const Configure = () => {
         else if (evt.stage === "done") { setLoadingStep(5); setProgressPct(100); }
       };
 
-      let data: ProspeccaoResultado;
-      try {
-        data = await runProspeccaoStream(configPayload, onProgress);
-      } catch {
-        data = await runProspeccao(configPayload);
-        setProgressPct(100);
-      }
+      const data = await runProspeccaoStream(configPayload, onProgress);
 
       setResultado(data);
       toast.success(`${data.total_empresas} empresas encontradas!`);
