@@ -229,10 +229,12 @@ try:
         def event_stream():
             while True:
                 try:
-                    msg = progress_queue.get(timeout=120)
+                    msg = progress_queue.get(timeout=30)
                 except _queue.Empty:
-                    yield f"event: error\ndata: {_json.dumps({'detail': 'Timeout'})}\n\n"
-                    return
+                    if not worker.is_alive():
+                        break
+                    yield f"event: heartbeat\ndata: {_json.dumps({'stage': 'processing', 'detail': 'Aguarde...'})}\n\n"
+                    continue
                 if msg is None:
                     break
                 yield f"event: progress\ndata: {_json.dumps(msg)}\n\n"

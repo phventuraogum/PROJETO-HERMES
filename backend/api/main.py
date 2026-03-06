@@ -870,10 +870,14 @@ def _buscar_redes_para_socio(
     return links
 
 
-def enriquecer_redes_socios(empresas: List["Empresa"]) -> None:
+def enriquecer_redes_socios(empresas: List["Empresa"], on_progress=None) -> None:
     MAX_SOCIOS_POR_EMPRESA = 5
+    total = len(empresas)
 
-    for emp in empresas:
+    for idx, emp in enumerate(empresas):
+        if on_progress:
+            on_progress(idx, total, emp.nome_fantasia or emp.razao_social or emp.cnpj)
+
         if not emp.socios_resumo:
             continue
 
@@ -1513,9 +1517,9 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
         except Exception:
             pass
 
-        _emit("enriching_socials", 0, 0, "Enriquecendo redes sociais")
+        _emit("enriching_socials", 0, len(empresas), "Enriquecendo redes sociais")
         try:
-            enriquecer_redes_socios(empresas)
+            enriquecer_redes_socios(empresas, on_progress=lambda i, t, n: _emit("enriching_socials", i, t, n))
         except Exception as e:
             print("[ENRIQUECIMENTO] erro geral redes sócios:", repr(e))
 
