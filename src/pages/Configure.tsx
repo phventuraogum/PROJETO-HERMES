@@ -309,24 +309,29 @@ const Configure = () => {
       setLoadingStep(1);
 
       const stageWeight: Record<string, { base: number; span: number }> = {
-        db_query:           { base: 0,   span: 15 },
-        building:           { base: 15,  span: 15 },
-        enriching:          { base: 30,  span: 50 },
-        enriching_socials:  { base: 80,  span: 10 },
-        done:               { base: 100, span: 0  },
+        db_query:                    { base: 0,   span: 10 },
+        building:                    { base: 10,  span: 10 },
+        enriching:                   { base: 20,  span: 30 },
+        enriching_socials:           { base: 50,  span: 20 },
+        enriching_whatsapp_ultra:    { base: 70,  span: 20 },
+        processing:                  { base: 0,   span: 0  },
+        done:                        { base: 100, span: 0  },
       };
 
       const onProgress = (evt: HermesProgress) => {
-        const w = stageWeight[evt.stage] || { base: 0, span: 0 };
-        const inner = evt.total > 0 ? (evt.current / evt.total) : 0;
-        const pct = Math.min(100, Math.round(w.base + w.span * inner));
-        setProgressPct(pct);
-        setProgressDetail(evt.detail || "");
+        const w = stageWeight[evt.stage];
+        if (w && w.base > 0) {
+          const inner = evt.total > 0 ? (evt.current / evt.total) : 0;
+          const pct = Math.min(99, Math.round(w.base + w.span * inner));
+          setProgressPct(pct);
+        }
+        if (evt.detail) setProgressDetail(evt.detail);
 
         if (evt.stage === "db_query") setLoadingStep(1);
         else if (evt.stage === "building") setLoadingStep(2);
         else if (evt.stage === "enriching") setLoadingStep(3);
         else if (evt.stage === "enriching_socials") setLoadingStep(4);
+        else if (evt.stage === "enriching_whatsapp_ultra") setLoadingStep(4);
         else if (evt.stage === "done") { setLoadingStep(5); setProgressPct(100); }
       };
 

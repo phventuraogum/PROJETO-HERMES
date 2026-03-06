@@ -256,9 +256,18 @@ export function getStorageKey(kind: "resultado" | "pipeline" | "buscas"): string
 function salvarResultadoLocal(payload: ResultadoSalvo) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(getStorageKey("resultado"), JSON.stringify(payload));
-  } catch {
-    // ignora
+    const key = getStorageKey("resultado");
+    const json = JSON.stringify(payload);
+    try { localStorage.removeItem(key); } catch {}
+    localStorage.setItem(key, json);
+  } catch (err) {
+    console.warn("[Hermes] Falha ao salvar resultado no localStorage:", err);
+    try {
+      localStorage.removeItem(getStorageKey("buscas"));
+      localStorage.setItem(getStorageKey("resultado"), JSON.stringify(payload));
+    } catch {
+      console.error("[Hermes] localStorage esgotado — resultado não foi persistido");
+    }
   }
 }
 
@@ -510,7 +519,7 @@ export async function runProspeccao(configFront: ProspeccaoConfig): Promise<Pros
 }
 
 export type ProgressEvent = {
-  stage: "db_query" | "building" | "enriching" | "enriching_socials" | "done";
+  stage: "db_query" | "building" | "enriching" | "enriching_socials" | "enriching_whatsapp_ultra" | "processing" | "done";
   current: number;
   total: number;
   detail: string;
