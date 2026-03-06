@@ -106,6 +106,10 @@ export type Empresa = {
   whatsapp_publico?: string | null;
   whatsapp_enriquecido?: string | null;
   outras_informacoes?: string | null;
+  resumo_ia_empresa?: string | null;
+  registro_dono?: string | null;
+  registro_email?: string | null;
+  fonte_dados_prioritaria?: string | null;
 
   // ── sócios ─────────────────────────────────────────────────────
   socios_resumo?: string | null;
@@ -698,14 +702,14 @@ function obterPorteParaDashboard(emp: Empresa): string {
 function calcularScoreICP(emp: Empresa): number {
   if (typeof emp.score_icp === "number") return Number(emp.score_icp.toFixed(1));
 
-  let score = 5;
+  let score = 10;
 
   const capital = emp.capital_social ?? 0;
-  if (capital > 2_000_000) score += 3;
-  else if (capital > 800_000) score += 2;
-  else if (capital > 200_000) score += 1;
+  if (capital > 2_000_000) score += 50;
+  else if (capital > 800_000) score += 30;
+  else if (capital > 200_000) score += 10;
 
-  if (emp.email || emp.email_enriquecido) score += 1.5;
+  if (emp.email || emp.email_enriquecido) score += 15;
 
   const temContato =
     emp.telefone_padrao ||
@@ -716,9 +720,9 @@ function calcularScoreICP(emp: Empresa): number {
     emp.whatsapp_enriquecido ||
     emp.whatsapp_publico;
 
-  if (temContato) score += 1.5;
+  if (temContato) score += 15;
 
-  score = Math.max(0, Math.min(10, score));
+  score = Math.max(0, Math.min(100, score));
   return Number(score.toFixed(1));
 }
 
@@ -848,7 +852,7 @@ export async function getDashboardUltimaExecucao(): Promise<DashboardData | null
     canais_contato: [
       { canal: "E-mail",    total: comEmail,    pct: pct(comEmail)    },
       { canal: "Telefone",  total: comContato,  pct: pct(comContato)  },
-      { canal: "WhatsApp",  total: Math.round(pct(empresas.filter(e => e.whatsapp_publico || e.whatsapp_enriquecido).length)), pct: pct(empresas.filter(e => e.whatsapp_publico || e.whatsapp_enriquecido).length) },
+      { canal: "WhatsApp",  total: empresas.filter(e => e.whatsapp_publico || e.whatsapp_enriquecido).length, pct: pct(empresas.filter(e => e.whatsapp_publico || e.whatsapp_enriquecido).length) },
       { canal: "LinkedIn",  total: comLinkedin, pct: pct(comLinkedin) },
       { canal: "Site",      total: comSite,     pct: pct(comSite)     },
     ],

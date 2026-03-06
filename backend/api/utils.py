@@ -212,7 +212,8 @@ def montar_contexto_sidra(
             f = float(pop_residente)
             if not math.isnan(f):
                 pop_int = int(f)
-        except: pass
+        except (ValueError, TypeError, OverflowError):
+            pass
     if pop_int is not None:
         partes.append(f"população residente {pop_int:,} hab.".replace(",", "."))
     return " • ".join(partes) if partes else None

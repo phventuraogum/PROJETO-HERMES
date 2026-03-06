@@ -7,14 +7,15 @@ que ainda nao foram migrados para routers proprios.
 import os
 import asyncio
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from dotenv import load_dotenv
 
 from config import settings
-
-load_dotenv()
 
 # ============================================================
 # LOGGING ESTRUTURADO
@@ -192,7 +193,7 @@ try:
         org_id = get_org_id(request)
         logger.info(f"Prospecção iniciada | user={user.get('email')} | termo={getattr(config, 'termo', '')} | org={org_id}")
         try:
-            return rodar_prospeccao_icp(config)
+            return await asyncio.to_thread(rodar_prospeccao_icp, config)
         except Exception as e:
             logger.error(f"Erro na prospecção: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -245,7 +246,15 @@ try:
                 payload = result_holder[0].model_dump()
                 yield f"event: result\ndata: {_json.dumps(payload, default=str)}\n\n"
 
-        return StreamingResponse(event_stream(), media_type="text/event-stream")
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     @app.post("/mapa-calor", response_model=MapaCalorResponse, tags=["Mapa de Calor"])
     async def mapa_calor_legacy(
@@ -254,7 +263,7 @@ try:
     ):
         """Gera mapa de calor de empresas por região."""
         try:
-            return gerar_mapa_calor(config)
+            return await asyncio.to_thread(gerar_mapa_calor, config)
         except Exception as e:
             logger.error(f"Erro no mapa de calor: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -294,7 +303,7 @@ try:
                 "socios_resumo": emp.socios_resumo,
                 "resumo_ia_empresa": emp.resumo_ia_empresa,
             }
-            dados_ia = gerar_insights_prospeccao_ia(contexto)
+            dados_ia = await asyncio.to_thread(gerar_insights_prospeccao_ia, contexto)
             empresas_com_insights.append({"empresa": emp, "insights_ia": dados_ia})
         return {
             "ia_ativa": True,

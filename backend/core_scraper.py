@@ -17,8 +17,8 @@ BING_SEARCH_API_KEY   = os.getenv("BING_SEARCH_API_KEY", "")
 BRAVE_SEARCH_API_KEY  = os.getenv("BRAVE_SEARCH_API_KEY", "")
 SEARXNG_URL           = os.getenv("SEARXNG_URL", "")
 
-MAX_CONCURRENT_REQUESTS = 5  # Limita concorrência para não estourar rate limit
-REQUEST_TIMEOUT = 15.0
+MAX_CONCURRENT_REQUESTS = 5
+REQUEST_TIMEOUT = 30.0
 
 DOMINIOS_BANIDOS = [
     "guiapj.com", "cuiket.com", "descubraonline.com", "acheempresa.com",
@@ -42,8 +42,9 @@ LINKEDIN_IN_RE  = re.compile(r"https?://(?:www\.)?linkedin\.com/in/[a-zA-Z0-9_%-
 # Número celular BR limpo (11 dígitos locais ou 13 com DDI)
 _CELL_RE = re.compile(r"(?:55)?([1-9]\d)(9\d{8})")
 
-# Cache simples em memória (global para o worker)
+# Cache simples em memória com limite de tamanho
 cache_contatos = {}
+_MAX_CACHE_SIZE = 5000
 
 # ==========================================================
 # 🔍 CLIENTE GOOGLE SEARCH
@@ -63,7 +64,7 @@ async def _buscar_bing(termo: str, num_results: int = 5) -> List[Dict]:
     if not BING_SEARCH_API_KEY:
         return []
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=25.0) as client:
             resp = await client.get(
                 "https://api.bing.microsoft.com/v7.0/search",
                 headers={"Ocp-Apim-Subscription-Key": BING_SEARCH_API_KEY},
@@ -95,7 +96,7 @@ async def _buscar_brave(termo: str, num_results: int = 5) -> List[Dict]:
     if not BRAVE_SEARCH_API_KEY:
         return []
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=25.0) as client:
             resp = await client.get(
                 "https://api.search.brave.com/res/v1/web/search",
                 headers={
@@ -138,7 +139,7 @@ async def _buscar_searxng(termo: str, num_results: int = 5) -> List[Dict]:
     if not SEARXNG_URL:
         return []
     try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(
                 f"{SEARXNG_URL}/search",
                 params={
@@ -192,7 +193,7 @@ async def buscar_google(termo: str, num_results: int = 5) -> List[Dict[str, str]
         }
         async with httpx.AsyncClient() as client:
             try:
-                resp = await client.get(url, params=params, timeout=10.0)
+                resp = await client.get(url, params=params, timeout=25.0)
                 if resp.status_code == 200:
                     items = resp.json().get("items", [])
                     resultados = [
@@ -223,7 +224,7 @@ async def buscar_google(termo: str, num_results: int = 5) -> List[Dict[str, str]
         def _ddgs_sync():
             with DDGS() as ddgs:
                 gen = ddgs.text(termo, region="br-pt", safesearch="off",
-                                max_results=num_results, timeout=12)
+                                max_results=num_results, timeout=25)
                 return [
                     _montar_resultado(r.get("title", ""), r.get("href", ""), r.get("body", ""))
                     for r in gen
@@ -231,7 +232,7 @@ async def buscar_google(termo: str, num_results: int = 5) -> List[Dict[str, str]
         loop = _aio.get_running_loop()
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             fut = loop.run_in_executor(pool, _ddgs_sync)
-            resultados = await _aio.wait_for(fut, timeout=15.0)
+            resultados = await _aio.wait_for(fut, timeout=30.0)
         if resultados:
             return resultados
     except Exception:
@@ -320,7 +321,7 @@ async def _buscar_google_direto(termo: str, num_results: int = 5) -> List[Dict]:
     }
     async with httpx.AsyncClient() as client:
         try:
-            resp = await client.get(url, params=params, timeout=10.0)
+            resp = await client.get(url, params=params, timeout=25.0)
             if resp.status_code == 200:
                 items = resp.json().get("items", [])
                 return [
@@ -487,6 +488,8 @@ async def extrair_contatos_site(url: str) -> Dict[str, Any]:
                 contatos["whatsapp"] = scrapling_data.get("whatsapp", "")
                 contatos["linkedin_empresa"] = scrapling_data.get("linkedin_empresa")
                 contatos["linkedin_perfis"] = scrapling_data.get("linkedin_perfis", [])
+                if len(cache_contatos) >= _MAX_CACHE_SIZE:
+                    cache_contatos.clear()
                 cache_contatos[dominio] = contatos
                 return contatos
     except Exception as e:
@@ -501,7 +504,7 @@ async def extrair_contatos_site(url: str) -> Dict[str, Any]:
         )
     }
 
-    async with httpx.AsyncClient(verify=False, timeout=15.0, follow_redirects=True) as client:
+    async with httpx.AsyncClient(verify=False, timeout=30.0, follow_redirects=True) as client:
         for caminho in caminhos:
             target = url.rstrip("/") + caminho
             try:
@@ -550,6 +553,8 @@ async def extrair_contatos_site(url: str) -> Dict[str, Any]:
             except Exception:
                 continue
 
+    if len(cache_contatos) >= _MAX_CACHE_SIZE:
+        cache_contatos.clear()
     cache_contatos[dominio] = contatos
     return contatos
 

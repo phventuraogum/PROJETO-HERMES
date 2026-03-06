@@ -133,7 +133,7 @@ async def buscar_emails_wayback(dominio: str) -> List[str]:
     wayback_url = f"https://web.archive.org/web/2024*/https://{dominio_limpo}/contato"
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=25.0) as client:
             resp = await client.get(wayback_url, follow_redirects=True)
             if resp.status_code == 200:
                 soup = BeautifulSoup(resp.text, "html.parser")
@@ -188,12 +188,17 @@ async def consultar_registrobr_whois(dominio: str) -> Dict:
     Consulta WHOIS do Registro.br para domínios .com.br.
     Retorna proprietário, email do proprietário e responsável técnico.
     """
-    dominio_limpo = dominio.replace("www.", "").split("/")[0].lower()
+    from urllib.parse import urlparse
+    if "://" in dominio:
+        dominio_limpo = urlparse(dominio).hostname or dominio
+    else:
+        dominio_limpo = dominio.split("/")[0]
+    dominio_limpo = dominio_limpo.replace("www.", "").lower()
     if not dominio_limpo.endswith(".br"):
         return {}
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=25.0) as client:
             resp = await client.get(
                 f"https://rdap.registro.br/domain/{dominio_limpo}",
                 headers={"Accept": "application/json"},
@@ -218,7 +223,7 @@ async def consultar_registrobr_whois(dominio: str) -> Dict:
                         resultado["email_proprietario"] = email_ent
                     elif "technical" in roles:
                         resultado["responsavel_tecnico"] = nome_ent
-                return resultado
+                return resultado  # after processing ALL entities
     except Exception:
         pass
     return {}

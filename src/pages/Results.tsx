@@ -251,7 +251,6 @@ function DetalheEmpresa({ company }: { company: Empresa }) {
     ? company.redes_sociais_empresa!
     : filterSocialLinks(extractLinks(raw));
   const resumoIA =
-    // @ts-expect-error
     (company.resumo_ia_empresa as string | undefined) ||
     raw.match(/Resumo IA:\s*(.+)$/i)?.[1]?.trim() || null;
 

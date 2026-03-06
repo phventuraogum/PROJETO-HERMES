@@ -319,7 +319,7 @@ const History = () => {
             Suas prospecções aparecem aqui automaticamente após cada busca.
           </p>
         </div>
-        <Button onClick={() => navigate("/")} className="gap-2">
+        <Button onClick={() => navigate("/app")} className="gap-2">
           <Zap className="h-4 w-4" /> Fazer primeira prospecção
         </Button>
       </div>

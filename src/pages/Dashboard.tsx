@@ -145,7 +145,7 @@ function EmptyDashboard() {
           Rode uma busca para ver os analytics da sua base de leads.
         </p>
       </div>
-      <Button onClick={() => nav("/")} className="gap-2">
+      <Button onClick={() => nav("/app")} className="gap-2">
         <Zap className="h-4 w-4" /> Configurar prospecção
       </Button>
     </div>

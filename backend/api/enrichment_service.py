@@ -82,20 +82,20 @@ APENAS JSON válido, sem markdown."""
 
         try:
             if self.use_openrouter:
-                resp = httpx.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {self.openai_key}", "Content-Type": "application/json"},
-                    json={
-                        "model": "openai/gpt-4o-mini",
-                        "messages": [
-                            {"role": "system", "content": "Você é um analista SDR B2B experiente. Retorne sempre JSON válido."},
-                            {"role": "user", "content": prompt},
-                        ],
-                        "temperature": 0.3,
-                        "max_tokens": 1000,
-                    },
-                    timeout=30,
-                )
+                async with httpx.AsyncClient(timeout=60) as _ac:
+                    resp = await _ac.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {self.openai_key}", "Content-Type": "application/json"},
+                        json={
+                            "model": "openai/gpt-4o-mini",
+                            "messages": [
+                                {"role": "system", "content": "Você é um analista SDR B2B experiente. Retorne sempre JSON válido."},
+                                {"role": "user", "content": prompt},
+                            ],
+                            "temperature": 0.3,
+                            "max_tokens": 1000,
+                        },
+                    )
                 if resp.status_code == 200:
                     content = resp.json()["choices"][0]["message"]["content"]
                     content = content.replace("```json", "").replace("```", "").strip()
@@ -172,17 +172,17 @@ APENAS JSON válido."""
 
         try:
             if self.use_openrouter:
-                resp = httpx.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {self.openai_key}", "Content-Type": "application/json"},
-                    json={
-                        "model": "gpt-4o-mini",
-                        "messages": [{"role": "user", "content": prompt}],
-                        "temperature": 0.4,
-                        "max_tokens": 1200,
-                    },
-                    timeout=35,
-                )
+                async with httpx.AsyncClient(timeout=60) as _ac:
+                    resp = await _ac.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {self.openai_key}", "Content-Type": "application/json"},
+                        json={
+                            "model": "gpt-4o-mini",
+                            "messages": [{"role": "user", "content": prompt}],
+                            "temperature": 0.4,
+                            "max_tokens": 1200,
+                        },
+                    )
                 if resp.status_code == 200:
                     content = resp.json()["choices"][0]["message"]["content"]
                     content = content.replace("```json", "").replace("```", "").strip()

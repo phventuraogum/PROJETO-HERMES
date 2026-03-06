@@ -145,8 +145,11 @@ async def enriquecer_lote_opencnpj(
             return cnpj, await consultar_opencnpj(cnpj)
 
     pares = await asyncio.gather(*[_uma(c) for c in cnpjs], return_exceptions=True)
-    return {
-        cnpj: dados
-        for cnpj, dados in pares
-        if not isinstance((cnpj, dados), Exception) and isinstance(dados, dict)
-    }
+    resultado = {}
+    for item in pares:
+        if isinstance(item, BaseException):
+            continue
+        cnpj, dados = item
+        if isinstance(dados, dict):
+            resultado[cnpj] = dados
+    return resultado

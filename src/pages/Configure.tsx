@@ -797,7 +797,7 @@ const Configure = () => {
           </Button>
           {resultado && !isLoading && (
             <span className="text-xs text-muted-foreground">
-              {cidade} / {uf} · {resultado.total_empresas} leads
+              {cidades.length > 0 ? cidades.join(", ") : cidade} / {uf} · {resultado.total_empresas} leads
             </span>
           )}
         </div>

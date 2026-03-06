@@ -15,7 +15,11 @@ except ImportError:
                 import os
                 for key, value in kwargs.items():
                     setattr(self, key, os.getenv(key, value))
-from pydantic import Field, validator
+from pydantic import Field
+try:
+    from pydantic import field_validator
+except ImportError:
+    from pydantic import validator as field_validator
 
 
 class Settings(BaseSettings):
@@ -223,25 +227,21 @@ class Settings(BaseSettings):
     # ============================================================
     # VALIDATORS
     # ============================================================
-    @validator('ENVIRONMENT')
+    @field_validator('ENVIRONMENT')
+    @classmethod
     def validate_environment(cls, v):
         allowed = ['development', 'staging', 'production']
         if v not in allowed:
             raise ValueError(f"ENVIRONMENT deve ser um de: {allowed}")
         return v
 
-    @validator('LOG_LEVEL')
+    @field_validator('LOG_LEVEL')
+    @classmethod
     def validate_log_level(cls, v):
         allowed = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
         if v.upper() not in allowed:
             raise ValueError(f"LOG_LEVEL deve ser um de: {allowed}")
         return v.upper()
-
-    @validator('HERMES_AUTH_REQUIRED')
-    def validate_auth_in_production(cls, v, values):
-        if values.get('ENVIRONMENT') == 'production' and not v:
-            raise ValueError("HERMES_AUTH_REQUIRED deve ser True em produção")
-        return v
 
     # ============================================================
     # PROPERTIES
@@ -266,11 +266,7 @@ class Settings(BaseSettings):
     def ai_api_key(self) -> Optional[str]:
         return self.OPENAI_API_KEY or self.OPENROUTER_API_KEY
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
-        extra = "ignore"
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "case_sensitive": True, "extra": "ignore"}
 
 
 settings = Settings()

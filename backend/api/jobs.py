@@ -52,7 +52,7 @@ def enrich_company_by_cnpj(cnpj: str) -> dict:
             if not url:
                 continue
             try:
-                resp = httpx.get(url, timeout=10, follow_redirects=True)
+                resp = httpx.get(url, timeout=30, follow_redirects=True)
                 if resp.status_code != 200:
                     continue
                 soup = BeautifulSoup(resp.text, "html.parser")
@@ -66,9 +66,13 @@ def enrich_company_by_cnpj(cnpj: str) -> dict:
                 if phones and not telefone:
                     telefone = phones[0]
 
-                wa_match = re.findall(r"(?:wa\.me|api\.whatsapp\.com/send\?phone=)[\w/=+]+", resp.text)
+                wa_match = re.findall(r"(?:wa\.me|api\.whatsapp\.com/send\?phone=)/?\+?(\d{10,13})", resp.text)
                 if wa_match and not whatsapp:
-                    whatsapp = wa_match[0]
+                    num = wa_match[0]
+                    if len(num) == 11 and num[2] == "9":
+                        whatsapp = "55" + num
+                    elif len(num) >= 12:
+                        whatsapp = num
 
                 if not site:
                     site = str(resp.url)

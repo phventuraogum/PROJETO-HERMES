@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 
-# Alias para compatibilidade com código legado que usa _as_opt_str
-_as_opt_str = lambda v: str(v).strip() if v is not None and str(v).strip() else None
+# Alias para compatibilidade com código legado — usa as_opt_str que trata NaN
+_as_opt_str = as_opt_str
 import re
 import math
 import os
@@ -460,8 +460,12 @@ def calcular_alinhamento_ideal_compra(
 
 EMAIL_REGEX = re.compile(r"[a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-.]+")
 PHONE_REGEX = re.compile(r"(\+?\d{2}\s*\(?\d{2}\)?\s*\d{4,5}[-.\s]?\d{4})")
-WHATS_REGEX = re.compile(
+WHATS_LINK_REGEX = re.compile(
     r"(https?://(wa\.me|api\.whatsapp\.com|web\.whatsapp\.com)[^\s\"'>]+)"
+)
+WHATS_NUM_REGEX = re.compile(
+    r"(?:\+?55\s?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4})"
+    r"|(?:\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4})"
 )
 SOCIAL_REGEX = re.compile(
     r"(https?://(www\.)?(instagram\.com|linkedin\.com|facebook\.com)[^\s\"'>]+)"
@@ -526,10 +530,18 @@ def _extrair_contatos_html(html: str) -> dict:
         if _telefone_valido(num_limpo) and num_limpo not in contatos["phones"]:
             contatos["phones"].append(num_limpo)
 
-    for match in WHATS_REGEX.findall(html):
+    for match in WHATS_LINK_REGEX.findall(html):
         url = match[0] if isinstance(match, tuple) else match
         if url not in contatos["whatsapps"]:
             contatos["whatsapps"].append(url)
+
+    if not contatos["whatsapps"]:
+        for match in WHATS_NUM_REGEX.findall(html):
+            num_limpo = re.sub(r"[^\d]", "", match)
+            if len(num_limpo) == 11 and num_limpo[2] == "9":
+                num_limpo = "55" + num_limpo
+            if len(num_limpo) >= 12 and num_limpo not in contatos["whatsapps"]:
+                contatos["whatsapps"].append(num_limpo)
 
     for match in SOCIAL_REGEX.findall(html):
         url = match[0] if isinstance(match, tuple) else match
@@ -553,7 +565,7 @@ def _buscar_resultados_busca(query: str, max_results: int = 3) -> List[dict]:
             return asyncio.run(_buscar_google_async(query, num_results=max_results))
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            resultados = pool.submit(_run).result(timeout=30)
+            resultados = pool.submit(_run).result(timeout=60)
         if resultados:
             print(f"[BUSCA] core_scraper retornou {len(resultados)} resultados para: {query[:60]}")
             return resultados
@@ -688,8 +700,23 @@ def _sanitize_url(val: object) -> Optional[str]:
     return s
 
 
+_SUFIXOS_JURIDICOS = re.compile(
+    r"\b(S/?A|S\.A\.?|LTDA\.?|ME|EPP|EIRELI|SOCIEDADE\s+AN[OÔ]NIMA|"
+    r"LIMITADA|INDIVIDUAL|MICROEMPRESA|FIL)\b",
+    re.IGNORECASE,
+)
+
+
+def _limpar_nome_empresa(nome: str) -> str:
+    """Remove sufixos jurídicos e normaliza nome para busca web."""
+    limpo = _SUFIXOS_JURIDICOS.sub("", nome).strip()
+    limpo = re.sub(r"\s{2,}", " ", limpo).strip(" -.,")
+    return limpo or nome
+
+
 def _enriquecer_empresa_web(empresa: "Empresa") -> dict:
-    nome = empresa.razao_social or empresa.nome_fantasia or ""
+    nome_raw = empresa.nome_fantasia or empresa.razao_social or ""
+    nome = _limpar_nome_empresa(nome_raw)
     cidade = empresa.cidade or ""
     uf = empresa.uf or ""
     if not nome.strip():
@@ -711,8 +738,8 @@ def _enriquecer_empresa_web(empresa: "Empresa") -> dict:
                 cnpj=empresa.cnpj or "",
                 socios=socios[:3],
             )
-            if scrapling_result.get("site") or scrapling_result.get("email") or scrapling_result.get("whatsapp_publico") or scrapling_result.get("linkedin_empresa"):
-                print(f"[ENRIQUECIMENTO] Scrapling OK para {nome}: site={scrapling_result.get('site')}, email={scrapling_result.get('email')}")
+            if scrapling_result.get("site") or scrapling_result.get("email") or scrapling_result.get("whatsapp_publico") or scrapling_result.get("telefone") or scrapling_result.get("linkedin_empresa"):
+                print(f"[ENRIQUECIMENTO] Scrapling OK para {nome}: site={scrapling_result.get('site')}, email={scrapling_result.get('email')}, whats={scrapling_result.get('whatsapp_publico')}, tel={scrapling_result.get('telefone')}")
 
                 resumo_ia = None
                 meta_desc = scrapling_result.get("meta_description") or ""
@@ -722,10 +749,10 @@ def _enriquecer_empresa_web(empresa: "Empresa") -> dict:
                         loop = asyncio.get_event_loop()
                         if loop.is_running():
                             import concurrent.futures
-                            with concurrent.futures.ThreadPoolExecutor() as pool:
+                            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
                                 resumo_ia = pool.submit(
                                     lambda: asyncio.run(resumir_site_com_ia(meta_desc))
-                                ).result(timeout=15)
+                                ).result(timeout=30)
                         else:
                             resumo_ia = loop.run_until_complete(resumir_site_com_ia(meta_desc))
                     except Exception:
@@ -742,10 +769,17 @@ def _enriquecer_empresa_web(empresa: "Empresa") -> dict:
         print(f"[ENRIQUECIMENTO] Scrapling falhou para {nome}, usando fallback: {repr(e)}")
 
     # Fallback: httpx + BeautifulSoup (lógica original)
-    query = f'"{nome}" {cidade} {uf} CNPJ {empresa.cnpj}'
+    if BeautifulSoup is None:
+        print(f"[ENRIQUECIMENTO] bs4 não disponível, pulando fallback httpx para {nome}")
+        return {}
+
+    query = f'"{nome}" {cidade} {uf} contato telefone whatsapp'
     print(f"[ENRIQUECIMENTO] Fallback httpx para empresa: {query}")
 
-    resultados = _buscar_resultados_busca(query, max_results=4)
+    resultados = _buscar_resultados_busca(query, max_results=5)
+    if not resultados:
+        query2 = f'"{nome}" {empresa.cnpj or ""} site telefone'
+        resultados = _buscar_resultados_busca(query2, max_results=3)
     if not resultados:
         return {}
 
@@ -756,7 +790,9 @@ def _enriquecer_empresa_web(empresa: "Empresa") -> dict:
     sociais: List[str] = []
     texto_principal_site: Optional[str] = None
 
-    client = httpx.Client(timeout=10.0, follow_redirects=True)
+    client = httpx.Client(timeout=30.0, follow_redirects=True)
+
+    _CONTACT_SUFFIXES = ["/contato", "/fale-conosco", "/contact", "/sobre", "/quem-somos"]
 
     try:
         for r in resultados:
@@ -798,6 +834,29 @@ def _enriquecer_empresa_web(empresa: "Empresa") -> dict:
             except Exception as e:
                 print(f"[ENRIQUECIMENTO] erro ao processar {url}:", repr(e))
                 continue
+
+        # Visita páginas de contato do site corporativo encontrado
+        if melhor_site and (not whatsapp_pub or not email):
+            base = melhor_site.rstrip("/")
+            for suffix in _CONTACT_SUFFIXES:
+                if whatsapp_pub and email:
+                    break
+                try:
+                    resp = client.get(base + suffix)
+                    if resp.status_code != 200 or not resp.text:
+                        continue
+                    soup = BeautifulSoup(resp.text, "html.parser")
+                    txt = soup.get_text(" ", strip=True)
+                    c2 = _extrair_contatos_html(txt + " " + resp.text)
+                    if not whatsapp_pub and c2["whatsapps"]:
+                        whatsapp_pub = c2["whatsapps"][0]
+                        print(f"[ENRIQUECIMENTO] WhatsApp encontrado em {base}{suffix}")
+                    if not email and c2["emails"]:
+                        email = c2["emails"][0]
+                    if not telefone and c2["phones"]:
+                        telefone = c2["phones"][0]
+                except Exception:
+                    continue
     finally:
         client.close()
 
@@ -806,12 +865,12 @@ def _enriquecer_empresa_web(empresa: "Empresa") -> dict:
         try:
             import asyncio
             import concurrent.futures
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             if loop.is_running():
-                with concurrent.futures.ThreadPoolExecutor() as pool:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
                     resumo_ia = pool.submit(
                         lambda: asyncio.run(resumir_site_com_ia(texto_principal_site))
-                    ).result(timeout=15)
+                    ).result(timeout=30)
             else:
                 resumo_ia = loop.run_until_complete(resumir_site_com_ia(texto_principal_site))
         except Exception:
@@ -938,6 +997,15 @@ def enriquecer_empresas_online(empresas: List["Empresa"], on_progress=None) -> N
         if dados.get("resumo_ia_empresa"):
             emp.resumo_ia_empresa = dados["resumo_ia_empresa"]
 
+        # Promoção imediata: se achou telefone celular mas não WhatsApp, promove
+        if not emp.whatsapp_publico and not emp.whatsapp_enriquecido:
+            tel_candidato = dados.get("telefone") or ""
+            if _eh_celular_br(tel_candidato):
+                num_norm = _normalizar_celular_br(tel_candidato)
+                if num_norm:
+                    emp.whatsapp_enriquecido = num_norm
+                    print(f"[ENRIQUECIMENTO] Celular promovido a WhatsApp para {emp.nome_fantasia or emp.razao_social}: {num_norm}")
+
         # LinkedIn de socios encontrados pelo Scrapling
         socios_li = dados.get("socios_linkedin") or []
         if socios_li:
@@ -979,7 +1047,7 @@ SEGMENTO_PREFIX_NORMALIZADO = {
 }
 
 
-MAX_WHATSAPP_ULTRA_EMPRESAS = 15
+MAX_WHATSAPP_ULTRA_EMPRESAS = 25
 
 def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=None) -> None:
     """
@@ -1028,7 +1096,7 @@ def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=Non
                 ))
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                resultado = pool.submit(_run_discovery).result(timeout=25)
+                resultado = pool.submit(_run_discovery).result(timeout=90)
 
             whatsapp_data = resultado.get("whatsapp") or {}
             whatsapp_numero = whatsapp_data.get("numero") if isinstance(whatsapp_data, dict) else None
@@ -1059,6 +1127,69 @@ def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=Non
     print(f"[WHATSAPP ULTRA] Concluído: {total_encontrados}/{len(alvos)} WhatsApps encontrados")
 
 
+def _eh_celular_br(numero: str) -> bool:
+    """Verifica se um número é celular brasileiro (DDD + 9XXXXXXXX)."""
+    if not numero:
+        return False
+    num = re.sub(r"[^\d]", "", str(numero))
+    if num.startswith("55"):
+        num = num[2:]
+    if num.startswith("0"):
+        num = num[1:]
+    return len(num) == 11 and num[2] == "9"
+
+
+def _normalizar_celular_br(numero: str) -> Optional[str]:
+    """Normaliza celular brasileiro para formato 55DXXXXXXXXX (13 dígitos)."""
+    if not numero:
+        return None
+    num = re.sub(r"[^\d]", "", str(numero))
+    if num.startswith("0"):
+        num = num[1:]
+    if len(num) == 11 and num[2] == "9":
+        return "55" + num
+    if len(num) == 13 and num.startswith("55") and num[4] == "9":
+        return num
+    return None
+
+
+def _promover_telefone_para_whatsapp(empresas: List["Empresa"]) -> int:
+    """
+    Última camada: para empresas SEM WhatsApp, verifica se algum telefone
+    disponível é celular brasileiro (DDD + 9XXXX-XXXX) e promove a
+    whatsapp_enriquecido com tag de origem.
+
+    No Brasil, ~95% dos celulares comerciais com 9° dígito são WhatsApp.
+    Fontes verificadas (ordem de prioridade):
+      1. telefone_enriquecido (veio do site da empresa)
+      2. telefone_padrao (DDD1+TEL1 da Receita Federal)
+      3. telefone_receita (campo direto da RF)
+      4. telefone_estab1, telefone_estab2 (estabelecimento)
+    """
+    promovidos = 0
+    for emp in empresas:
+        if emp.whatsapp_publico or emp.whatsapp_enriquecido:
+            continue
+
+        fontes = [
+            ("site", emp.telefone_enriquecido),
+            ("receita_padrao", emp.telefone_padrao),
+            ("receita_bruto", emp.telefone_receita),
+            ("estabelecimento1", emp.telefone_estab1),
+            ("estabelecimento2", emp.telefone_estab2),
+        ]
+        for fonte_tag, tel in fontes:
+            if tel and _eh_celular_br(tel):
+                numero_norm = _normalizar_celular_br(tel)
+                if numero_norm:
+                    emp.whatsapp_enriquecido = numero_norm
+                    promovidos += 1
+                    print(f"[WHATSAPP PROMO] {emp.nome_fantasia or emp.razao_social}: "
+                          f"{numero_norm} (fonte: {fonte_tag})")
+                    break
+
+    print(f"[WHATSAPP PROMO] {promovidos} empresas promovidas de telefone → WhatsApp")
+    return promovidos
 
 
 def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> ProspeccaoResultado:
@@ -1530,6 +1661,13 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
         except Exception as e:
             print("[WHATSAPP ULTRA] erro geral:", repr(e))
 
+        # Última camada: promover celulares conhecidos para WhatsApp
+        _emit("enriching_whatsapp_ultra", 0, 0, "Promovendo celulares para WhatsApp")
+        try:
+            _promover_telefone_para_whatsapp(empresas)
+        except Exception as e:
+            print("[WHATSAPP PROMO] erro:", repr(e))
+
     total_empresas = len(empresas)
 
     def tem_contato_acionavel(emp: Empresa) -> bool:
@@ -1934,8 +2072,8 @@ async def mapa_calor_endpoint(config: MapaCalorRequest):
 @app.post("/prospeccao/run", response_model=ProspeccaoResultado)
 async def run_prospeccao(request: Request, config: ProspeccaoConfig):
     org_id = get_org_id(request)
-    if getattr(config, "enriquecimento_web", False):
-        need = getattr(config, "limite_empresas", 20) or 20
+    if config.enriquecer_web:
+        need = config.limite_empresas or 20
         if not _consume_credits(org_id, need):
             raise HTTPException(
                 status_code=402,

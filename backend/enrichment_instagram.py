@@ -205,7 +205,7 @@ async def extrair_dados_linkinbio(url: str) -> Dict:
         "telegram_linkinbio": None,
     }
 
-    html = await _scrape_url(url, timeout=12.0)
+    html = await _scrape_url(url, timeout=25.0)
     if not html:
         return dados
 

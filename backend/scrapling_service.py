@@ -104,7 +104,7 @@ def _scrapling_fetch(url: str) -> Optional[Any]:
     if not SCRAPLING_AVAILABLE:
         return None
     try:
-        page = Fetcher.get(url, timeout=15, stealthy_headers=True, follow_redirects=True)
+        page = Fetcher.get(url, timeout=30, stealthy_headers=True, follow_redirects=True)
         if page and page.status and page.status == 200:
             return page
     except Exception:

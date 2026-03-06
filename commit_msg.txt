@@ -1,0 +1,42 @@
+fix: auditoria final profunda - 32 bugs corrigidos em 22 arquivos
+
+CRITICOS:
+- Credit check bypass: getattr(config, alias) sempre False -> config.enriquecer_web
+- NaN pandas: _as_opt_str convertia NaN em string "nan" -> usa as_opt_str importada
+- core_scraper: indentacao quebrada em _buscar_google_direto
+- enrichment_opencnpj: crash em asyncio.gather com return_exceptions=True
+- ultra_enrichment: urlparse fix + return prematuro no loop WHOIS
+- main_integrado: load_dotenv() chamado DEPOIS de import config
+
+ALTOS:
+- BeautifulSoup=None guard no fallback httpx
+- Blocking sync calls: rodar_prospeccao_icp, gerar_mapa_calor, gerar_insights
+- SSE headers: Cache-Control, X-Accel-Buffering no StreamingResponse
+- Frontend rotas: Sidebar, Dashboard, History navegavam para / ao inves de /app
+- WhatsApp count mostrava porcentagem ao inves de total
+- webhooks: .dict() -> .model_dump() (Pydantic v2)
+
+MEDIOS:
+- config.py: @validator -> @field_validator + model_config dict
+- enrichment_service: httpx.post sync -> AsyncClient
+- enrichment_waterfall: get_event_loop -> get_running_loop
+- Score ICP: escala frontend 0-10 -> 0-100 (match com backend)
+- Configure.tsx: cidade vazia no resumo multi-cidade
+- cache_contatos sem limite -> max 5000 entries
+- ThreadPoolExecutor sem max_workers -> max_workers=2
+- Landing.tsx: API_BASE fallback localhost -> window.location.origin
+- jobs.py: WhatsApp regex capturava URL ao inves de digitos
+- api.ts: tipo Empresa + 3 campos faltantes do backend
+- Copyright 2025 -> 2026
+
+WHATSAPP:
+- Regex melhorado: WHATS_LINK_REGEX + WHATS_NUM_REGEX
+- Promocao celular->WhatsApp em 3 camadas
+- Crawling de paginas de contato (/contato, /fale-conosco, etc.)
+- Google Maps telefone_maps -> WhatsApp se celular
+- Limpeza nome empresa (remove S.A., LTDA, etc.) para buscas
+- MAX_WHATSAPP_ULTRA_EMPRESAS: 15 -> 25
+- Timeouts aumentados em todos os modulos (30-90s)
+
+INFRA:
+- nginx proxy_read/send_timeout: 180s -> 900s

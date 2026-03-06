@@ -164,6 +164,6 @@ async def test_dispatch(
     urls = r.smembers("hermes:webhooks")
     
     for url in urls:
-        background_tasks.add_task(_dispatch_to_url, url, event.dict())
+        background_tasks.add_task(_dispatch_to_url, url, event.model_dump())
 
     return {"status": "dispatching", "target_count": len(urls)}

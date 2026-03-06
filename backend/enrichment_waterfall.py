@@ -105,7 +105,7 @@ async def verificar_mx(dominio: str) -> bool:
     """Verifica se o domínio tem registro MX válido (grátis, via DNS)."""
     try:
         import dns.resolver  # dnspython
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         registros = await loop.run_in_executor(
             None, lambda: dns.resolver.resolve(dominio, "MX")
         )
@@ -123,7 +123,7 @@ async def _hunter_domain_search(dominio: str) -> List[Dict]:
     if not key:
         return []
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=25.0) as client:
             resp = await client.get(
                 "https://api.hunter.io/v2/domain-search",
                 params={"domain": dominio, "api_key": key, "limit": 5},
@@ -146,7 +146,7 @@ async def _hunter_email_finder(
     if not key:
         return None
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=25.0) as client:
             resp = await client.get(
                 "https://api.hunter.io/v2/email-finder",
                 params={
@@ -181,7 +181,7 @@ async def _snovio_email_finder(
     if not user_id or not secret:
         return None
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=25.0) as client:
             # Obtem token
             token_resp = await client.post(
                 "https://api.snov.io/v1/oauth/access_token",

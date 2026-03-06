@@ -18,7 +18,7 @@ import { toast, Toaster } from "sonner";
 const API_BASE =
   (import.meta.env.VITE_HERMES_API_BASE_URL as string | undefined) ??
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-  "http://127.0.0.1:8000";
+  (typeof window !== "undefined" ? window.location.origin + "/api" : "http://127.0.0.1:8000");
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /*  HOOKS                                                                     */
@@ -761,7 +761,7 @@ export default function Landing() {
       <footer className="border-t border-white/[0.03] py-6">
         <div className="container mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-3 max-w-6xl">
           <div className="flex items-center gap-2 text-[12px] text-muted-foreground/40">
-            <Target className="h-3.5 w-3.5 text-primary/30" />&copy; 2025 Projeto Hermes
+            <Target className="h-3.5 w-3.5 text-primary/30" />&copy; 2026 Projeto Hermes
           </div>
           <div className="flex gap-6 text-[11px] text-muted-foreground/30">
             <span className="hover:text-muted-foreground/60 cursor-pointer transition-colors">Termos</span>

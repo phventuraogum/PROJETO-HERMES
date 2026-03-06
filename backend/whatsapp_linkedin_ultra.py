@@ -19,48 +19,80 @@ from bs4 import BeautifulSoup
 # WHATSAPP ULTRA-DISCOVERY (6 CAMADAS)
 # =================================================================
 
+_WHATS_PATTERNS = [
+    re.compile(r'wa\.me/(\d{10,13})'),
+    re.compile(r'api\.whatsapp\.com/send\?phone=(\d{10,13})'),
+    re.compile(r'whatsapp://send\?phone=(\d{10,13})'),
+]
+_WHATS_NUM_PATTERN = re.compile(r'(?:\+?55\s?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4})|(?:\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4})')
+_CONTACT_PATHS = ["", "/contato", "/fale-conosco", "/contact", "/sobre", "/quem-somos"]
+
+
 async def extrair_whatsapp_widget(url: str) -> Optional[str]:
     """
     Camada 1: Escaneia o código-fonte do site procurando por widgets de WhatsApp.
     Detecta: wa.me, api.whatsapp.com, click-to-chat, floating buttons.
+    Visita homepage + páginas de contato comuns.
     """
+    if not url:
+        return None
+    base_url = url.strip().rstrip("/")
+    if not base_url.startswith("http"):
+        base_url = "https://" + base_url
+
     try:
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, verify=False) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True, verify=False) as client:
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
             }
-            resp = await client.get(url, headers=headers)
-            if resp.status_code != 200:
-                return None
-            
-            html = resp.text
-            
-            # Padrão 1: wa.me/5511999999999
-            wa_me = re.search(r'wa\.me/(\d{12,13})', html)
-            if wa_me:
-                return wa_me.group(1)
-            
-            # Padrão 2: api.whatsapp.com/send?phone=5511999999999
-            api_whats = re.search(r'api\.whatsapp\.com/send\?phone=(\d{12,13})', html)
-            if api_whats:
-                return api_whats.group(1)
-            
-            # Padrão 3: whatsapp://send?phone=5511999999999
-            whats_protocol = re.search(r'whatsapp://send\?phone=(\d{12,13})', html)
-            if whats_protocol:
-                return whats_protocol.group(1)
-            
-            # Padrão 4: Número com 55 + DDD + 9 (formato completo)
-            numero_completo = re.search(r'55\s?\(?\d{2}\)?\s?9\d{4}[-\s]?\d{4}', html)
-            if numero_completo:
-                # Limpa formatação
-                num_limpo = re.sub(r'[^\d]', '', numero_completo.group())
-                if len(num_limpo) >= 12:
-                    return num_limpo
-            
+            for path in _CONTACT_PATHS:
+                target = base_url + path
+                try:
+                    resp = await client.get(target, headers=headers)
+                    if resp.status_code != 200:
+                        continue
+                except Exception:
+                    continue
+
+                html = resp.text
+
+                for pattern in _WHATS_PATTERNS:
+                    m = pattern.search(html)
+                    if m:
+                        digits = m.group(1)
+                        if len(digits) == 11 and digits[2] == "9":
+                            return "55" + digits
+                        if len(digits) >= 12:
+                            return digits
+
+                nums = _WHATS_NUM_PATTERN.findall(html)
+                for raw in nums:
+                    num_limpo = re.sub(r'[^\d]', '', raw)
+                    if len(num_limpo) == 11 and num_limpo[2] == "9":
+                        return "55" + num_limpo
+                    if len(num_limpo) >= 12 and num_limpo[4] == "9":
+                        return num_limpo
+
     except Exception:
         pass
-    
+
+    return None
+
+
+def _extrair_whatsapp_de_texto(texto: str) -> Optional[str]:
+    """Extrai número de WhatsApp de um texto (snippet, bio, etc)."""
+    wa_match = re.search(r'wa\.me/(\d{10,13})', texto)
+    if wa_match:
+        d = wa_match.group(1)
+        return ("55" + d) if len(d) == 11 and d[2] == "9" else d
+
+    num_match = re.search(r'(?:\+?55\s?)?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4}', texto)
+    if num_match:
+        num = re.sub(r'[^\d]', '', num_match.group())
+        if len(num) == 11 and num[2] == "9":
+            return "55" + num
+        if len(num) >= 12 and validar_whatsapp_brasileiro(num):
+            return num
     return None
 
 
@@ -69,60 +101,64 @@ async def buscar_whatsapp_redes_sociais(empresa_nome: str) -> Dict[str, str]:
     Camada 2: Busca WhatsApp Business nas redes sociais (Instagram, Facebook).
     """
     from core_scraper import buscar_google
-    
+
     dados = {"whats_instagram": "", "whats_facebook": ""}
-    
-    # Instagram
+
     query_ig = f'site:instagram.com "{empresa_nome}" whatsapp'
     res_ig = await buscar_google(query_ig, num_results=2)
     for r in res_ig:
-        snippet = r.get("descricao", "")
-        # wa.me
-        wa_match = re.search(r'wa\.me/(\d{12,13})', snippet)
-        if wa_match:
-            dados["whats_instagram"] = wa_match.group(1)
+        snippet = r.get("descricao", "") + " " + r.get("titulo", "")
+        found = _extrair_whatsapp_de_texto(snippet)
+        if found:
+            dados["whats_instagram"] = found
             break
-        # Número com 55
-        num_match = re.search(r'55\s?\(?\d{2}\)?\s?9\d{4}[-\s]?\d{4}', snippet)
-        if num_match:
-            dados["whats_instagram"] = re.sub(r'[^\d]', '', num_match.group())
-            break
-    
-    # Facebook
+
     query_fb = f'site:facebook.com "{empresa_nome}" whatsapp'
     res_fb = await buscar_google(query_fb, num_results=2)
     for r in res_fb:
-        snippet = r.get("descricao", "")
-        wa_match = re.search(r'wa\.me/(\d{12,13})', snippet)
-        if wa_match:
-            dados["whats_facebook"] = wa_match.group(1)
+        snippet = r.get("descricao", "") + " " + r.get("titulo", "")
+        found = _extrair_whatsapp_de_texto(snippet)
+        if found:
+            dados["whats_facebook"] = found
             break
-    
+
     return dados
 
 
 async def buscar_whatsapp_direto(empresa_nome: str, cidade: str = "") -> Optional[str]:
     """
     Camada 3: Busca direta específica por "empresa + whatsapp + número".
+    Duas queries: uma focada em WhatsApp, outra em celular/contato.
     """
     from core_scraper import buscar_google
-    
-    query = f'"{empresa_nome}" {cidade} whatsapp contato'
-    resultados = await buscar_google(query, num_results=5)
-    
-    for r in resultados:
-        snippet = r.get("descricao", "")
-        
-        # wa.me
-        wa_match = re.search(r'wa\.me/(\d{12,13})', snippet)
-        if wa_match:
-            return wa_match.group(1)
-        
-        # Número completo com 55
-        num_match = re.search(r'55\s?\(?\d{2}\)?\s?9\d{4}[-\s]?\d{4}', snippet)
-        if num_match:
-            return re.sub(r'[^\d]', '', num_match.group())
-    
+
+    queries = [
+        f'"{empresa_nome}" {cidade} whatsapp contato',
+        f'"{empresa_nome}" {cidade} celular telefone',
+    ]
+
+    for query in queries:
+        resultados = await buscar_google(query, num_results=5)
+
+        for r in resultados:
+            snippet = (r.get("descricao", "") + " " + r.get("titulo", ""))
+
+            wa_match = re.search(r'wa\.me/(\d{10,13})', snippet)
+            if wa_match:
+                digits = wa_match.group(1)
+                if len(digits) == 11 and digits[2] == "9":
+                    return "55" + digits
+                if len(digits) >= 12:
+                    return digits
+
+            num_match = re.search(r'(?:\+?55\s?)?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4}', snippet)
+            if num_match:
+                num = re.sub(r'[^\d]', '', num_match.group())
+                if len(num) == 11 and num[2] == "9":
+                    return "55" + num
+                if len(num) >= 12 and validar_whatsapp_brasileiro(num):
+                    return num
+
     return None
 
 
@@ -409,6 +445,14 @@ async def descobrir_whatsapp_linkedin_completo(
                 if validar_whatsapp_brasileiro(num):
                     whatsapp_final = num
                     whatsapp_fonte = "Google Maps"
+            if not whatsapp_final and result.get("telefone_maps"):
+                tel_raw = re.sub(r"[^\d]", "", result["telefone_maps"])
+                if len(tel_raw) == 11 and tel_raw[2] == "9":
+                    whatsapp_final = "55" + tel_raw
+                    whatsapp_fonte = "Google Maps (celular)"
+                elif len(tel_raw) == 13 and tel_raw.startswith("55") and tel_raw[4] == "9":
+                    whatsapp_final = tel_raw
+                    whatsapp_fonte = "Google Maps (celular)"
 
         elif nome == "instagram_lb" and isinstance(result, dict):
             instagram_url = instagram_url or result.get("instagram_url")

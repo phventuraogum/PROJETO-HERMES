@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 const menuItems = [
-  { icon: Settings,       label: "Configurar Prospecção", path: "/" },
+  { icon: Settings,       label: "Configurar Prospecção", path: "/app" },
   { icon: LayoutDashboard,label: "Dashboard",             path: "/dashboard" },
   { icon: FileText,       label: "Resultados",            path: "/results" },
   { icon: Coins,          label: "Comprar créditos",      path: "/comprar-creditos" },
