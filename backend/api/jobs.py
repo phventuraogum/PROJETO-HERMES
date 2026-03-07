@@ -2,6 +2,7 @@
 RQ Job functions for background enrichment (hermes queue).
 """
 import os
+import re
 import sys
 import asyncio
 import logging
@@ -9,6 +10,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+try:
+    from api.validation_service import normalizar_whatsapp_br
+except ImportError:
+    def normalizar_whatsapp_br(n):
+        d = re.sub(r"[^\d]", "", str(n or ""))
+        if d.startswith("0"): d = d[1:]
+        if d.startswith("55") and len(d) >= 12: d = d[2:]
+        if len(d) == 11 and d[2] == "9": return "55" + d
+        return None
 
 
 def enrich_company_by_cnpj(cnpj: str) -> dict:
@@ -68,11 +79,16 @@ def enrich_company_by_cnpj(cnpj: str) -> dict:
 
                 wa_match = re.findall(r"(?:wa\.me|api\.whatsapp\.com/send\?phone=)/?\+?(\d{10,13})", resp.text)
                 if wa_match and not whatsapp:
-                    num = wa_match[0]
-                    if len(num) == 11 and num[2] == "9":
-                        whatsapp = "55" + num
-                    elif len(num) >= 12:
-                        whatsapp = num
+                    for wm in wa_match:
+                        norm = normalizar_whatsapp_br(wm)
+                        if norm:
+                            whatsapp = norm
+                            break
+
+                if not whatsapp and telefone:
+                    norm_tel = normalizar_whatsapp_br(telefone)
+                    if norm_tel:
+                        whatsapp = norm_tel
 
                 if not site:
                     site = str(resp.url)

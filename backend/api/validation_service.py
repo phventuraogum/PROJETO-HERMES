@@ -2,9 +2,10 @@
 Serviço de Validação Robusta de Dados
 Valida CNPJ, emails, telefones e outros dados para garantir qualidade
 """
+import os
 import re
 import logging
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, List
 import httpx
 from datetime import datetime
 
@@ -272,9 +273,52 @@ def validar_telefone(telefone: str) -> Dict[str, Any]:
     }
 
 
+def normalizar_whatsapp_br(numero_raw: str) -> Optional[str]:
+    """
+    Normaliza qualquer número brasileiro para o formato 55DDXXXXXXXXX (13 dígitos).
+    Retorna None se não for um celular brasileiro válido.
+    Regra: DDD válido + 9 dígitos começando com 9.
+    """
+    if not numero_raw:
+        return None
+    raw = str(numero_raw)
+    is_wa_link = "wa.me" in raw or "api.whatsapp.com" in raw or "whatsapp://" in raw
+    digits_only = re.sub(r"[^\d]", "", raw)
+
+    if digits_only.startswith("0"):
+        digits_only = digits_only[1:]
+    if digits_only.startswith("55") and len(digits_only) >= 12:
+        digits_only = digits_only[2:]
+
+    if len(digits_only) == 10 and digits_only[2] != "9":
+        return None
+    if len(digits_only) == 10 and digits_only[2] == "9":
+        pass
+    elif len(digits_only) == 11 and digits_only[2] == "9":
+        pass
+    else:
+        return None
+
+    ddd = digits_only[:2]
+    if ddd not in VALID_DDDS:
+        return None
+
+    local = digits_only[2:]
+    if len(local) == 8 and local[0] == "9":
+        local = "9" + local
+        digits_only = ddd + local
+    elif len(local) == 9 and local[0] == "9":
+        pass
+    else:
+        return None
+
+    return "55" + digits_only
+
+
 def validar_whatsapp(whatsapp: str) -> Dict[str, Any]:
     """
-    Valida número de WhatsApp com heurística robusta.
+    Valida número de WhatsApp com heurística rigorosa.
+    Só aceita celulares brasileiros (DDD válido + 9XXXXXXXX).
     """
     if not whatsapp:
         return {
@@ -284,64 +328,142 @@ def validar_whatsapp(whatsapp: str) -> Dict[str, Any]:
             "score": 0.0,
             "metodo": "heuristica"
         }
-    
-    # Identifica se é uma URL wa.me
+
     is_wa_me = "wa.me" in str(whatsapp) or "api.whatsapp.com" in str(whatsapp)
-    
-    # Remove formatação e URLs
-    whatsapp_limpo = re.sub(r'[^\d]', '', str(whatsapp))
-    
-    # Remove código do país se presente (Brasil = 55)
-    if whatsapp_limpo.startswith('55'):
-        # Se tem 13 dígitos e começa com 55, é um número completo (+55 DD 9XXXX-XXXX)
-        if len(whatsapp_limpo) >= 12:
-            whatsapp_limpo = whatsapp_limpo[2:]
-    
-    # Valida formato (DDD + 9 ou 8 dígitos)
-    # Celular no Brasil deve ter 11 dígitos (incluindo o 9 inicial)
-    # Mas alguns sistemas legados ou bots podem ter 10
-    has_correct_length = len(whatsapp_limpo) in [10, 11]
-    
-    score = 0.0
-    valido = False
-    
-    if has_correct_length:
-        ddd = whatsapp_limpo[:2]
-        ddd_valido = ddd in VALID_DDDS
-        
-        # Verifica se o número parece ser móvel (começa com 9 ou 8/7 dependendo da região)
-        # No Brasil, todos os celulares agora têm o 9 na frente.
-        numero = whatsapp_limpo[2:]
-        is_mobile_pattern = numero.startswith('9') or (len(numero) == 8 and numero[0] in '789')
-        
-        if ddd_valido and is_mobile_pattern:
-            valido = True
-            score = 0.8
-            if is_wa_me:
-                score = 0.95  # Links diretos têm altíssima confiabilidade
-        elif ddd_valido:
-            # É um número válido mas não segue padrão móvel clássico
-            valido = True
-            score = 0.6
-    
+    normalizado = normalizar_whatsapp_br(whatsapp)
+
+    if normalizado:
+        score = 0.85 if is_wa_me else 0.7
+        return {
+            "valido": True,
+            "formato_valido": True,
+            "numero_limpo": normalizado,
+            "score": score,
+            "is_wa_me": is_wa_me,
+            "metodo": "heuristica"
+        }
+
     return {
-        "valido": valido,
-        "formato_valido": has_correct_length,
-        "numero_limpo": whatsapp_limpo if valido else None,
-        "score": score,
+        "valido": False,
+        "formato_valido": False,
+        "numero_limpo": None,
+        "score": 0.0,
         "is_wa_me": is_wa_me,
         "metodo": "heuristica"
     }
 
 
+_EVOLUTION_API_URL = os.environ.get("EVOLUTION_API_URL", "")
+_EVOLUTION_API_KEY = os.environ.get("EVOLUTION_API_KEY", "")
+_EVOLUTION_INSTANCE = os.environ.get("EVOLUTION_INSTANCE", "")
+
+
 async def verificar_whatsapp_realtime(numero: str) -> Dict[str, Any]:
     """
-    Verifica se o número existe no WhatsApp em tempo real.
-    Placeholder para integração com Evolution API ou similar.
+    Verifica se o número existe no WhatsApp via Evolution API.
+    Faz validação de formato primeiro; se passa, consulta a API real.
+    Se a Evolution API não estiver configurada, retorna apenas heurística.
     """
-    # Para o futuro: integrar aqui a chamada para a Evolution API
-    # Por enquanto, retorna a validação por heurística
-    return validar_whatsapp(numero)
+    heuristica = validar_whatsapp(numero)
+    if not heuristica["valido"]:
+        return heuristica
+
+    num_limpo = heuristica["numero_limpo"]
+
+    if not (_EVOLUTION_API_URL and _EVOLUTION_API_KEY and _EVOLUTION_INSTANCE):
+        return heuristica
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{_EVOLUTION_API_URL.rstrip('/')}/chat/whatsappNumbers/{_EVOLUTION_INSTANCE}",
+                headers={"apikey": _EVOLUTION_API_KEY, "Content-Type": "application/json"},
+                json={"numbers": [num_limpo]},
+            )
+        if resp.status_code == 200:
+            data = resp.json()
+            resultados = data if isinstance(data, list) else data.get("data", data.get("response", []))
+            if isinstance(resultados, list) and resultados:
+                item = resultados[0]
+                existe = item.get("exists", item.get("status") == "true")
+                jid = item.get("jid", item.get("number", ""))
+                if existe:
+                    return {
+                        "valido": True,
+                        "formato_valido": True,
+                        "numero_limpo": num_limpo,
+                        "jid": jid,
+                        "score": 1.0,
+                        "is_wa_me": heuristica.get("is_wa_me", False),
+                        "metodo": "evolution_api"
+                    }
+                else:
+                    logger.info(f"Numero {num_limpo} NAO existe no WhatsApp (Evolution API)")
+                    return {
+                        "valido": False,
+                        "formato_valido": True,
+                        "numero_limpo": num_limpo,
+                        "score": 0.0,
+                        "metodo": "evolution_api_rejected"
+                    }
+        logger.warning(f"Evolution API status {resp.status_code} para {num_limpo}")
+    except Exception as e:
+        logger.warning(f"Erro ao verificar WhatsApp via Evolution API: {e}")
+
+    return heuristica
+
+
+async def verificar_whatsapp_lote(numeros: list[str], max_batch: int = 50) -> Dict[str, Dict]:
+    """
+    Verifica uma lista de números via Evolution API em lote.
+    Retorna dict {numero_normalizado: resultado_validacao}.
+    """
+    resultados: Dict[str, Dict] = {}
+
+    validos = []
+    for n in numeros:
+        norm = normalizar_whatsapp_br(n)
+        if norm:
+            validos.append(norm)
+            resultados[norm] = validar_whatsapp(n)
+        else:
+            resultados.setdefault(re.sub(r"[^\d]", "", str(n)), {
+                "valido": False, "formato_valido": False,
+                "numero_limpo": None, "score": 0.0, "metodo": "formato_invalido"
+            })
+
+    if not (_EVOLUTION_API_URL and _EVOLUTION_API_KEY and _EVOLUTION_INSTANCE):
+        return resultados
+
+    for i in range(0, len(validos), max_batch):
+        batch = validos[i:i + max_batch]
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(
+                    f"{_EVOLUTION_API_URL.rstrip('/')}/chat/whatsappNumbers/{_EVOLUTION_INSTANCE}",
+                    headers={"apikey": _EVOLUTION_API_KEY, "Content-Type": "application/json"},
+                    json={"numbers": batch},
+                )
+            if resp.status_code == 200:
+                data = resp.json()
+                lista = data if isinstance(data, list) else data.get("data", data.get("response", []))
+                if isinstance(lista, list):
+                    for item in lista:
+                        num = re.sub(r"[^\d]", "", str(item.get("jid", item.get("number", ""))))
+                        if num.startswith("55") and len(num) == 13:
+                            existe = item.get("exists", item.get("status") == "true")
+                            resultados[num] = {
+                                "valido": bool(existe),
+                                "formato_valido": True,
+                                "numero_limpo": num if existe else None,
+                                "jid": item.get("jid", ""),
+                                "score": 1.0 if existe else 0.0,
+                                "metodo": "evolution_api"
+                            }
+        except Exception as e:
+            logger.warning(f"Erro verificacao lote Evolution API: {e}")
+
+    return resultados
 
 
 def calcular_score_confiabilidade(

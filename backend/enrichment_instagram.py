@@ -53,13 +53,25 @@ _HEADERS_MOBILE = {
 }
 
 
+try:
+    from api.validation_service import normalizar_whatsapp_br as _norm_wpp
+except ImportError:
+    def _norm_wpp(n):
+        d = re.sub(r"[^\d]", "", str(n or ""))
+        if d.startswith("0"): d = d[1:]
+        if d.startswith("55") and len(d) >= 12: d = d[2:]
+        if len(d) == 11 and d[2] == "9": return "55" + d
+        return None
+
+
 def _extrair_whatsapp(texto: str) -> Optional[str]:
     for p in _WA_PATTERNS:
         m = p.search(texto)
         if m:
             numero = re.sub(r"[^\d]", "", m.group(0))
-            if len(numero) >= 10:
-                return numero
+            norm = _norm_wpp(numero)
+            if norm:
+                return norm
     return None
 
 

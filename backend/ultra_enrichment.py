@@ -13,6 +13,16 @@ import httpx
 from typing import Dict, Optional, List
 from bs4 import BeautifulSoup
 
+try:
+    from api.validation_service import normalizar_whatsapp_br as _norm_wpp
+except ImportError:
+    def _norm_wpp(n):
+        d = re.sub(r"[^\d]", "", str(n or ""))
+        if d.startswith("0"): d = d[1:]
+        if d.startswith("55") and len(d) >= 12: d = d[2:]
+        if len(d) == 11 and d[2] == "9": return "55" + d
+        return None
+
 # =================================================================
 # 1. GOOGLE MY BUSINESS SCRAPER
 # =================================================================
@@ -33,8 +43,11 @@ async def buscar_google_my_business(empresa_nome: str, cidade: str = "") -> Dict
             # Regex para telefone
             tel_match = re.search(r'\(?\d{2}\)?\s?\d{4,5}-?\d{4}', snippet)
             if tel_match:
-                dados_gmb["telefone_gmb"] = tel_match.group()
-            # Link do GMB
+                tel_raw = tel_match.group()
+                dados_gmb["telefone_gmb"] = tel_raw
+                norm = _norm_wpp(tel_raw)
+                if norm:
+                    dados_gmb["whatsapp_gmb"] = norm
             dados_gmb["site_gmb"] = r["link"]
             break
     

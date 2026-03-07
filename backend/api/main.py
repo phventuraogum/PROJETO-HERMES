@@ -1126,8 +1126,16 @@ def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=Non
     print(f"[WHATSAPP ULTRA] Concluído: {total_encontrados}/{len(alvos)} WhatsApps encontrados")
 
 
+try:
+    from api.validation_service import normalizar_whatsapp_br as _normalizar_celular_br_central
+except ImportError:
+    _normalizar_celular_br_central = None
+
+
 def _eh_celular_br(numero: str) -> bool:
-    """Verifica se um número é celular brasileiro (DDD + 9XXXXXXXX)."""
+    """Verifica se um número é celular brasileiro válido (DDD válido + 9XXXXXXXX)."""
+    if _normalizar_celular_br_central:
+        return _normalizar_celular_br_central(numero) is not None
     if not numero:
         return False
     num = re.sub(r"[^\d]", "", str(numero))
@@ -1139,7 +1147,9 @@ def _eh_celular_br(numero: str) -> bool:
 
 
 def _normalizar_celular_br(numero: str) -> Optional[str]:
-    """Normaliza celular brasileiro para formato 55DXXXXXXXXX (13 dígitos)."""
+    """Normaliza celular brasileiro para formato 55DDXXXXXXXXX (13 dígitos) com DDD válido."""
+    if _normalizar_celular_br_central:
+        return _normalizar_celular_br_central(numero)
     if not numero:
         return None
     num = re.sub(r"[^\d]", "", str(numero))
@@ -1189,6 +1199,75 @@ def _promover_telefone_para_whatsapp(empresas: List["Empresa"]) -> int:
 
     print(f"[WHATSAPP PROMO] {promovidos} empresas promovidas de telefone → WhatsApp")
     return promovidos
+
+
+def _verificar_whatsapps_evolution(empresas: List["Empresa"]) -> int:
+    """
+    Verifica em lote quais WhatsApps existem de verdade via Evolution API.
+    Remove whatsapp_enriquecido de empresas cujo número foi rejeitado.
+    Requer EVOLUTION_API_URL, EVOLUTION_API_KEY, EVOLUTION_INSTANCE no env.
+    """
+    import asyncio
+    try:
+        from api.validation_service import verificar_whatsapp_lote, normalizar_whatsapp_br
+    except ImportError:
+        print("[EVOLUTION CHECK] validation_service indisponível, pulando verificação")
+        return 0
+
+    evolution_url = os.environ.get("EVOLUTION_API_URL", "")
+    if not evolution_url:
+        print("[EVOLUTION CHECK] EVOLUTION_API_URL não configurada, pulando")
+        return 0
+
+    numeros_para_verificar = {}
+    for emp in empresas:
+        wpp = emp.whatsapp_enriquecido or emp.whatsapp_publico
+        if wpp:
+            norm = normalizar_whatsapp_br(wpp)
+            if norm:
+                numeros_para_verificar[norm] = emp
+
+    if not numeros_para_verificar:
+        print("[EVOLUTION CHECK] Nenhum WhatsApp para verificar")
+        return 0
+
+    print(f"[EVOLUTION CHECK] Verificando {len(numeros_para_verificar)} números via Evolution API...")
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            resultados = pool.submit(
+                asyncio.run,
+                verificar_whatsapp_lote(list(numeros_para_verificar.keys()))
+            ).result()
+    else:
+        resultados = asyncio.run(
+            verificar_whatsapp_lote(list(numeros_para_verificar.keys()))
+        )
+
+    removidos = 0
+    confirmados = 0
+    for num, resultado in resultados.items():
+        if resultado.get("metodo") in ("evolution_api", "evolution_api_rejected"):
+            emp = numeros_para_verificar.get(num)
+            if not emp:
+                continue
+            if resultado.get("valido"):
+                confirmados += 1
+            else:
+                if emp.whatsapp_enriquecido and normalizar_whatsapp_br(emp.whatsapp_enriquecido) == num:
+                    emp.whatsapp_enriquecido = None
+                if emp.whatsapp_publico and normalizar_whatsapp_br(emp.whatsapp_publico) == num:
+                    emp.whatsapp_publico = None
+                removidos += 1
+
+    print(f"[EVOLUTION CHECK] Resultado: {confirmados} confirmados, {removidos} removidos (inválidos)")
+    return confirmados
 
 
 def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> ProspeccaoResultado:
@@ -1666,6 +1745,13 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
             _promover_telefone_para_whatsapp(empresas)
         except Exception as e:
             print("[WHATSAPP PROMO] erro:", repr(e))
+
+        # Verificação real via Evolution API (se configurada)
+        _emit("enriching_whatsapp_ultra", 0, 0, "Verificando WhatsApps via API...")
+        try:
+            _verificar_whatsapps_evolution(empresas)
+        except Exception as e:
+            print("[EVOLUTION CHECK] erro:", repr(e))
 
     total_empresas = len(empresas)
 

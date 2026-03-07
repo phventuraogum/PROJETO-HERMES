@@ -51,6 +51,9 @@ services:
       - HERMES_DUCKDB_PATH=/data/cnpj.duckdb
       - ASAAS_SANDBOX=false
       - SEARXNG_URL=http://searxng:8080
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL:-}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY:-}
+      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-}
     volumes:
       - duckdb_data:/data:ro
     expose:

@@ -6,6 +6,16 @@ from typing import List, Dict, Optional, Any
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
+try:
+    from api.validation_service import normalizar_whatsapp_br
+except ImportError:
+    def normalizar_whatsapp_br(n):
+        d = re.sub(r"[^\d]", "", str(n or ""))
+        if d.startswith("0"): d = d[1:]
+        if d.startswith("55") and len(d) >= 12: d = d[2:]
+        if len(d) == 11 and d[2] == "9": return "55" + d
+        return None
+
 load_dotenv()
 
 # ==========================================================
@@ -425,23 +435,22 @@ async def buscar_linkedin_socio_ultra(
 def _extrair_wame_de_html(html: str, soup: "BeautifulSoup") -> Optional[str]:
     """
     Extrai número WhatsApp de links wa.me / api.whatsapp.com/send em HREF.
-    Muito mais confiável do que regex no texto: é o link real posto pelo dono.
+    Retorna no formato 55DXXXXXXXXX (13 dígitos) ou None se inválido.
     """
-    # 1. Percorre todos os <a href="...wa.me/...">
+    candidatos = []
     for tag in soup.find_all("a", href=True):
         href = tag["href"]
         m = WAME_HREF_RE.search(href)
         if m:
-            digits = re.sub(r"\D", "", m.group(0))
-            # Garante que termina com DDD+9+8 dígitos
-            if len(digits) >= 10:
-                return digits[-11:] if len(digits) > 11 else digits
-    # 2. Regex geral no HTML bruto (captura widgets JS como wa.me/5511...)
+            candidatos.append(re.sub(r"\D", "", m.group(0)))
     m2 = WAME_HREF_RE.search(html)
     if m2:
-        digits = re.sub(r"\D", "", m2.group(0))
-        if len(digits) >= 10:
-            return digits[-11:] if len(digits) > 11 else digits
+        candidatos.append(re.sub(r"\D", "", m2.group(0)))
+
+    for digits in candidatos:
+        norm = normalizar_whatsapp_br(digits)
+        if norm:
+            return norm
     return None
 
 
@@ -533,8 +542,11 @@ async def extrair_contatos_site(url: str) -> Dict[str, Any]:
 
                 if not contatos["whatsapp"]:
                     whats = re.findall(WHATS_REGEX, texto)
-                    if whats:
-                        contatos["whatsapp"] = re.sub(r"\D", "", whats[0])
+                    for w in whats:
+                        norm = normalizar_whatsapp_br(w)
+                        if norm:
+                            contatos["whatsapp"] = norm
+                            break
 
                 if not contatos["telefone"]:
                     tels = re.findall(PHONE_REGEX, texto)

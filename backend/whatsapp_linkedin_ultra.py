@@ -162,33 +162,26 @@ async def buscar_whatsapp_direto(empresa_nome: str, cidade: str = "") -> Optiona
     return None
 
 
+try:
+    from api.validation_service import normalizar_whatsapp_br as _norm_central
+except ImportError:
+    _norm_central = None
+
+
 def validar_whatsapp_brasileiro(numero: str) -> bool:
     """
-    Valida se um número é um celular brasileiro válido (9º dígito obrigatório).
-
-    Formatos aceitos:
-      - 13 dígitos: 55 + DDD (2) + 9 + 8 dígitos  → +55 11 98765-4321
-      - 11 dígitos: DDD (2) + 9 + 8 dígitos        → 11 98765-4321
-    Números fixos (8 dígitos) são REJEITADOS propositalmente.
+    Valida se um número é um celular brasileiro válido.
+    Usa validação centralizada com checagem de DDD quando disponível.
     """
+    if _norm_central:
+        return _norm_central(numero) is not None
     if not numero:
         return False
-
     num_limpo = re.sub(r"[^\d]", "", str(numero))
-
-    # 13 dígitos: 55 + DDD + 9XXXXXXXX
-    if (
-        len(num_limpo) == 13
-        and num_limpo.startswith("55")
-        and num_limpo[4] == "9"
-    ):
+    if len(num_limpo) == 13 and num_limpo.startswith("55") and num_limpo[4] == "9":
         return True
-
-    # 11 dígitos: DDD + 9XXXXXXXX  (sem prefixo 55)
     if len(num_limpo) == 11 and num_limpo[2] == "9":
         return True
-
-    # 12 dígitos: 55 + DDD + 8 dígitos (fixo com DDI) — REJEITADO
     return False
 
 

@@ -147,6 +147,24 @@ class Settings(BaseSettings):
     )
 
     # ============================================================
+    # EVOLUTION API (WhatsApp validation)
+    # ============================================================
+    EVOLUTION_API_URL: str = Field(
+        default="",
+        description="URL da Evolution API (ex: http://31.97.174.112:8888)"
+    )
+
+    EVOLUTION_API_KEY: str = Field(
+        default="",
+        description="API Key da Evolution API"
+    )
+
+    EVOLUTION_INSTANCE: str = Field(
+        default="",
+        description="Nome da instância Evolution (ex: PINN SDR OUTBOUND - ATIVA)"
+    )
+
+    # ============================================================
     # CORS
     # ============================================================
     CORS_ORIGINS: str = Field(
