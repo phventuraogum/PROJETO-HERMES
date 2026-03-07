@@ -1,7 +1,4 @@
 from typing import Any, Dict, List, Optional
-
-# Alias para compatibilidade com código legado — usa as_opt_str que trata NaN
-_as_opt_str = as_opt_str
 import re
 import math
 import os
@@ -27,6 +24,8 @@ from api.utils import (
     classificar_subsegmento_por_cnae_e_nome,
     calcular_score_icp_legado as calcular_score_icp
 )
+
+_as_opt_str = as_opt_str
 
 try:
     from redis import Redis
