@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 import {
   ContatoCaptado, Empresa, SocioEstruturado,
   ExecucaoResumo, getResultadosUltimaExecucao,
-  addToPipeline,
+  addBatchToPipeline, addToPipeline,
 } from "@/lib/api";
 import { MensagemModal } from "@/components/MensagemModal";
 import { CrmExportModal } from "@/components/CrmExportModal";
@@ -172,6 +172,45 @@ function primaryLinkedin(emp: Empresa) {
     ?? emp.redes_sociais_empresa?.find(link => /linkedin/i.test(link))
     ?? emp.redes_sociais_socios?.flatMap(s => s.links).find(link => /linkedin/i.test(link))
     ?? null;
+}
+
+function notifyPipelineSdrResult(
+  label: string,
+  result: {
+    status: "added" | "exists";
+    sdr_auto_enviado?: boolean;
+    sdr_result?: {
+      enviados: number;
+      descartados_sem_contato?: number;
+      descartados_ja_enviados?: number;
+    };
+  },
+) {
+  if (result.sdr_auto_enviado) {
+    if (result.status === "exists") {
+      toast.success(`${label} já estava no pipeline e foi enviado ao SDR`);
+      return;
+    }
+    toast.success(`${label} entrou no pipeline e foi enviado ao SDR`);
+    return;
+  }
+
+  if ((result.sdr_result?.descartados_ja_enviados ?? 0) > 0) {
+    toast.info(`${label} já estava no pipeline e no fluxo SDR`);
+    return;
+  }
+
+  if ((result.sdr_result?.descartados_sem_contato ?? 0) > 0) {
+    toast.info(`${label} entrou no pipeline, mas não foi enviado ao SDR por falta de contato`);
+    return;
+  }
+
+  if (result.status === "added") {
+    toast.success(`${label} adicionado ao pipeline`);
+    return;
+  }
+
+  toast.info("Empresa já está no pipeline");
 }
 
 // ─── mini copy button ──────────────────────────────────────────────────────────
@@ -616,9 +655,8 @@ function EmpresaCard({ emp, selected, onSelect }: {
   const handlePipeline = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const r = await addToPipeline(emp, emp.score_icp ?? 0);
-      if (r === "added") toast.success(`${emp.nome_fantasia || emp.razao_social} adicionado ao pipeline`);
-      else toast.info("Empresa já está no pipeline");
+      const r = await addToPipeline(emp, emp.score_icp ?? 0, { autoEnviarSdr: true });
+      notifyPipelineSdrResult(emp.nome_fantasia || emp.razao_social, r);
     } catch (err: any) {
       toast.error("Erro ao adicionar: " + (err?.message || ""));
     }
@@ -701,7 +739,7 @@ function EmpresaCard({ emp, selected, onSelect }: {
           size="sm" variant="ghost"
           className="flex-1 h-6 gap-1 text-[10px] text-zinc-500 hover:text-primary hover:bg-primary/10"
           onClick={handlePipeline}>
-          <Target className="h-3 w-3" /> Pipeline
+          <Target className="h-3 w-3" /> Pipeline + SDR
         </Button>
         <Button
           size="sm" variant="ghost"
@@ -830,6 +868,47 @@ const ResultsPage = () => {
     downloadCsv(list, "hermes-selecionadas");
   };
 
+  const enviarSelecionadasParaPipelineESDR = async () => {
+    const selecionadas = filtered.filter(e => selected.has(e.cnpj));
+    if (selecionadas.length === 0) {
+      toast.info("Selecione pelo menos uma empresa");
+      return;
+    }
+
+    try {
+      const res = await addBatchToPipeline(
+        selecionadas.map(empresa => ({
+          empresa,
+          scoreIcp: empresa.score_icp ?? 0,
+        })),
+        { autoEnviarSdr: true },
+      );
+
+      const semContato = (res.results ?? []).reduce(
+        (total, item) => total + (item.sdr_result?.descartados_sem_contato ?? 0),
+        0,
+      );
+      const jaEnviados = (res.results ?? []).reduce(
+        (total, item) => total + (item.sdr_result?.descartados_ja_enviados ?? 0),
+        0,
+      );
+
+      if ((res.sdr_auto_enviados ?? 0) > 0) {
+        toast.success(`${res.added} lead(s) no pipeline e ${res.sdr_auto_enviados ?? 0} enviado(s) ao SDR`);
+      } else if (semContato > 0) {
+        toast.info(`${res.added} lead(s) no pipeline. ${semContato} sem contato válido para envio ao SDR`);
+      } else if (jaEnviados > 0) {
+        toast.info(`${jaEnviados} lead(s) já estavam no fluxo SDR/outbound`);
+      } else {
+        toast.success(`${res.added} lead(s) adicionados ao pipeline`);
+      }
+
+      setSelected(new Set());
+    } catch (err: any) {
+      toast.error("Erro ao enviar seleção: " + (err?.message || ""));
+    }
+  };
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5 p-1">
@@ -954,6 +1033,17 @@ const ResultsPage = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          {selected.size > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 h-9 border-primary/40 bg-primary/10 text-primary hover:bg-primary/15"
+              onClick={enviarSelecionadasParaPipelineESDR}
+            >
+              <Target className="h-3.5 w-3.5" />
+              Pipeline + SDR ({selected.size})
+            </Button>
+          )}
         </div>
 
         {/* Filter chips */}

@@ -131,10 +131,11 @@ except Exception as e:
     logger.warning(f"[WARN] Credits router nao disponivel: {e}")
 
 try:
-    from api.routers.pipeline import router as pipeline_router
+    from api.routers.pipeline import router as pipeline_router, ingest_empresas_to_pipeline
     app.include_router(pipeline_router, prefix="/pipeline", tags=["Pipeline"])
     logger.info("[OK] Pipeline router carregado")
 except Exception as e:
+    ingest_empresas_to_pipeline = None
     logger.warning(f"[WARN] Pipeline router nao disponivel: {e}")
 
 try:
@@ -186,6 +187,50 @@ try:
     import queue as _queue
     import threading as _threading
 
+    def _auto_pipeline_and_sdr_after_prospeccao_enabled() -> bool:
+        return os.getenv("AUTO_PIPELINE_AND_SDR_AFTER_PROSPECCAO", "").strip().lower() in {"1", "true", "yes", "on"}
+
+    def _extract_result_empresas(resultado: ProspeccaoResultado | dict) -> list[dict]:
+        if isinstance(resultado, dict):
+            empresas = resultado.get("empresas") or []
+        else:
+            empresas = getattr(resultado, "empresas", []) or []
+
+        payload = []
+        for empresa in empresas:
+            if hasattr(empresa, "model_dump"):
+                payload.append(empresa.model_dump())
+            elif isinstance(empresa, dict):
+                payload.append(empresa)
+        return payload
+
+    def _maybe_auto_pipeline_and_sdr(org_id: str, resultado: ProspeccaoResultado | dict) -> None:
+        if not _auto_pipeline_and_sdr_after_prospeccao_enabled():
+            return
+        if ingest_empresas_to_pipeline is None:
+            logger.warning("AUTO_PIPELINE_AND_SDR_AFTER_PROSPECCAO ativo, mas pipeline router nao esta disponivel")
+            return
+
+        empresas = _extract_result_empresas(resultado)
+        if not empresas:
+            logger.info("Auto Pipeline+SDR ignorado: nenhuma empresa no resultado")
+            return
+
+        def _run_background() -> None:
+            try:
+                auto_result = ingest_empresas_to_pipeline(org_id, empresas, auto_send_sdr=True)
+                logger.info(
+                    "Auto Pipeline+SDR pos-prospeccao | org=%s total=%s added=%s sdr=%s",
+                    org_id,
+                    auto_result.get("total", 0),
+                    auto_result.get("added", 0),
+                    auto_result.get("sdr_auto_enviados", 0),
+                )
+            except Exception as exc:
+                logger.warning("Falha no auto Pipeline+SDR pos-prospeccao: %s", exc)
+
+        _threading.Thread(target=_run_background, daemon=True).start()
+
     @app.post("/prospeccao/run", response_model=ProspeccaoResultado, tags=["Prospecção Legado"])
     async def prospeccao_run_legacy(
         request: Request,
@@ -203,6 +248,7 @@ try:
                 resultado.model_dump(),
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
+            _maybe_auto_pipeline_and_sdr(org_id, resultado)
             return resultado
         except Exception as e:
             logger.error(f"Erro na prospecção: {e}")
@@ -260,6 +306,7 @@ try:
                     payload,
                     timestamp=datetime.now(timezone.utc).isoformat(),
                 )
+                _maybe_auto_pipeline_and_sdr(org_id, payload)
                 yield f"event: result\ndata: {_json.dumps(payload, default=str)}\n\n"
 
         return StreamingResponse(

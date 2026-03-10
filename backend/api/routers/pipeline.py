@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Header, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import Optional
@@ -62,6 +63,10 @@ class AddToPipelineRequest(BaseModel):
     empresa: EmpresaData
     estagio: str = "novo"
     nota: str = ""
+    auto_enviar_sdr: bool = False
+    ploomes_api_key: Optional[str] = None
+    ploomes_funnel_id: Optional[int] = None
+    create_ploomes_deal: bool = True
 
 
 class MoveLeadRequest(BaseModel):
@@ -226,6 +231,305 @@ def _is_brazilian_mobile(digits: str) -> bool:
     return False
 
 
+def _auto_send_sdr_enabled(requested: bool) -> bool:
+    if requested:
+        return True
+    return os.getenv("AUTO_SEND_SDR_ON_PIPELINE_ADD", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _empresa_to_pipeline_payload(empresa: dict) -> dict:
+    payload = dict(empresa or {})
+    if not payload.get("telefone"):
+        payload["telefone"] = (
+            payload.get("telefone_padrao")
+            or payload.get("telefone_receita")
+            or payload.get("telefone_estab1")
+            or payload.get("telefone_estab2")
+        )
+    if not payload.get("whatsapp"):
+        payload["whatsapp"] = payload.get("whatsapp_publico") or payload.get("whatsapp_enriquecido")
+    if not payload.get("email"):
+        payload["email"] = payload.get("email_enriquecido")
+    return payload
+
+
+def ingest_empresas_to_pipeline(
+    org: str,
+    empresas: list[dict],
+    *,
+    auto_send_sdr: bool = False,
+    create_ploomes_deal: bool = True,
+) -> dict:
+    results = []
+    for empresa in empresas:
+        empresa_payload = _empresa_to_pipeline_payload(empresa)
+        cnpj = str(empresa_payload.get("cnpj") or "").strip()
+        try:
+            request = AddToPipelineRequest(
+                empresa=EmpresaData(**empresa_payload),
+                estagio="novo",
+                nota="",
+                auto_enviar_sdr=auto_send_sdr,
+                create_ploomes_deal=create_ploomes_deal,
+            )
+            result = add_to_pipeline(request, {}, org)
+            results.append({"cnpj": request.empresa.cnpj, **result})
+        except Exception as exc:
+            logger.warning("Falha ao ingerir empresa %s no pipeline automatico: %s", cnpj or "sem-cnpj", exc)
+            results.append({"cnpj": cnpj, "status": "error", "detail": str(exc)})
+
+    added = sum(1 for result in results if result.get("status") == "added")
+    auto_sent = sum(1 for result in results if result.get("sdr_auto_enviado"))
+    return {
+        "total": len(empresas),
+        "added": added,
+        "sdr_auto_enviados": auto_sent,
+        "results": results,
+    }
+
+
+def _fetch_pipeline_leads(org: str, cnpjs: list[str]) -> list[dict]:
+    if not cnpjs:
+        return []
+
+    r = requests.get(
+        f"{SUPABASE_URL}/rest/v1/{TABLE}",
+        headers=_svc_headers(),
+        params={
+            "select": "cnpj,razao_social,nome_fantasia,email,email_enriquecido,"
+                      "telefone,telefone_receita,telefone_estab1,telefone_estab2,"
+                      "telefone_enriquecido,whatsapp,whatsapp_enriquecido,"
+                      "segmento,porte,capital_social,cidade,uf,score_icp,cnae_descricao,"
+                      "socios_resumo,sdr_status",
+            "org_id": f"eq.{org}",
+            "cnpj": f"in.({','.join(cnpjs)})",
+        },
+        timeout=15,
+    )
+    if r.status_code >= 300:
+        raise HTTPException(status_code=r.status_code, detail=r.text)
+    return r.json()
+
+
+def _find_active_outbound_cnpjs(org: str, cnpjs: list[str]) -> set[str]:
+    if not cnpjs:
+        return set()
+
+    r = requests.get(
+        f"{SUPABASE_URL}/rest/v1/leads_outbound",
+        headers=_svc_headers(),
+        params={
+            "select": "cnpj,status",
+            "org_id": f"eq.{org}",
+            "cnpj": f"in.({','.join(cnpjs)})",
+            "status": "in.(pending,processing,email_sent,whatsapp_sent,contacted,responded)",
+        },
+        timeout=15,
+    )
+    if r.status_code >= 300:
+        logger.warning("Falha ao checar leads_outbound ativos: %s", r.text[:200])
+        return set()
+    return {str(item.get("cnpj")) for item in r.json() if item.get("cnpj")}
+
+
+def _best_phone(lead: dict) -> str:
+    for field in [
+        "whatsapp", "whatsapp_enriquecido", "telefone_enriquecido",
+        "telefone", "telefone_receita", "telefone_estab1", "telefone_estab2",
+    ]:
+        val = _clean_phone(lead.get(field))
+        if val and len(val) >= 8:
+            return _normalize_br_phone(val)
+    return ""
+
+
+def _best_whatsapp(lead: dict) -> str:
+    for field in ["whatsapp", "whatsapp_enriquecido"]:
+        val = _clean_phone(lead.get(field))
+        if val and len(val) >= 8:
+            return _normalize_br_phone(val)
+
+    for field in [
+        "telefone_enriquecido", "telefone",
+        "telefone_receita", "telefone_estab1", "telefone_estab2",
+    ]:
+        val = _clean_phone(lead.get(field))
+        if val and len(val) >= 8 and _is_brazilian_mobile(val):
+            return _normalize_br_phone(val)
+
+    return ""
+
+
+def _send_pipeline_leads_to_sdr(org: str, payload: EnviarParaSDRRequest) -> dict:
+    leads = _fetch_pipeline_leads(org, payload.cnpjs)
+    if not leads:
+        raise HTTPException(status_code=404, detail="Nenhum lead encontrado")
+
+    active_outbound = _find_active_outbound_cnpjs(org, payload.cnpjs)
+
+    ploomes_key = _get_ploomes_key_for_org(org, payload.ploomes_api_key)
+    ploomes_funnel = payload.ploomes_funnel_id or int(os.getenv("PLOOMES_FUNNEL_ID", "0")) or None
+
+    rows_outbound = []
+    ploomes_results = []
+    skipped_no_contact = []
+    skipped_already_sent = []
+
+    for lead in leads:
+        cnpj = lead.get("cnpj")
+        if not cnpj:
+            continue
+
+        if lead.get("sdr_status") or cnpj in active_outbound:
+            skipped_already_sent.append(cnpj)
+            logger.info("Lead %s ignorado no SDR: ja possui status SDR/outbound ativo", cnpj)
+            continue
+
+        phone = _best_phone(lead)
+        whatsapp = _best_whatsapp(lead)
+        email = lead.get("email") or lead.get("email_enriquecido") or ""
+        if not phone and not email:
+            skipped_no_contact.append(cnpj)
+            logger.warning(f"Lead {cnpj} ({lead.get('razao_social')}) descartado: sem telefone e sem email")
+            continue
+
+        logger.info(
+            f"Lead {cnpj}: phone={phone}, whatsapp={whatsapp}, "
+            f"email={email[:20] if email else 'N/A'}"
+        )
+
+        ploomes_contact_id = None
+        ploomes_deal_id = None
+
+        if ploomes_key:
+            ploomes_result = _create_ploomes_contact(ploomes_key, lead)
+            if ploomes_result:
+                ploomes_contact_id = ploomes_result["contact_id"]
+                if payload.create_ploomes_deal and ploomes_contact_id:
+                    ploomes_deal_id = _create_ploomes_deal(
+                        ploomes_key, ploomes_contact_id, lead, ploomes_funnel
+                    )
+            ploomes_results.append({
+                "cnpj": cnpj,
+                "contact_id": ploomes_contact_id,
+                "deal_id": ploomes_deal_id,
+            })
+
+        notes_parts = []
+        if lead.get("porte"):
+            notes_parts.append(f"Porte: {lead['porte']}")
+        if lead.get("cidade") and lead.get("uf"):
+            notes_parts.append(f"Local: {lead['cidade']}/{lead['uf']}")
+        if lead.get("cnae_descricao"):
+            notes_parts.append(f"CNAE: {lead['cnae_descricao']}")
+        if lead.get("capital_social"):
+            notes_parts.append(f"Capital: R${lead['capital_social']:,.2f}")
+        if lead.get("socios_resumo"):
+            notes_parts.append(f"Socios: {lead['socios_resumo']}")
+
+        rows_outbound.append({
+            "org_id": org,
+            "cnpj": cnpj,
+            "name": lead.get("nome_fantasia") or lead.get("razao_social"),
+            "company": lead.get("razao_social"),
+            "email": email,
+            "phone": phone,
+            "whatsapp": whatsapp or phone,
+            "segment": lead.get("segmento"),
+            "porte": lead.get("porte"),
+            "cidade": lead.get("cidade"),
+            "uf": lead.get("uf"),
+            "score_icp": lead.get("score_icp") or 0,
+            "ploomes_contact_id": ploomes_contact_id,
+            "ploomes_deal_id": ploomes_deal_id,
+            "source": "hermes",
+            "status": "pending",
+            "optout": False,
+            "notes": " | ".join(notes_parts) if notes_parts else None,
+        })
+
+    if not rows_outbound:
+        return {
+            "enviados": 0,
+            "total_solicitados": len(payload.cnpjs),
+            "com_whatsapp": 0,
+            "so_email_sem_whatsapp": 0,
+            "descartados_sem_contato": len(skipped_no_contact),
+            "descartados_ja_enviados": len(skipped_already_sent),
+            "ploomes_criados": 0,
+            "ploomes_results": ploomes_results if ploomes_key else None,
+            "n8n_triggered": False,
+        }
+
+    ins = requests.post(
+        f"{SUPABASE_URL}/rest/v1/leads_outbound",
+        headers=_svc_headers(),
+        json=rows_outbound,
+        timeout=15,
+    )
+    if ins.status_code >= 300:
+        raise HTTPException(status_code=ins.status_code, detail=ins.text)
+
+    update_headers = _svc_headers()
+    update_headers["Prefer"] = "return=minimal"
+    for row in rows_outbound:
+        cnpj = row.get("cnpj")
+        if not cnpj:
+            continue
+        update_data: dict = {
+            "sdr_status": "enviado",
+            "sdr_enviado_em": datetime.now(timezone.utc).isoformat(),
+        }
+        if row.get("ploomes_contact_id"):
+            update_data["ploomes_contact_id"] = row["ploomes_contact_id"]
+            update_data["ploomes_synced"] = True
+        if row.get("ploomes_deal_id"):
+            update_data["ploomes_deal_id"] = row["ploomes_deal_id"]
+
+        update_resp = requests.patch(
+            f"{SUPABASE_URL}/rest/v1/{TABLE}",
+            headers=update_headers,
+            params={"org_id": f"eq.{org}", "cnpj": f"eq.{cnpj}"},
+            json=update_data,
+            timeout=10,
+        )
+        if update_resp.status_code >= 300:
+            logger.warning(
+                "Falha ao atualizar pipeline_leads apos envio SDR (%s): %s",
+                cnpj,
+                update_resp.text[:200],
+            )
+
+    n8n_webhook = os.getenv("N8N_OUTBOUND_WEBHOOK", "")
+    n8n_triggered = False
+    if n8n_webhook:
+        try:
+            requests.post(
+                n8n_webhook,
+                json={"source": "hermes", "leads_count": len(rows_outbound)},
+                timeout=5,
+            )
+            n8n_triggered = True
+            logger.info(f"n8n outbound trigger disparado ({len(rows_outbound)} leads)")
+        except Exception as e:
+            logger.warning(f"n8n trigger falhou (nao bloqueante): {e}")
+
+    com_whatsapp = sum(1 for r in rows_outbound if r.get("whatsapp"))
+    so_email = sum(1 for r in rows_outbound if not r.get("whatsapp") and r.get("email"))
+
+    return {
+        "enviados": len(rows_outbound),
+        "total_solicitados": len(payload.cnpjs),
+        "com_whatsapp": com_whatsapp,
+        "so_email_sem_whatsapp": so_email,
+        "descartados_sem_contato": len(skipped_no_contact),
+        "descartados_ja_enviados": len(skipped_already_sent),
+        "ploomes_criados": sum(1 for p in ploomes_results if p.get("contact_id")),
+        "ploomes_results": ploomes_results if ploomes_key else None,
+        "n8n_triggered": n8n_triggered,
+    }
+
+
 # ─── LISTAR PIPELINE ──────────────────────────────────────
 
 @router.get("")
@@ -264,19 +568,34 @@ def add_to_pipeline(
 ):
     org = _org_id(x_org_id)
     emp = payload.empresa
+    auto_send_sdr = _auto_send_sdr_enabled(payload.auto_enviar_sdr)
 
     check = requests.get(
         f"{SUPABASE_URL}/rest/v1/{TABLE}",
         headers=_svc_headers(),
         params={
-            "select": "id",
+            "select": "id,sdr_status",
             "org_id": f"eq.{org}",
             "cnpj": f"eq.{emp.cnpj}",
         },
         timeout=10,
     )
     if check.status_code == 200 and check.json():
-        return {"status": "exists", "id": check.json()[0]["id"]}
+        existing = check.json()[0]
+        response = {"status": "exists", "id": existing["id"], "sdr_auto_enviado": False}
+        if auto_send_sdr and not existing.get("sdr_status"):
+            sdr_result = _send_pipeline_leads_to_sdr(
+                org,
+                EnviarParaSDRRequest(
+                    cnpjs=[emp.cnpj],
+                    ploomes_api_key=payload.ploomes_api_key,
+                    ploomes_funnel_id=payload.ploomes_funnel_id,
+                    create_ploomes_deal=payload.create_ploomes_deal,
+                ),
+            )
+            response["sdr_auto_enviado"] = bool(sdr_result.get("enviados"))
+            response["sdr_result"] = sdr_result
+        return response
 
     row = {
         "org_id": org,
@@ -317,7 +636,20 @@ def add_to_pipeline(
         raise HTTPException(status_code=r.status_code, detail=r.text)
 
     created = r.json()
-    return {"status": "added", "id": created[0]["id"] if created else None}
+    response = {"status": "added", "id": created[0]["id"] if created else None, "sdr_auto_enviado": False}
+    if auto_send_sdr:
+        sdr_result = _send_pipeline_leads_to_sdr(
+            org,
+            EnviarParaSDRRequest(
+                cnpjs=[emp.cnpj],
+                ploomes_api_key=payload.ploomes_api_key,
+                ploomes_funnel_id=payload.ploomes_funnel_id,
+                create_ploomes_deal=payload.create_ploomes_deal,
+            ),
+        )
+        response["sdr_auto_enviado"] = bool(sdr_result.get("enviados"))
+        response["sdr_result"] = sdr_result
+    return response
 
 
 # ─── ADICIONAR EM LOTE ─────────────────────────────────────
@@ -328,15 +660,16 @@ def add_batch_to_pipeline(
     _user: dict = Depends(require_auth),
     x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
 ):
-    results = []
-    for item in payload:
-        try:
-            r = add_to_pipeline(item, x_org_id)
-            results.append({"cnpj": item.empresa.cnpj, **r})
-        except Exception as e:
-            results.append({"cnpj": item.empresa.cnpj, "status": "error", "detail": str(e)})
-    added = sum(1 for r in results if r.get("status") == "added")
-    return {"total": len(payload), "added": added, "results": results}
+    org = _org_id(x_org_id)
+    empresas = [item.empresa.model_dump() for item in payload]
+    auto_send_sdr = any(item.auto_enviar_sdr for item in payload)
+    create_ploomes_deal = any(item.create_ploomes_deal for item in payload)
+    return ingest_empresas_to_pipeline(
+        org,
+        empresas,
+        auto_send_sdr=auto_send_sdr,
+        create_ploomes_deal=create_ploomes_deal,
+    )
 
 
 # ─── MOVER ESTÁGIO ─────────────────────────────────────────
@@ -422,189 +755,7 @@ def enviar_para_sdr(
       5. n8n consulta /sdr/leads?status=pending para processar
     """
     org = _org_id(x_org_id)
-
-    r = requests.get(
-        f"{SUPABASE_URL}/rest/v1/{TABLE}",
-        headers=_svc_headers(),
-        params={
-            "select": "cnpj,razao_social,nome_fantasia,email,email_enriquecido,"
-                      "telefone,telefone_receita,telefone_estab1,telefone_estab2,"
-                      "telefone_enriquecido,whatsapp,whatsapp_enriquecido,"
-                      "segmento,porte,capital_social,cidade,uf,score_icp",
-            "org_id": f"eq.{org}",
-            "cnpj": f"in.({','.join(payload.cnpjs)})",
-        },
-        timeout=15,
-    )
-    if r.status_code >= 300:
-        raise HTTPException(status_code=r.status_code, detail=r.text)
-
-    leads = r.json()
-    if not leads:
-        raise HTTPException(status_code=404, detail="Nenhum lead encontrado")
-
-    def _best_phone(lead: dict) -> str:
-        for field in [
-            "whatsapp", "whatsapp_enriquecido", "telefone_enriquecido",
-            "telefone", "telefone_receita", "telefone_estab1", "telefone_estab2",
-        ]:
-            val = _clean_phone(lead.get(field))
-            if val and len(val) >= 8:
-                return _normalize_br_phone(val)
-        return ""
-
-    def _best_whatsapp(lead: dict) -> str:
-        # 1) Campos explicitamente WhatsApp (maior confianca)
-        for field in ["whatsapp", "whatsapp_enriquecido"]:
-            val = _clean_phone(lead.get(field))
-            if val and len(val) >= 8:
-                return _normalize_br_phone(val)
-
-        # 2) Qualquer telefone que seja celular brasileiro (9o digito = 9)
-        #    No Brasil, ~95% dos celulares tem WhatsApp
-        for field in [
-            "telefone_enriquecido", "telefone",
-            "telefone_receita", "telefone_estab1", "telefone_estab2",
-        ]:
-            val = _clean_phone(lead.get(field))
-            if val and len(val) >= 8 and _is_brazilian_mobile(val):
-                return _normalize_br_phone(val)
-
-        return ""
-
-    # Buscar chave e funil Ploomes
-    ploomes_key = _get_ploomes_key_for_org(org, payload.ploomes_api_key)
-    ploomes_funnel = payload.ploomes_funnel_id or int(os.getenv("PLOOMES_FUNNEL_ID", "0")) or None
-
-    rows_outbound = []
-    ploomes_results = []
-    skipped_no_contact = []
-
-    for lead in leads:
-        phone = _best_phone(lead)
-        whatsapp = _best_whatsapp(lead)
-        email = lead.get("email") or lead.get("email_enriquecido") or ""
-        if not phone and not email:
-            skipped_no_contact.append(lead.get("cnpj"))
-            logger.warning(f"Lead {lead.get('cnpj')} ({lead.get('razao_social')}) descartado: sem telefone e sem email")
-            continue
-
-        logger.info(
-            f"Lead {lead.get('cnpj')}: phone={phone}, whatsapp={whatsapp}, "
-            f"email={email[:20] if email else 'N/A'}"
-        )
-
-        ploomes_contact_id = None
-        ploomes_deal_id = None
-
-        # Criar contato no Ploomes
-        if ploomes_key:
-            ploomes_result = _create_ploomes_contact(ploomes_key, lead)
-            if ploomes_result:
-                ploomes_contact_id = ploomes_result["contact_id"]
-                # Criar deal
-                if payload.create_ploomes_deal and ploomes_contact_id:
-                    ploomes_deal_id = _create_ploomes_deal(
-                        ploomes_key, ploomes_contact_id, lead, ploomes_funnel
-                    )
-            ploomes_results.append({
-                "cnpj": lead.get("cnpj"),
-                "contact_id": ploomes_contact_id,
-                "deal_id": ploomes_deal_id,
-            })
-
-        notes_parts = []
-        if lead.get("porte"):
-            notes_parts.append(f"Porte: {lead['porte']}")
-        if lead.get("cidade") and lead.get("uf"):
-            notes_parts.append(f"Local: {lead['cidade']}/{lead['uf']}")
-        if lead.get("cnae_descricao"):
-            notes_parts.append(f"CNAE: {lead['cnae_descricao']}")
-        if lead.get("capital_social"):
-            notes_parts.append(f"Capital: R${lead['capital_social']:,.2f}")
-        if lead.get("socios_resumo"):
-            notes_parts.append(f"Socios: {lead['socios_resumo']}")
-
-        rows_outbound.append({
-            "org_id": org,
-            "cnpj": lead.get("cnpj"),
-            "name": lead.get("nome_fantasia") or lead.get("razao_social"),
-            "company": lead.get("razao_social"),
-            "email": email,
-            "phone": phone,
-            "whatsapp": whatsapp or phone,
-            "segment": lead.get("segmento"),
-            "porte": lead.get("porte"),
-            "cidade": lead.get("cidade"),
-            "uf": lead.get("uf"),
-            "score_icp": lead.get("score_icp") or 0,
-            "ploomes_contact_id": ploomes_contact_id,
-            "ploomes_deal_id": ploomes_deal_id,
-            "source": "hermes",
-            "status": "pending",
-            "optout": False,
-            "notes": " | ".join(notes_parts) if notes_parts else None,
-        })
-
-    if not rows_outbound:
+    result = _send_pipeline_leads_to_sdr(org, payload)
+    if result["enviados"] == 0 and result["descartados_sem_contato"] > 0:
         raise HTTPException(status_code=400, detail="Nenhum lead com telefone ou email")
-
-    ins = requests.post(
-        f"{SUPABASE_URL}/rest/v1/leads_outbound",
-        headers=_svc_headers(),
-        json=rows_outbound,
-        timeout=15,
-    )
-    if ins.status_code >= 300:
-        raise HTTPException(status_code=ins.status_code, detail=ins.text)
-
-    # Atualizar pipeline_leads com status SDR e IDs Ploomes
-    update_headers = _svc_headers()
-    update_headers["Prefer"] = "return=minimal"
-    for row in rows_outbound:
-        cnpj = row.get("cnpj")
-        if not cnpj:
-            continue
-        update_data: dict = {"sdr_status": "enviado", "sdr_enviado_em": "now()"}
-        if row.get("ploomes_contact_id"):
-            update_data["ploomes_contact_id"] = row["ploomes_contact_id"]
-            update_data["ploomes_synced"] = True
-        if row.get("ploomes_deal_id"):
-            update_data["ploomes_deal_id"] = row["ploomes_deal_id"]
-
-        requests.patch(
-            f"{SUPABASE_URL}/rest/v1/{TABLE}",
-            headers=update_headers,
-            params={"org_id": f"eq.{org}", "cnpj": f"eq.{cnpj}"},
-            json=update_data,
-            timeout=10,
-        )
-
-    # Disparar n8n outbound automaticamente (fire-and-forget)
-    n8n_webhook = os.getenv("N8N_OUTBOUND_WEBHOOK", "")
-    n8n_triggered = False
-    if n8n_webhook:
-        try:
-            requests.post(
-                n8n_webhook,
-                json={"source": "hermes", "leads_count": len(rows_outbound)},
-                timeout=5,
-            )
-            n8n_triggered = True
-            logger.info(f"n8n outbound trigger disparado ({len(rows_outbound)} leads)")
-        except Exception as e:
-            logger.warning(f"n8n trigger falhou (nao bloqueante): {e}")
-
-    com_whatsapp = sum(1 for r in rows_outbound if r.get("whatsapp"))
-    so_email = sum(1 for r in rows_outbound if not r.get("whatsapp") and r.get("email"))
-
-    return {
-        "enviados": len(rows_outbound),
-        "total_solicitados": len(payload.cnpjs),
-        "com_whatsapp": com_whatsapp,
-        "so_email_sem_whatsapp": so_email,
-        "descartados_sem_contato": len(skipped_no_contact),
-        "ploomes_criados": sum(1 for p in ploomes_results if p.get("contact_id")),
-        "ploomes_results": ploomes_results if ploomes_key else None,
-        "n8n_triggered": n8n_triggered,
-    }
+    return result

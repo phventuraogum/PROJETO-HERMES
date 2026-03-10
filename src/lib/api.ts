@@ -1042,26 +1042,58 @@ function empresaToPipelinePayload(empresa: Empresa, scoreIcp: number) {
 }
 
 export async function addToPipeline(
-  empresa: Empresa, scoreIcp = 0
-): Promise<"added" | "exists"> {
-  const res = await hermesFetch<{ status: string }>("/pipeline", {
+  empresa: Empresa,
+  scoreIcp = 0,
+  opts?: {
+    autoEnviarSdr?: boolean;
+    createPloomesDeal?: boolean;
+  }
+): Promise<{ status: "added" | "exists"; sdr_auto_enviado?: boolean; sdr_result?: { enviados: number; descartados_sem_contato?: number; descartados_ja_enviados?: number } }> {
+  const res = await hermesFetch<{
+    status: "added" | "exists";
+    sdr_auto_enviado?: boolean;
+    sdr_result?: { enviados: number; descartados_sem_contato?: number; descartados_ja_enviados?: number };
+  }>("/pipeline", {
     method: "POST",
     body: JSON.stringify({
       empresa: empresaToPipelinePayload(empresa, scoreIcp),
       estagio: "novo",
       nota: "",
+      auto_enviar_sdr: opts?.autoEnviarSdr ?? false,
+      create_ploomes_deal: opts?.createPloomesDeal ?? true,
     }),
   });
-  return res.status as "added" | "exists";
+  return res;
 }
 
 export async function addBatchToPipeline(
-  empresas: { empresa: Empresa; scoreIcp: number }[]
-): Promise<{ total: number; added: number }> {
+  empresas: { empresa: Empresa; scoreIcp: number }[],
+  opts?: {
+    autoEnviarSdr?: boolean;
+    createPloomesDeal?: boolean;
+  }
+): Promise<{
+  total: number;
+  added: number;
+  sdr_auto_enviados?: number;
+  results?: Array<{
+    cnpj: string;
+    status: "added" | "exists" | "error";
+    sdr_auto_enviado?: boolean;
+    sdr_result?: {
+      enviados: number;
+      descartados_sem_contato?: number;
+      descartados_ja_enviados?: number;
+    };
+    detail?: string;
+  }>;
+}> {
   const payload = empresas.map(({ empresa, scoreIcp }) => ({
     empresa: empresaToPipelinePayload(empresa, scoreIcp),
     estagio: "novo",
     nota: "",
+    auto_enviar_sdr: opts?.autoEnviarSdr ?? false,
+    create_ploomes_deal: opts?.createPloomesDeal ?? true,
   }));
   return hermesFetch("/pipeline/batch", {
     method: "POST",
