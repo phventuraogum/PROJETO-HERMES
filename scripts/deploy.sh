@@ -19,7 +19,44 @@ if [[ ! -f "$HERMES_DIR/.env" ]]; then
     exit 1
 fi
 
-source "$HERMES_DIR/.env"
+ENV_FILE="$HERMES_DIR/.env"
+
+trim() {
+    local value="$1"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    printf '%s' "$value"
+}
+
+read_env_value() {
+    local key="$1"
+    local line
+    line=$(grep -E "^${key}=" "$ENV_FILE" | tail -n 1 || true)
+    if [[ -z "$line" ]]; then
+        printf ''
+        return
+    fi
+
+    local value="${line#*=}"
+    value="$(trim "$value")"
+
+    if [[ "$value" =~ ^\".*\"$ ]]; then
+        value="${value:1:${#value}-2}"
+    elif [[ "$value" =~ ^\'.*\'$ ]]; then
+        value="${value:1:${#value}-2}"
+    fi
+
+    printf '%s' "$value"
+}
+
+HERMES_AUTH_REQUIRED="$(read_env_value HERMES_AUTH_REQUIRED)"
+REDIS_PASSWORD="$(read_env_value REDIS_PASSWORD)"
+SUPABASE_JWT_SECRET="$(read_env_value SUPABASE_JWT_SECRET)"
+SUPABASE_URL="$(read_env_value SUPABASE_URL)"
+SUPABASE_SERVICE_ROLE_KEY="$(read_env_value SUPABASE_SERVICE_ROLE_KEY)"
+ASAAS_API_KEY="$(read_env_value ASAAS_API_KEY)"
+ASAAS_WEBHOOK_TOKEN="$(read_env_value ASAAS_WEBHOOK_TOKEN)"
+CORS_ORIGINS="$(read_env_value CORS_ORIGINS)"
 
 echo "[Pre-flight] Verificando configuracoes criticas..."
 
