@@ -63,6 +63,15 @@ REQUEST_TIMEOUT = 30.0
 DOMINIOS_BANIDOS = [
     "guiapj.com", "cuiket.com", "descubraonline.com", "acheempresa.com",
     "telelistas.net", "solutudo.com.br", "cnpj.biz", "br.biz", "guiamais.com",
+    "informecadastral.com.br", "cadastroempresa.com.br", "consultascnpj.com",
+    "consultasocio.com", "casadosdados.com.br", "econodata.com.br",
+    "speedio.com.br", "infoinvest.com.br", "aboutcompany.info",
+    "procuroacho.com", "guiapj.com.br", "todosnegocios.com",
+    "br.todosnegocios.com", "empresascnpj.com", "cnpjconsultas.com",
+    "empresaqui.com", "cnpjja.com.br", "receitaws.com.br",
+    "cnpjreceita.com.br", "consultacnpj.com", "empresas.wiki",
+    "cnpj.services", "findcnpj.com.br", "brasilcnpj.com",
+    "portalcnpj.com.br", "buscacnpj.com.br", "dadosmarket.com.br",
     "dnb.com", "yelp.com", "facebook.com", "linkedin.com", "instagram.com",
     "jusbrasil.com.br", "econodata.com.br", "casa.dados.com.br",
     "zhihu.com", "baidu.com", "forum.cfx.re"
@@ -178,6 +187,29 @@ def _dominio_registravel(host: str) -> str:
         return ".".join(partes[-3:])
 
     return ".".join(partes[-2:])
+
+
+def _host_contato_banido(host_or_url: str) -> bool:
+    host = _extrair_host(host_or_url) or str(host_or_url or "").lower().replace("www.", "").strip(".")
+    dominio = _dominio_registravel(host)
+    if not dominio:
+        return False
+    return any(
+        dominio == bloqueado
+        or dominio.endswith("." + bloqueado)
+        or bloqueado in dominio
+        for bloqueado in DOMINIOS_BANIDOS
+    )
+
+
+def _source_with_site(source: str, site_url: str) -> str:
+    fonte = str(source or "").strip()
+    dominio = _dominio_registravel(_extrair_host(site_url))
+    if fonte and dominio and dominio not in fonte.lower():
+        return f"{fonte} | {dominio}"
+    if fonte:
+        return fonte
+    return dominio
 
 
 def _normalizar_url_linkedin(url: str) -> str:
@@ -1068,7 +1100,7 @@ def _extrair_contatos_do_conteudo(
         "whatsapp": "",
         "linkedin_empresa": None,
         "linkedin_perfis": [],
-        "source": source or "",
+        "source": _source_with_site(source, site_url),
     }
     emails_candidatos: List[str] = []
 
@@ -1187,6 +1219,10 @@ async def extrair_contatos_site(url: str) -> Dict[str, Any]:
     except Exception:
         return contatos
 
+    if _host_contato_banido(dominio):
+        contatos["source"] = _source_with_site("Diretorio descartado", url)
+        return contatos
+
     if dominio in cache_contatos:
         return cache_contatos[dominio]
 
@@ -1211,7 +1247,7 @@ async def extrair_contatos_site(url: str) -> Dict[str, Any]:
                 contatos["whatsapp"] = scrapling_data.get("whatsapp", "")
                 contatos["linkedin_empresa"] = scrapling_data.get("linkedin_empresa")
                 contatos["linkedin_perfis"] = scrapling_data.get("linkedin_perfis", [])
-                contatos["source"] = scrapling_data.get("source") or "Scrapling"
+                contatos["source"] = _source_with_site(scrapling_data.get("source") or "Scrapling", contatos["site"])
                 if len(cache_contatos) >= _MAX_CACHE_SIZE:
                     cache_contatos.clear()
                 cache_contatos[dominio] = contatos
@@ -1237,7 +1273,7 @@ async def extrair_contatos_site(url: str) -> Dict[str, Any]:
         contatos["whatsapp"] = firecrawl_data.get("whatsapp", "")
         contatos["linkedin_empresa"] = firecrawl_data.get("linkedin_empresa")
         contatos["linkedin_perfis"] = firecrawl_data.get("linkedin_perfis", [])
-        contatos["source"] = firecrawl_data.get("source") or "Firecrawl"
+        contatos["source"] = _source_with_site(firecrawl_data.get("source") or "Firecrawl", contatos["site"])
         if len(cache_contatos) >= _MAX_CACHE_SIZE:
             cache_contatos.clear()
         cache_contatos[dominio] = contatos
@@ -1272,7 +1308,7 @@ async def extrair_contatos_site(url: str) -> Dict[str, Any]:
                 if not contatos["linkedin_perfis"] and extraidos.get("linkedin_perfis"):
                     contatos["linkedin_perfis"] = extraidos["linkedin_perfis"]
                 if not contatos["source"] and extraidos.get("source"):
-                    contatos["source"] = extraidos["source"]
+                    contatos["source"] = _source_with_site(extraidos["source"], url)
 
                 if contatos["email"] or contatos["whatsapp"]:
                     break
@@ -1298,6 +1334,9 @@ async def processar_empresa_google(
     melhor_match = None
 
     site_conhecido = _normalizar_url_publica(str(site_url or "").strip())
+    if site_conhecido and _host_contato_banido(site_conhecido):
+        print(f"[SCRAPER] Site conhecido descartado por ser diretório/agregador: {site_conhecido}")
+        site_conhecido = ""
     if site_conhecido:
         try:
             dados_extraidos = await extrair_contatos_site(site_conhecido)

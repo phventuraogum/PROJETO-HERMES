@@ -201,6 +201,55 @@ class EnrichmentMergeTests(unittest.TestCase):
         self.assertEqual(merged["email_enriquecido"], "contato@totvs.com.br")
         self.assertEqual(merged["emails_captados"][0]["valor"], "contato@totvs.com.br")
 
+    def test_discards_directory_phone_and_whatsapp_from_primary_contacts(self):
+        existing = {
+            "cnpj": "12345678000199",
+            "razao_social": "ACME LTDA",
+            "nome_fantasia": "ACME",
+            "site": "https://acme.com.br",
+            "email": None,
+            "email_enriquecido": None,
+            "telefone_padrao": "(31) 3333-4444",
+            "telefone_receita": None,
+            "telefone_estab1": None,
+            "telefone_estab2": None,
+            "telefone_enriquecido": None,
+            "whatsapp_publico": None,
+            "whatsapp_enriquecido": None,
+            "redes_sociais_empresa": [],
+            "redes_sociais_socios": [],
+            "socios_estruturado": [],
+            "outras_informacoes": None,
+            "registro_dono": None,
+            "registro_email": None,
+            "fonte_dados_prioritaria": None,
+            "emails_captados": None,
+            "telefones_captados": None,
+            "whatsapps_captados": None,
+            "linkedin_empresa": None,
+            "instagram_empresa": None,
+            "facebook_empresa": None,
+            "resumo_ia_empresa": None,
+        }
+
+        payload = {
+            "site": "https://acme.com.br",
+            "contatos_web": {
+                "telefone_enriquecido": "(32) 91995-6532",
+                "whatsapp_enriquecido": "+55 (32) 99195-6532",
+                "origem": "Firecrawl | informecadastral.com.br",
+            },
+        }
+
+        merged = merge_enrichment_payload(existing, payload)
+
+        self.assertEqual(merged["telefone_enriquecido"], "(31) 3333-4444")
+        self.assertIsNone(merged["whatsapp_enriquecido"])
+        self.assertTrue(all(
+            "informecadastral.com.br" not in str(item.get("origem") or "").lower()
+            for item in (merged.get("telefones_captados") or [])
+        ))
+
 
 if __name__ == "__main__":
     unittest.main()

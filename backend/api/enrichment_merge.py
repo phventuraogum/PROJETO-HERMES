@@ -68,6 +68,27 @@ EMAILS_INSTITUCIONAIS = {
     "relacaoinvestidores",
 }
 
+DOMINIOS_CONTATO_DESCARTADOS = {
+    "informecadastral.com.br",
+    "cadastroempresa.com.br",
+    "econodata.com.br",
+    "speedio.com.br",
+    "cnpj.biz",
+    "cnpj.info",
+    "cnpja.com",
+    "consultascnpj.com",
+    "consultasocio.com",
+    "solutudo.com.br",
+    "aboutcompany.info",
+    "procuroacho.com",
+    "guiapj.com.br",
+    "todosnegocios.com",
+    "br.todosnegocios.com",
+    "empresascnpj.com",
+    "buscacnpj.com.br",
+    "portalcnpj.com.br",
+}
+
 
 def _normalizar_texto(valor: str) -> str:
     texto = unicodedata.normalize("NFKD", str(valor or ""))
@@ -103,6 +124,13 @@ def _dominio_email(email: str) -> str:
         return email.split("@", 1)[1].lower()
     except Exception:
         return ""
+
+
+def _origem_diretorio_descartada(origem: str) -> bool:
+    origem_norm = str(origem or "").lower()
+    if not origem_norm:
+        return False
+    return any(dominio in origem_norm for dominio in DOMINIOS_CONTATO_DESCARTADOS)
 
 
 def _email_local_tokens(email: str) -> List[str]:
@@ -179,6 +207,8 @@ def _score_email(item: Dict[str, Any], dominio_empresa: Optional[str]) -> float:
         score += 10
     if "registro" in origem:
         score += 4
+    if _origem_diretorio_descartada(origem):
+        score -= 120
     dominio = _dominio_email(email)
     if dominio_empresa and dominio == dominio_empresa:
         score += 28
@@ -204,6 +234,8 @@ def _score_telefone(item: Dict[str, Any]) -> float:
         score += 12
     if "receita" in origem or "opencnpj" in origem:
         score += 8
+    if _origem_diretorio_descartada(origem):
+        score -= 200
     return score
 
 
@@ -225,14 +257,18 @@ def _score_whatsapp(item: Dict[str, Any]) -> float:
         score += 12
     if "promo" in origem:
         score -= 10
+    if _origem_diretorio_descartada(origem):
+        score -= 220
     return score
 
 
-def _primeiro_valor(items: List[Dict[str, Any]], score_fn) -> Optional[str]:
+def _primeiro_valor(items: List[Dict[str, Any]], score_fn, min_score: float = 1.0) -> Optional[str]:
     validos = [item for item in items if item.get("valor")]
     if not validos:
         return None
     melhor = max(validos, key=score_fn)
+    if score_fn(melhor) < min_score:
+        return None
     return str(melhor.get("valor"))
 
 
@@ -321,6 +357,7 @@ def _serializar_redes_socios(socios: List[Dict[str, Any]], redes_existentes: Dic
 def merge_enrichment_payload(existing: Dict[str, Any], payload: Dict[str, Any]) -> Dict[str, Any]:
     site = payload.get("site") or existing.get("site")
     dominio_empresa = _dominio_site(site or existing.get("site"))
+    existing_site_descartado = _origem_diretorio_descartada(existing.get("site") or "")
 
     emails: List[Dict[str, Any]] = []
     telefones: List[Dict[str, Any]] = []
@@ -339,6 +376,10 @@ def merge_enrichment_payload(existing: Dict[str, Any], payload: Dict[str, Any]) 
         email = str(valor).strip().lower()
         if not email:
             return
+        if _origem_diretorio_descartada(origem):
+            dominio = _dominio_email(email)
+            if not dominio_empresa or dominio != dominio_empresa:
+                return
         _append_unique(
             emails,
             {
@@ -354,6 +395,8 @@ def merge_enrichment_payload(existing: Dict[str, Any], payload: Dict[str, Any]) 
             return
         telefone = str(valor).strip()
         if not telefone:
+            return
+        if _origem_diretorio_descartada(origem):
             return
         _append_unique(
             telefones,
@@ -371,6 +414,8 @@ def merge_enrichment_payload(existing: Dict[str, Any], payload: Dict[str, Any]) 
         numero = normalizar_whatsapp_br(str(valor))
         if not numero:
             return
+        if _origem_diretorio_descartada(origem):
+            return
         _append_unique(
             whatsapps,
             {
@@ -384,13 +429,15 @@ def merge_enrichment_payload(existing: Dict[str, Any], payload: Dict[str, Any]) 
 
     add_email(existing.get("email_enriquecido"), "Atual")
     add_email(existing.get("email"), "Receita Base")
-    add_telefone(existing.get("telefone_enriquecido"), "Atual")
+    if not existing_site_descartado:
+        add_telefone(existing.get("telefone_enriquecido"), "Atual")
     add_telefone(existing.get("telefone_padrao"), "Receita Base")
     add_telefone(existing.get("telefone_receita"), "Receita Base")
     add_telefone(existing.get("telefone_estab1"), "Estabelecimento 1")
     add_telefone(existing.get("telefone_estab2"), "Estabelecimento 2")
-    add_whatsapp(existing.get("whatsapp_publico"), "Atual", tipo="publico")
-    add_whatsapp(existing.get("whatsapp_enriquecido"), "Atual", tipo="enriquecido")
+    if not existing_site_descartado:
+        add_whatsapp(existing.get("whatsapp_publico"), "Atual", tipo="publico")
+        add_whatsapp(existing.get("whatsapp_enriquecido"), "Atual", tipo="enriquecido")
 
     origem_payload = str(payload.get("contatos_source") or payload.get("source") or "Scraping Web")
     if payload.get("email"):

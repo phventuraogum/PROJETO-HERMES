@@ -9,6 +9,7 @@ if str(BACKEND_ROOT) not in sys.path:
 
 
 from core_scraper import (
+    _host_contato_banido,
     _normalizar_url_publica,
     _pontuar_resultado_site_oficial,
     _selecionar_melhor_email,
@@ -43,6 +44,11 @@ class CoreScraperQualityTests(unittest.TestCase):
             _pontuar_resultado_site_oficial(home, "TOTVS"),
             _pontuar_resultado_site_oficial(forum, "TOTVS"),
         )
+
+    def test_rejects_directory_domains_as_contact_source(self):
+        self.assertTrue(_host_contato_banido("https://www.informecadastral.com.br/empresa/acme"))
+        self.assertTrue(_host_contato_banido("cadastroempresa.com.br"))
+        self.assertFalse(_host_contato_banido("https://www.acme.com.br/contato"))
 
     def test_prefers_same_domain_non_institutional_email(self):
         escolhido = _selecionar_melhor_email(
