@@ -4,6 +4,7 @@ Usa pydantic-settings para validação e type safety.
 """
 import os
 from typing import Optional
+from pathlib import Path
 try:
     from pydantic_settings import BaseSettings
 except ImportError:
@@ -28,8 +29,14 @@ class Settings(BaseSettings):
     # ============================================================
     # DATABASE
     # ============================================================
+    _default_db_path = (
+        "/data/cnpj.duckdb"
+        if os.getenv("ENVIRONMENT", "development").lower() == "production"
+        else str(Path(__file__).resolve().parent / "devdata" / "hermes-dev.duckdb")
+    )
+
     HERMES_DUCKDB_PATH: str = Field(
-        default="/data/cnpj.duckdb",
+        default=_default_db_path,
         description="Caminho do arquivo DuckDB (default para Docker; override via env para dev local)"
     )
 
@@ -168,7 +175,7 @@ class Settings(BaseSettings):
     # CORS
     # ============================================================
     CORS_ORIGINS: str = Field(
-        default="http://localhost:8080,http://localhost:5173,http://localhost:3000",
+        default="http://localhost:8080,http://127.0.0.1:8080,http://localhost:8081,http://127.0.0.1:8081,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000",
         description="Origens permitidas para CORS (separadas por vírgula)"
     )
 
@@ -240,6 +247,19 @@ class Settings(BaseSettings):
     CACHE_TTL_SECONDS: int = Field(
         default=300,
         description="TTL do cache em segundos (5 minutos)"
+    )
+
+    # ============================================================
+    # RESULTADOS DE PROSPECÇÃO
+    # ============================================================
+    RESULT_STORE_DIR: str = Field(
+        default=str(Path(__file__).resolve().parent / "runtime" / "result_store"),
+        description="Diretório de fallback para persistência dos resultados da prospecção"
+    )
+
+    RESULT_HISTORY_LIMIT: int = Field(
+        default=20,
+        description="Quantidade máxima de execuções mantidas no histórico por organização"
     )
 
     # ============================================================

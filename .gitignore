@@ -55,6 +55,10 @@ backend/dados_receita/
 backend/dados_sidra/
 backend/outputs/
 backend/db/
+backend/runtime/
+backend/devdata/*.html
+backend/devdata/*.pdf
+backend/devdata/*.log
 
 # ── Testes ───────────────────────────────────────────────────
 .pytest_cache/

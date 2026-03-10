@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 from api.db_pool import get_connection, healthcheck as db_healthcheck
 from api.cache_service import cache_service
+from api.enrichment_merge import merge_enrichment_payload
 from middleware.auth import require_auth
 from api.utils import (
     digits,
@@ -93,6 +94,8 @@ _dev_origins = [
     "http://127.0.0.1:5173",
     "http://localhost:8080",
     "http://127.0.0.1:8080",
+    "http://localhost:8081",
+    "http://127.0.0.1:8081",
 ]
 origins: list[str] = (
     [o.strip() for o in _cors_env.split(",") if o.strip()]
@@ -169,6 +172,29 @@ class ProspeccaoConfig(BaseModel):
     idade_maxima_anos: Optional[int] = None
 
 
+class ContatoCaptado(BaseModel):
+    valor: str
+    tipo: Optional[str] = None
+    origem: Optional[str] = None
+    confianca: Optional[float] = None
+
+
+class SocioEstruturado(BaseModel):
+    nome: str
+    qualificacao: Optional[str] = None
+    data_entrada: Optional[str] = None
+    cpf_cnpj: Optional[str] = None
+    email: Optional[str] = None
+    emails_alternativos: Optional[List[str]] = None
+    linkedin: Optional[str] = None
+    telefone: Optional[str] = None
+    whatsapp: Optional[str] = None
+    cargo_atual: Optional[str] = None
+    empresa_atual: Optional[str] = None
+    localizacao: Optional[str] = None
+    fonte_contato: Optional[str] = None
+
+
 class SocioRedeSocial(BaseModel):
     nome: str
     links: List[str]
@@ -207,7 +233,13 @@ class Empresa(BaseModel):
     telefone_enriquecido: Optional[str] = None
     whatsapp_publico: Optional[str] = None
     whatsapp_enriquecido: Optional[str] = None
+    linkedin_empresa: Optional[str] = None
+    instagram_empresa: Optional[str] = None
+    facebook_empresa: Optional[str] = None
     outras_informacoes: Optional[str] = None
+    emails_captados: Optional[List[ContatoCaptado]] = None
+    telefones_captados: Optional[List[ContatoCaptado]] = None
+    whatsapps_captados: Optional[List[ContatoCaptado]] = None
 
     # ── IA ─────────────────────────────────────────────────────────────────────
     resumo_ia_empresa: Optional[str] = None
@@ -218,7 +250,7 @@ class Empresa(BaseModel):
 
     # ── sócios ────────────────────────────────────────────────────────────────
     socios_resumo: Optional[str] = None          # texto legível (retrocompatibilidade)
-    socios_estruturado: Optional[List[Dict[str, str]]] = None  # lista com nome, qualificacao, data_entrada, cpf_cnpj
+    socios_estruturado: Optional[List[SocioEstruturado]] = None
 
     # ── contexto econômico (SIDRA / IBGE) ─────────────────────────────────────
     contexto_sidra: Optional[str] = None
@@ -928,6 +960,47 @@ def _buscar_redes_para_socio(
     return links
 
 
+def _aplicar_merge_enriquecimento(emp: "Empresa", payload: Dict[str, Any]) -> None:
+    if not payload:
+        return
+
+    merged = merge_enrichment_payload(emp.model_dump(), payload)
+    for campo, valor in merged.items():
+        if valor is None:
+            continue
+        if campo == "emails_captados":
+            emp.emails_captados = [
+                item if isinstance(item, ContatoCaptado) else ContatoCaptado(**item)
+                for item in valor
+            ]
+            continue
+        if campo == "telefones_captados":
+            emp.telefones_captados = [
+                item if isinstance(item, ContatoCaptado) else ContatoCaptado(**item)
+                for item in valor
+            ]
+            continue
+        if campo == "whatsapps_captados":
+            emp.whatsapps_captados = [
+                item if isinstance(item, ContatoCaptado) else ContatoCaptado(**item)
+                for item in valor
+            ]
+            continue
+        if campo == "socios_estruturado":
+            emp.socios_estruturado = [
+                item if isinstance(item, SocioEstruturado) else SocioEstruturado(**item)
+                for item in valor
+            ]
+            continue
+        if campo == "redes_sociais_socios":
+            emp.redes_sociais_socios = [
+                item if isinstance(item, SocioRedeSocial) else SocioRedeSocial(**item)
+                for item in valor
+            ]
+            continue
+        setattr(emp, campo, valor)
+
+
 def enriquecer_redes_socios(empresas: List["Empresa"], on_progress=None) -> None:
     MAX_SOCIOS_POR_EMPRESA = 5
     total = len(empresas)
@@ -974,9 +1047,64 @@ def enriquecer_empresas_online(empresas: List["Empresa"], on_progress=None) -> N
     alvos = sorted(empresas, key=lambda e: (e.score_icp or 0), reverse=True)[:MAX_ENRICH_INLINE]
     total = len(alvos)
     print(f"[ENRIQUECIMENTO] Enriquecendo {total} empresas inline (de {len(empresas)} total)")
+
+    payloads_por_cnpj: Dict[str, Dict[str, Any]] = {}
+    try:
+        import asyncio
+        from api.enrichment_service import enrichment_service
+
+        batch_input = []
+        for emp in alvos:
+            socios = []
+            if emp.socios_estruturado:
+                socios = [s.nome for s in emp.socios_estruturado if s.nome]
+            elif emp.socios_resumo:
+                socios = [l.split("(")[0].strip() for l in emp.socios_resumo.split("\n") if l.strip()]
+
+            batch_input.append(
+                {
+                    "cnpj": emp.cnpj,
+                    "razao_social": emp.razao_social,
+                    "nome_fantasia": emp.nome_fantasia,
+                    "cidade": emp.cidade,
+                    "uf": emp.uf,
+                    "cnae_principal": emp.cnae_principal,
+                    "site": emp.site,
+                    "socios": socios,
+                    "score_icp": emp.score_icp or 0.0,
+                }
+            )
+
+        resultados_batch = asyncio.run(
+            enrichment_service.enrich_batch_async(batch_input, max_concurrent=4, gerar_pitch=False)
+        )
+        payloads_por_cnpj = {
+            str(item.get("cnpj")): item
+            for item in resultados_batch
+            if isinstance(item, dict) and item.get("cnpj") and not item.get("erro")
+        }
+        print(f"[ENRIQUECIMENTO] Batch enriquecido: {len(payloads_por_cnpj)}/{len(alvos)} empresas")
+    except Exception as e:
+        print(f"[ENRIQUECIMENTO] Batch avançado indisponível, usando fallback local: {repr(e)}")
+
+    fallback_web: List[Empresa] = []
     for idx, emp in enumerate(alvos):
         if on_progress:
             on_progress(idx, total, emp.nome_fantasia or emp.razao_social or emp.cnpj)
+        dados_batch = payloads_por_cnpj.get(emp.cnpj)
+        if dados_batch:
+            _aplicar_merge_enriquecimento(emp, dados_batch)
+
+        possui_email = bool(emp.email_enriquecido or emp.email)
+        possui_whatsapp = bool(emp.whatsapp_enriquecido or emp.whatsapp_publico)
+        possui_linkedin = bool(
+            emp.linkedin_empresa
+            or (emp.redes_sociais_empresa and any("linkedin.com" in link for link in emp.redes_sociais_empresa))
+            or (emp.redes_sociais_socios and len(emp.redes_sociais_socios) > 0)
+        )
+        if sum([possui_email, possui_whatsapp, possui_linkedin]) < 3:
+            fallback_web.append(emp)
+        continue
         dados = _enriquecer_empresa_web(emp)
         if not dados:
             continue
@@ -1018,6 +1146,12 @@ def enriquecer_empresas_online(empresas: List["Empresa"], on_progress=None) -> N
                 if not already:
                     existing.append(SocioRedeSocial(nome=nome_s, links=[link_s]))
             emp.redes_sociais_socios = existing
+
+    for emp in fallback_web[:10]:
+        dados = _enriquecer_empresa_web(emp)
+        if not dados:
+            continue
+        _aplicar_merge_enriquecimento(emp, dados)
 
     print("[ENRIQUECIMENTO] Lote de enriquecimento concluído para todas as empresas.")
 
@@ -1118,6 +1252,16 @@ def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=Non
                         existing.append(SocioRedeSocial(nome=n_s, links=[l_s]))
                 emp.redes_sociais_socios = existing
 
+            _aplicar_merge_enriquecimento(
+                emp,
+                {
+                    "whatsapp": whatsapp_data,
+                    "instagram": resultado.get("instagram") or {},
+                    "linkinbio": linkinbio_data,
+                    "linkedin_ultra": linkedin_socios_data,
+                },
+            )
+
         except Exception as e:
             print(f"[WHATSAPP ULTRA] erro para {nome}: {repr(e)}")
             continue
@@ -1197,7 +1341,7 @@ def _promover_telefone_para_whatsapp(empresas: List["Empresa"]) -> int:
                           f"{numero_norm} (fonte: {fonte_tag})")
                     break
 
-    print(f"[WHATSAPP PROMO] {promovidos} empresas promovidas de telefone → WhatsApp")
+    print(f"[WHATSAPP PROMO] {promovidos} empresas promovidas de telefone -> WhatsApp")
     return promovidos
 
 

@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  getHistoricoLocal, renomearBusca, deletarBusca, type BuscaSalva,
+  getHistoricoBuscas, renomearBuscaHistorico, deletarBuscaHistorico, type BuscaSalva,
 } from "@/lib/api";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -280,9 +280,19 @@ const History = () => {
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
 
-  useEffect(() => { setBuscas(getHistoricoLocal()); }, []);
+  const reload = async () => {
+    setBuscas(await getHistoricoBuscas());
+  };
 
-  const reload = () => setBuscas(getHistoricoLocal());
+  useEffect(() => {
+    let cancelled = false;
+    void getHistoricoBuscas().then((data) => {
+      if (!cancelled) setBuscas(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const toggleSel = (id: string) => {
     setSelecionadas(prev =>
@@ -292,15 +302,15 @@ const History = () => {
     );
   };
 
-  const handleRenomear = (id: string, nome: string) => {
-    renomearBusca(id, nome);
-    reload();
+  const handleRenomear = async (id: string, nome: string) => {
+    await renomearBuscaHistorico(id, nome);
+    await reload();
   };
 
-  const handleDeletar = (id: string) => {
-    deletarBusca(id);
+  const handleDeletar = async (id: string) => {
+    await deletarBuscaHistorico(id);
     setSelecionadas(prev => prev.filter(x => x !== id));
-    reload();
+    await reload();
     setConfirmDel(null);
   };
 
@@ -354,7 +364,7 @@ const History = () => {
               busca={b}
               selecionada={selecionadas.includes(b.id)}
               onSelecionar={() => toggleSel(b.id)}
-              onRenomear={nome => handleRenomear(b.id, nome)}
+              onRenomear={nome => { void handleRenomear(b.id, nome); }}
               onDeletar={() => setConfirmDel(b.id)}
             />
           ))}
@@ -387,7 +397,7 @@ const History = () => {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-rose-600 hover:bg-rose-700"
-              onClick={() => confirmDel && handleDeletar(confirmDel)}>
+              onClick={() => { if (confirmDel) void handleDeletar(confirmDel); }}>
               Apagar
             </AlertDialogAction>
           </AlertDialogFooter>

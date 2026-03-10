@@ -25,6 +25,10 @@ _WHATS_PATTERNS = [
     re.compile(r'whatsapp://send\?phone=(\d{10,13})'),
 ]
 _WHATS_NUM_PATTERN = re.compile(r'(?:\+?55\s?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4})|(?:\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4})')
+_WHATS_CONTEXT_PATTERNS = [
+    re.compile(r'(?:whats(?:app)?|zap)[^\\n\\r]{0,40}((?:\+?55\s?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4})|(?:\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4}))', re.IGNORECASE),
+    re.compile(r'((?:\+?55\s?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4})|(?:\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4}))[^\\n\\r]{0,40}(?:whats(?:app)?|zap)', re.IGNORECASE),
+]
 _CONTACT_PATHS = ["", "/contato", "/fale-conosco", "/contact", "/sobre", "/quem-somos"]
 
 
@@ -59,19 +63,17 @@ async def extrair_whatsapp_widget(url: str) -> Optional[str]:
                 for pattern in _WHATS_PATTERNS:
                     m = pattern.search(html)
                     if m:
-                        digits = m.group(1)
-                        if len(digits) == 11 and digits[2] == "9":
-                            return "55" + digits
-                        if len(digits) >= 12:
-                            return digits
+                        normalizado = _normalizar_whatsapp_candidato(m.group(1))
+                        if normalizado:
+                            return normalizado
 
-                nums = _WHATS_NUM_PATTERN.findall(html)
-                for raw in nums:
-                    num_limpo = re.sub(r'[^\d]', '', raw)
-                    if len(num_limpo) == 11 and num_limpo[2] == "9":
-                        return "55" + num_limpo
-                    if len(num_limpo) >= 12 and num_limpo[4] == "9":
-                        return num_limpo
+                for pattern in _WHATS_CONTEXT_PATTERNS:
+                    match = pattern.search(html)
+                    if not match:
+                        continue
+                    normalizado = _normalizar_whatsapp_candidato(match.group(1))
+                    if normalizado:
+                        return normalizado
 
     except Exception:
         pass
@@ -83,16 +85,11 @@ def _extrair_whatsapp_de_texto(texto: str) -> Optional[str]:
     """Extrai número de WhatsApp de um texto (snippet, bio, etc)."""
     wa_match = re.search(r'wa\.me/(\d{10,13})', texto)
     if wa_match:
-        d = wa_match.group(1)
-        return ("55" + d) if len(d) == 11 and d[2] == "9" else d
+        return _normalizar_whatsapp_candidato(wa_match.group(1))
 
     num_match = re.search(r'(?:\+?55\s?)?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4}', texto)
     if num_match:
-        num = re.sub(r'[^\d]', '', num_match.group())
-        if len(num) == 11 and num[2] == "9":
-            return "55" + num
-        if len(num) >= 12 and validar_whatsapp_brasileiro(num):
-            return num
+        return _normalizar_whatsapp_candidato(num_match.group())
     return None
 
 
@@ -145,19 +142,15 @@ async def buscar_whatsapp_direto(empresa_nome: str, cidade: str = "") -> Optiona
 
             wa_match = re.search(r'wa\.me/(\d{10,13})', snippet)
             if wa_match:
-                digits = wa_match.group(1)
-                if len(digits) == 11 and digits[2] == "9":
-                    return "55" + digits
-                if len(digits) >= 12:
-                    return digits
+                normalizado = _normalizar_whatsapp_candidato(wa_match.group(1))
+                if normalizado:
+                    return normalizado
 
             num_match = re.search(r'(?:\+?55\s?)?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4}', snippet)
             if num_match:
-                num = re.sub(r'[^\d]', '', num_match.group())
-                if len(num) == 11 and num[2] == "9":
-                    return "55" + num
-                if len(num) >= 12 and validar_whatsapp_brasileiro(num):
-                    return num
+                normalizado = _normalizar_whatsapp_candidato(num_match.group())
+                if normalizado:
+                    return normalizado
 
     return None
 
@@ -168,21 +161,35 @@ except ImportError:
     _norm_central = None
 
 
+def _normalizar_whatsapp_candidato(numero: str) -> Optional[str]:
+    if _norm_central:
+        return _norm_central(numero)
+
+    if not numero:
+        return None
+    num_limpo = re.sub(r"[^\d]", "", str(numero))
+    if len(num_limpo) == 11 and num_limpo[2] == "9":
+        return "55" + num_limpo
+    if len(num_limpo) == 13 and num_limpo.startswith("55") and num_limpo[4] == "9":
+        return num_limpo
+    return None
+
+
 def validar_whatsapp_brasileiro(numero: str) -> bool:
     """
     Valida se um número é um celular brasileiro válido.
     Usa validação centralizada com checagem de DDD quando disponível.
     """
-    if _norm_central:
-        return _norm_central(numero) is not None
-    if not numero:
+    return _normalizar_whatsapp_candidato(numero) is not None
+
+
+def _resultado_menciona_empresa(titulo: str, descricao: str, empresa_nome: str) -> bool:
+    stop = {"de", "da", "do", "das", "dos", "e", "a", "o", "em", "com", "para", "ltda", "sa"}
+    texto = f"{titulo} {descricao}".lower()
+    tokens = [token for token in re.findall(r"[a-z0-9]+", empresa_nome.lower()) if len(token) > 2 and token not in stop]
+    if not tokens:
         return False
-    num_limpo = re.sub(r"[^\d]", "", str(numero))
-    if len(num_limpo) == 13 and num_limpo.startswith("55") and num_limpo[4] == "9":
-        return True
-    if len(num_limpo) == 11 and num_limpo[2] == "9":
-        return True
-    return False
+    return sum(1 for token in tokens if token in texto) >= min(2, len(tokens))
 
 
 # =================================================================
@@ -251,21 +258,35 @@ async def buscar_linkedin_multiplas_fontes(nome_socio: str, empresa_nome: str, c
     Camada EXTRA: Busca LinkedIn em múltiplas fontes além do Google.
     Retorna link + confiança + fonte de descoberta.
     """
-    from core_scraper import buscar_google
+    from core_scraper import (
+        _normalizar_url_linkedin,
+        _slug_linkedin_confere_nome,
+        buscar_google,
+        buscar_linkedin_socio_ultra,
+    )
     
     # Limpa nome
     nome_limpo = re.sub(r'\(.*?\)', '', nome_socio).strip()
     nome_limpo = re.sub(r'\b(SOCIO|ADMINISTRADOR|DIRETOR)\b', '', nome_limpo, flags=re.IGNORECASE).strip()
     
+    candidato_core = await buscar_linkedin_socio_ultra(nome_limpo, empresa_nome, cidade)
+    if candidato_core:
+        return {
+            "link": candidato_core["link"],
+            "confianca": "MUITO_ALTA" if candidato_core["confianca"] == "ALTA" else candidato_core["confianca"],
+            "fonte": "Core Scraper",
+            "metodo": candidato_core["metodo"],
+        }
+
     candidatos = []
     
     # === FONTE 1: LinkedIn Direto (site:linkedin.com) ===
     query1 = f'site:linkedin.com/in "{nome_limpo}" "{empresa_nome}"'
     res1 = await buscar_google(query1, num_results=3)
     for r in res1:
-        if "linkedin.com/in/" in r["link"]:
+        if "linkedin.com/in/" in r["link"] and _slug_linkedin_confere_nome(r["link"], nome_limpo):
             candidatos.append({
-                "link": r["link"],
+                "link": _normalizar_url_linkedin(r["link"]),
                 "confianca": "MUITO_ALTA",
                 "fonte": "LinkedIn Direto",
                 "metodo": "Nome+Empresa"
@@ -279,9 +300,9 @@ async def buscar_linkedin_multiplas_fontes(nome_socio: str, empresa_nome: str, c
         snippet = r.get("descricao", "").lower()
         # Extrai link do LinkedIn do snippet
         linkedin_match = re.search(r'linkedin\.com/in/[\w-]+', snippet)
-        if linkedin_match:
+        if linkedin_match and _slug_linkedin_confere_nome(linkedin_match.group(), nome_limpo):
             candidatos.append({
-                "link": f"https://{linkedin_match.group()}",
+                "link": _normalizar_url_linkedin(f"https://{linkedin_match.group()}"),
                 "confianca": "ALTA",
                 "fonte": "Apollo/RocketReach",
                 "metodo": "Profile Indexer"
@@ -295,9 +316,9 @@ async def buscar_linkedin_multiplas_fontes(nome_socio: str, empresa_nome: str, c
         for r in res3:
             snippet = r.get("descricao", "")
             linkedin_match = re.search(r'linkedin\.com/in/([\w-]+)', snippet)
-            if linkedin_match:
+            if linkedin_match and _slug_linkedin_confere_nome(linkedin_match.group(1), nome_limpo):
                 candidatos.append({
-                    "link": f"https://linkedin.com/in/{linkedin_match.group(1)}",
+                    "link": _normalizar_url_linkedin(f"https://linkedin.com/in/{linkedin_match.group(1)}"),
                     "confianca": "MEDIA",
                     "fonte": "Google Scholar/Patents",
                     "metodo": "Academic/IP"
@@ -310,9 +331,9 @@ async def buscar_linkedin_multiplas_fontes(nome_socio: str, empresa_nome: str, c
         for r in res4:
             snippet = r.get("descricao", "")
             linkedin_match = re.search(r'linkedin\.com/in/([\w-]+)', snippet)
-            if linkedin_match:
+            if linkedin_match and _slug_linkedin_confere_nome(linkedin_match.group(1), nome_limpo):
                 candidatos.append({
-                    "link": f"https://linkedin.com/in/{linkedin_match.group(1)}",
+                    "link": _normalizar_url_linkedin(f"https://linkedin.com/in/{linkedin_match.group(1)}"),
                     "confianca": "MEDIA",
                     "fonte": "Crunchbase",
                     "metodo": "Startup Database"
@@ -323,9 +344,13 @@ async def buscar_linkedin_multiplas_fontes(nome_socio: str, empresa_nome: str, c
         query5 = f'site:linkedin.com/in "{nome_limpo}" {cidade}'
         res5 = await buscar_google(query5, num_results=3)
         for r in res5:
-            if "linkedin.com/in/" in r["link"]:
+            if (
+                "linkedin.com/in/" in r["link"]
+                and _slug_linkedin_confere_nome(r["link"], nome_limpo)
+                and _resultado_menciona_empresa(r.get("titulo", ""), r.get("descricao", ""), empresa_nome)
+            ):
                 candidatos.append({
-                    "link": r["link"],
+                    "link": _normalizar_url_linkedin(r["link"]),
                     "confianca": "BAIXA",
                     "fonte": "LinkedIn Geo",
                     "metodo": "Nome+Cidade"

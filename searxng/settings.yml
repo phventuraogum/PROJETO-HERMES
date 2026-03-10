@@ -13,10 +13,13 @@ search:
     - json
 
 server:
-  secret_key: "hermes-search-secret-2026"
+  # Em desenvolvimento local, a imagem oficial sobrescreve este valor via
+  # variavel de ambiente SEARXNG_SECRET definida em searxng/.env.
+  secret_key: "change-me-in-env"
   bind_address: "0.0.0.0"
   port: 8080
   limiter: false
+  image_proxy: false
 
 ui:
   static_use_hash: true

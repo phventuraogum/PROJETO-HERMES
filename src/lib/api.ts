@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { loadLatestResult, saveLatestResult } from "@/lib/latestResultStorage";
 
 // URL base do Hermes (FastAPI)
 // Em produção (mesmo domínio), usar origem atual + /api para evitar CSP/CORS e não depender de env no build.
@@ -64,11 +65,27 @@ export type SocioEstruturado = {
   qualificacao?: string | null;
   data_entrada?: string | null;
   cpf_cnpj?: string | null;
+  email?: string | null;
+  emails_alternativos?: string[] | null;
+  linkedin?: string | null;
+  telefone?: string | null;
+  whatsapp?: string | null;
+  cargo_atual?: string | null;
+  empresa_atual?: string | null;
+  localizacao?: string | null;
+  fonte_contato?: string | null;
 };
 
 export type CnaeSecundario = {
   cnae: string;
   descricao?: string | null;
+};
+
+export type ContatoCaptado = {
+  valor: string;
+  tipo?: string | null;
+  origem?: string | null;
+  confianca?: number | null;
 };
 
 export type Empresa = {
@@ -105,11 +122,17 @@ export type Empresa = {
   telefone_enriquecido?: string | null;
   whatsapp_publico?: string | null;
   whatsapp_enriquecido?: string | null;
+  linkedin_empresa?: string | null;
+  instagram_empresa?: string | null;
+  facebook_empresa?: string | null;
   outras_informacoes?: string | null;
   resumo_ia_empresa?: string | null;
   registro_dono?: string | null;
   registro_email?: string | null;
   fonte_dados_prioritaria?: string | null;
+  emails_captados?: ContatoCaptado[] | null;
+  telefones_captados?: ContatoCaptado[] | null;
+  whatsapps_captados?: ContatoCaptado[] | null;
 
   // ── sócios ─────────────────────────────────────────────────────
   socios_resumo?: string | null;
@@ -257,33 +280,12 @@ export function getStorageKey(kind: "resultado" | "pipeline" | "buscas"): string
 // STORAGE LOCAL (por tenant)
 // ------------------------
 
-function salvarResultadoLocal(payload: ResultadoSalvo) {
-  if (typeof window === "undefined") return;
-  try {
-    const key = getStorageKey("resultado");
-    const json = JSON.stringify(payload);
-    try { localStorage.removeItem(key); } catch {}
-    localStorage.setItem(key, json);
-  } catch (err) {
-    console.warn("[Hermes] Falha ao salvar resultado no localStorage:", err);
-    try {
-      localStorage.removeItem(getStorageKey("buscas"));
-      localStorage.setItem(getStorageKey("resultado"), JSON.stringify(payload));
-    } catch {
-      console.error("[Hermes] localStorage esgotado — resultado não foi persistido");
-    }
-  }
+async function salvarResultadoLocal(payload: ResultadoSalvo): Promise<void> {
+  await saveLatestResult(getStorageKey("resultado"), payload);
 }
 
-function lerResultadoLocal(): ResultadoSalvo | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(getStorageKey("resultado"));
-    if (!raw) return null;
-    return JSON.parse(raw) as ResultadoSalvo;
-  } catch {
-    return null;
-  }
+async function lerResultadoLocal(): Promise<ResultadoSalvo | null> {
+  return await loadLatestResult<ProspeccaoConfig, ProspeccaoResultado>(getStorageKey("resultado"));
 }
 
 // ------------------------
@@ -513,7 +515,7 @@ export async function runProspeccao(configFront: ProspeccaoConfig): Promise<Pros
     body: JSON.stringify(payload),
   });
 
-  salvarResultadoLocal({
+  await salvarResultadoLocal({
     timestamp: new Date().toISOString(),
     config: configFront,
     resultado: data,
@@ -583,10 +585,12 @@ export async function runProspeccaoStream(
             } else if (parsed.empresas !== undefined) {
               resolved = true;
               const data = parsed as ProspeccaoResultado;
-              salvarResultadoLocal({
+              void salvarResultadoLocal({
                 timestamp: new Date().toISOString(),
                 config: configFront,
                 resultado: data,
+              }).catch((err) => {
+                console.error("[Hermes] Falha ao persistir resultado da prospecção:", err);
               });
               resolve(data);
               return true;
@@ -622,38 +626,26 @@ export async function runProspeccaoStream(
 }
 
 export async function getResultados(): Promise<ResultadoSalvo | null> {
-  return lerResultadoLocal();
+  try {
+    const remoto = await hermesFetch<(ResultadoSalvo & { execucao?: ExecucaoResumo | null }) | null>("/prospeccao/resultado-atual");
+    if (remoto?.resultado) {
+      await salvarResultadoLocal({
+        timestamp: remoto.timestamp,
+        config: remoto.config,
+        resultado: remoto.resultado,
+      });
+      return remoto;
+    }
+  } catch {
+    // fallback local
+  }
+
+  return await lerResultadoLocal();
 }
 
-export async function getExecucoes(): Promise<ExecucaoResumo[]> {
-  const ultimo = lerResultadoLocal();
-  if (!ultimo) return [];
-
-  return [
-    {
-      id: 1,
-      timestamp: ultimo.timestamp,
-      termo: ultimo.config.termo_base,
-      cidade: ultimo.config.cidade,
-      uf: ultimo.config.uf,
-      total_empresas: ultimo.resultado.total_empresas,
-      filtros_icp: ultimo.resultado.filtros_icp,
-      enriquecimento_web: ultimo.resultado.enriquecimento_web,
-    },
-  ];
-}
-
-export async function getHistoricoExecucoes(): Promise<ExecucaoResumo[]> {
-  return getExecucoes();
-}
-
-export async function getResultadosUltimaExecucao(): Promise<UltimaExecucaoPayload> {
-  const ultimo = lerResultadoLocal();
-
-  if (!ultimo) return { execucao: null, resultados: [] };
-
-  const execucao: ExecucaoResumo = {
-    id: 1,
+function buildExecucaoResumo(ultimo: ResultadoSalvo, id = 1): ExecucaoResumo {
+  return {
+    id,
     timestamp: ultimo.timestamp,
     termo: ultimo.config.termo_base,
     cidade: ultimo.config.cidade,
@@ -662,6 +654,46 @@ export async function getResultadosUltimaExecucao(): Promise<UltimaExecucaoPaylo
     filtros_icp: ultimo.resultado.filtros_icp,
     enriquecimento_web: ultimo.resultado.enriquecimento_web,
   };
+}
+
+export async function getExecucoes(): Promise<ExecucaoResumo[]> {
+  try {
+    const execucoes = await hermesFetch<ExecucaoResumo[]>("/prospeccao/execucoes");
+    if (Array.isArray(execucoes) && execucoes.length > 0) return execucoes;
+  } catch {
+    // fallback local
+  }
+
+  const ultimo = await lerResultadoLocal();
+  return ultimo ? [buildExecucaoResumo(ultimo)] : [];
+}
+
+export async function getHistoricoExecucoes(): Promise<ExecucaoResumo[]> {
+  return getExecucoes();
+}
+
+export async function getResultadosUltimaExecucao(): Promise<UltimaExecucaoPayload> {
+  try {
+    const payload = await hermesFetch<UltimaExecucaoPayload>("/prospeccao/ultima-execucao");
+    if (payload?.execucao || (payload?.resultados?.length ?? 0) > 0) {
+      const remoto = await getResultados();
+      if (remoto?.resultado) {
+        return {
+          execucao: payload.execucao ?? buildExecucaoResumo(remoto),
+          resultados: payload.resultados,
+        };
+      }
+      return payload;
+    }
+  } catch {
+    // fallback local
+  }
+
+  const ultimo = await lerResultadoLocal();
+
+  if (!ultimo) return { execucao: null, resultados: [] };
+
+  const execucao = buildExecucaoResumo(ultimo);
 
   return { execucao, resultados: ultimo.resultado.empresas };
 }
@@ -727,7 +759,7 @@ function calcularScoreICP(emp: Empresa): number {
 }
 
 export async function getDashboardUltimaExecucao(): Promise<DashboardData | null> {
-  const ultimo = lerResultadoLocal();
+  const ultimo = await getResultados();
   if (!ultimo) return null;
 
   const empresas = ultimo.resultado.empresas;
@@ -1079,7 +1111,7 @@ export type BuscaSalva = {
   config: ProspeccaoConfig;
   resultado: {
     total_empresas: number;
-    empresas: Empresa[];
+    empresas?: Empresa[];
   };
   metricas: {
     score_medio: number;
@@ -1106,7 +1138,8 @@ export function salvarBuscaHistorico(config: ProspeccaoConfig, resultado: { tota
     id: Date.now().toString(),
     timestamp: new Date().toISOString(),
     config,
-    resultado: { total_empresas: resultado.total_empresas, empresas },
+    // Histórico usa apenas métricas e resumo; não persiste a lista inteira para evitar estouro de quota.
+    resultado: { total_empresas: resultado.total_empresas },
     metricas: {
       score_medio: Number((empresas.reduce((s, e) => s + (e.score_icp ?? 0), 0) / t).toFixed(1)),
       taxa_email: Number(((empresas.filter(e => e.email || e.email_enriquecido).length / t) * 100).toFixed(1)),
@@ -1128,6 +1161,44 @@ export function renomearBusca(id: string, nome: string) {
 
 export function deletarBusca(id: string) {
   localStorage.setItem(getStorageKey("buscas"), JSON.stringify(getHistoricoLocal().filter(b => b.id !== id)));
+}
+
+export async function getHistoricoBuscas(): Promise<BuscaSalva[]> {
+  try {
+    const remoto = await hermesFetch<BuscaSalva[]>("/prospeccao/historico");
+    if (Array.isArray(remoto) && remoto.length > 0 && typeof window !== "undefined") {
+      localStorage.setItem(getStorageKey("buscas"), JSON.stringify(remoto));
+    }
+    if (Array.isArray(remoto) && remoto.length > 0) return remoto;
+  } catch {
+    // fallback local
+  }
+  return getHistoricoLocal();
+}
+
+export async function renomearBuscaHistorico(id: string, nome: string): Promise<void> {
+  try {
+    await hermesFetch("/prospeccao/historico/" + encodeURIComponent(id), {
+      method: "PATCH",
+      body: JSON.stringify({ nome }),
+    });
+  } catch {
+    renomearBusca(id, nome);
+    return;
+  }
+  renomearBusca(id, nome);
+}
+
+export async function deletarBuscaHistorico(id: string): Promise<void> {
+  try {
+    await hermesFetch("/prospeccao/historico/" + encodeURIComponent(id), {
+      method: "DELETE",
+    });
+  } catch {
+    deletarBusca(id);
+    return;
+  }
+  deletarBusca(id);
 }
 
 // ═══════════════════════════════════════════════════════════════

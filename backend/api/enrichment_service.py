@@ -282,6 +282,7 @@ APENAS JSON válido."""
                 cnpj=cnpj,
                 cidade=cidade,
                 socios=socios,
+                site_url=site,
             )
             if dados_google:
                 resultado["site"] = resultado["site"] or dados_google.get("site")
@@ -290,6 +291,7 @@ APENAS JSON válido."""
                     "email_enriquecido": dados_google.get("email"),
                     "telefone_enriquecido": dados_google.get("telefone"),
                     "whatsapp_enriquecido": dados_google.get("whatsapp"),
+                    "origem": dados_google.get("contatos_source") or "Core Scraper",
                 }
                 resultado["redes_socios"] = dados_google.get("redes_socios", [])
         except Exception as e:

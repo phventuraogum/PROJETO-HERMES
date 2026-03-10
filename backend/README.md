@@ -128,6 +128,27 @@ uvicorn api.main_integrado:app --reload --port 8000
 
 Acesse `/docs` para Swagger (apenas em desenvolvimento).
 
+### Busca externa para enriquecimento
+
+O backend procura resultados nesta ordem quando configurado:
+
+1. `GOOGLE_SEARCH_API_KEY` + `GOOGLE_SEARCH_CX`
+2. `SEARXNG_URL`
+3. `TAVILY_API_KEY`
+4. `BRAVE_SEARCH_API_KEY`
+5. `BING_SEARCH_API_KEY`
+6. DuckDuckGo `ddgs` como último fallback
+
+Para desenvolvimento local, use `npm run dev:search` na raiz para subir o SearXNG em `http://localhost:8888`.
+
+Se configurar `FIRECRAWL_API_KEY`, o scraper passa a usar Firecrawl como camada opcional para sites JS-heavy antes do fallback manual com `httpx`.
+
+Para validar a cadeia real usada pelo enriquecimento:
+
+```bash
+npm run smoke:search
+```
+
 ## Variaveis de Ambiente
 
 Veja `.env.example` para lista completa. Criticas em producao:

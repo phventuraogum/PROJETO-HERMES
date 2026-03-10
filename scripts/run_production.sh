@@ -39,8 +39,8 @@ fi
 
 # ── Deploy (build + up + health check) ──────────────────────
 echo ""
-echo "Executando deploy..."
-bash "$HERMES_DIR/scripts/deploy.sh"
+echo "Sincronizando codigo e executando deploy..."
+bash "$HERMES_DIR/scripts/sync_and_deploy.sh" "${1:-origin/main}"
 
 echo ""
 echo "Sistema rodando na VPS. Acesse via HTTP no IP ou hostname do servidor."

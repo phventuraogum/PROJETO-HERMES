@@ -7,6 +7,7 @@ que ainda nao foram migrados para routers proprios.
 import os
 import asyncio
 import logging
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,8 +15,10 @@ load_dotenv()
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from pydantic import BaseModel
 
 from config import settings
+from api.result_store import result_store
 
 # ============================================================
 # LOGGING ESTRUTURADO
@@ -193,7 +196,14 @@ try:
         org_id = get_org_id(request)
         logger.info(f"Prospecção iniciada | user={user.get('email')} | termo={getattr(config, 'termo', '')} | org={org_id}")
         try:
-            return await asyncio.to_thread(rodar_prospeccao_icp, config)
+            resultado = await asyncio.to_thread(rodar_prospeccao_icp, config)
+            result_store.save_result(
+                org_id,
+                config.model_dump(by_alias=True),
+                resultado.model_dump(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+            return resultado
         except Exception as e:
             logger.error(f"Erro na prospecção: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -244,6 +254,12 @@ try:
                 yield f"event: error\ndata: {_json.dumps({'detail': error_holder[0]})}\n\n"
             elif result_holder:
                 payload = result_holder[0].model_dump()
+                result_store.save_result(
+                    org_id,
+                    config.model_dump(by_alias=True),
+                    payload,
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                )
                 yield f"event: result\ndata: {_json.dumps(payload, default=str)}\n\n"
 
         return StreamingResponse(
@@ -255,6 +271,71 @@ try:
                 "X-Accel-Buffering": "no",
             },
         )
+
+    @app.get("/prospeccao/resultado-atual", tags=["ProspecÃ§Ã£o Legado"])
+    async def prospeccao_resultado_atual(
+        request: Request,
+        user: dict = Depends(require_auth),
+    ):
+        """Retorna o último resultado persistido para a organização atual."""
+        org_id = get_org_id(request)
+        return result_store.get_latest_result(org_id)
+
+    @app.get("/prospeccao/ultima-execucao", tags=["ProspecÃ§Ã£o Legado"])
+    async def prospeccao_ultima_execucao(
+        request: Request,
+        user: dict = Depends(require_auth),
+    ):
+        """Retorna a última execução persistida com a lista de empresas."""
+        org_id = get_org_id(request)
+        return result_store.get_latest_execution_payload(org_id)
+
+    @app.get("/prospeccao/execucoes", tags=["ProspecÃ§Ã£o Legado"])
+    async def prospeccao_execucoes(
+        request: Request,
+        user: dict = Depends(require_auth),
+    ):
+        """Lista execuções persistidas da organização atual."""
+        org_id = get_org_id(request)
+        return result_store.get_execucoes(org_id)
+
+    @app.get("/prospeccao/historico", tags=["ProspecÃ§Ã£o Legado"])
+    async def prospeccao_historico(
+        request: Request,
+        user: dict = Depends(require_auth),
+    ):
+        """Lista o histórico persistido de prospecções."""
+        org_id = get_org_id(request)
+        return result_store.get_history(org_id)
+
+    class HistoricoRenameBody(BaseModel):
+        nome: str
+
+    @app.patch("/prospeccao/historico/{entry_id}", tags=["ProspecÃ§Ã£o Legado"])
+    async def prospeccao_historico_renomear(
+        entry_id: str,
+        body: HistoricoRenameBody,
+        request: Request,
+        user: dict = Depends(require_auth),
+    ):
+        """Renomeia uma entrada do histórico."""
+        org_id = get_org_id(request)
+        updated = result_store.rename_history_entry(org_id, entry_id, body.nome.strip())
+        if not updated:
+            raise HTTPException(status_code=404, detail="Busca não encontrada")
+        return {"ok": True}
+
+    @app.delete("/prospeccao/historico/{entry_id}", status_code=204, tags=["ProspecÃ§Ã£o Legado"])
+    async def prospeccao_historico_deletar(
+        entry_id: str,
+        request: Request,
+        user: dict = Depends(require_auth),
+    ):
+        """Remove uma entrada do histórico."""
+        org_id = get_org_id(request)
+        deleted = result_store.delete_history_entry(org_id, entry_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Busca não encontrada")
 
     @app.post("/mapa-calor", response_model=MapaCalorResponse, tags=["Mapa de Calor"])
     async def mapa_calor_legacy(

@@ -1,0 +1,18 @@
+services:
+  searxng:
+    image: docker.io/searxng/searxng:latest
+    container_name: hermes-searxng
+    restart: unless-stopped
+    ports:
+      - "${SEARXNG_PORT:-8888}:8080"
+    env_file:
+      - ./searxng/.env
+    environment:
+      SEARXNG_SETTINGS_PATH: /etc/searxng/settings.yml
+      FORCE_OWNERSHIP: "true"
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - searxng-cache:/var/cache/searxng
+
+volumes:
+  searxng-cache:

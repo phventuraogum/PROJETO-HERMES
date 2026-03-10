@@ -5,10 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:backend": "cd backend && python -m uvicorn api.main_integrado:app --host 0.0.0.0 --port 8000 --reload",
+    "dev:search": "docker compose -f docker-compose.search.yml up -d",
+    "dev:search:down": "docker compose -f docker-compose.search.yml down",
+    "dev:search:logs": "docker compose -f docker-compose.search.yml logs -f searxng",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "smoke:search": "cd backend && python scripts/search_probe.py",
+    "smoke:backend": "cd backend && python -m unittest discover -s tests -p \"test_*.py\" -v"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

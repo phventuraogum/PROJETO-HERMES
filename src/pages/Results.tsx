@@ -1,5 +1,6 @@
 // src/pages/Results.tsx
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import {
   Card, CardContent, CardHeader, CardTitle,
 } from "@/components/ui/card";
@@ -27,7 +28,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  Empresa, SocioEstruturado,
+  ContatoCaptado, Empresa, SocioEstruturado,
   ExecucaoResumo, getResultadosUltimaExecucao,
   addToPipeline,
 } from "@/lib/api";
@@ -150,6 +151,29 @@ function detectSocial(url: string): "instagram"|"linkedin"|"facebook"|"other" {
   return "other";
 }
 
+function dedupeContactItems(items?: ContatoCaptado[] | null, extras: string[] = []) {
+  const merged: ContatoCaptado[] = [...(items ?? [])];
+  extras.filter(Boolean).forEach(valor => merged.push({ valor }));
+  const seen = new Set<string>();
+  return merged.filter(item => {
+    const key = item.valor.trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function contactSource(item?: ContatoCaptado | null) {
+  return item?.origem?.trim() || "Captado";
+}
+
+function primaryLinkedin(emp: Empresa) {
+  return emp.linkedin_empresa
+    ?? emp.redes_sociais_empresa?.find(link => /linkedin/i.test(link))
+    ?? emp.redes_sociais_socios?.flatMap(s => s.links).find(link => /linkedin/i.test(link))
+    ?? null;
+}
+
 // ─── mini copy button ──────────────────────────────────────────────────────────
 function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -197,7 +221,8 @@ function ContactRow({ emp }: { emp: Empresa }) {
   const redesRaw = (emp.redes_sociais_empresa ?? []).length
     ? emp.redes_sociais_empresa!
     : extractLinks(raw);
-  const linkedin = redesRaw.find(l => /linkedin/i.test(l))
+  const linkedin = primaryLinkedin(emp)
+    ?? redesRaw.find(l => /linkedin/i.test(l))
     ?? emp.redes_sociais_socios?.flatMap(s => s.links).find(l => /linkedin/i.test(l));
 
   return (
@@ -247,12 +272,27 @@ function ContactRow({ emp }: { emp: Empresa }) {
 function DetalheEmpresa({ company }: { company: Empresa }) {
   const [crmOpen, setCrmOpen] = useState(false);
   const raw  = company.outras_informacoes || "";
-  const redesRaw = (company.redes_sociais_empresa ?? []).length
+  const redesRawBase = (company.redes_sociais_empresa ?? []).length
     ? company.redes_sociais_empresa!
     : filterSocialLinks(extractLinks(raw));
   const resumoIA =
     (company.resumo_ia_empresa as string | undefined) ||
     raw.match(/Resumo IA:\s*(.+)$/i)?.[1]?.trim() || null;
+  const redesRaw = Array.from(new Set([
+    ...redesRawBase,
+    company.linkedin_empresa ?? "",
+    company.instagram_empresa ?? "",
+    company.facebook_empresa ?? "",
+  ].filter(Boolean)));
+  const emailsCaptados = dedupeContactItems(company.emails_captados, [company.email_enriquecido ?? "", company.email ?? ""]);
+  const whatsCaptados = dedupeContactItems(company.whatsapps_captados, [company.whatsapp_enriquecido ?? "", company.whatsapp_publico ?? ""]);
+  const telefonesCaptados = dedupeContactItems(company.telefones_captados, [
+    company.telefone_enriquecido ?? "",
+    company.telefone_padrao ?? "",
+    company.telefone_receita ?? "",
+    company.telefone_estab1 ?? "",
+    company.telefone_estab2 ?? "",
+  ]);
 
   return (
     <div className="space-y-5 text-sm pb-8">
@@ -367,10 +407,10 @@ function DetalheEmpresa({ company }: { company: Empresa }) {
           </div>
         )}
         {[
-          { label: "WhatsApp",  icon: MessageCircle, value: company.whatsapp_enriquecido || company.whatsapp_publico, href: (v: string) => v.startsWith("http") ? v : `https://wa.me/${v.replace(/\D/g, "")}`, color: "text-emerald-400" },
-          { label: "E-mail",    icon: Mail,          value: company.email_enriquecido || company.email,               href: (v: string) => `mailto:${v}`,                                                              color: "text-sky-400" },
-          { label: "Telefone",  icon: Phone,         value: company.telefone_padrao || company.telefone_receita,       href: (v: string) => `tel:${v}`,                                                                 color: "text-zinc-300" },
-          { label: "Telefone 2",icon: Phone,         value: company.telefone_estab2,                                  href: (v: string) => `tel:${v}`,                                                                 color: "text-zinc-300" },
+          { label: "WhatsApp",  icon: MessageCircle, value: whatsCaptados[0]?.valor,                                  href: (v: string) => v.startsWith("http") ? v : `https://wa.me/${v.replace(/\D/g, "")}`, color: "text-emerald-400" },
+          { label: "E-mail",    icon: Mail,          value: emailsCaptados[0]?.valor,                                  href: (v: string) => `mailto:${v}`,                                             color: "text-sky-400" },
+          { label: "Telefone",  icon: Phone,         value: telefonesCaptados[0]?.valor,                               href: (v: string) => `tel:${v}`,                                                color: "text-zinc-300" },
+          { label: "LinkedIn",  icon: Linkedin,      value: primaryLinkedin(company),                                  href: (v: string) => v,                                                          color: "text-blue-400" },
         ].filter(c => c.value).map(c => (
           <div key={c.label} className="flex items-center justify-between gap-2 text-xs">
             <div className="flex items-center gap-2">
@@ -386,6 +426,72 @@ function DetalheEmpresa({ company }: { company: Empresa }) {
             </div>
           </div>
         ))}
+
+        {emailsCaptados.length > 1 && (
+          <div className="border-t border-zinc-800 pt-2 space-y-1.5">
+            <p className="text-[10px] text-zinc-500">E-mails captados</p>
+            {emailsCaptados.slice(1).map(item => (
+              <div key={item.valor} className="flex items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-3.5 w-3.5 text-sky-400" />
+                  <a href={`mailto:${item.valor}`} className="font-medium text-zinc-200 hover:text-white hover:underline break-all">
+                    {item.valor}
+                  </a>
+                </div>
+                <Badge variant="outline" className="border-zinc-700 text-[10px] text-zinc-400">
+                  {contactSource(item)}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {whatsCaptados.length > 1 && (
+          <div className="border-t border-zinc-800 pt-2 space-y-1.5">
+            <p className="text-[10px] text-zinc-500">WhatsApps captados</p>
+            {whatsCaptados.slice(1).map(item => (
+              <div key={item.valor} className="flex items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <MessageCircle className="h-3.5 w-3.5 text-emerald-400" />
+                  <a href={`https://wa.me/${item.valor.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
+                    className="font-medium text-zinc-200 hover:text-white hover:underline break-all">
+                    {item.valor}
+                  </a>
+                </div>
+                <Badge variant="outline" className="border-zinc-700 text-[10px] text-zinc-400">
+                  {contactSource(item)}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {telefonesCaptados.length > 1 && (
+          <div className="border-t border-zinc-800 pt-2 space-y-1.5">
+            <p className="text-[10px] text-zinc-500">Telefones captados</p>
+            {telefonesCaptados.slice(1).map(item => (
+              <div key={item.valor} className="flex items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <Phone className="h-3.5 w-3.5 text-zinc-300" />
+                  <a href={`tel:${item.valor}`} className="font-medium text-zinc-200 hover:text-white hover:underline break-all">
+                    {item.valor}
+                  </a>
+                </div>
+                <Badge variant="outline" className="border-zinc-700 text-[10px] text-zinc-400">
+                  {contactSource(item)}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {(company.registro_dono || company.registro_email || company.fonte_dados_prioritaria) && (
+          <div className="border-t border-zinc-800 pt-2 space-y-1 text-xs text-zinc-300">
+            {company.registro_dono && <p><span className="text-zinc-500">Registro.br:</span> {company.registro_dono}</p>}
+            {company.registro_email && <p><span className="text-zinc-500">E-mail do registro:</span> {company.registro_email}</p>}
+            {company.fonte_dados_prioritaria && <p><span className="text-zinc-500">Fonte principal:</span> {company.fonte_dados_prioritaria}</p>}
+          </div>
+        )}
 
         {redesRaw.length > 0 && (
           <div className="border-t border-zinc-800 pt-2 space-y-1.5">
@@ -423,12 +529,15 @@ function DetalheEmpresa({ company }: { company: Empresa }) {
           {company.socios_estruturado && company.socios_estruturado.length > 0 ? (
             <div className="space-y-2">
               {company.socios_estruturado.map((s: SocioEstruturado, i: number) => {
-                const linkedin = company.redes_sociais_socios
+                const linkedin = s.linkedin || company.redes_sociais_socios
                   ?.find(r => r.nome.toLowerCase().slice(0,8) === s.nome.toLowerCase().slice(0,8))
                   ?.links?.find(l => /linkedin/i.test(l));
+                const whatsapp = s.whatsapp;
+                const email = s.email;
+                const telefone = s.telefone;
                 return (
                   <div key={i} className="flex items-start justify-between gap-2 rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-2.5">
-                    <div className="space-y-0.5">
+                    <div className="space-y-1">
                       <p className="text-xs font-medium text-zinc-100">{s.nome}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {s.qualificacao && (
@@ -437,14 +546,39 @@ function DetalheEmpresa({ company }: { company: Empresa }) {
                           </Badge>
                         )}
                         {s.data_entrada && <span className="text-[10px] text-zinc-500">desde {s.data_entrada}</span>}
+                        {s.cargo_atual && <span className="text-[10px] text-zinc-500">{s.cargo_atual}</span>}
+                        {s.empresa_atual && <span className="text-[10px] text-zinc-500">{s.empresa_atual}</span>}
+                      </div>
+                      <div className="space-y-1 text-[11px] text-zinc-300">
+                        {email && <p>E-mail: <a href={`mailto:${email}`} className="hover:underline">{email}</a></p>}
+                        {whatsapp && <p>WhatsApp: <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="hover:underline">{whatsapp}</a></p>}
+                        {telefone && <p>Telefone: <a href={`tel:${telefone}`} className="hover:underline">{telefone}</a></p>}
+                        {s.emails_alternativos && s.emails_alternativos.length > 0 && (
+                          <p className="text-zinc-500">Alternativos: {s.emails_alternativos.join(" · ")}</p>
+                        )}
+                        {s.fonte_contato && <p className="text-zinc-500">Fonte: {s.fonte_contato}</p>}
                       </div>
                     </div>
-                    {linkedin && (
-                      <a href={linkedin} target="_blank" rel="noreferrer"
-                        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-blue-500/40 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20">
-                        <Linkedin className="h-3.5 w-3.5" />
-                      </a>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {email && (
+                        <a href={`mailto:${email}`}
+                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-sky-500/40 bg-sky-500/10 text-sky-400 hover:bg-sky-500/20">
+                          <Mail className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      {whatsapp && (
+                        <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
+                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20">
+                          <MessageCircle className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      {linkedin && (
+                        <a href={linkedin} target="_blank" rel="noreferrer"
+                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-blue-500/40 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20">
+                          <Linkedin className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -590,6 +724,7 @@ type SortKey = "score_icp" | "capital_social" | "razao_social";
 type FilterChip = "com_email" | "com_whatsapp" | "com_linkedin" | "com_site";
 
 const ResultsPage = () => {
+  const location = useLocation();
   const [empresas, setEmpresas]     = useState<Empresa[]>([]);
   const [execucao, setExecucao]     = useState<ExecucaoResumo | null>(null);
   const [loading, setLoading]       = useState(true);
@@ -601,16 +736,20 @@ const ResultsPage = () => {
   const [selected, setSelected]     = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    const stateResultados = Array.isArray((location.state as { resultados?: Empresa[] } | null)?.resultados)
+      ? (location.state as { resultados?: Empresa[] }).resultados ?? []
+      : [];
+
     (async () => {
       try {
         const p = await getResultadosUltimaExecucao();
-        setEmpresas(p.resultados || []);
+        setEmpresas((p.resultados && p.resultados.length > 0) ? p.resultados : stateResultados);
         setExecucao(p.execucao);
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [location.state]);
 
   // ── stats ──────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {

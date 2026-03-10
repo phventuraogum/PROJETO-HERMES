@@ -52,6 +52,32 @@ npm run dev
 
 O Vite faz proxy das rotas da API para o backend; inicie a API separadamente (por exemplo `uvicorn` na porta 8000).
 
+### Busca web local para prospecção
+
+O backend aceita uma cadeia de busca híbrida:
+
+- `SEARXNG_URL` para metabusca local
+- `TAVILY_API_KEY` como fallback cloud
+- `BRAVE_SEARCH_API_KEY` como fonte adicional de busca
+- `FIRECRAWL_API_KEY` para scraping de sites mais difíceis
+- `GOOGLE_SEARCH_API_KEY` e `GOOGLE_SEARCH_CX` para ativar Google depois
+- `SEARCH_PROVIDER_ORDER` para controlar a prioridade dos provedores
+
+Para subir o SearXNG local:
+
+```bash
+npm run dev:search
+# -> http://localhost:8888
+```
+
+O backend local lê `backend/.env`. A ordem padrão ficou `google -> searxng -> tavily -> brave -> bing -> ddgs`, então quando a chave Google entrar depois ele passa a ser usado primeiro sem mudar o código.
+
+Para validar a cadeia de busca:
+
+```bash
+npm run smoke:search
+```
+
 ### Ou suba tudo com Docker
 
 ```bash

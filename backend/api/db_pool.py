@@ -8,14 +8,28 @@ from contextlib import contextmanager
 from threading import local
 from typing import Generator
 import logging
+from pathlib import Path
+
+from api.dev_sample_db import bootstrap_sample_database
 
 logger = logging.getLogger(__name__)
 
 # Thread-local storage para conexões
 _thread_local = local()
 
-# Configuração do DuckDB
-DB_PATH = os.getenv("HERMES_DUCKDB_PATH", "/data/cnpj.duckdb")
+def _default_db_path() -> str:
+    configured = os.getenv("HERMES_DUCKDB_PATH")
+    if configured:
+        return configured
+
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    if environment == "production":
+        return "/data/cnpj.duckdb"
+
+    return str(Path(__file__).resolve().parents[1] / "devdata" / "hermes-dev.duckdb")
+
+
+DB_PATH = _default_db_path()
 
 # Configurações de conexão otimizadas
 DUCKDB_CONFIG = {
@@ -47,6 +61,11 @@ def _get_connection(read_only: bool = True) -> duckdb.DuckDBPyConnection:
             delattr(_thread_local, connection_key)
 
     try:
+        if not os.path.exists(DB_PATH):
+            environment = os.getenv("ENVIRONMENT", "development").lower()
+            if environment != "production":
+                bootstrap_sample_database(DB_PATH)
+
         conn = duckdb.connect(
             DB_PATH,
             read_only=read_only,

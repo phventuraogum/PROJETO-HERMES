@@ -781,7 +781,7 @@ const Configure = () => {
             </div>
             <Button size="sm"
               className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white border-0"
-              onClick={() => navigate("/results")}>
+              onClick={() => navigate("/results", { state: { resultados: resultado.empresas } })}>
               Ver resultados <ArrowRight className="w-3.5 h-3.5" />
             </Button>
           </div>

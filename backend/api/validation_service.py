@@ -312,6 +312,13 @@ def normalizar_whatsapp_br(numero_raw: str) -> Optional[str]:
     else:
         return None
 
+    sufixo = local[-8:]
+    if len(set(local)) == 1 or sufixo in {
+        "00000000", "11111111", "22222222", "33333333", "44444444",
+        "55555555", "66666666", "77777777", "88888888", "99999999",
+    }:
+        return None
+
     return "55" + digits_only
 
 
