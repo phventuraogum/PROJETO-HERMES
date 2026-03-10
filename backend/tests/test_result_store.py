@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+import json
 from pathlib import Path
 import sys
 
@@ -73,6 +74,33 @@ class ResultStoreTests(unittest.TestCase):
 
         self.assertTrue(self.store.delete_history_entry(self.org_id, entry_id))
         self.assertEqual(self.store.get_history(self.org_id), [])
+
+    def test_sanitizes_nan_values_for_api_payload(self) -> None:
+        resultado = {
+            **self.resultado,
+            "empresas": [
+                {
+                    **self.resultado["empresas"][0],
+                    "capital_social": float("nan"),
+                    "score_icp": float("inf"),
+                }
+            ],
+            "enriquecimento_web": {
+                **self.resultado["enriquecimento_web"],
+                "porcentagem_enriquecida": float("nan"),
+            },
+        }
+
+        self.store.save_result(self.org_id, self.config, resultado, timestamp="2026-03-10T12:00:00+00:00")
+
+        latest = self.store.get_latest_result(self.org_id)
+        payload = self.store.get_latest_execution_payload(self.org_id)
+        history = self.store.get_history(self.org_id)
+
+        self.assertIsNone(latest["resultado"]["empresas"][0]["capital_social"])
+        self.assertIsNone(payload["resultados"][0]["capital_social"])
+        self.assertEqual(history[0]["metricas"]["capital_medio"], 0.0)
+        json.dumps(payload, allow_nan=False)
 
 
 if __name__ == "__main__":

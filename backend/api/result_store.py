@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import re
 import threading
 import time
@@ -29,9 +30,26 @@ logger = logging.getLogger(__name__)
 
 def _as_float(value: Any) -> float:
     try:
-        return float(value)
+        number = float(value)
     except (TypeError, ValueError):
         return 0.0
+    if math.isnan(number) or math.isinf(number):
+        return 0.0
+    return number
+
+
+def _sanitize_json_value(value: Any) -> Any:
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+        return value
+    if isinstance(value, dict):
+        return {str(key): _sanitize_json_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_json_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_sanitize_json_value(item) for item in value]
+    return value
 
 
 def _org_filename(org_id: str) -> str:
@@ -81,7 +99,7 @@ class ResultStore:
         if not path.exists():
             return self._default_state()
         try:
-            return json.loads(path.read_text(encoding="utf-8"))
+            return _sanitize_json_value(json.loads(path.read_text(encoding="utf-8")))
         except Exception as exc:
             logger.warning("Falha ao ler result store local de %s: %s", org_id, exc)
             return self._default_state()
@@ -89,7 +107,10 @@ class ResultStore:
     def _write_file_state(self, org_id: str, state: dict[str, Any]) -> None:
         path = self._file_path(org_id)
         tmp_path = path.with_suffix(".tmp")
-        tmp_path.write_text(json.dumps(state, ensure_ascii=False, default=str), encoding="utf-8")
+        tmp_path.write_text(
+            json.dumps(_sanitize_json_value(state), ensure_ascii=False, default=str, allow_nan=False),
+            encoding="utf-8",
+        )
         tmp_path.replace(path)
 
     def _load_state(self, org_id: str) -> dict[str, Any]:
@@ -98,24 +119,30 @@ class ResultStore:
                 latest_raw = self.redis_client.get(self._redis_key("latest", org_id))
                 history_raw = self.redis_client.get(self._redis_key("history", org_id))
                 return {
-                    "latest": json.loads(latest_raw) if latest_raw else None,
-                    "history": json.loads(history_raw) if history_raw else [],
+                    "latest": _sanitize_json_value(json.loads(latest_raw)) if latest_raw else None,
+                    "history": _sanitize_json_value(json.loads(history_raw)) if history_raw else [],
                 }
             except Exception as exc:
                 logger.warning("Falha ao ler result store no Redis para %s: %s", org_id, exc)
         return self._read_file_state(org_id)
 
     def _save_state(self, org_id: str, state: dict[str, Any]) -> None:
-        normalized = {
+        normalized = _sanitize_json_value({
             "latest": state.get("latest"),
             "history": (state.get("history") or [])[: self.history_limit],
-        }
+        })
 
         if self.redis_client is not None:
             try:
                 pipe = self.redis_client.pipeline()
-                pipe.set(self._redis_key("latest", org_id), json.dumps(normalized["latest"], ensure_ascii=False, default=str))
-                pipe.set(self._redis_key("history", org_id), json.dumps(normalized["history"], ensure_ascii=False, default=str))
+                pipe.set(
+                    self._redis_key("latest", org_id),
+                    json.dumps(normalized["latest"], ensure_ascii=False, default=str, allow_nan=False),
+                )
+                pipe.set(
+                    self._redis_key("history", org_id),
+                    json.dumps(normalized["history"], ensure_ascii=False, default=str, allow_nan=False),
+                )
                 pipe.execute()
             except Exception as exc:
                 logger.warning("Falha ao salvar result store no Redis para %s: %s", org_id, exc)
@@ -185,19 +212,21 @@ class ResultStore:
             history = list(state.get("history") or [])
             entry_id = self._next_entry_id(history)
             effective_timestamp = timestamp or datetime.now(timezone.utc).isoformat()
-            execucao = self._build_execucao(entry_id, effective_timestamp, config, resultado)
+            config_sanitized = _sanitize_json_value(deepcopy(config))
+            resultado_sanitized = _sanitize_json_value(deepcopy(resultado))
+            execucao = self._build_execucao(entry_id, effective_timestamp, config_sanitized, resultado_sanitized)
             latest_payload = {
                 "timestamp": effective_timestamp,
-                "config": deepcopy(config),
-                "resultado": deepcopy(resultado),
+                "config": config_sanitized,
+                "resultado": resultado_sanitized,
                 "execucao": execucao,
             }
             history_entry = {
                 "id": entry_id,
                 "timestamp": execucao["timestamp"],
-                "config": deepcopy(config),
+                "config": config_sanitized,
                 "resultado": {"total_empresas": execucao["total_empresas"]},
-                "metricas": self._build_metricas(list(resultado.get("empresas") or [])),
+                "metricas": self._build_metricas(list(resultado_sanitized.get("empresas") or [])),
                 "execucao": execucao,
             }
             state["latest"] = latest_payload
