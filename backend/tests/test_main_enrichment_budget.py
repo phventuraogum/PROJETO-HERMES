@@ -69,17 +69,118 @@ class MainEnrichmentBudgetTests(unittest.TestCase):
         self.assertIsNone(com_email.redes_sociais_socios)
         self.assertEqual(sem_contato.redes_sociais_socios[0].nome, "JOAO TESTE")
 
-    def test_whatsapp_ultra_targets_only_leads_without_any_contact(self):
+    def test_whatsapp_ultra_targets_leads_missing_whatsapp_even_with_other_contacts(self):
         sem_contato = self._empresa(cnpj="44444444000144", score_icp=90)
-        com_telefone = self._empresa(cnpj="55555555000155", telefone_padrao="(31) 3333-4444", score_icp=95)
-        com_email = self._empresa(cnpj="66666666000166", email="contato@empresa.com.br", score_icp=99)
+        com_telefone = self._empresa(
+            cnpj="55555555000155",
+            telefone_padrao="(31) 98888-7777",
+            site="https://empresa.com.br",
+            score_icp=95,
+        )
+        com_email = self._empresa(
+            cnpj="66666666000166",
+            email="contato@empresa.com.br",
+            site="https://empresa2.com.br",
+            score_icp=99,
+        )
         com_whatsapp = self._empresa(cnpj="77777777000177", whatsapp_enriquecido="5531999999999", score_icp=88)
 
         alvos = api_main._selecionar_empresas_para_whatsapp_ultra(
             [com_email, com_telefone, sem_contato, com_whatsapp]
         )
 
-        self.assertEqual([empresa.cnpj for empresa in alvos], ["44444444000144"])
+        self.assertEqual(
+            [empresa.cnpj for empresa in alvos],
+            ["55555555000155", "66666666000166", "44444444000144"],
+        )
+
+    def test_extrair_contatos_html_collects_link_and_number_whatsapp(self):
+        html = """
+        <a href="https://wa.me/5511988887777">WhatsApp</a>
+        <p>Fale no WhatsApp +55 (11) 98888-7777</p>
+        """
+
+        contatos = api_main._extrair_contatos_html(html)
+
+        self.assertIn("https://wa.me/5511988887777", contatos["whatsapps"])
+        self.assertIn("5511988887777", contatos["whatsapps"])
+
+    def test_promover_telefone_para_whatsapp_uses_captured_phone_and_records_origin(self):
+        empresa = self._empresa(
+            cnpj="12121212000112",
+            telefones_captados=[
+                api_main.ContatoCaptado(valor="(11) 98888-7777", origem="Site HTML"),
+            ],
+        )
+
+        promovidos = api_main._promover_telefone_para_whatsapp([empresa])
+
+        self.assertEqual(promovidos, 1)
+        self.assertEqual(empresa.whatsapp_enriquecido, "5511988887777")
+        self.assertEqual(empresa.whatsapps_captados[0].valor, "5511988887777")
+        self.assertIn("Promocao", empresa.whatsapps_captados[0].origem)
+
+    def test_verificar_whatsapps_evolution_promotes_confirmed_alternative_candidate(self):
+        empresa = self._empresa(
+            cnpj="13131313000113",
+            whatsapp_publico="(11) 98765-4321",
+            whatsapps_captados=[
+                api_main.ContatoCaptado(valor="(11) 98765-4321", origem="WhatsApp publico", tipo="publico"),
+                api_main.ContatoCaptado(valor="(31) 91234-5678", origem="telefone_captado_1", tipo="enriquecido"),
+            ],
+        )
+
+        async def _fake_verificar(numeros, max_batch=50):
+            self.assertEqual(numeros, ["5511987654321", "5531912345678"])
+            return {
+                "5511987654321": {"valido": False, "metodo": "evolution_api_rejected", "score": 0.0},
+                "5531912345678": {"valido": True, "metodo": "evolution_api", "score": 1.0},
+            }
+
+        with mock.patch.dict(api_main.os.environ, {"EVOLUTION_API_URL": "http://evolution.test"}, clear=False), \
+             mock.patch.object(api_main, "SYNC_EVOLUTION_VERIFY_LIMIT", 2), \
+             mock.patch("api.validation_service.verificar_whatsapp_lote", side_effect=_fake_verificar):
+            confirmados = api_main._verificar_whatsapps_evolution([empresa])
+
+        self.assertEqual(confirmados, 1)
+        self.assertEqual(empresa.whatsapp_enriquecido, "5531912345678")
+        self.assertEqual(empresa.whatsapp_publico, "5531912345678")
+        captados = {item.valor: item for item in empresa.whatsapps_captados}
+        self.assertFalse(captados["5511987654321"].validado)
+        self.assertEqual(captados["5511987654321"].metodo_validacao, "evolution_api_rejected")
+        self.assertTrue(captados["5531912345678"].validado)
+        self.assertEqual(captados["5531912345678"].metodo_validacao, "evolution_api")
+
+    def test_verificar_whatsapps_evolution_spreads_limit_across_companies(self):
+        empresa_a = self._empresa(
+            cnpj="14141414000114",
+            whatsapp_publico="(11) 98765-4321",
+            whatsapps_captados=[
+                api_main.ContatoCaptado(valor="(31) 91234-5678", origem="telefone_captado_1", tipo="enriquecido"),
+            ],
+            score_icp=99,
+        )
+        empresa_b = self._empresa(
+            cnpj="15151515000115",
+            whatsapp_enriquecido="(21) 99123-4567",
+            score_icp=80,
+        )
+
+        async def _fake_verificar(numeros, max_batch=50):
+            self.assertEqual(numeros, ["5511987654321", "5521991234567"])
+            return {
+                "5511987654321": {"valido": False, "metodo": "evolution_api_rejected", "score": 0.0},
+                "5521991234567": {"valido": True, "metodo": "evolution_api", "score": 1.0},
+            }
+
+        with mock.patch.dict(api_main.os.environ, {"EVOLUTION_API_URL": "http://evolution.test"}, clear=False), \
+             mock.patch.object(api_main, "SYNC_EVOLUTION_VERIFY_LIMIT", 2), \
+             mock.patch("api.validation_service.verificar_whatsapp_lote", side_effect=_fake_verificar):
+            confirmados = api_main._verificar_whatsapps_evolution([empresa_a, empresa_b])
+
+        self.assertEqual(confirmados, 1)
+        self.assertIsNone(empresa_a.whatsapp_enriquecido)
+        self.assertEqual(empresa_b.whatsapp_enriquecido, "5521991234567")
 
     def test_enriquecer_empresas_online_uses_fast_batch_mode(self):
         empresa = self._empresa(

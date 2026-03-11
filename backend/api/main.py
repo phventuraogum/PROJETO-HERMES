@@ -519,11 +519,15 @@ def calcular_alinhamento_ideal_compra(
 EMAIL_REGEX = re.compile(r"[a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-.]+")
 PHONE_REGEX = re.compile(r"(\+?\d{2}\s*\(?\d{2}\)?\s*\d{4,5}[-.\s]?\d{4})")
 WHATS_LINK_REGEX = re.compile(
-    r"(https?://(wa\.me|api\.whatsapp\.com|web\.whatsapp\.com)[^\s\"'>]+)"
+    r"((?:https?://|whatsapp://)(?:wa\.me|api\.whatsapp\.com|web\.whatsapp\.com)[^\s\"'>]+|whatsapp://send\?phone=\d{10,13})"
 )
 WHATS_NUM_REGEX = re.compile(
     r"(?:\+?55\s?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4})"
     r"|(?:\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4})"
+)
+WHATS_CONTEXT_REGEX = re.compile(
+    r"(?:whats(?:app)?|zap)[^\n\r]{0,40}((?:\+?55\s?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4})|(?:\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4}))",
+    re.IGNORECASE,
 )
 SOCIAL_REGEX = re.compile(
     r"(https?://(www\.)?(instagram\.com|linkedin\.com|facebook\.com)[^\s\"'>]+)"
@@ -570,6 +574,25 @@ def _telefone_valido(telefone: str) -> bool:
     return True
 
 
+def _append_unique_contact(contatos: List[str], valor: Optional[str]) -> None:
+    item = str(valor or "").strip()
+    if item and item not in contatos:
+        contatos.append(item)
+
+
+def _normalizar_whatsapp_extraido(valor: str) -> Optional[str]:
+    numero_norm = _normalizar_celular_br(valor)
+    if numero_norm:
+        return numero_norm
+
+    digits = re.sub(r"[^\d]", "", str(valor or ""))
+    if len(digits) == 11 and digits[2] == "9":
+        return "55" + digits
+    if len(digits) == 13 and digits.startswith("55") and digits[4] == "9":
+        return digits
+    return None
+
+
 def _extrair_contatos_html(html: str) -> dict:
     contatos: dict[str, List[str]] = {
         "emails": [],
@@ -590,21 +613,23 @@ def _extrair_contatos_html(html: str) -> dict:
 
     for match in WHATS_LINK_REGEX.findall(html):
         url = match[0] if isinstance(match, tuple) else match
-        if url not in contatos["whatsapps"]:
-            contatos["whatsapps"].append(url)
+        _append_unique_contact(contatos["whatsapps"], url)
 
-    if not contatos["whatsapps"]:
-        for match in WHATS_NUM_REGEX.findall(html):
-            num_limpo = re.sub(r"[^\d]", "", match)
-            if len(num_limpo) == 11 and num_limpo[2] == "9":
-                num_limpo = "55" + num_limpo
-            if len(num_limpo) >= 12 and num_limpo not in contatos["whatsapps"]:
-                contatos["whatsapps"].append(num_limpo)
+    for match in WHATS_NUM_REGEX.findall(html):
+        numero = match[0] if isinstance(match, tuple) else match
+        normalizado = _normalizar_whatsapp_extraido(numero)
+        if normalizado:
+            _append_unique_contact(contatos["whatsapps"], normalizado)
+
+    for match in WHATS_CONTEXT_REGEX.findall(html):
+        numero = match[0] if isinstance(match, tuple) else match
+        normalizado = _normalizar_whatsapp_extraido(numero)
+        if normalizado:
+            _append_unique_contact(contatos["whatsapps"], normalizado)
 
     for match in SOCIAL_REGEX.findall(html):
         url = match[0] if isinstance(match, tuple) else match
-        if url not in contatos["social"]:
-            contatos["social"].append(url)
+        _append_unique_contact(contatos["social"], url)
 
     return contatos
 
@@ -1033,9 +1058,9 @@ SYNC_ENRICH_BATCH_CONCURRENCY = _env_int("HERMES_SYNC_ENRICH_BATCH_CONCURRENCY",
 SYNC_FALLBACK_WEB_LIMIT = _env_int("HERMES_SYNC_FALLBACK_WEB_LIMIT", 6, minimum=0)
 SYNC_SOCIAL_LOOKUP_LIMIT = _env_int("HERMES_SYNC_SOCIAL_LOOKUP_LIMIT", 4, minimum=0)
 SYNC_SOCIOS_PER_COMPANY = _env_int("HERMES_SYNC_SOCIAL_PER_COMPANY", 3, minimum=1)
-MAX_WHATSAPP_ULTRA_EMPRESAS = _env_int("HERMES_SYNC_WHATSAPP_ULTRA_LIMIT", 6, minimum=0)
+MAX_WHATSAPP_ULTRA_EMPRESAS = _env_int("HERMES_SYNC_WHATSAPP_ULTRA_LIMIT", MAX_ENRICH_INLINE, minimum=0)
 SYNC_WHATSAPP_ULTRA_TIMEOUT = _env_int("HERMES_SYNC_WHATSAPP_ULTRA_TIMEOUT", 20, minimum=10)
-SYNC_EVOLUTION_VERIFY_LIMIT = _env_int("HERMES_SYNC_EVOLUTION_VERIFY_LIMIT", 12, minimum=0)
+SYNC_EVOLUTION_VERIFY_LIMIT = _env_int("HERMES_SYNC_EVOLUTION_VERIFY_LIMIT", MAX_ENRICH_INLINE * 2, minimum=0)
 SYNC_EMAIL_VERIFY_LIMIT = _env_int("HERMES_SYNC_EMAIL_VERIFY_LIMIT", 6, minimum=0)
 
 
@@ -1067,6 +1092,301 @@ def _tem_linkedin_acionavel(emp: "Empresa") -> bool:
 
 def _tem_contato_digital_acionavel(emp: "Empresa") -> bool:
     return _tem_email_acionavel(emp) or _tem_whatsapp_acionavel(emp)
+
+
+def _origem_indica_whatsapp_publico(origem: Optional[str], tipo: Optional[str] = None) -> bool:
+    if str(tipo or "").strip().lower() == "publico":
+        return True
+
+    origem_norm = str(origem or "").strip().lower()
+    if not origem_norm:
+        return False
+
+    return any(
+        token in origem_norm
+        for token in (
+            "publico",
+            "whatsapp ultra",
+            "widget",
+            "site",
+            "scraping",
+            "core scraper",
+            "instagram",
+            "linktree",
+            "link in bio",
+            "maps",
+        )
+    )
+
+
+def _score_candidato_whatsapp(
+    emp: "Empresa",
+    numero: str,
+    origem: Optional[str],
+    *,
+    tipo: Optional[str] = None,
+    confianca: Optional[float] = None,
+    validado: bool = False,
+) -> float:
+    origem_norm = str(origem or "").strip().lower()
+    score = float(confianca or 0.0) * 100.0
+
+    if validado:
+        score += 1000.0
+
+    if tipo == "publico":
+        score += 180.0
+    elif tipo == "enriquecido":
+        score += 150.0
+    elif tipo == "telefone":
+        score += 55.0
+
+    if numero == _normalizar_celular_br(emp.whatsapp_publico or ""):
+        score += 120.0
+    if numero == _normalizar_celular_br(emp.whatsapp_enriquecido or ""):
+        score += 100.0
+
+    if "socio_whatsapp" in origem_norm:
+        score += 150.0
+    elif "whatsapp ultra" in origem_norm:
+        score += 145.0
+    elif "linktree" in origem_norm or "link in bio" in origem_norm:
+        score += 135.0
+    elif "instagram" in origem_norm:
+        score += 125.0
+    elif "widget" in origem_norm or "site" in origem_norm or "scraping" in origem_norm:
+        score += 120.0
+    elif "maps" in origem_norm:
+        score += 110.0
+    elif "socio_telefone" in origem_norm:
+        score += 95.0
+    elif "telefone_captado" in origem_norm:
+        score += 90.0
+    elif "promocao" in origem_norm:
+        score += 70.0
+    elif "receita" in origem_norm or "estabelecimento" in origem_norm:
+        score += 35.0
+
+    if emp.site:
+        score += 5.0
+    if emp.linkedin_empresa or emp.redes_sociais_socios:
+        score += 5.0
+
+    return score
+
+
+def _coletar_candidatos_whatsapp(emp: "Empresa") -> List[Dict[str, Any]]:
+    candidatos: Dict[str, Dict[str, Any]] = {}
+
+    def _registrar(
+        valor: Optional[str],
+        origem: Optional[str],
+        *,
+        tipo: Optional[str] = None,
+        confianca: Optional[float] = None,
+        validado: bool = False,
+    ) -> None:
+        numero = _normalizar_celular_br(valor or "")
+        if not numero:
+            return
+
+        candidato = {
+            "numero": numero,
+            "origem": str(origem or "").strip() or None,
+            "tipo": tipo,
+            "confianca": confianca,
+            "validado": validado,
+            "publico": _origem_indica_whatsapp_publico(origem, tipo),
+        }
+        candidato["score"] = _score_candidato_whatsapp(
+            emp,
+            numero,
+            candidato.get("origem"),
+            tipo=tipo,
+            confianca=confianca,
+            validado=validado,
+        )
+
+        existente = candidatos.get(numero)
+        if not existente or candidato["score"] > existente["score"]:
+            if existente:
+                candidato["validado"] = bool(existente.get("validado") or candidato["validado"])
+                candidato["publico"] = bool(existente.get("publico") or candidato["publico"])
+            candidatos[numero] = candidato
+            return
+
+        existente["validado"] = bool(existente.get("validado") or candidato["validado"])
+        existente["publico"] = bool(existente.get("publico") or candidato["publico"])
+        if (candidato.get("confianca") or 0.0) > (existente.get("confianca") or 0.0):
+            existente["confianca"] = candidato.get("confianca")
+
+    _registrar(emp.whatsapp_publico, "Atual publico", tipo="publico")
+    _registrar(emp.whatsapp_enriquecido, "Atual enriquecido", tipo="enriquecido")
+
+    for item in emp.whatsapps_captados or []:
+        _registrar(
+            item.valor,
+            item.origem or "WhatsApp captado",
+            tipo=item.tipo or "whatsapp",
+            confianca=item.confianca,
+            validado=bool(item.validado),
+        )
+
+    for socio in emp.socios_estruturado or []:
+        if socio.whatsapp:
+            _registrar(socio.whatsapp, f"socio_whatsapp:{socio.nome}", tipo="enriquecido", confianca=0.96)
+        if socio.telefone:
+            _registrar(socio.telefone, f"socio_telefone:{socio.nome}", tipo="telefone", confianca=0.84)
+
+    _registrar(emp.telefone_enriquecido, "site", tipo="telefone", confianca=0.92)
+    _registrar(emp.telefone_padrao, "receita_padrao", tipo="telefone", confianca=0.72)
+    _registrar(emp.telefone_receita, "receita_bruto", tipo="telefone", confianca=0.68)
+    _registrar(emp.telefone_estab1, "estabelecimento1", tipo="telefone", confianca=0.66)
+    _registrar(emp.telefone_estab2, "estabelecimento2", tipo="telefone", confianca=0.64)
+
+    for idx, item in enumerate(emp.telefones_captados or []):
+        _registrar(
+            item.valor,
+            item.origem or f"telefone_captado_{idx + 1}",
+            tipo="telefone",
+            confianca=item.confianca or 0.85,
+        )
+
+    return sorted(
+        candidatos.values(),
+        key=lambda item: (-(item.get("score") or 0.0), item.get("numero") or ""),
+    )
+
+
+def _upsert_whatsapp_captado(
+    emp: "Empresa",
+    numero: str,
+    *,
+    origem: Optional[str],
+    tipo: Optional[str],
+    confianca: Optional[float],
+    validado: Optional[bool],
+    metodo_validacao: Optional[str] = None,
+    score_validacao: Optional[float] = None,
+    motivo_validacao: Optional[str] = None,
+) -> None:
+    emp.whatsapps_captados = list(emp.whatsapps_captados or [])
+    for item in emp.whatsapps_captados:
+        if _normalizar_celular_br(item.valor or "") != numero:
+            continue
+        item.valor = numero
+        if origem and not item.origem:
+            item.origem = origem
+        if tipo and not item.tipo:
+            item.tipo = tipo
+        if confianca is not None and (item.confianca is None or confianca > item.confianca):
+            item.confianca = confianca
+        if validado is not None:
+            item.validado = validado
+        if metodo_validacao:
+            item.metodo_validacao = metodo_validacao
+        if score_validacao is not None:
+            item.score_validacao = score_validacao
+        if motivo_validacao:
+            item.motivo_validacao = motivo_validacao
+        return
+
+    emp.whatsapps_captados.append(
+        ContatoCaptado(
+            valor=numero,
+            tipo=tipo,
+            origem=origem,
+            confianca=confianca,
+            validado=validado,
+            metodo_validacao=metodo_validacao,
+            score_validacao=score_validacao,
+            motivo_validacao=motivo_validacao,
+        )
+    )
+
+
+def _aplicar_whatsapp_confirmado(emp: "Empresa", candidato: Dict[str, Any], resultado: Dict[str, Any]) -> bool:
+    numero = _normalizar_celular_br(candidato.get("numero") or "")
+    if not numero:
+        return False
+
+    emp.whatsapp_enriquecido = numero
+    if candidato.get("publico") or not emp.whatsapp_publico:
+        emp.whatsapp_publico = numero
+
+    _upsert_whatsapp_captado(
+        emp,
+        numero,
+        origem=candidato.get("origem"),
+        tipo=candidato.get("tipo") or ("publico" if candidato.get("publico") else "enriquecido"),
+        confianca=candidato.get("confianca"),
+        validado=True,
+        metodo_validacao=resultado.get("metodo") or "evolution_api",
+        score_validacao=resultado.get("score"),
+        motivo_validacao="Confirmado via Evolution API",
+    )
+    return True
+
+
+def _marcar_whatsapp_rejeitado(emp: "Empresa", candidato: Dict[str, Any], numero: str) -> bool:
+    atualizado = False
+    numero_norm = _normalizar_celular_br(numero or "")
+    if not numero_norm:
+        return False
+
+    if _normalizar_celular_br(emp.whatsapp_enriquecido or "") == numero_norm:
+        emp.whatsapp_enriquecido = None
+        atualizado = True
+    if _normalizar_celular_br(emp.whatsapp_publico or "") == numero_norm:
+        emp.whatsapp_publico = None
+        atualizado = True
+
+    for item in emp.whatsapps_captados or []:
+        if _normalizar_celular_br(item.valor or "") != numero_norm:
+            continue
+        item.validado = False
+        item.metodo_validacao = "evolution_api_rejected"
+        item.score_validacao = 0.0
+        item.motivo_validacao = "Numero rejeitado pela Evolution API"
+        atualizado = True
+
+    if atualizado:
+        _upsert_whatsapp_captado(
+            emp,
+            numero_norm,
+            origem=candidato.get("origem"),
+            tipo=candidato.get("tipo"),
+            confianca=candidato.get("confianca"),
+            validado=False,
+            metodo_validacao="evolution_api_rejected",
+            score_validacao=0.0,
+            motivo_validacao="Numero rejeitado pela Evolution API",
+        )
+    return atualizado
+
+
+def _potencial_whatsapp_inline(emp: "Empresa") -> tuple:
+    redes_empresa = emp.redes_sociais_empresa or []
+    tem_instagram = bool(
+        emp.instagram_empresa
+        or any("instagram.com" in str(link).lower() for link in redes_empresa)
+    )
+    tem_linkedin = bool(
+        emp.linkedin_empresa
+        or any("linkedin.com" in str(link).lower() for link in redes_empresa)
+        or bool(emp.redes_sociais_socios)
+    )
+    return (
+        0 if emp.site else 1,
+        0 if _tem_telefone_acionavel(emp) else 1,
+        0 if (emp.telefones_captados or []) else 1,
+        0 if tem_instagram else 1,
+        0 if tem_linkedin else 1,
+        0 if _tem_email_acionavel(emp) else 1,
+        -(len(emp.socios_estruturado or [])),
+        -(len(emp.telefones_captados or [])),
+        -(emp.score_icp or 0),
+    )
 
 
 def _cobertura_contato(emp: "Empresa") -> int:
@@ -1102,10 +1422,8 @@ def _selecionar_empresas_para_whatsapp_ultra(empresas: List["Empresa"]) -> List[
         emp
         for emp in empresas
         if not _tem_whatsapp_acionavel(emp)
-        and not _tem_email_acionavel(emp)
-        and not _tem_telefone_acionavel(emp)
     ]
-    candidatos.sort(key=lambda emp: (_cobertura_contato(emp), -(emp.score_icp or 0)))
+    candidatos.sort(key=_potencial_whatsapp_inline)
     return candidatos[:MAX_WHATSAPP_ULTRA_EMPRESAS]
 
 
@@ -1426,18 +1744,41 @@ def _promover_telefone_para_whatsapp(empresas: List["Empresa"]) -> int:
         if emp.whatsapp_publico or emp.whatsapp_enriquecido:
             continue
 
-        fontes = [
-            ("site", emp.telefone_enriquecido),
-            ("receita_padrao", emp.telefone_padrao),
-            ("receita_bruto", emp.telefone_receita),
-            ("estabelecimento1", emp.telefone_estab1),
-            ("estabelecimento2", emp.telefone_estab2),
+        fontes: List[tuple[str, Optional[str], float]] = [
+            ("site", emp.telefone_enriquecido, 0.92),
+            ("receita_padrao", emp.telefone_padrao, 0.72),
+            ("receita_bruto", emp.telefone_receita, 0.68),
+            ("estabelecimento1", emp.telefone_estab1, 0.66),
+            ("estabelecimento2", emp.telefone_estab2, 0.64),
         ]
-        for fonte_tag, tel in fontes:
+
+        for idx, item in enumerate(emp.telefones_captados or []):
+            fontes.append((item.origem or f"telefone_captado_{idx+1}", item.valor, 0.85))
+
+        for socio in emp.socios_estruturado or []:
+            if socio.whatsapp:
+                fontes.append((f"socio_whatsapp:{socio.nome}", socio.whatsapp, 0.96))
+            if socio.telefone:
+                fontes.append((f"socio_telefone:{socio.nome}", socio.telefone, 0.82))
+
+        numeros_registrados = {item.valor for item in (emp.whatsapps_captados or []) if item.valor}
+        for fonte_tag, tel, confianca in fontes:
             if tel and _eh_celular_br(tel):
                 numero_norm = _normalizar_celular_br(tel)
                 if numero_norm:
                     emp.whatsapp_enriquecido = numero_norm
+                    emp.whatsapps_captados = list(emp.whatsapps_captados or [])
+                    if numero_norm not in numeros_registrados:
+                        emp.whatsapps_captados.append(
+                            ContatoCaptado(
+                                valor=numero_norm,
+                                tipo="enriquecido",
+                                origem=f"Promocao {fonte_tag}",
+                                confianca=confianca,
+                                validado=False,
+                            )
+                        )
+                        numeros_registrados.add(numero_norm)
                     promovidos += 1
                     print(f"[WHATSAPP PROMO] {emp.nome_fantasia or emp.razao_social}: "
                           f"{numero_norm} (fonte: {fonte_tag})")
@@ -1447,7 +1788,7 @@ def _promover_telefone_para_whatsapp(empresas: List["Empresa"]) -> int:
     return promovidos
 
 
-def _verificar_whatsapps_evolution(empresas: List["Empresa"]) -> int:
+def _verificar_whatsapps_evolution_legacy(empresas: List["Empresa"]) -> int:
     """
     Verifica em lote quais WhatsApps existem de verdade via Evolution API.
     Remove whatsapp_enriquecido de empresas cujo número foi rejeitado.
@@ -1518,6 +1859,108 @@ def _verificar_whatsapps_evolution(empresas: List["Empresa"]) -> int:
                 removidos += 1
 
     print(f"[EVOLUTION CHECK] Resultado: {confirmados} confirmados, {removidos} removidos (inválidos)")
+    return confirmados
+
+
+def _verificar_whatsapps_evolution(empresas: List["Empresa"]) -> int:
+    """
+    Versao com multi-candidatos por empresa.
+    Tenta mais de um numero por lead e promove o melhor confirmado.
+    """
+    import asyncio
+    try:
+        from api.validation_service import verificar_whatsapp_lote
+    except ImportError:
+        print("[EVOLUTION CHECK] validation_service indisponivel, pulando verificacao")
+        return 0
+
+    evolution_url = os.environ.get("EVOLUTION_API_URL", "")
+    if not evolution_url:
+        print("[EVOLUTION CHECK] EVOLUTION_API_URL nao configurada, pulando")
+        return 0
+
+    candidatos_por_empresa: List[tuple[Empresa, List[Dict[str, Any]]]] = []
+    for emp in sorted(
+        empresas,
+        key=lambda item: (
+            0 if (_normalizar_celular_br(item.whatsapp_enriquecido or "") or _normalizar_celular_br(item.whatsapp_publico or "")) else 1,
+            -(item.score_icp or 0),
+        ),
+    ):
+        candidatos = _coletar_candidatos_whatsapp(emp)
+        if candidatos:
+            candidatos_por_empresa.append((emp, candidatos))
+
+    numeros_para_verificar: Dict[str, List[tuple[Empresa, Dict[str, Any]]]] = {}
+    rodada = 0
+    limite = SYNC_EVOLUTION_VERIFY_LIMIT if SYNC_EVOLUTION_VERIFY_LIMIT > 0 else None
+    while True:
+        houve_adicao = False
+        for emp, candidatos in candidatos_por_empresa:
+            if rodada >= len(candidatos):
+                continue
+            candidato = candidatos[rodada]
+            numero = candidato.get("numero")
+            if not numero:
+                continue
+            numeros_para_verificar.setdefault(numero, []).append((emp, candidato))
+            houve_adicao = True
+            if limite and len(numeros_para_verificar) >= limite:
+                break
+        if not houve_adicao or (limite and len(numeros_para_verificar) >= limite):
+            break
+        rodada += 1
+
+    if not numeros_para_verificar:
+        print("[EVOLUTION CHECK] Nenhum WhatsApp para verificar")
+        return 0
+
+    empresas_planejadas = len(
+        {
+            emp.cnpj
+            for pares in numeros_para_verificar.values()
+            for emp, _ in pares
+            if emp.cnpj
+        }
+    )
+    print(
+        f"[EVOLUTION CHECK] Verificando {len(numeros_para_verificar)} numeros via Evolution API "
+        f"para {empresas_planejadas} empresas..."
+    )
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            resultados = pool.submit(
+                asyncio.run,
+                verificar_whatsapp_lote(list(numeros_para_verificar.keys()))
+            ).result()
+    else:
+        resultados = asyncio.run(
+            verificar_whatsapp_lote(list(numeros_para_verificar.keys()))
+        )
+
+    removidos = 0
+    confirmados = 0
+    empresas_confirmadas = set()
+    for num, resultado in resultados.items():
+        if resultado.get("metodo") not in ("evolution_api", "evolution_api_rejected"):
+            continue
+        for emp, candidato in numeros_para_verificar.get(num, []):
+            if resultado.get("valido"):
+                if _aplicar_whatsapp_confirmado(emp, candidato, resultado) and emp.cnpj not in empresas_confirmadas:
+                    empresas_confirmadas.add(emp.cnpj)
+                    confirmados += 1
+            else:
+                if _marcar_whatsapp_rejeitado(emp, candidato, num):
+                    removidos += 1
+
+    print(f"[EVOLUTION CHECK] Resultado: {confirmados} confirmados, {removidos} removidos (invalidos)")
     return confirmados
 
 
