@@ -404,6 +404,10 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+function asArray<T = unknown>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 function scoreFromRecord(
   record: Record<string, unknown> | null | undefined,
   key = "score_total",
@@ -494,6 +498,93 @@ function mergeEmpresaWithEnrichment(
   };
 }
 
+function mapContactIntelligence(raw: Record<string, unknown> | null | undefined): ContactIntelligenceResult | null {
+  if (!raw) return null;
+
+  const company = asRecord(raw.company) ?? {};
+  const domainProfile = asRecord(raw.domain_profile) ?? {};
+  const summary = asRecord(raw.summary) ?? {};
+
+  const contacts = asArray<Record<string, unknown>>(raw.contacts).map((contact) => {
+    const emails = asArray<Record<string, unknown>>(contact.emails).map((email) => ({
+      email: asNullableString(email.email) ?? "",
+      kind: (asNullableString(email.kind) as "sourced" | "guessed" | null) ?? "guessed",
+      pattern: asNullableString(email.pattern),
+      pattern_confidence: asNullableNumber(email.pattern_confidence),
+      source_label: asNullableString(email.source_label),
+      source_url: asNullableString(email.source_url),
+      verification_status: asNullableString(email.verification_status),
+      verification_score: asNullableNumber(email.verification_score),
+      score_total: asNullableNumber(email.score_total),
+      source_score: asNullableNumber(email.source_score),
+      role_score: asNullableNumber(email.role_score),
+      freshness_score: asNullableNumber(email.freshness_score),
+      is_primary: typeof email.is_primary === "boolean" ? email.is_primary : null,
+      verification: asRecord(email.verification),
+      evidence: asArray<Record<string, unknown>>(email.evidence).map((item) => ({
+        type: asNullableString(item.type),
+        label: asNullableString(item.label),
+        source_url: asNullableString(item.source_url),
+        snippet: asNullableString(item.snippet),
+      })),
+    })).filter((email) => email.email);
+
+    return {
+      name: asNullableString(contact.name) ?? "",
+      role: asNullableString(contact.role),
+      linkedin: asNullableString(contact.linkedin),
+      source: asNullableString(contact.source),
+      emails,
+    };
+  }).filter((contact) => contact.name);
+
+  return {
+    company: {
+      cnpj: asNullableString(company.cnpj) ?? "",
+      razao_social: asNullableString(company.razao_social) ?? "",
+      nome_fantasia: asNullableString(company.nome_fantasia),
+      cidade: asNullableString(company.cidade),
+      uf: asNullableString(company.uf),
+      site: asNullableString(company.site),
+    },
+    domain_profile: {
+      domain: asNullableString(domainProfile.domain),
+      site_url: asNullableString(domainProfile.site_url),
+      resolved_from: asNullableString(domainProfile.resolved_from),
+      email_pattern: asNullableString(domainProfile.email_pattern),
+      pattern_confidence: asNullableNumber(domainProfile.pattern_confidence),
+      linkedin_company: asNullableString(domainProfile.linkedin_company),
+      public_emails: asArray<Record<string, unknown>>(domainProfile.public_emails).map((item) => ({
+        email: asNullableString(item.email) ?? "",
+        kind: asNullableString(item.kind),
+        source_label: asNullableString(item.source_label),
+        source_url: asNullableString(item.source_url),
+      })).filter((item) => item.email),
+      generic_inboxes: asArray<Record<string, unknown>>(domainProfile.generic_inboxes).map((item) => ({
+        email: asNullableString(item.email) ?? "",
+        source_label: asNullableString(item.source_label),
+        source_url: asNullableString(item.source_url),
+      })).filter((item) => item.email),
+      company_profiles: asArray<Record<string, unknown>>(domainProfile.company_profiles).map((item) => ({
+        type: asNullableString(item.type) ?? "",
+        url: asNullableString(item.url) ?? "",
+      })).filter((item) => item.type && item.url),
+    },
+    contacts,
+    summary: {
+      decision_makers: asNullableNumber(summary.decision_makers),
+      total_contact_emails: asNullableNumber(summary.total_contact_emails),
+      verified: asNullableNumber(summary.verified),
+      deliverable: asNullableNumber(summary.deliverable),
+      risky: asNullableNumber(summary.risky),
+      guessed: asNullableNumber(summary.guessed),
+      sourced: asNullableNumber(summary.sourced),
+      generic_inboxes: asNullableNumber(summary.generic_inboxes),
+    },
+    generated_at: asNullableString(raw.generated_at),
+  };
+}
+
 export function normalizeCnpj(cnpj: string): string {
   return normalizeCnpjValue(cnpj);
 }
@@ -506,6 +597,89 @@ export type EmpresaEnriquecimentoPayload = {
   dados_receita?: Record<string, unknown> | null;
 };
 
+export type ContactIntelligenceEvidence = {
+  type?: string | null;
+  label?: string | null;
+  source_url?: string | null;
+  snippet?: string | null;
+};
+
+export type ContactIntelligenceEmail = {
+  email: string;
+  kind: "sourced" | "guessed";
+  pattern?: string | null;
+  pattern_confidence?: number | null;
+  source_label?: string | null;
+  source_url?: string | null;
+  verification_status?: string | null;
+  verification_score?: number | null;
+  score_total?: number | null;
+  source_score?: number | null;
+  role_score?: number | null;
+  freshness_score?: number | null;
+  is_primary?: boolean | null;
+  verification?: Record<string, unknown> | null;
+  evidence?: ContactIntelligenceEvidence[] | null;
+};
+
+export type ContactIntelligenceContact = {
+  name: string;
+  role?: string | null;
+  linkedin?: string | null;
+  source?: string | null;
+  emails: ContactIntelligenceEmail[];
+};
+
+export type ContactIntelligenceDomainProfile = {
+  domain?: string | null;
+  site_url?: string | null;
+  resolved_from?: string | null;
+  email_pattern?: string | null;
+  pattern_confidence?: number | null;
+  linkedin_company?: string | null;
+  public_emails?: Array<{
+    email: string;
+    kind?: string | null;
+    source_label?: string | null;
+    source_url?: string | null;
+  }> | null;
+  generic_inboxes?: Array<{
+    email: string;
+    source_label?: string | null;
+    source_url?: string | null;
+  }> | null;
+  company_profiles?: Array<{
+    type: string;
+    url: string;
+  }> | null;
+};
+
+export type ContactIntelligenceSummary = {
+  decision_makers?: number | null;
+  total_contact_emails?: number | null;
+  verified?: number | null;
+  deliverable?: number | null;
+  risky?: number | null;
+  guessed?: number | null;
+  sourced?: number | null;
+  generic_inboxes?: number | null;
+};
+
+export type ContactIntelligenceResult = {
+  company: {
+    cnpj: string;
+    razao_social: string;
+    nome_fantasia?: string | null;
+    cidade?: string | null;
+    uf?: string | null;
+    site?: string | null;
+  };
+  domain_profile: ContactIntelligenceDomainProfile;
+  contacts: ContactIntelligenceContact[];
+  summary: ContactIntelligenceSummary;
+  generated_at?: string | null;
+};
+
 type BuscarEmpresaResponse = {
   success: boolean;
   empresa: Record<string, unknown>;
@@ -516,6 +690,63 @@ type EnriquecerEmpresaResponse = {
   cnpj: string;
   enriquecimento: EmpresaEnriquecimentoPayload;
   message?: string;
+};
+
+type ContactIntelligenceResponse = {
+  success: boolean;
+  cached: boolean;
+  intelligence?: Record<string, unknown> | null;
+};
+
+type ContactIntelligenceStatusResponse = {
+  success: boolean;
+  cnpj?: string | null;
+  status?: string | null;
+  cached?: boolean;
+  queued?: boolean;
+  error?: string | null;
+  job_id?: string | null;
+  updated_at?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  intelligence?: Record<string, unknown> | null;
+};
+
+type ContactIntelligenceBatchItemResponse = {
+  cnpj?: string | null;
+  status?: string | null;
+  cached?: boolean;
+  queued?: boolean;
+  intelligence?: Record<string, unknown> | null;
+  error?: string | null;
+};
+
+type ContactIntelligenceBatchResponse = {
+  success: boolean;
+  total?: number;
+  items?: ContactIntelligenceBatchItemResponse[] | null;
+};
+
+export type ContactIntelligenceBatchItem = {
+  cnpj: string;
+  status: string;
+  cached: boolean;
+  queued: boolean;
+  intelligence: ContactIntelligenceResult | null;
+  error?: string | null;
+};
+
+export type ContactIntelligenceStatus = {
+  cnpj: string;
+  status: string;
+  cached: boolean;
+  queued: boolean;
+  error?: string | null;
+  jobId?: string | null;
+  updatedAt?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  intelligence: ContactIntelligenceResult | null;
 };
 
 export async function buscarEmpresaPorCnpj(cnpj: string): Promise<Empresa> {
@@ -540,6 +771,184 @@ export async function enriquecerEmpresaPorCnpj(
     enrichment: data.enriquecimento ?? {},
     message: data.message,
   };
+}
+
+export async function buscarContactIntelligencePorCnpj(
+  cnpj: string,
+): Promise<{ cached: boolean; intelligence: ContactIntelligenceResult | null }> {
+  const data = await hermesFetch<ContactIntelligenceResponse>(
+    `/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/contact-intelligence`,
+  );
+  return {
+    cached: !!data.cached,
+    intelligence: mapContactIntelligence(asRecord(data.intelligence)),
+  };
+}
+
+export async function resolverContactIntelligencePorCnpj(
+  cnpj: string,
+  opts?: { probeSmtp?: boolean },
+): Promise<ContactIntelligenceResult> {
+  const data = await hermesFetch<ContactIntelligenceResponse>(
+    `/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/contact-intelligence`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        probe_smtp: opts?.probeSmtp ?? false,
+      }),
+    },
+  );
+  const intelligence = mapContactIntelligence(asRecord(data.intelligence));
+  if (!intelligence) {
+    throw new Error("Nao foi possivel resolver a inteligencia de contatos.");
+  }
+  return intelligence;
+}
+
+function mapContactIntelligenceStatus(
+  raw: ContactIntelligenceStatusResponse,
+): ContactIntelligenceStatus {
+  return {
+    cnpj: asNullableString(raw.cnpj) ?? "",
+    status: asNullableString(raw.status) ?? "idle",
+    cached: !!raw.cached,
+    queued: !!raw.queued,
+    error: asNullableString(raw.error),
+    jobId: asNullableString(raw.job_id),
+    updatedAt: asNullableString(raw.updated_at),
+    startedAt: asNullableString(raw.started_at),
+    finishedAt: asNullableString(raw.finished_at),
+    intelligence: mapContactIntelligence(asRecord(raw.intelligence)),
+  };
+}
+
+export async function buscarStatusContactIntelligencePorCnpj(
+  cnpj: string,
+): Promise<ContactIntelligenceStatus> {
+  const data = await hermesFetch<ContactIntelligenceStatusResponse>(
+    `/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/contact-intelligence/status`,
+  );
+  return mapContactIntelligenceStatus(data);
+}
+
+export async function enfileirarContactIntelligencePorCnpj(
+  cnpj: string,
+  opts?: { probeSmtp?: boolean; refresh?: boolean },
+): Promise<ContactIntelligenceStatus> {
+  const data = await hermesFetch<ContactIntelligenceStatusResponse>(
+    `/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/contact-intelligence/queue`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        probe_smtp: opts?.probeSmtp ?? false,
+        refresh: opts?.refresh ?? false,
+      }),
+    },
+  );
+  return mapContactIntelligenceStatus(data);
+}
+
+export async function resolverContactIntelligenceBatchPorCnpj(
+  cnpjs: string[],
+  opts?: { probeSmtp?: boolean; refresh?: boolean },
+): Promise<ContactIntelligenceBatchItem[]> {
+  const normalized = Array.from(
+    new Set(
+      cnpjs
+        .map((cnpj) => normalizeCnpjValue(cnpj))
+        .filter((cnpj) => cnpj.length > 0),
+    ),
+  );
+
+  if (normalized.length === 0) return [];
+
+  const data = await hermesFetch<ContactIntelligenceBatchResponse>(
+    "/empresas/contact-intelligence/batch",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        cnpjs: normalized,
+        probe_smtp: opts?.probeSmtp ?? false,
+        refresh: opts?.refresh ?? false,
+      }),
+    },
+  );
+
+  return asArray<ContactIntelligenceBatchItemResponse>(data.items).map((item) => ({
+    cnpj: asNullableString(item.cnpj) ?? "",
+    status: asNullableString(item.status) ?? "completed",
+    cached: !!item.cached,
+    queued: !!item.queued,
+    intelligence: mapContactIntelligence(asRecord(item.intelligence)),
+    error: asNullableString(item.error),
+  })).filter((item) => item.cnpj);
+}
+
+export async function enfileirarContactIntelligenceBatchPorCnpj(
+  cnpjs: string[],
+  opts?: { probeSmtp?: boolean; refresh?: boolean },
+): Promise<ContactIntelligenceBatchItem[]> {
+  const normalized = Array.from(
+    new Set(
+      cnpjs
+        .map((cnpj) => normalizeCnpjValue(cnpj))
+        .filter((cnpj) => cnpj.length > 0),
+    ),
+  );
+
+  if (normalized.length === 0) return [];
+
+  const data = await hermesFetch<ContactIntelligenceBatchResponse>(
+    "/empresas/contact-intelligence/batch/queue",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        cnpjs: normalized,
+        probe_smtp: opts?.probeSmtp ?? false,
+        refresh: opts?.refresh ?? false,
+      }),
+    },
+  );
+
+  return asArray<ContactIntelligenceBatchItemResponse>(data.items).map((item) => ({
+    cnpj: asNullableString(item.cnpj) ?? "",
+    status: asNullableString(item.status) ?? "idle",
+    cached: !!item.cached,
+    queued: !!item.queued,
+    intelligence: mapContactIntelligence(asRecord(item.intelligence)),
+    error: asNullableString(item.error),
+  })).filter((item) => item.cnpj);
+}
+
+export async function buscarStatusBatchContactIntelligencePorCnpj(
+  cnpjs: string[],
+): Promise<ContactIntelligenceStatus[]> {
+  const normalized = Array.from(
+    new Set(
+      cnpjs
+        .map((cnpj) => normalizeCnpjValue(cnpj))
+        .filter((cnpj) => cnpj.length > 0),
+    ),
+  );
+
+  if (normalized.length === 0) return [];
+
+  const data = await hermesFetch<ContactIntelligenceBatchResponse>(
+    "/empresas/contact-intelligence/batch/status",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        cnpjs: normalized,
+      }),
+    },
+  );
+
+  return asArray<ContactIntelligenceStatusResponse>(data.items).map((item) =>
+    mapContactIntelligenceStatus({
+      success: true,
+      ...item,
+    }),
+  ).filter((item) => item.cnpj);
 }
 
 export async function salvarResultadoEnriquecimentoCnpj(

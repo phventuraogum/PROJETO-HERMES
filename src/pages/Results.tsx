@@ -25,12 +25,18 @@ import {
   Mail, Phone, LayoutGrid, List, ChevronDown,
   ArrowUpDown, CheckSquare2, X, Copy, Check,
   TrendingUp, Percent, Wallet, Target, Wand2,
+  Loader2, ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   ContatoCaptado, Empresa, SocioEstruturado,
   ExecucaoResumo, getResultadosUltimaExecucao,
   addBatchToPipeline, addToPipeline,
+  buscarContactIntelligencePorCnpj,
+  buscarStatusBatchContactIntelligencePorCnpj,
+  enfileirarContactIntelligenceBatchPorCnpj,
+  enfileirarContactIntelligencePorCnpj,
+  type ContactIntelligenceResult,
 } from "@/lib/api";
 import { MensagemModal } from "@/components/MensagemModal";
 import { CrmExportModal } from "@/components/CrmExportModal";
@@ -213,6 +219,33 @@ function notifyPipelineSdrResult(
   toast.info("Empresa já está no pipeline");
 }
 
+function formatIntelPercent(value?: number | null) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return "N/A";
+  const pct = numeric <= 1 ? numeric * 100 : numeric;
+  return `${Math.round(pct)}%`;
+}
+
+function formatIntelPattern(pattern?: string | null) {
+  return pattern ? pattern.replaceAll("_", " / ").replaceAll(".", " . ") : "Não inferido";
+}
+
+function intelStatusTone(status?: string | null) {
+  switch (status) {
+    case "verified":
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+    case "deliverable":
+    case "mx_only":
+      return "border-sky-500/30 bg-sky-500/10 text-sky-300";
+    case "risky":
+      return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+    case "invalid":
+      return "border-rose-500/30 bg-rose-500/10 text-rose-300";
+    default:
+      return "border-zinc-700 bg-zinc-900 text-zinc-300";
+  }
+}
+
 // ─── mini copy button ──────────────────────────────────────────────────────────
 function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -308,7 +341,17 @@ function ContactRow({ emp }: { emp: Empresa }) {
 }
 
 // ─── Detalhe lateral (Sheet) ──────────────────────────────────────────────────
-function DetalheEmpresa({ company }: { company: Empresa }) {
+function DetalheEmpresa({
+  company,
+  contactIntel,
+  isResolvingContactIntel,
+  onResolveContactIntel,
+}: {
+  company: Empresa;
+  contactIntel?: ContactIntelligenceResult | null;
+  isResolvingContactIntel?: boolean;
+  onResolveContactIntel?: () => void;
+}) {
   const [crmOpen, setCrmOpen] = useState(false);
   const raw  = company.outras_informacoes || "";
   const redesRawBase = (company.redes_sociais_empresa ?? []).length
@@ -630,6 +673,159 @@ function DetalheEmpresa({ company }: { company: Empresa }) {
         </section>
       )}
 
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+              <ShieldCheck className="h-3 w-3" /> Contact Intelligence
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              Domínio validado, padrão corporativo, caixas gerais e decisores resolvidos.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/15"
+            onClick={onResolveContactIntel}
+            disabled={isResolvingContactIntel || !onResolveContactIntel}
+          >
+            {isResolvingContactIntel ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+            {contactIntel ? "Atualizar" : "Resolver"}
+          </Button>
+        </div>
+
+        {contactIntel ? (
+          <div className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Domínio</p>
+                <p className="mt-1 break-all text-xs font-medium text-zinc-100">
+                  {contactIntel.domain_profile.domain || "Não resolvido"}
+                </p>
+                {contactIntel.domain_profile.site_url && (
+                  <a
+                    href={contactIntel.domain_profile.site_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-flex text-[11px] text-primary hover:underline"
+                  >
+                    {contactIntel.domain_profile.site_url.replace(/^https?:\/\//, "")}
+                  </a>
+                )}
+              </div>
+              <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Padrão</p>
+                <p className="mt-1 text-xs font-medium text-zinc-100">
+                  {formatIntelPattern(contactIntel.domain_profile.email_pattern)}
+                </p>
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  Confiança {formatIntelPercent(contactIntel.domain_profile.pattern_confidence)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Emails acionáveis</p>
+                <p className="mt-1 text-xs font-medium text-zinc-100">
+                  {contactIntel.summary.deliverable ?? 0}
+                </p>
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  {contactIntel.summary.verified ?? 0} verificados
+                </p>
+              </div>
+              <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Decisores</p>
+                <p className="mt-1 text-xs font-medium text-zinc-100">
+                  {contactIntel.summary.decision_makers ?? 0}
+                </p>
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  {contactIntel.summary.sourced ?? 0} sourced · {contactIntel.summary.guessed ?? 0} guessed
+                </p>
+              </div>
+            </div>
+
+            {(contactIntel.domain_profile.generic_inboxes?.length ?? 0) > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Caixas gerais</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(contactIntel.domain_profile.generic_inboxes ?? []).slice(0, 6).map((item) => (
+                    <Badge key={item.email} variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-300">
+                      {item.email}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(contactIntel.contacts?.length ?? 0) > 0 ? (
+              <div className="space-y-2">
+                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Decisores resolvidos</p>
+                {(contactIntel.contacts ?? []).slice(0, 4).map((contact) => {
+                  const primary = contact.emails.find((item) => item.is_primary) || contact.emails[0];
+                  return (
+                    <div key={`${company.cnpj}-${contact.name}`} className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-medium text-zinc-100">{contact.name}</p>
+                          <p className="mt-1 text-[11px] text-zinc-500">{contact.role || "Decisor potencial"}</p>
+                        </div>
+                        {primary?.verification_status && (
+                          <Badge variant="outline" className={cn("capitalize text-[10px]", intelStatusTone(primary.verification_status))}>
+                            {primary.verification_status}
+                          </Badge>
+                        )}
+                      </div>
+
+                      {primary ? (
+                        <div className="mt-2 space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-3.5 w-3.5 text-sky-400" />
+                            <a href={`mailto:${primary.email}`} className="break-all text-xs font-medium text-zinc-100 hover:underline">
+                              {primary.email}
+                            </a>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 text-[11px] text-zinc-500">
+                            <span>Score {formatIntelPercent(primary.score_total)}</span>
+                            <span>·</span>
+                            <span>{primary.kind === "sourced" ? "Sourced" : "Guessed"}</span>
+                            {primary.source_label && (
+                              <>
+                                <span>·</span>
+                                <span>{primary.source_label}</span>
+                              </>
+                            )}
+                          </div>
+                          {contact.linkedin && (
+                            <a
+                              href={contact.linkedin}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 text-[11px] text-cyan-300 hover:underline"
+                            >
+                              <Linkedin className="h-3 w-3" />
+                              Abrir LinkedIn
+                            </a>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-[11px] text-zinc-500">Sem email resolvido para este contato.</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-zinc-700 bg-zinc-900/40 p-3 text-xs text-zinc-400">
+                Nenhum decisor resolvido ainda. Rode a resolução para inferir padrão de email e validar contatos.
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-zinc-700 bg-zinc-900/40 p-3 text-xs text-zinc-400">
+            Este lead ainda não passou pelo módulo Hunter-style. Use o botão acima para carregar do cache ou resolver agora.
+          </div>
+        )}
+      </section>
+
       {/* Enviar para CRM */}
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mb-2">Integração</p>
@@ -696,7 +892,12 @@ function EmpresaCard({ emp, selected, onSelect }: {
                 <span className="text-base font-semibold">{emp.nome_fantasia || emp.razao_social}</span>
               </SheetTitle>
             </SheetHeader>
-            <DetalheEmpresa company={emp} />
+            <DetalheEmpresa
+              company={emp}
+              contactIntel={contactIntelByCnpj[emp.cnpj] ?? null}
+              isResolvingContactIntel={resolvingIntelCnpjs.has(emp.cnpj)}
+              onResolveContactIntel={() => void resolveOneContactIntel(emp.cnpj)}
+            />
           </SheetContent>
         </Sheet>
       </div>
@@ -772,6 +973,9 @@ const ResultsPage = () => {
   const [sortAsc, setSortAsc]       = useState(false);
   const [activeChips, setActiveChips] = useState<FilterChip[]>([]);
   const [selected, setSelected]     = useState<Set<string>>(new Set());
+  const [contactIntelByCnpj, setContactIntelByCnpj] = useState<Record<string, ContactIntelligenceResult>>({});
+  const [resolvingIntelBatch, setResolvingIntelBatch] = useState(false);
+  const [resolvingIntelCnpjs, setResolvingIntelCnpjs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const stateResultados = Array.isArray((location.state as { resultados?: Empresa[] } | null)?.resultados)
@@ -788,6 +992,75 @@ const ResultsPage = () => {
       }
     })();
   }, [location.state]);
+
+  useEffect(() => {
+    if (resolvingIntelCnpjs.size === 0) return;
+
+    let cancelled = false;
+    let timer: number | null = null;
+
+    const poll = async () => {
+      try {
+        const statuses = await buscarStatusBatchContactIntelligencePorCnpj(Array.from(resolvingIntelCnpjs));
+        if (cancelled) return;
+
+        const resolved: Record<string, ContactIntelligenceResult> = {};
+        const done = new Set<string>();
+        let completed = 0;
+        let failed = 0;
+
+        for (const item of statuses) {
+          if (item.intelligence) {
+            resolved[item.cnpj] = item.intelligence;
+            done.add(item.cnpj);
+            completed += 1;
+            continue;
+          }
+
+          if (item.status === "error") {
+            done.add(item.cnpj);
+            failed += 1;
+          }
+        }
+
+        if (Object.keys(resolved).length > 0) {
+          setContactIntelByCnpj((prev) => ({ ...prev, ...resolved }));
+        }
+
+        if (done.size > 0) {
+          setResolvingIntelCnpjs((prev) => {
+            const next = new Set(prev);
+            done.forEach((cnpj) => next.delete(cnpj));
+            return next;
+          });
+
+          if (completed > 0) {
+            toast.success(`${completed} Contact Intelligence concluido(s) em background.`);
+          }
+          if (failed > 0) {
+            toast.error(`${failed} Contact Intelligence falharam no background.`);
+          }
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          toast.error("Erro ao acompanhar Contact Intelligence: " + (err?.message || ""));
+        }
+      }
+
+      if (!cancelled) {
+        timer = window.setTimeout(poll, 3000);
+      }
+    };
+
+    void poll();
+
+    return () => {
+      cancelled = true;
+      if (timer != null) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [resolvingIntelCnpjs]);
 
   // ── stats ──────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -866,6 +1139,113 @@ const ResultsPage = () => {
   const exportSelected = () => {
     const list = filtered.filter(e => selected.has(e.cnpj));
     downloadCsv(list, "hermes-selecionadas");
+  };
+
+  const resolveOneContactIntel = async (cnpj: string) => {
+    setResolvingIntelCnpjs(prev => {
+      const next = new Set(prev);
+      next.add(cnpj);
+      return next;
+    });
+
+    const clearResolving = () => {
+      setResolvingIntelCnpjs(prev => {
+        const next = new Set(prev);
+        next.delete(cnpj);
+        return next;
+      });
+    };
+
+    try {
+      const cached = await buscarContactIntelligencePorCnpj(cnpj);
+      if (cached.intelligence) {
+        setContactIntelByCnpj(prev => ({ ...prev, [cnpj]: cached.intelligence! }));
+        clearResolving();
+        toast.success("Contact Intelligence carregado do cache.");
+        return;
+      }
+
+      const status = await enfileirarContactIntelligencePorCnpj(cnpj);
+      if (status.intelligence) {
+        setContactIntelByCnpj(prev => ({ ...prev, [cnpj]: status.intelligence! }));
+        clearResolving();
+        toast.success("Contact Intelligence carregado do cache.");
+        return;
+      }
+
+      if (status.status === "error") {
+        throw new Error(status.error || "Falha ao enfileirar Contact Intelligence.");
+      }
+
+      toast.info("Contact Intelligence enviado para processamento em background.");
+    } catch (err: any) {
+      toast.error("Erro ao resolver Contact Intelligence: " + (err?.message || ""));
+      clearResolving();
+    }
+  };
+
+  const resolverSelecionadasContactIntel = async () => {
+    const selecionadas = filtered.filter(e => selected.has(e.cnpj));
+    if (selecionadas.length === 0) {
+      toast.info("Selecione pelo menos uma empresa");
+      return;
+    }
+
+    try {
+      setResolvingIntelBatch(true);
+      const items = await enfileirarContactIntelligenceBatchPorCnpj(
+        selecionadas.map((empresa) => empresa.cnpj),
+      );
+
+      const nextIntel: Record<string, ContactIntelligenceResult> = {};
+      const pending = new Set<string>();
+      let resolved = 0;
+      let cached = 0;
+      let queued = 0;
+      let failed = 0;
+
+      for (const item of items) {
+        if (item.intelligence) {
+          nextIntel[item.cnpj] = item.intelligence;
+          resolved += 1;
+          if (item.cached) cached += 1;
+        } else if (item.status === "queued" || item.status === "running") {
+          pending.add(item.cnpj);
+          queued += 1;
+        } else if (item.error) {
+          failed += 1;
+        }
+      }
+
+      if (Object.keys(nextIntel).length > 0) {
+        setContactIntelByCnpj(prev => ({ ...prev, ...nextIntel }));
+      }
+
+      if (pending.size > 0) {
+        setResolvingIntelCnpjs(prev => {
+          const next = new Set(prev);
+          pending.forEach((cnpj) => next.add(cnpj));
+          return next;
+        });
+      }
+
+      if (resolved > 0) {
+        const label = cached > 0 ? `${resolved} lead(s) processados, ${cached} vindo(s) do cache` : `${resolved} lead(s) processados`;
+        if (queued > 0 || failed > 0) {
+          toast.info(`${label}. ${queued} em background, ${failed} falharam.`);
+        } else {
+          toast.success(label);
+        }
+      } else if (queued > 0) {
+        toast.info(`${queued} Contact Intelligence enviados para processamento em background.`);
+      } else {
+        toast.error("Nenhum lead pôde ser resolvido neste lote.");
+      }
+    } catch (err: any) {
+      toast.error("Erro ao resolver Contact Intelligence em lote: " + (err?.message || ""));
+    } finally {
+      setResolvingIntelBatch(false);
+    }
   };
 
   const enviarSelecionadasParaPipelineESDR = async () => {
@@ -1034,15 +1414,27 @@ const ResultsPage = () => {
             </DropdownMenuContent>
           </DropdownMenu>
           {selected.size > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 h-9 border-primary/40 bg-primary/10 text-primary hover:bg-primary/15"
-              onClick={enviarSelecionadasParaPipelineESDR}
-            >
-              <Target className="h-3.5 w-3.5" />
-              Pipeline + SDR ({selected.size})
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 h-9 border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/15"
+                onClick={resolverSelecionadasContactIntel}
+                disabled={resolvingIntelBatch}
+              >
+                {resolvingIntelBatch ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                Hunter Core ({selected.size})
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 h-9 border-primary/40 bg-primary/10 text-primary hover:bg-primary/15"
+                onClick={enviarSelecionadasParaPipelineESDR}
+              >
+                <Target className="h-3.5 w-3.5" />
+                Pipeline + SDR ({selected.size})
+              </Button>
+            </>
           )}
         </div>
 
@@ -1203,7 +1595,12 @@ const ResultsPage = () => {
                                 <span className="text-base font-semibold">{emp.nome_fantasia || emp.razao_social}</span>
                               </SheetTitle>
                             </SheetHeader>
-                            <DetalheEmpresa company={emp} />
+                            <DetalheEmpresa
+                              company={emp}
+                              contactIntel={contactIntelByCnpj[emp.cnpj] ?? null}
+                              isResolvingContactIntel={resolvingIntelCnpjs.has(emp.cnpj)}
+                              onResolveContactIntel={() => void resolveOneContactIntel(emp.cnpj)}
+                            />
                           </SheetContent>
                         </Sheet>
                       </TableCell>

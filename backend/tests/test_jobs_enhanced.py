@@ -12,7 +12,7 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 
-from api.jobs_enhanced import enrich_company_by_cnpj_enhanced
+from api.jobs_enhanced import enrich_company_by_cnpj_enhanced, resolve_contact_intelligence_job
 
 
 def _normalizar_whatsapp_br(numero: str | None) -> str | None:
@@ -214,6 +214,65 @@ class JobsEnhancedTests(unittest.TestCase):
         self.assertIn("5531988887777", insert_params)
         self.assertEqual(cache_sets[0][1]["whatsapp"]["numero"], "5531988887777")
         self.assertTrue(cache_sets[0][1]["whatsapp"]["validado"])
+
+    def test_resolve_contact_intelligence_job_updates_status_and_returns_summary(self):
+        statuses = []
+        service_calls = []
+
+        async def _fake_resolve(cnpj, probe_smtp=False):
+            service_calls.append({"cnpj": cnpj, "probe_smtp": probe_smtp})
+            return {
+                "company": {"cnpj": cnpj},
+                "summary": {"decision_makers": 2, "verified": 1},
+            }
+
+        class FakeContactIntelligenceService:
+            def get_cached_company_intelligence(self, cnpj):
+                self.last_cached_cnpj = cnpj
+                return None
+
+            resolve_company_intelligence = staticmethod(_fake_resolve)
+
+        fake_contact_module = types.ModuleType("api.contact_intelligence")
+        fake_contact_module.contact_intelligence_service = FakeContactIntelligenceService()
+
+        fake_queue_module = types.ModuleType("api.contact_intelligence_queue")
+
+        def _fake_build_status(cnpj, **kwargs):
+            payload = {"cnpj": cnpj, "updated_at": "2026-03-11T12:00:00+00:00", **kwargs}
+            return payload
+
+        def _fake_set_status(cnpj, payload):
+            statuses.append((cnpj, payload))
+            return True
+
+        fake_queue_module.build_contact_intelligence_status = _fake_build_status
+        fake_queue_module.set_contact_intelligence_status = _fake_set_status
+
+        fake_db_module = types.ModuleType("api.db_pool")
+        fake_db_module.close_all_connections = lambda: None
+
+        with mock.patch.dict(
+            sys.modules,
+            {
+                "api.contact_intelligence": fake_contact_module,
+                "api.contact_intelligence_queue": fake_queue_module,
+                "api.db_pool": fake_db_module,
+            },
+        ):
+            result = resolve_contact_intelligence_job(
+                "12345678000199",
+                probe_smtp=True,
+                refresh=False,
+            )
+
+        self.assertEqual(result["status"], "completed")
+        self.assertFalse(result["cached"])
+        self.assertEqual(result["summary"]["decision_makers"], 2)
+        self.assertEqual(service_calls[0]["cnpj"], "12345678000199")
+        self.assertTrue(service_calls[0]["probe_smtp"])
+        self.assertEqual(statuses[0][1]["status"], "running")
+        self.assertEqual(statuses[-1][1]["status"], "completed")
 
 
 if __name__ == "__main__":

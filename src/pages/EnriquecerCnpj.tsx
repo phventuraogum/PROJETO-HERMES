@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -6,12 +6,15 @@ import {
   Brain,
   Building2,
   Globe,
+  Link2,
   Loader2,
   Mail,
   Phone,
   Search,
+  ShieldCheck,
   Sparkles,
   Target,
+  Users,
   WalletCards,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,10 +26,14 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
   addToPipeline,
+  buscarContactIntelligencePorCnpj,
+  buscarStatusContactIntelligencePorCnpj,
   buscarEmpresaPorCnpj,
+  enfileirarContactIntelligencePorCnpj,
   enriquecerEmpresaPorCnpj,
   normalizeCnpj,
   salvarResultadoEnriquecimentoCnpj,
+  type ContactIntelligenceResult,
   type Empresa,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -63,6 +70,33 @@ function getEmpresaScore(empresa: Empresa): number {
   return Number.isFinite(maybeScore) ? maybeScore : 0;
 }
 
+function formatPercent(value?: number | null): string {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return "N/A";
+  const pct = numeric <= 1 ? numeric * 100 : numeric;
+  return `${Math.round(pct)}%`;
+}
+
+function statusTone(status?: string | null): string {
+  switch (status) {
+    case "verified":
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+    case "deliverable":
+    case "mx_only":
+      return "border-sky-500/30 bg-sky-500/10 text-sky-300";
+    case "risky":
+      return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+    case "invalid":
+      return "border-rose-500/30 bg-rose-500/10 text-rose-300";
+    default:
+      return "border-zinc-700 bg-zinc-900 text-zinc-300";
+  }
+}
+
+function formatPattern(pattern?: string | null): string {
+  return pattern ? pattern.replaceAll("_", " / ").replaceAll(".", " . ") : "Nao inferido";
+}
+
 const scoreCards = (empresa: Empresa) => [
   {
     label: "Confiabilidade",
@@ -85,8 +119,10 @@ const EnriquecerCnpj = () => {
   const navigate = useNavigate();
   const [cnpjInput, setCnpjInput] = useState("");
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
+  const [contactIntel, setContactIntel] = useState<ContactIntelligenceResult | null>(null);
   const [isFetching, setIsFetching] = useState(false);
   const [isEnriching, setIsEnriching] = useState(false);
+  const [isResolvingContacts, setIsResolvingContacts] = useState(false);
   const [isSavingResult, setIsSavingResult] = useState(false);
   const [isSendingPipeline, setIsSendingPipeline] = useState(false);
 
@@ -98,6 +134,52 @@ const EnriquecerCnpj = () => {
     empresa?.whatsapp_enriquecido,
   );
 
+  useEffect(() => {
+    if (!isResolvingContacts || cnpjDigits.length !== 14) return;
+
+    let cancelled = false;
+    let timer: number | null = null;
+
+    const poll = async () => {
+      try {
+        const status = await buscarStatusContactIntelligencePorCnpj(cnpjDigits);
+        if (cancelled) return;
+
+        if (status.intelligence) {
+          setContactIntel(status.intelligence);
+          setIsResolvingContacts(false);
+          toast.success("Inteligencia de contatos concluida em background.");
+          return;
+        }
+
+        if (status.status === "error") {
+          setIsResolvingContacts(false);
+          toast.error(status.error || "Nao foi possivel resolver os contatos.");
+          return;
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setIsResolvingContacts(false);
+          toast.error(err?.message || "Nao foi possivel acompanhar a fila de contatos.");
+        }
+        return;
+      }
+
+      if (!cancelled) {
+        timer = window.setTimeout(poll, 3000);
+      }
+    };
+
+    void poll();
+
+    return () => {
+      cancelled = true;
+      if (timer != null) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [cnpjDigits, isResolvingContacts]);
+
   const handleBuscar = async () => {
     if (cnpjDigits.length !== 14) {
       toast.error("Informe um CNPJ valido com 14 digitos.");
@@ -108,8 +190,15 @@ const EnriquecerCnpj = () => {
       setIsFetching(true);
       const encontrada = await buscarEmpresaPorCnpj(cnpjDigits);
       setEmpresa(encontrada);
+      try {
+        const intel = await buscarContactIntelligencePorCnpj(cnpjDigits);
+        setContactIntel(intel.intelligence);
+      } catch {
+        setContactIntel(null);
+      }
       toast.success("Empresa localizada.");
     } catch (err: any) {
+      setContactIntel(null);
       toast.error(err?.message || "Nao foi possivel buscar a empresa.");
     } finally {
       setIsFetching(false);
@@ -126,6 +215,7 @@ const EnriquecerCnpj = () => {
       setIsEnriching(true);
       const { empresa: enriquecida } = await enriquecerEmpresaPorCnpj(cnpjDigits, empresa);
       setEmpresa(enriquecida);
+      setContactIntel(null);
       toast.success("Enriquecimento concluido.");
     } catch (err: any) {
       toast.error(err?.message || "Nao foi possivel enriquecer este CNPJ.");
@@ -161,6 +251,41 @@ const EnriquecerCnpj = () => {
       toast.error(err?.message || "Nao foi possivel enviar para o pipeline.");
     } finally {
       setIsSendingPipeline(false);
+    }
+  };
+
+  const handleResolverContatos = async () => {
+    if (cnpjDigits.length !== 14) {
+      toast.error("Informe um CNPJ valido com 14 digitos.");
+      return;
+    }
+
+    try {
+      setIsResolvingContacts(true);
+      const cached = await buscarContactIntelligencePorCnpj(cnpjDigits);
+      if (cached.intelligence) {
+        setContactIntel(cached.intelligence);
+        setIsResolvingContacts(false);
+        toast.success("Inteligencia de contatos carregada do cache.");
+        return;
+      }
+
+      const status = await enfileirarContactIntelligencePorCnpj(cnpjDigits);
+      if (status.intelligence) {
+        setContactIntel(status.intelligence);
+        setIsResolvingContacts(false);
+        toast.success("Inteligencia de contatos carregada do cache.");
+        return;
+      }
+
+      if (status.status === "error") {
+        throw new Error(status.error || "Nao foi possivel enfileirar os contatos.");
+      }
+
+      toast.info("Contact Intelligence enviado para processamento em background.");
+    } catch (err: any) {
+      setIsResolvingContacts(false);
+      toast.error(err?.message || "Nao foi possivel resolver os contatos.");
     }
   };
 
@@ -333,6 +458,18 @@ const EnriquecerCnpj = () => {
                   </span>
                   <span className="text-xs uppercase tracking-[0.18em]">refresh</span>
                 </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/15"
+                  onClick={() => void handleResolverContatos()}
+                  disabled={isFetching || isEnriching || isResolvingContacts}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    {isResolvingContacts ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                    Resolver contatos e emails
+                  </span>
+                  <span className="text-xs uppercase tracking-[0.18em]">hunter core</span>
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -439,6 +576,191 @@ const EnriquecerCnpj = () => {
               </CardContent>
             </Card>
           </div>
+
+          {contactIntel ? (
+            <div className="grid gap-4 xl:grid-cols-[1.15fr_1fr]">
+              <Card className="border-zinc-800 bg-zinc-950/60">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <ShieldCheck className="h-4 w-4 text-violet-300" />
+                    Contact Intelligence
+                  </CardTitle>
+                  <CardDescription>
+                    Dominio resolvido, padrao corporativo e evidencias de contato derivadas do CNPJ.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Dominio</p>
+                      <p className="mt-2 break-all text-sm font-medium text-zinc-100">
+                        {contactIntel.domain_profile.domain || "Nao resolvido"}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Padrao</p>
+                      <p className="mt-2 text-sm font-medium text-zinc-100">
+                        {formatPattern(contactIntel.domain_profile.email_pattern)}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        {formatPercent(contactIntel.domain_profile.pattern_confidence)}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Emails acionaveis</p>
+                      <p className="mt-2 text-sm font-medium text-zinc-100">
+                        {contactIntel.summary.deliverable ?? 0}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        {contactIntel.summary.verified ?? 0} verificados
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Decisores</p>
+                      <p className="mt-2 text-sm font-medium text-zinc-100">
+                        {contactIntel.summary.decision_makers ?? 0}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        {contactIntel.summary.guessed ?? 0} guessed / {contactIntel.summary.sourced ?? 0} sourced
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {(contactIntel.domain_profile.company_profiles ?? []).map((profile) => (
+                      <Badge key={`${profile.type}-${profile.url}`} variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                        <Link2 className="mr-1 h-3 w-3" />
+                        {profile.type}: {profile.url.replace(/^https?:\/\//, "")}
+                      </Badge>
+                    ))}
+                    {(contactIntel.domain_profile.public_emails ?? []).slice(0, 4).map((item) => (
+                      <Badge key={item.email} variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300">
+                        {item.email}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  {(contactIntel.domain_profile.generic_inboxes ?? []).length > 0 && (
+                    <>
+                      <Separator className="bg-zinc-800" />
+                      <div className="space-y-2">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Caixas gerais encontradas</p>
+                        <div className="flex flex-wrap gap-2">
+                          {(contactIntel.domain_profile.generic_inboxes ?? []).map((item) => (
+                            <Badge key={item.email} variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
+                              {item.email}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-zinc-800 bg-zinc-950/60">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Users className="h-4 w-4 text-cyan-300" />
+                    Decisores Resolvidos
+                  </CardTitle>
+                  <CardDescription>
+                    Contatos deduzidos ou encontrados com score, status tecnico e evidencias.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {(contactIntel.contacts ?? []).length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-400">
+                      Nenhum decisor foi resolvido ainda. Rode novamente apos enriquecer o site da empresa.
+                    </div>
+                  ) : (
+                    (contactIntel.contacts ?? []).slice(0, 6).map((contact) => {
+                      const primary = contact.emails.find((item) => item.is_primary) || contact.emails[0];
+                      return (
+                        <div key={contact.name} className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-zinc-100">{contact.name}</p>
+                              <p className="mt-1 text-xs text-zinc-500">
+                                {contact.role || "Socio / decisor potencial"}
+                              </p>
+                            </div>
+                            {primary?.verification_status && (
+                              <Badge variant="outline" className={cn("capitalize", statusTone(primary.verification_status))}>
+                                {primary.verification_status}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {primary ? (
+                            <div className="mt-3 space-y-2">
+                              <div className="flex items-center gap-2 text-sm">
+                                <Mail className="h-4 w-4 text-sky-300" />
+                                <span className="break-all font-medium text-zinc-100">{primary.email}</span>
+                              </div>
+                              <div className="flex flex-wrap gap-2 text-xs text-zinc-400">
+                                <span>Score {formatPercent(primary.score_total)}</span>
+                                <span>·</span>
+                                <span>{primary.kind === "sourced" ? "Sourced" : "Guessed"}</span>
+                                {primary.pattern && (
+                                  <>
+                                    <span>·</span>
+                                    <span>{primary.pattern}</span>
+                                  </>
+                                )}
+                              </div>
+                              {contact.linkedin && (
+                                <a
+                                  href={contact.linkedin}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-2 text-xs text-cyan-300 hover:text-cyan-200"
+                                >
+                                  <Link2 className="h-3 w-3" />
+                                  Abrir perfil
+                                </a>
+                              )}
+                              {contact.emails.length > 1 && (
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                  {contact.emails.slice(1, 4).map((email) => (
+                                    <Badge key={email.email} variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                                      {email.email}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="mt-3 text-sm text-zinc-400">Sem email resolvido para esse contato.</p>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <Card className="border-dashed border-zinc-700 bg-zinc-950/40">
+              <CardContent className="flex flex-col gap-3 p-6 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-zinc-100">Modulo Hunter-style ainda nao resolvido para este CNPJ.</p>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    O Hermes ja tem a empresa carregada. Falta resolver dominio, pattern corporativo e decisores por email.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/15"
+                  onClick={() => void handleResolverContatos()}
+                  disabled={isResolvingContacts}
+                >
+                  {isResolvingContacts ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                  Resolver Contact Intelligence
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>

@@ -3,17 +3,72 @@ Endpoints de Empresas Individuais
 Para buscar, validar e enriquecer empresas específicas.
 Todos os endpoints requerem autenticação.
 """
-from fastapi import APIRouter, HTTPException, Path, Query, Depends
-from typing import Optional, Dict, Any
+from fastapi import APIRouter, HTTPException, Path, Query, Depends, Body
+from typing import Optional, Dict, Any, List
 from pydantic import BaseModel
 
 from api.db_pool import get_connection
+from api.contact_intelligence import contact_intelligence_service
+from api.contact_intelligence_queue import (
+    get_contact_intelligence_status,
+    queue_contact_intelligence,
+)
 from api.validation_service import validar_cnpj, verificar_cnpj_receita, calcular_score_confiabilidade
 from api.quality_service import QualityService, calcular_score_priorizacao
 from api.enrichment_service import enrichment_service
 from middleware.auth import require_auth
 
 router = APIRouter(prefix="/empresas", tags=["Empresas"])
+
+
+class ContactIntelligenceRequest(BaseModel):
+    probe_smtp: bool = False
+    refresh: bool = False
+
+
+class ContactIntelligenceBatchRequest(BaseModel):
+    cnpjs: List[str]
+    probe_smtp: bool = False
+    refresh: bool = False
+
+
+class ContactIntelligenceStatusBatchRequest(BaseModel):
+    cnpjs: List[str]
+
+
+def _contact_intelligence_status_payload(cnpj: str) -> Dict[str, Any]:
+    intelligence = contact_intelligence_service.get_cached_company_intelligence(cnpj)
+    status = get_contact_intelligence_status(cnpj) or {
+        "cnpj": cnpj,
+        "status": "idle",
+        "cached": False,
+        "queued": False,
+        "error": None,
+        "updated_at": None,
+    }
+
+    if intelligence and not (
+        bool(status.get("refresh")) and status.get("status") in {"queued", "running"}
+    ):
+        status = {
+            **status,
+            "status": "completed",
+            "cached": True,
+            "queued": False,
+        }
+
+    return {
+        "cnpj": cnpj,
+        "status": status.get("status") or "idle",
+        "cached": bool(status.get("cached")),
+        "queued": bool(status.get("queued")),
+        "error": status.get("error"),
+        "job_id": status.get("job_id"),
+        "updated_at": status.get("updated_at"),
+        "started_at": status.get("started_at"),
+        "finished_at": status.get("finished_at"),
+        "intelligence": intelligence,
+    }
 
 
 @router.get("/{cnpj}")
@@ -212,6 +267,295 @@ async def enriquecer_empresa(
             "message": "Enriquecimento iniciado. Dados serão salvos em background."
         }
         
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/contact-intelligence/batch")
+async def resolver_contact_intelligence_batch(
+    payload: ContactIntelligenceBatchRequest = Body(...),
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    requested = payload.cnpjs or []
+    if not requested:
+        raise HTTPException(status_code=400, detail="Informe ao menos um CNPJ")
+    if len(requested) > 50:
+        raise HTTPException(status_code=400, detail="Lote maximo de 50 CNPJs por vez")
+
+    items: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for raw_cnpj in requested:
+        cnpj_valido, cnpj_limpo = validar_cnpj(raw_cnpj)
+        cnpj_retorno = cnpj_limpo or str(raw_cnpj or "")
+
+        if not cnpj_valido or not cnpj_limpo:
+            items.append(
+                {
+                    "cnpj": cnpj_retorno,
+                    "cached": False,
+                    "intelligence": None,
+                    "error": "CNPJ invalido",
+                }
+            )
+            continue
+
+        if cnpj_limpo in seen:
+            continue
+        seen.add(cnpj_limpo)
+
+        try:
+            if not payload.refresh:
+                cached = contact_intelligence_service.get_cached_company_intelligence(cnpj_limpo)
+                if cached:
+                    items.append(
+                        {
+                            "cnpj": cnpj_limpo,
+                            "cached": True,
+                            "intelligence": cached,
+                            "error": None,
+                        }
+                    )
+                    continue
+
+            intelligence = await contact_intelligence_service.resolve_company_intelligence(
+                cnpj_limpo,
+                probe_smtp=payload.probe_smtp,
+            )
+            items.append(
+                {
+                    "cnpj": cnpj_limpo,
+                    "cached": False,
+                    "intelligence": intelligence,
+                    "error": None,
+                }
+            )
+        except LookupError:
+            items.append(
+                {
+                    "cnpj": cnpj_limpo,
+                    "cached": False,
+                    "intelligence": None,
+                    "error": "Empresa nao encontrada",
+                }
+            )
+        except Exception as exc:
+            items.append(
+                {
+                    "cnpj": cnpj_limpo,
+                    "cached": False,
+                    "intelligence": None,
+                    "error": str(exc),
+                }
+            )
+
+    return {
+        "success": True,
+        "total": len(items),
+        "items": items,
+    }
+
+
+@router.post("/contact-intelligence/batch/queue")
+async def enfileirar_contact_intelligence_batch(
+    payload: ContactIntelligenceBatchRequest = Body(...),
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    requested = payload.cnpjs or []
+    if not requested:
+        raise HTTPException(status_code=400, detail="Informe ao menos um CNPJ")
+    if len(requested) > 50:
+        raise HTTPException(status_code=400, detail="Lote maximo de 50 CNPJs por vez")
+
+    items: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for raw_cnpj in requested:
+        cnpj_valido, cnpj_limpo = validar_cnpj(raw_cnpj)
+        cnpj_retorno = cnpj_limpo or str(raw_cnpj or "")
+
+        if not cnpj_valido or not cnpj_limpo:
+            items.append(
+                {
+                    "cnpj": cnpj_retorno,
+                    "cached": False,
+                    "queued": False,
+                    "status": "error",
+                    "intelligence": None,
+                    "error": "CNPJ invalido",
+                }
+            )
+            continue
+
+        if cnpj_limpo in seen:
+            continue
+        seen.add(cnpj_limpo)
+
+        try:
+            status = queue_contact_intelligence(
+                cnpj_limpo,
+                probe_smtp=payload.probe_smtp,
+                refresh=payload.refresh,
+            )
+            items.append(
+                {
+                    "cnpj": cnpj_limpo,
+                    "cached": bool(status.get("cached")),
+                    "queued": bool(status.get("queued")),
+                    "status": status.get("status") or "idle",
+                    "intelligence": status.get("intelligence"),
+                    "error": status.get("error"),
+                }
+            )
+        except Exception as exc:
+            items.append(
+                {
+                    "cnpj": cnpj_limpo,
+                    "cached": False,
+                    "queued": False,
+                    "status": "error",
+                    "intelligence": None,
+                    "error": str(exc),
+                }
+            )
+
+    return {
+        "success": True,
+        "total": len(items),
+        "items": items,
+    }
+
+
+@router.post("/contact-intelligence/batch/status")
+async def buscar_contact_intelligence_batch_status(
+    payload: ContactIntelligenceStatusBatchRequest = Body(...),
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    requested = payload.cnpjs or []
+    if not requested:
+        raise HTTPException(status_code=400, detail="Informe ao menos um CNPJ")
+    if len(requested) > 50:
+        raise HTTPException(status_code=400, detail="Lote maximo de 50 CNPJs por vez")
+
+    items: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for raw_cnpj in requested:
+        cnpj_valido, cnpj_limpo = validar_cnpj(raw_cnpj)
+        cnpj_retorno = cnpj_limpo or str(raw_cnpj or "")
+
+        if not cnpj_valido or not cnpj_limpo:
+            items.append(
+                {
+                    "cnpj": cnpj_retorno,
+                    "cached": False,
+                    "queued": False,
+                    "status": "error",
+                    "intelligence": None,
+                    "error": "CNPJ invalido",
+                }
+            )
+            continue
+
+        if cnpj_limpo in seen:
+            continue
+        seen.add(cnpj_limpo)
+        items.append(_contact_intelligence_status_payload(cnpj_limpo))
+
+    return {
+        "success": True,
+        "total": len(items),
+        "items": items,
+    }
+
+
+@router.get("/{cnpj}/contact-intelligence")
+async def buscar_contact_intelligence(
+    cnpj: str = Path(..., description="CNPJ da empresa"),
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    cnpj_valido, cnpj_limpo = validar_cnpj(cnpj)
+    if not cnpj_valido:
+        raise HTTPException(status_code=400, detail="CNPJ invalido")
+
+    try:
+        intelligence = contact_intelligence_service.get_cached_company_intelligence(cnpj_limpo)
+        return {
+            "success": True,
+            "cached": bool(intelligence),
+            "intelligence": intelligence,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{cnpj}/contact-intelligence/status")
+async def buscar_contact_intelligence_status(
+    cnpj: str = Path(..., description="CNPJ da empresa"),
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    cnpj_valido, cnpj_limpo = validar_cnpj(cnpj)
+    if not cnpj_valido:
+        raise HTTPException(status_code=400, detail="CNPJ invalido")
+
+    try:
+        status = _contact_intelligence_status_payload(cnpj_limpo)
+        return {
+            "success": True,
+            **status,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{cnpj}/contact-intelligence/queue")
+async def enfileirar_contact_intelligence(
+    cnpj: str = Path(..., description="CNPJ da empresa"),
+    payload: ContactIntelligenceRequest = Body(default=ContactIntelligenceRequest()),
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    cnpj_valido, cnpj_limpo = validar_cnpj(cnpj)
+    if not cnpj_valido:
+        raise HTTPException(status_code=400, detail="CNPJ invalido")
+
+    try:
+        status = queue_contact_intelligence(
+            cnpj_limpo,
+            probe_smtp=payload.probe_smtp,
+            refresh=payload.refresh,
+        )
+        return {
+            "success": True,
+            **status,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{cnpj}/contact-intelligence")
+async def resolver_contact_intelligence(
+    cnpj: str = Path(..., description="CNPJ da empresa"),
+    payload: ContactIntelligenceRequest = Body(default=ContactIntelligenceRequest()),
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    cnpj_valido, cnpj_limpo = validar_cnpj(cnpj)
+    if not cnpj_valido:
+        raise HTTPException(status_code=400, detail="CNPJ invalido")
+
+    try:
+        intelligence = await contact_intelligence_service.resolve_company_intelligence(
+            cnpj_limpo,
+            probe_smtp=payload.probe_smtp,
+        )
+        return {
+            "success": True,
+            "cached": False,
+            "intelligence": intelligence,
+        }
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Empresa nao encontrada")
     except HTTPException:
         raise
     except Exception as e:

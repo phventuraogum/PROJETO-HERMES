@@ -384,3 +384,127 @@ def enrich_company_by_cnpj_enhanced(cnpj: str) -> dict:
         logger.error(f"[JOB_ENHANCED] failed for {cnpj}: {e}")
         from api.jobs import enrich_company_by_cnpj
         return enrich_company_by_cnpj(cnpj)
+
+
+def resolve_contact_intelligence_job(
+    cnpj: str,
+    probe_smtp: bool = False,
+    refresh: bool = False,
+) -> dict:
+    from api.contact_intelligence import contact_intelligence_service
+    from api.contact_intelligence_queue import (
+        build_contact_intelligence_status,
+        set_contact_intelligence_status,
+    )
+
+    started_at = None
+    finished_at = None
+
+    try:
+        _reset_db_connections()
+        started_at = build_contact_intelligence_status(
+            cnpj,
+            status="running",
+            queued=False,
+            probe_smtp=probe_smtp,
+            refresh=refresh,
+            started_at=None,
+        )["updated_at"]
+        set_contact_intelligence_status(
+            cnpj,
+            build_contact_intelligence_status(
+                cnpj,
+                status="running",
+                queued=False,
+                probe_smtp=probe_smtp,
+                refresh=refresh,
+                started_at=started_at,
+            ),
+        )
+
+        if not refresh:
+            cached = contact_intelligence_service.get_cached_company_intelligence(cnpj)
+            if cached:
+                finished_at = build_contact_intelligence_status(
+                    cnpj,
+                    status="completed",
+                )["updated_at"]
+                set_contact_intelligence_status(
+                    cnpj,
+                    build_contact_intelligence_status(
+                        cnpj,
+                        status="completed",
+                        cached=True,
+                        queued=False,
+                        probe_smtp=probe_smtp,
+                        refresh=refresh,
+                        started_at=started_at,
+                        finished_at=finished_at,
+                    ),
+                )
+                return {
+                    "cnpj": cnpj,
+                    "status": "completed",
+                    "cached": True,
+                    "summary": cached.get("summary") or {},
+                }
+
+        intelligence = asyncio.run(
+            contact_intelligence_service.resolve_company_intelligence(
+                cnpj,
+                probe_smtp=probe_smtp,
+            )
+        )
+        finished_at = build_contact_intelligence_status(cnpj, status="completed")["updated_at"]
+        set_contact_intelligence_status(
+            cnpj,
+            build_contact_intelligence_status(
+                cnpj,
+                status="completed",
+                cached=False,
+                queued=False,
+                probe_smtp=probe_smtp,
+                refresh=refresh,
+                started_at=started_at,
+                finished_at=finished_at,
+            ),
+        )
+        return {
+            "cnpj": cnpj,
+            "status": "completed",
+            "cached": False,
+            "summary": intelligence.get("summary") or {},
+        }
+    except LookupError:
+        finished_at = build_contact_intelligence_status(cnpj, status="error")["updated_at"]
+        set_contact_intelligence_status(
+            cnpj,
+            build_contact_intelligence_status(
+                cnpj,
+                status="error",
+                queued=False,
+                error="Empresa nao encontrada",
+                probe_smtp=probe_smtp,
+                refresh=refresh,
+                started_at=started_at,
+                finished_at=finished_at,
+            ),
+        )
+        return {"cnpj": cnpj, "status": "error", "error": "Empresa nao encontrada"}
+    except Exception as exc:
+        logger.error("[JOB_ENHANCED] contact intelligence failed for %s: %s", cnpj, exc)
+        finished_at = build_contact_intelligence_status(cnpj, status="error")["updated_at"]
+        set_contact_intelligence_status(
+            cnpj,
+            build_contact_intelligence_status(
+                cnpj,
+                status="error",
+                queued=False,
+                error=str(exc),
+                probe_smtp=probe_smtp,
+                refresh=refresh,
+                started_at=started_at,
+                finished_at=finished_at,
+            ),
+        )
+        return {"cnpj": cnpj, "status": "error", "error": str(exc)}
