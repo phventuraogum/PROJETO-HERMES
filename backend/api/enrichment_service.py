@@ -215,6 +215,7 @@ APENAS JSON válido."""
         socios: Optional[List[str]] = None,
         score_icp: float = 0.0,
         gerar_pitch: bool = False,
+        modo_rapido: bool = False,
     ) -> Dict[str, Any]:
         """
         Enriquecimento ULTRA v2.0 — orquestra todos os módulos em paralelo.
@@ -283,6 +284,7 @@ APENAS JSON válido."""
                 cidade=cidade,
                 socios=socios,
                 site_url=site,
+                modo_rapido=modo_rapido,
             )
             if dados_google:
                 resultado["site"] = resultado["site"] or dados_google.get("site")
@@ -302,19 +304,20 @@ APENAS JSON válido."""
         # ── FASE 3-7: Enriquecimentos paralelos ──────────────────────────
         tarefas_paralelas = {}
 
-        # WhatsApp/LinkedIn Ultra
-        try:
-            from whatsapp_linkedin_ultra import descobrir_whatsapp_linkedin_completo
-            tarefas_paralelas["ultra_wl"] = descobrir_whatsapp_linkedin_completo(
-                empresa_nome=empresa_nome,
-                site=site_atual,
-                cidade=cidade or "",
-                socios=socios,
-                cnpj=cnpj,
-                score_icp=score_icp,
-            )
-        except ImportError:
-            pass
+        if not modo_rapido:
+            # WhatsApp/LinkedIn Ultra
+            try:
+                from whatsapp_linkedin_ultra import descobrir_whatsapp_linkedin_completo
+                tarefas_paralelas["ultra_wl"] = descobrir_whatsapp_linkedin_completo(
+                    empresa_nome=empresa_nome,
+                    site=site_atual,
+                    cidade=cidade or "",
+                    socios=socios,
+                    cnpj=cnpj,
+                    score_icp=score_icp,
+                )
+            except ImportError:
+                pass
 
         # Waterfall de email da empresa
         try:
@@ -327,28 +330,30 @@ APENAS JSON válido."""
         except ImportError:
             pass
 
-        # Emails dos sócios
-        try:
-            from ultra_enrichment import enriquecer_socios_waterfall
-            tarefas_paralelas["emails_socios"] = enriquecer_socios_waterfall(
-                socios=socios,
-                site_empresa=site_atual,
-                empresa_nome=empresa_nome,
-                score_icp=score_icp,
-            )
-        except ImportError:
-            pass
-
-        # Registro.br WHOIS
-        if site_atual and ".br" in site_atual:
+        if not modo_rapido:
+            # Emails dos sócios
             try:
-                from ultra_enrichment import consultar_registrobr_whois
-                tarefas_paralelas["registro_br"] = consultar_registrobr_whois(site_atual)
+                from ultra_enrichment import enriquecer_socios_waterfall
+                tarefas_paralelas["emails_socios"] = enriquecer_socios_waterfall(
+                    socios=socios,
+                    site_empresa=site_atual,
+                    empresa_nome=empresa_nome,
+                    score_icp=score_icp,
+                )
             except ImportError:
                 pass
 
+        if not modo_rapido:
+            # Registro.br WHOIS
+            if site_atual and ".br" in site_atual:
+                try:
+                    from ultra_enrichment import consultar_registrobr_whois
+                    tarefas_paralelas["registro_br"] = consultar_registrobr_whois(site_atual)
+                except ImportError:
+                    pass
+
         # IA estratégica
-        if self.openai_enabled:
+        if self.openai_enabled and not modo_rapido:
             tarefas_paralelas["ia"] = self.enrich_with_openai(
                 razao_social=razao_social,
                 nome_fantasia=nome_fantasia,
@@ -427,6 +432,7 @@ APENAS JSON válido."""
         empresas: List[Dict[str, Any]],
         max_concurrent: int = 5,
         gerar_pitch: bool = False,
+        modo_rapido: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Enriquece múltiplas empresas em paralelo com semáforo de concorrência.
@@ -448,6 +454,7 @@ APENAS JSON válido."""
                         socios=emp.get("socios", []),
                         score_icp=emp.get("score_icp", 0.0),
                         gerar_pitch=gerar_pitch,
+                        modo_rapido=modo_rapido,
                     )
                 except Exception as e:
                     logger.error(f"Erro no enriquecimento de {emp.get('cnpj')}: {e}")

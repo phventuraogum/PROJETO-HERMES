@@ -1,6 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -14,6 +15,7 @@ from core_scraper import (
     _pontuar_resultado_site_oficial,
     _selecionar_melhor_email,
     _slug_linkedin_confere_nome,
+    processar_empresa_google,
 )
 
 
@@ -83,6 +85,36 @@ class CoreScraperQualityTests(unittest.TestCase):
                 "David Velez",
             )
         )
+
+
+class CoreScraperFastModeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_fast_mode_skips_linkedin_discovery(self):
+        dados_site = {
+            "site": "https://empresa.com.br/",
+            "email": "contato@empresa.com.br",
+            "telefone": "",
+            "whatsapp": "",
+            "linkedin_empresa": None,
+            "linkedin_perfis": [],
+            "source": "HTTPX",
+        }
+
+        with mock.patch("core_scraper.extrair_contatos_site", new=mock.AsyncMock(return_value=dados_site)), \
+             mock.patch("core_scraper._buscar_melhor_site_oficial", new=mock.AsyncMock(return_value={"melhor_match": None, "emails_snippet": [], "whats_snippet": []})), \
+             mock.patch("core_scraper.buscar_google", new=mock.AsyncMock(return_value=[])), \
+             mock.patch("core_scraper.buscar_linkedin_empresa", new=mock.AsyncMock(return_value="https://www.linkedin.com/company/empresa/")) as linkedin_empresa, \
+             mock.patch("core_scraper.buscar_linkedin_socio_ultra", new=mock.AsyncMock(return_value={"link": "https://www.linkedin.com/in/socio/"})) as linkedin_socio:
+            resultado = await processar_empresa_google(
+                empresa_nome="Empresa Teste",
+                cidade="Belo Horizonte",
+                socios=["Ana Teste"],
+                site_url="https://empresa.com.br",
+                modo_rapido=True,
+            )
+
+        linkedin_empresa.assert_not_awaited()
+        linkedin_socio.assert_not_awaited()
+        self.assertEqual(resultado["email"], "contato@empresa.com.br")
 
 
 if __name__ == "__main__":

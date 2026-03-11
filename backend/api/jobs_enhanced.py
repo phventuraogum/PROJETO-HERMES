@@ -21,9 +21,10 @@ def enrich_company_by_cnpj_enhanced(cnpj: str) -> dict:
         from api.enrichment_service import EnrichmentService
         from api.db_pool import get_connection
 
-        with get_connection(read_only=True) as con:
+        with get_connection(read_only=False) as con:
             row = con.execute(
-                "SELECT RAZAO_SOCIAL, NOME_FANTASIA, cidade_nome, UF "
+                "SELECT RAZAO_SOCIAL, NOME_FANTASIA, cidade_nome, UF, "
+                "CNAE_PRINCIPAL, site "
                 "FROM vw_prospeccao_base WHERE cnpj = ? LIMIT 1",
                 [cnpj],
             ).fetchone()
@@ -32,20 +33,21 @@ def enrich_company_by_cnpj_enhanced(cnpj: str) -> dict:
             logger.warning(f"[JOB_ENHANCED] CNPJ {cnpj} not found")
             return {"cnpj": cnpj, "status": "not_found"}
 
-        razao, fantasia, cidade, uf = row
-        empresa_nome = fantasia or razao or ""
+        razao, fantasia, cidade, uf, cnae_principal, site_atual = row
 
         svc = EnrichmentService()
         resultado = asyncio.run(
-            svc.enrich_ultra(
+            svc.enrich_company_complete(
                 cnpj=cnpj,
                 razao_social=razao or "",
                 nome_fantasia=fantasia,
                 cidade=cidade,
                 uf=uf,
-                site=None,
-                socios=None,
+                cnae=cnae_principal,
+                site=site_atual,
+                socios=[],
                 score_icp=5,
+                gerar_pitch=False,
             )
         )
 
@@ -65,13 +67,27 @@ def enrich_company_by_cnpj_enhanced(cnpj: str) -> dict:
                     con_w.execute("""
                         CREATE TABLE IF NOT EXISTS empresas_enriquecidas (
                             cnpj VARCHAR PRIMARY KEY,
-                            site VARCHAR, email_web VARCHAR,
-                            telefone_web VARCHAR, whatsapp_web VARCHAR
+                            site VARCHAR,
+                            email_enriquecido VARCHAR,
+                            telefone_enriquecido VARCHAR,
+                            whatsapp_publico VARCHAR,
+                            whatsapp_enriquecido VARCHAR,
+                            outras_informacoes VARCHAR
                         )
                     """)
                     con_w.execute(
-                        "INSERT OR REPLACE INTO empresas_enriquecidas VALUES (?,?,?,?,?)",
-                        [cnpj, site, email, telefone, whatsapp],
+                        """
+                        INSERT OR REPLACE INTO empresas_enriquecidas (
+                            cnpj,
+                            site,
+                            email_enriquecido,
+                            telefone_enriquecido,
+                            whatsapp_publico,
+                            whatsapp_enriquecido,
+                            outras_informacoes
+                        ) VALUES (?,?,?,?,?,?,?)
+                        """,
+                        [cnpj, site, email, telefone, None, whatsapp, None],
                     )
             except Exception as e:
                 logger.warning(f"[JOB_ENHANCED] persist failed for {cnpj}: {e}")

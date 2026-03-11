@@ -3,6 +3,7 @@ Serviço de Prospecção Melhorado
 Usa cache Redis, views otimizadas e normalização correta de capital social
 """
 import logging
+import os
 from typing import List, Optional, Dict, Any
 from redis import Redis
 from rq import Queue
@@ -25,6 +26,36 @@ from api.validation_service import calcular_score_confiabilidade
 from config import settings
 
 logger = logging.getLogger(__name__)
+
+BACKGROUND_ENRICH_JOB = (
+    os.getenv("HERMES_ENRICHMENT_JOB", "").strip()
+    or "api.jobs_enhanced.enrich_company_by_cnpj_enhanced"
+)
+
+
+def _env_int(name: str, default: int, *, minimum: int = 0) -> int:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return max(minimum, value)
+
+
+BACKGROUND_ENRICH_TIMEOUT = _env_int("HERMES_ENRICHMENT_JOB_TIMEOUT", 420, minimum=60)
+
+
+def _needs_background_enrichment(empresa: Dict[str, Any]) -> bool:
+    return not (
+        empresa.get("site")
+        and (
+            empresa.get("email_final")
+            or empresa.get("telefone_final")
+            or empresa.get("whatsapp_final")
+        )
+    )
 
 
 def rodar_prospeccao_otimizada(
@@ -288,7 +319,7 @@ def rodar_prospeccao_otimizada(
         empresas.append(empresa)
         
         # Coleta CNPJs para enriquecimento em background
-        if enriquecer_background and not empresa.get("site"):
+        if enriquecer_background and _needs_background_enrichment(empresa):
             cnpjs_para_enriquecer.append(empresa["cnpj"])
     
     # 8. Enfileira enriquecimento em background
@@ -300,9 +331,9 @@ def rodar_prospeccao_otimizada(
             # Enfileira jobs de enriquecimento
             for cnpj in cnpjs_para_enriquecer[:50]:  # Limita a 50 por vez
                 queue.enqueue(
-                    "api.jobs_enhanced.enrich_company_by_cnpj_enhanced",
+                    BACKGROUND_ENRICH_JOB,
                     cnpj,
-                    job_timeout=120
+                    job_timeout=BACKGROUND_ENRICH_TIMEOUT
                 )
             
             logger.info(f"Enfileirados {len(cnpjs_para_enriquecer[:50])} jobs de enriquecimento")

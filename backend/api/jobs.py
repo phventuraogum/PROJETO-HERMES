@@ -30,7 +30,7 @@ def enrich_company_by_cnpj(cnpj: str) -> dict:
     try:
         from api.db_pool import get_connection
 
-        with get_connection(read_only=True) as con:
+        with get_connection(read_only=False) as con:
             row = con.execute(
                 "SELECT RAZAO_SOCIAL, NOME_FANTASIA, cidade_nome, UF "
                 "FROM vw_prospeccao_base WHERE cnpj = ? LIMIT 1",
@@ -111,13 +111,27 @@ def enrich_company_by_cnpj(cnpj: str) -> dict:
                     con_w.execute("""
                         CREATE TABLE IF NOT EXISTS empresas_enriquecidas (
                             cnpj VARCHAR PRIMARY KEY,
-                            site VARCHAR, email_web VARCHAR,
-                            telefone_web VARCHAR, whatsapp_web VARCHAR
+                            site VARCHAR,
+                            email_enriquecido VARCHAR,
+                            telefone_enriquecido VARCHAR,
+                            whatsapp_publico VARCHAR,
+                            whatsapp_enriquecido VARCHAR,
+                            outras_informacoes VARCHAR
                         )
                     """)
                     con_w.execute(
-                        "INSERT OR REPLACE INTO empresas_enriquecidas VALUES (?,?,?,?,?)",
-                        [cnpj, site, email, telefone, whatsapp],
+                        """
+                        INSERT OR REPLACE INTO empresas_enriquecidas (
+                            cnpj,
+                            site,
+                            email_enriquecido,
+                            telefone_enriquecido,
+                            whatsapp_publico,
+                            whatsapp_enriquecido,
+                            outras_informacoes
+                        ) VALUES (?,?,?,?,?,?,?)
+                        """,
+                        [cnpj, site, email, telefone, whatsapp, None, None],
                     )
             except Exception as e:
                 logger.warning(f"[JOB] persist failed for {cnpj}: {e}")

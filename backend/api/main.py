@@ -70,6 +70,24 @@ app = FastAPI(
 
 REDIS_URL = os.getenv("REDIS_URL", "").strip()
 
+
+def _env_int(name: str, default: int, *, minimum: int = 0) -> int:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return max(minimum, value)
+
+
+BACKGROUND_ENRICH_JOB = (
+    os.getenv("HERMES_ENRICHMENT_JOB", "").strip()
+    or "api.jobs_enhanced.enrich_company_by_cnpj_enhanced"
+)
+BACKGROUND_ENRICH_TIMEOUT = _env_int("HERMES_ENRICHMENT_JOB_TIMEOUT", 420, minimum=60)
+
 def _enqueue_enrichment(cnpjs: List[str]) -> None:
     """
     Enfileira enriquecimento no Redis (fire-and-forget).
@@ -82,7 +100,7 @@ def _enqueue_enrichment(cnpjs: List[str]) -> None:
         conn = Redis.from_url(REDIS_URL)
         q = Queue("hermes", connection=conn)
         for cnpj in cnpjs:
-            q.enqueue("api.jobs.enrich_company_by_cnpj", cnpj, job_timeout=120)
+            q.enqueue(BACKGROUND_ENRICH_JOB, cnpj, job_timeout=BACKGROUND_ENRICH_TIMEOUT)
     except Exception as e:
         print("[ENRIQUECIMENTO] falha ao enfileirar no Redis:", repr(e))
 
@@ -1001,23 +1019,104 @@ def _aplicar_merge_enriquecimento(emp: "Empresa", payload: Dict[str, Any]) -> No
         setattr(emp, campo, valor)
 
 
-def enriquecer_redes_socios(empresas: List["Empresa"], on_progress=None) -> None:
-    MAX_SOCIOS_POR_EMPRESA = 5
-    total = len(empresas)
+MAX_ENRICH_INLINE = _env_int("HERMES_SYNC_ENRICH_LIMIT", 15, minimum=1)
+SYNC_ENRICH_BATCH_CONCURRENCY = _env_int("HERMES_SYNC_ENRICH_BATCH_CONCURRENCY", 4, minimum=1)
+SYNC_FALLBACK_WEB_LIMIT = _env_int("HERMES_SYNC_FALLBACK_WEB_LIMIT", 6, minimum=0)
+SYNC_SOCIAL_LOOKUP_LIMIT = _env_int("HERMES_SYNC_SOCIAL_LOOKUP_LIMIT", 4, minimum=0)
+SYNC_SOCIOS_PER_COMPANY = _env_int("HERMES_SYNC_SOCIAL_PER_COMPANY", 3, minimum=1)
+MAX_WHATSAPP_ULTRA_EMPRESAS = _env_int("HERMES_SYNC_WHATSAPP_ULTRA_LIMIT", 6, minimum=0)
+SYNC_WHATSAPP_ULTRA_TIMEOUT = _env_int("HERMES_SYNC_WHATSAPP_ULTRA_TIMEOUT", 20, minimum=10)
+SYNC_EVOLUTION_VERIFY_LIMIT = _env_int("HERMES_SYNC_EVOLUTION_VERIFY_LIMIT", 12, minimum=0)
 
-    for idx, emp in enumerate(empresas):
+
+def _tem_email_acionavel(emp: "Empresa") -> bool:
+    return bool(emp.email_enriquecido or emp.email)
+
+
+def _tem_whatsapp_acionavel(emp: "Empresa") -> bool:
+    return bool(emp.whatsapp_enriquecido or emp.whatsapp_publico)
+
+
+def _tem_telefone_acionavel(emp: "Empresa") -> bool:
+    return bool(
+        emp.telefone_enriquecido
+        or emp.telefone_padrao
+        or emp.telefone_receita
+        or emp.telefone_estab1
+        or emp.telefone_estab2
+    )
+
+
+def _tem_linkedin_acionavel(emp: "Empresa") -> bool:
+    if emp.linkedin_empresa:
+        return True
+    if emp.redes_sociais_empresa and any("linkedin.com" in link for link in emp.redes_sociais_empresa):
+        return True
+    return bool(emp.redes_sociais_socios)
+
+
+def _tem_contato_digital_acionavel(emp: "Empresa") -> bool:
+    return _tem_email_acionavel(emp) or _tem_whatsapp_acionavel(emp)
+
+
+def _cobertura_contato(emp: "Empresa") -> int:
+    return sum([
+        _tem_email_acionavel(emp),
+        _tem_whatsapp_acionavel(emp),
+        _tem_telefone_acionavel(emp),
+        _tem_linkedin_acionavel(emp),
+        bool(emp.site),
+    ])
+
+
+def _selecionar_empresas_para_redes_socios(empresas: List["Empresa"]) -> List["Empresa"]:
+    if SYNC_SOCIAL_LOOKUP_LIMIT <= 0:
+        return []
+
+    candidatos = [
+        emp
+        for emp in empresas
+        if emp.socios_resumo
+        and not _tem_linkedin_acionavel(emp)
+        and not _tem_contato_digital_acionavel(emp)
+    ]
+    candidatos.sort(key=lambda emp: (_cobertura_contato(emp), -(emp.score_icp or 0)))
+    return candidatos[:SYNC_SOCIAL_LOOKUP_LIMIT]
+
+
+def _selecionar_empresas_para_whatsapp_ultra(empresas: List["Empresa"]) -> List["Empresa"]:
+    if MAX_WHATSAPP_ULTRA_EMPRESAS <= 0:
+        return []
+
+    candidatos = [
+        emp
+        for emp in empresas
+        if not _tem_whatsapp_acionavel(emp)
+        and not _tem_email_acionavel(emp)
+        and not _tem_telefone_acionavel(emp)
+    ]
+    candidatos.sort(key=lambda emp: (_cobertura_contato(emp), -(emp.score_icp or 0)))
+    return candidatos[:MAX_WHATSAPP_ULTRA_EMPRESAS]
+
+
+def enriquecer_redes_socios(empresas: List["Empresa"], on_progress=None) -> None:
+    alvos = _selecionar_empresas_para_redes_socios(empresas)
+    total = len(alvos)
+
+    if not alvos:
+        print("[ENRIQUECIMENTO] Redes de socios puladas: sem empresas prioritarias")
+        return
+
+    for idx, emp in enumerate(alvos):
         if on_progress:
             on_progress(idx, total, emp.nome_fantasia or emp.razao_social or emp.cnpj)
-
-        if not emp.socios_resumo:
-            continue
 
         linhas = [l.strip() for l in emp.socios_resumo.split("\n") if l.strip()]
         existing = emp.redes_sociais_socios or []
         existing_names = {s.nome.lower() for s in existing}
         empresa_nome = emp.nome_fantasia or emp.razao_social or ""
 
-        for linha in linhas[:MAX_SOCIOS_POR_EMPRESA]:
+        for linha in linhas[:SYNC_SOCIOS_PER_COMPANY]:
             nome = linha
             if "(" in linha:
                 nome = linha.split("(", 1)[0].strip()
@@ -1037,8 +1136,6 @@ def enriquecer_redes_socios(empresas: List["Empresa"], on_progress=None) -> None
         if existing:
             emp.redes_sociais_socios = existing
 
-
-MAX_ENRICH_INLINE = 30
 
 def enriquecer_empresas_online(empresas: List["Empresa"], on_progress=None) -> None:
     if not empresas:
@@ -1076,7 +1173,12 @@ def enriquecer_empresas_online(empresas: List["Empresa"], on_progress=None) -> N
             )
 
         resultados_batch = asyncio.run(
-            enrichment_service.enrich_batch_async(batch_input, max_concurrent=4, gerar_pitch=False)
+            enrichment_service.enrich_batch_async(
+                batch_input,
+                max_concurrent=SYNC_ENRICH_BATCH_CONCURRENCY,
+                gerar_pitch=False,
+                modo_rapido=True,
+            )
         )
         payloads_por_cnpj = {
             str(item.get("cnpj")): item
@@ -1095,14 +1197,11 @@ def enriquecer_empresas_online(empresas: List["Empresa"], on_progress=None) -> N
         if dados_batch:
             _aplicar_merge_enriquecimento(emp, dados_batch)
 
-        possui_email = bool(emp.email_enriquecido or emp.email)
-        possui_whatsapp = bool(emp.whatsapp_enriquecido or emp.whatsapp_publico)
-        possui_linkedin = bool(
-            emp.linkedin_empresa
-            or (emp.redes_sociais_empresa and any("linkedin.com" in link for link in emp.redes_sociais_empresa))
-            or (emp.redes_sociais_socios and len(emp.redes_sociais_socios) > 0)
-        )
-        if sum([possui_email, possui_whatsapp, possui_linkedin]) < 3:
+        if not (
+            _tem_email_acionavel(emp)
+            or _tem_whatsapp_acionavel(emp)
+            or _tem_telefone_acionavel(emp)
+        ):
             fallback_web.append(emp)
         continue
         dados = _enriquecer_empresa_web(emp)
@@ -1147,7 +1246,7 @@ def enriquecer_empresas_online(empresas: List["Empresa"], on_progress=None) -> N
                     existing.append(SocioRedeSocial(nome=nome_s, links=[link_s]))
             emp.redes_sociais_socios = existing
 
-    for emp in fallback_web[:10]:
+    for emp in fallback_web[:SYNC_FALLBACK_WEB_LIMIT]:
         dados = _enriquecer_empresa_web(emp)
         if not dados:
             continue
@@ -1180,8 +1279,6 @@ SEGMENTO_PREFIX_NORMALIZADO = {
 }
 
 
-MAX_WHATSAPP_ULTRA_EMPRESAS = 25
-
 def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=None) -> None:
     """
     WhatsApp Ultra Discovery inline — busca multi-camada (widget, redes sociais,
@@ -1194,12 +1291,7 @@ def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=Non
         print("[WHATSAPP ULTRA] módulo whatsapp_linkedin_ultra não disponível")
         return
 
-    sem_whatsapp = [
-        e for e in empresas
-        if not e.whatsapp_publico and not e.whatsapp_enriquecido
-    ]
-    sem_whatsapp.sort(key=lambda e: (e.score_icp or 0), reverse=True)
-    alvos = sem_whatsapp[:MAX_WHATSAPP_ULTRA_EMPRESAS]
+    alvos = _selecionar_empresas_para_whatsapp_ultra(empresas)
 
     if not alvos:
         print("[WHATSAPP ULTRA] todas as empresas já possuem WhatsApp")
@@ -1229,7 +1321,7 @@ def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=Non
                 ))
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                resultado = pool.submit(_run_discovery).result(timeout=90)
+                resultado = pool.submit(_run_discovery).result(timeout=SYNC_WHATSAPP_ULTRA_TIMEOUT)
 
             whatsapp_data = resultado.get("whatsapp") or {}
             whatsapp_numero = whatsapp_data.get("numero") if isinstance(whatsapp_data, dict) else None
@@ -1363,13 +1455,18 @@ def _verificar_whatsapps_evolution(empresas: List["Empresa"]) -> int:
         print("[EVOLUTION CHECK] EVOLUTION_API_URL não configurada, pulando")
         return 0
 
+    candidatos = sorted(empresas, key=lambda emp: (emp.whatsapp_enriquecido is None, -(emp.score_icp or 0)))
     numeros_para_verificar = {}
-    for emp in empresas:
+    for emp in candidatos:
         wpp = emp.whatsapp_enriquecido or emp.whatsapp_publico
-        if wpp:
-            norm = normalizar_whatsapp_br(wpp)
-            if norm:
-                numeros_para_verificar[norm] = emp
+        if not wpp:
+            continue
+        norm = normalizar_whatsapp_br(wpp)
+        if not norm or norm in numeros_para_verificar:
+            continue
+        numeros_para_verificar[norm] = emp
+        if SYNC_EVOLUTION_VERIFY_LIMIT and len(numeros_para_verificar) >= SYNC_EVOLUTION_VERIFY_LIMIT:
+            break
 
     if not numeros_para_verificar:
         print("[EVOLUTION CHECK] Nenhum WhatsApp para verificar")
@@ -1901,15 +1998,9 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
 
     def tem_contato_acionavel(emp: Empresa) -> bool:
         return bool(
-            emp.telefone_padrao
-            or emp.telefone_receita
-            or emp.telefone_estab1
-            or emp.telefone_estab2
-            or emp.telefone_enriquecido
-            or emp.whatsapp_publico
-            or emp.whatsapp_enriquecido
-            or emp.email
-            or emp.email_enriquecido
+            _tem_telefone_acionavel(emp)
+            or _tem_whatsapp_acionavel(emp)
+            or _tem_email_acionavel(emp)
         )
 
     total_com_enriquecimento = sum(1 for emp in empresas if tem_contato_acionavel(emp))

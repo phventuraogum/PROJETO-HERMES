@@ -1200,7 +1200,7 @@ async def _extrair_contatos_firecrawl(url: str) -> Dict[str, Any]:
     return {}
 
 
-async def extrair_contatos_site(url: str) -> Dict[str, Any]:
+async def extrair_contatos_site(url: str, modo_rapido: bool = False) -> Dict[str, Any]:
     """
     Navega na home + páginas de contato. Extrai email, telefone, WhatsApp (via
     wa.me HREF), LinkedIn da empresa e links de perfil.
@@ -1226,61 +1226,69 @@ async def extrair_contatos_site(url: str) -> Dict[str, Any]:
     if dominio in cache_contatos:
         return cache_contatos[dominio]
 
-    # Scrapling (stealth, adaptativo, extrai mais dados)
-    try:
-        from scrapling_service import extrair_contatos_scrapling_async, SCRAPLING_AVAILABLE
-        if SCRAPLING_AVAILABLE:
-            scrapling_data = await extrair_contatos_scrapling_async(url)
-            scrapling_email = _selecionar_melhor_email(
-                [scrapling_data.get("email", "")],
-                scrapling_data.get("site", url),
-            )
-            if (
-                scrapling_email
-                or scrapling_data.get("whatsapp")
-                or scrapling_data.get("telefone")
-                or scrapling_data.get("linkedin_empresa")
-            ):
-                contatos["site"] = _normalizar_url_publica(scrapling_data.get("site", url))
-                contatos["email"] = scrapling_email
-                contatos["telefone"] = scrapling_data.get("telefone", "")
-                contatos["whatsapp"] = scrapling_data.get("whatsapp", "")
-                contatos["linkedin_empresa"] = scrapling_data.get("linkedin_empresa")
-                contatos["linkedin_perfis"] = scrapling_data.get("linkedin_perfis", [])
-                contatos["source"] = _source_with_site(scrapling_data.get("source") or "Scrapling", contatos["site"])
-                if len(cache_contatos) >= _MAX_CACHE_SIZE:
-                    cache_contatos.clear()
-                cache_contatos[dominio] = contatos
-                return contatos
-    except Exception as e:
-        print(f"[SCRAPER] Scrapling falhou para {url}, usando httpx fallback: {repr(e)}")
+    if not modo_rapido:
+        # Scrapling (stealth, adaptativo, extrai mais dados)
+        try:
+            from scrapling_service import extrair_contatos_scrapling_async, SCRAPLING_AVAILABLE
+            if SCRAPLING_AVAILABLE:
+                scrapling_data = await extrair_contatos_scrapling_async(url)
+                scrapling_email = _selecionar_melhor_email(
+                    [scrapling_data.get("email", "")],
+                    scrapling_data.get("site", url),
+                )
+                if (
+                    scrapling_email
+                    or scrapling_data.get("whatsapp")
+                    or scrapling_data.get("telefone")
+                    or scrapling_data.get("linkedin_empresa")
+                ):
+                    contatos["site"] = _normalizar_url_publica(scrapling_data.get("site", url))
+                    contatos["email"] = scrapling_email
+                    contatos["telefone"] = scrapling_data.get("telefone", "")
+                    contatos["whatsapp"] = scrapling_data.get("whatsapp", "")
+                    contatos["linkedin_empresa"] = scrapling_data.get("linkedin_empresa")
+                    contatos["linkedin_perfis"] = scrapling_data.get("linkedin_perfis", [])
+                    contatos["source"] = _source_with_site(scrapling_data.get("source") or "Scrapling", contatos["site"])
+                    if len(cache_contatos) >= _MAX_CACHE_SIZE:
+                        cache_contatos.clear()
+                    cache_contatos[dominio] = contatos
+                    return contatos
+        except Exception as e:
+            print(f"[SCRAPER] Scrapling falhou para {url}, usando httpx fallback: {repr(e)}")
 
-    # Firecrawl (dinâmico e melhor para sites JS-heavy) antes do fallback manual.
-    firecrawl_data = await _extrair_contatos_firecrawl(url)
-    firecrawl_email = _selecionar_melhor_email(
-        [firecrawl_data.get("email", "")],
-        firecrawl_data.get("site", url),
-    )
-    if (
-        firecrawl_email
-        or firecrawl_data.get("whatsapp")
-        or firecrawl_data.get("telefone")
-        or firecrawl_data.get("linkedin_empresa")
-    ):
-        contatos["site"] = _normalizar_url_publica(firecrawl_data.get("site", url))
-        contatos["email"] = firecrawl_email
-        contatos["telefone"] = firecrawl_data.get("telefone", "")
-        contatos["whatsapp"] = firecrawl_data.get("whatsapp", "")
-        contatos["linkedin_empresa"] = firecrawl_data.get("linkedin_empresa")
-        contatos["linkedin_perfis"] = firecrawl_data.get("linkedin_perfis", [])
-        contatos["source"] = _source_with_site(firecrawl_data.get("source") or "Firecrawl", contatos["site"])
-        if len(cache_contatos) >= _MAX_CACHE_SIZE:
-            cache_contatos.clear()
-        cache_contatos[dominio] = contatos
-        return contatos
+        # Firecrawl (dinâmico e melhor para sites JS-heavy) antes do fallback manual.
+        firecrawl_data = await _extrair_contatos_firecrawl(url)
+        firecrawl_email = _selecionar_melhor_email(
+            [firecrawl_data.get("email", "")],
+            firecrawl_data.get("site", url),
+        )
+        if (
+            firecrawl_email
+            or firecrawl_data.get("whatsapp")
+            or firecrawl_data.get("telefone")
+            or firecrawl_data.get("linkedin_empresa")
+        ):
+            contatos["site"] = _normalizar_url_publica(firecrawl_data.get("site", url))
+            contatos["email"] = firecrawl_email
+            contatos["telefone"] = firecrawl_data.get("telefone", "")
+            contatos["whatsapp"] = firecrawl_data.get("whatsapp", "")
+            contatos["linkedin_empresa"] = firecrawl_data.get("linkedin_empresa")
+            contatos["linkedin_perfis"] = firecrawl_data.get("linkedin_perfis", [])
+            contatos["source"] = _source_with_site(firecrawl_data.get("source") or "Firecrawl", contatos["site"])
+            if len(cache_contatos) >= _MAX_CACHE_SIZE:
+                cache_contatos.clear()
+            cache_contatos[dominio] = contatos
+            return contatos
 
     # Fallback: httpx + BeautifulSoup
-    caminhos = ["", "/contato", "/fale-conosco", "/sobre", "/quem-somos", "/contact"]
+    caminhos = ["", "/contato", "/contact"] if modo_rapido else [
+        "",
+        "/contato",
+        "/fale-conosco",
+        "/sobre",
+        "/quem-somos",
+        "/contact",
+    ]
     headers  = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -1288,7 +1296,9 @@ async def extrair_contatos_site(url: str) -> Dict[str, Any]:
         )
     }
 
-    async with httpx.AsyncClient(verify=False, timeout=30.0, follow_redirects=True) as client:
+    timeout = 12.0 if modo_rapido else 30.0
+
+    async with httpx.AsyncClient(verify=False, timeout=timeout, follow_redirects=True) as client:
         for caminho in caminhos:
             target = url.rstrip("/") + caminho
             try:
@@ -1326,6 +1336,7 @@ async def processar_empresa_google(
     cidade: str = "",
     socios: List[str] = None,
     site_url: str = "",
+    modo_rapido: bool = False,
 ) -> Optional[Dict]:
     """
     Logica de enriquecimento focada em site oficial e contatos acionaveis.
@@ -1339,7 +1350,7 @@ async def processar_empresa_google(
         site_conhecido = ""
     if site_conhecido:
         try:
-            dados_extraidos = await extrair_contatos_site(site_conhecido)
+            dados_extraidos = await extrair_contatos_site(site_conhecido, modo_rapido=modo_rapido)
             if not dados_extraidos.get("site"):
                 dados_extraidos["site"] = site_conhecido
             else:
@@ -1357,7 +1368,7 @@ async def processar_empresa_google(
         score_top = float(candidato_top.get("_score_site", 0.0) or 0.0)
         if score_top >= 3 or not melhor_match:
             melhor_match = candidato_top
-            dados_extraidos = await extrair_contatos_site(candidato_top["link"])
+            dados_extraidos = await extrair_contatos_site(candidato_top["link"], modo_rapido=modo_rapido)
             if dados_extraidos.get("site"):
                 dados_extraidos["site"] = _normalizar_url_publica(dados_extraidos["site"])
 
@@ -1368,7 +1379,7 @@ async def processar_empresa_google(
             if candidatos_tavily and float(candidatos_tavily[0].get("_score_site", 0.0) or 0.0) > float((melhor_match or {}).get("_score_site", 0.0) or 0.0):
                 melhor_match = dict(candidatos_tavily[0])
                 melhor_match["link"] = _normalizar_url_publica(melhor_match.get("link", ""))
-                dados_extraidos = await extrair_contatos_site(melhor_match["link"])
+                dados_extraidos = await extrair_contatos_site(melhor_match["link"], modo_rapido=modo_rapido)
                 if dados_extraidos.get("site"):
                     dados_extraidos["site"] = _normalizar_url_publica(dados_extraidos["site"])
             if melhor_match and float(melhor_match.get("_score_site", 0.0) or 0.0) >= 18.0:
@@ -1400,9 +1411,11 @@ async def processar_empresa_google(
                 break
 
     redes_socios = []
-    linkedin_empresa = await buscar_linkedin_empresa(empresa_nome)
+    linkedin_empresa = dados_extraidos.get("linkedin_empresa")
+    if not linkedin_empresa and not modo_rapido:
+        linkedin_empresa = await buscar_linkedin_empresa(empresa_nome)
 
-    if socios:
+    if socios and not modo_rapido:
         for socio in socios[:2]:
             resultado_linkedin = await buscar_linkedin_socio_ultra(socio, empresa_nome, cidade)
             if resultado_linkedin:
