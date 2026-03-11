@@ -120,6 +120,30 @@ class MainEnrichmentBudgetTests(unittest.TestCase):
         self.assertEqual(empresa.whatsapps_captados[0].valor, "5511988887777")
         self.assertIn("Promocao", empresa.whatsapps_captados[0].origem)
 
+    def test_whatsapp_ultra_inline_uses_cached_payload(self):
+        empresa = self._empresa(cnpj="17171717000117", score_icp=91)
+        payload = {
+            "whatsapp": {"numero": "5531998765432", "fonte": "Instagram Bio", "validado": True},
+            "instagram": {"url": "https://instagram.com/empresa"},
+            "linkinbio": {},
+            "linkedin_ultra": [],
+        }
+
+        with mock.patch.object(api_main.cache_service, "get", return_value=payload):
+            api_main._enriquecer_whatsapp_ultra_inline([empresa])
+
+        self.assertEqual(empresa.whatsapp_enriquecido, "5531998765432")
+        self.assertEqual(empresa.whatsapp_publico, "5531998765432")
+
+    def test_whatsapp_ultra_inline_defers_uncached_companies_to_worker(self):
+        empresa = self._empresa(cnpj="18181818000118", score_icp=91)
+
+        with mock.patch.object(api_main.cache_service, "get", return_value=None):
+            api_main._enriquecer_whatsapp_ultra_inline([empresa])
+
+        self.assertIsNone(empresa.whatsapp_enriquecido)
+        self.assertIsNone(empresa.whatsapp_publico)
+
     def test_verificar_whatsapps_evolution_promotes_confirmed_alternative_candidate(self):
         empresa = self._empresa(
             cnpj="13131313000113",

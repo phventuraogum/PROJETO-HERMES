@@ -87,6 +87,7 @@ BACKGROUND_ENRICH_JOB = (
     or "api.jobs_enhanced.enrich_company_by_cnpj_enhanced"
 )
 BACKGROUND_ENRICH_TIMEOUT = _env_int("HERMES_ENRICHMENT_JOB_TIMEOUT", 420, minimum=60)
+WHATSAPP_ULTRA_CACHE_TTL = _env_int("HERMES_WHATSAPP_ULTRA_CACHE_TTL", 21600, minimum=300)
 
 def _enqueue_enrichment(cnpjs: List[str]) -> None:
     """
@@ -1059,7 +1060,7 @@ SYNC_FALLBACK_WEB_LIMIT = _env_int("HERMES_SYNC_FALLBACK_WEB_LIMIT", 6, minimum=
 SYNC_SOCIAL_LOOKUP_LIMIT = _env_int("HERMES_SYNC_SOCIAL_LOOKUP_LIMIT", 4, minimum=0)
 SYNC_SOCIOS_PER_COMPANY = _env_int("HERMES_SYNC_SOCIAL_PER_COMPANY", 3, minimum=1)
 MAX_WHATSAPP_ULTRA_EMPRESAS = _env_int("HERMES_SYNC_WHATSAPP_ULTRA_LIMIT", MAX_ENRICH_INLINE, minimum=0)
-SYNC_WHATSAPP_ULTRA_TIMEOUT = _env_int("HERMES_SYNC_WHATSAPP_ULTRA_TIMEOUT", 20, minimum=10)
+SYNC_WHATSAPP_ULTRA_TIMEOUT = _env_int("HERMES_SYNC_WHATSAPP_ULTRA_TIMEOUT", 12, minimum=5)
 SYNC_EVOLUTION_VERIFY_LIMIT = _env_int("HERMES_SYNC_EVOLUTION_VERIFY_LIMIT", MAX_ENRICH_INLINE * 2, minimum=0)
 SYNC_EMAIL_VERIFY_LIMIT = _env_int("HERMES_SYNC_EMAIL_VERIFY_LIMIT", 6, minimum=0)
 
@@ -1256,6 +1257,79 @@ def _coletar_candidatos_whatsapp(emp: "Empresa") -> List[Dict[str, Any]]:
         candidatos.values(),
         key=lambda item: (-(item.get("score") or 0.0), item.get("numero") or ""),
     )
+
+
+def _normalizar_payload_whatsapp_ultra(payload: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not isinstance(payload, dict):
+        return None
+
+    whatsapp_data = payload.get("whatsapp") or payload.get("whatsapp_ultra") or {}
+    if not isinstance(whatsapp_data, dict):
+        whatsapp_data = {}
+
+    instagram_data = payload.get("instagram") or {}
+    if not isinstance(instagram_data, dict):
+        instagram_data = {}
+
+    linkinbio_data = payload.get("linkinbio") or {}
+    if not isinstance(linkinbio_data, dict):
+        linkinbio_data = {}
+
+    linkedin_ultra = payload.get("linkedin_ultra") or payload.get("linkedin_socios") or []
+    if not isinstance(linkedin_ultra, list):
+        linkedin_ultra = []
+
+    normalized = {
+        "whatsapp": whatsapp_data,
+        "instagram": instagram_data,
+        "linkinbio": linkinbio_data,
+        "linkedin_ultra": linkedin_ultra,
+    }
+    if any(normalized.values()):
+        return normalized
+    return None
+
+
+def _get_whatsapp_ultra_cache(emp: "Empresa") -> Optional[Dict[str, Any]]:
+    if not emp.cnpj:
+        return None
+    try:
+        cached = cache_service.get("whatsapp_ultra_company", cnpj=emp.cnpj)
+    except Exception:
+        return None
+    return _normalizar_payload_whatsapp_ultra(cached)
+
+
+def _set_whatsapp_ultra_cache(emp: "Empresa", payload: Dict[str, Any]) -> None:
+    if not emp.cnpj:
+        return
+    normalized = _normalizar_payload_whatsapp_ultra(payload)
+    if not normalized:
+        return
+    try:
+        cache_service.set(
+            "whatsapp_ultra_company",
+            normalized,
+            ttl=WHATSAPP_ULTRA_CACHE_TTL,
+            cnpj=emp.cnpj,
+        )
+    except Exception:
+        pass
+
+
+def _aplicar_payload_whatsapp_ultra(emp: "Empresa", payload: Dict[str, Any], *, fonte: str) -> bool:
+    normalized = _normalizar_payload_whatsapp_ultra(payload)
+    if not normalized:
+        return False
+
+    antes = _normalizar_celular_br(emp.whatsapp_enriquecido or emp.whatsapp_publico or "")
+    _aplicar_merge_enriquecimento(emp, normalized)
+    depois = _normalizar_celular_br(emp.whatsapp_enriquecido or emp.whatsapp_publico or "")
+
+    if depois and depois != antes:
+        nome = emp.nome_fantasia or emp.razao_social or emp.cnpj
+        print(f"[WHATSAPP ULTRA] WhatsApp aplicado para {nome} via {fonte}: {depois}")
+    return bool(depois)
 
 
 def _upsert_whatsapp_captado(
@@ -1607,7 +1681,7 @@ SEGMENTO_PREFIX_NORMALIZADO = {
 }
 
 
-def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=None) -> None:
+def _enriquecer_whatsapp_ultra_inline_legacy(empresas: List["Empresa"], on_progress=None) -> None:
     """
     WhatsApp Ultra Discovery inline — busca multi-camada (widget, redes sociais,
     busca direta, Google Maps, etc.) para empresas sem WhatsApp.
@@ -1688,6 +1762,38 @@ def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=Non
 
     total_encontrados = sum(1 for e in alvos if e.whatsapp_enriquecido)
     print(f"[WHATSAPP ULTRA] Concluído: {total_encontrados}/{len(alvos)} WhatsApps encontrados")
+
+
+def _enriquecer_whatsapp_ultra_inline(empresas: List["Empresa"], on_progress=None) -> None:
+    """Aplica cache inline e deixa a descoberta pesada para o worker."""
+    alvos = _selecionar_empresas_para_whatsapp_ultra(empresas)
+
+    if not alvos:
+        print("[WHATSAPP ULTRA] todas as empresas jÃ¡ possuem WhatsApp")
+        return
+
+    cache_hits = 0
+
+    for idx, emp in enumerate(alvos):
+        nome = emp.nome_fantasia or emp.razao_social or ""
+        if on_progress:
+            on_progress(idx, len(alvos), nome)
+
+        cached_payload = _get_whatsapp_ultra_cache(emp)
+        if cached_payload and _aplicar_payload_whatsapp_ultra(emp, cached_payload, fonte="cache"):
+            cache_hits += 1
+
+    pendentes = max(len(alvos) - cache_hits, 0)
+    if pendentes:
+        print(
+            f"[WHATSAPP ULTRA] Cache reaproveitado para {cache_hits}/{len(alvos)} empresas; "
+            f"{pendentes} seguem para descoberta assÃ­ncrona no worker"
+        )
+    else:
+        print(f"[WHATSAPP ULTRA] Cache reaproveitado para {cache_hits}/{len(alvos)} empresas")
+
+    total_encontrados = sum(1 for e in alvos if e.whatsapp_enriquecido or e.whatsapp_publico)
+    print(f"[WHATSAPP ULTRA] ConcluÃ­do: {total_encontrados}/{len(alvos)} WhatsApps encontrados")
 
 
 try:
