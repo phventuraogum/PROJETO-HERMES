@@ -841,10 +841,20 @@ function DetalheEmpresa({
 }
 
 // ─── Card de empresa (grid view) ─────────────────────────────────────────────
-function EmpresaCard({ emp, selected, onSelect }: {
+function EmpresaCard({
+  emp,
+  selected,
+  onSelect,
+  contactIntel,
+  isResolvingContactIntel,
+  onResolveContactIntel,
+}: {
   emp: Empresa;
   selected: boolean;
   onSelect: (checked: boolean) => void;
+  contactIntel?: ContactIntelligenceResult | null;
+  isResolvingContactIntel?: boolean;
+  onResolveContactIntel?: () => void;
 }) {
   const [mensagemOpen, setMensagemOpen] = useState(false);
 
@@ -894,9 +904,9 @@ function EmpresaCard({ emp, selected, onSelect }: {
             </SheetHeader>
             <DetalheEmpresa
               company={emp}
-              contactIntel={contactIntelByCnpj[emp.cnpj] ?? null}
-              isResolvingContactIntel={resolvingIntelCnpjs.has(emp.cnpj)}
-              onResolveContactIntel={() => void resolveOneContactIntel(emp.cnpj)}
+              contactIntel={contactIntel ?? null}
+              isResolvingContactIntel={isResolvingContactIntel}
+              onResolveContactIntel={onResolveContactIntel}
             />
           </SheetContent>
         </Sheet>
@@ -1508,6 +1518,9 @@ const ResultsPage = () => {
                 emp={emp}
                 selected={selected.has(emp.cnpj)}
                 onSelect={checked => toggleSelect(emp.cnpj, !!checked)}
+                contactIntel={contactIntelByCnpj[emp.cnpj] ?? null}
+                isResolvingContactIntel={resolvingIntelCnpjs.has(emp.cnpj)}
+                onResolveContactIntel={() => void resolveOneContactIntel(emp.cnpj)}
               />
             ))}
           </div>
