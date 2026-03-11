@@ -5,6 +5,7 @@ Gerencia conexoes thread-local com upgrade seguro de modo leitura -> escrita.
 
 import logging
 import os
+import time
 from contextlib import contextmanager
 from pathlib import Path
 from threading import local
@@ -43,6 +44,9 @@ DUCKDB_CONFIG = {
     "temp_directory": os.getenv("DUCKDB_TEMP_DIR", "/tmp"),
 }
 
+DUCKDB_WRITE_LOCK_RETRIES = max(1, int(os.getenv("DUCKDB_WRITE_LOCK_RETRIES", "6") or 6))
+DUCKDB_WRITE_LOCK_DELAY = max(0.1, float(os.getenv("DUCKDB_WRITE_LOCK_DELAY", "0.35") or 0.35))
+
 
 def _drop_connection_attr(attr_name: str) -> None:
     conn = getattr(_thread_local, attr_name, None)
@@ -80,15 +84,40 @@ def _open_connection(read_only: bool) -> duckdb.DuckDBPyConnection:
         if environment != "production":
             bootstrap_sample_database(DB_PATH)
 
-    conn = duckdb.connect(
-        DB_PATH,
-        read_only=read_only,
-        config=DUCKDB_CONFIG,
-    )
-    temp_dir = DUCKDB_CONFIG.get("temp_directory", "/tmp")
-    conn.execute(f"SET temp_directory='{temp_dir}'")
-    logger.debug("Nova conexao DuckDB criada (read_only=%s, temp=%s)", read_only, temp_dir)
-    return conn
+    attempts = 1 if read_only else DUCKDB_WRITE_LOCK_RETRIES
+    last_error: Exception | None = None
+
+    for attempt in range(1, attempts + 1):
+        try:
+            conn = duckdb.connect(
+                DB_PATH,
+                read_only=read_only,
+                config=DUCKDB_CONFIG,
+            )
+            temp_dir = DUCKDB_CONFIG.get("temp_directory", "/tmp")
+            conn.execute(f"SET temp_directory='{temp_dir}'")
+            logger.debug("Nova conexao DuckDB criada (read_only=%s, temp=%s)", read_only, temp_dir)
+            return conn
+        except Exception as exc:
+            last_error = exc
+            message = str(exc).lower()
+            lock_conflict = (
+                not read_only
+                and "could not set lock on file" in message
+                and attempt < attempts
+            )
+            if not lock_conflict:
+                raise
+            logger.warning(
+                "Conflito de lock DuckDB ao abrir escrita (tentativa %s/%s); retry em %.2fs",
+                attempt,
+                attempts,
+                DUCKDB_WRITE_LOCK_DELAY,
+            )
+            time.sleep(DUCKDB_WRITE_LOCK_DELAY)
+
+    assert last_error is not None
+    raise last_error
 
 
 def _get_connection(read_only: bool = True) -> duckdb.DuckDBPyConnection:

@@ -14,6 +14,44 @@ from api import contact_intelligence as ci
 
 
 class ContactIntelligenceTests(unittest.TestCase):
+    def test_normalize_partner_role_maps_receita_code(self):
+        self.assertEqual(ci._normalize_partner_role("49"), "Socio-Administrador")
+        self.assertEqual(ci._normalize_partner_role("22"), "Socio")
+
+    def test_get_cached_company_intelligence_normalizes_cached_roles(self):
+        service = ci.ContactIntelligenceService()
+
+        payload = {
+            "contacts": [
+                {"name": "JOAO TESTE", "role": "49", "emails": []},
+                {"name": "MARIA TESTE", "role": "Diretor", "emails": []},
+            ]
+        }
+
+        class FakeResult:
+            def fetchone(self):
+                return [ci.json.dumps(payload)]
+
+        class FakeConn:
+            def execute(self, sql, *_args, **_kwargs):
+                if "information_schema.tables" in sql:
+                    class ExistsResult:
+                        def fetchone(self_inner):
+                            return (1,)
+                    return ExistsResult()
+                return FakeResult()
+
+        @contextmanager
+        def fake_get_connection(read_only=True):
+            self.assertTrue(read_only)
+            yield FakeConn()
+
+        with mock.patch.object(ci, "get_connection", fake_get_connection):
+            cached = service.get_cached_company_intelligence("12345678000190")
+
+        self.assertEqual(cached["contacts"][0]["role"], "Socio-Administrador")
+        self.assertEqual(cached["contacts"][1]["role"], "Diretor")
+
     def test_get_cached_company_intelligence_returns_none_when_table_is_missing(self):
         service = ci.ContactIntelligenceService()
 

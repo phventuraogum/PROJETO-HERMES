@@ -86,6 +86,38 @@ ROLE_SCORE_HINTS = {
     "socio": 0.78,
 }
 
+QUALIFICACAO_SOCIO_MAP = {
+    "05": "Administrador",
+    "08": "Conselheiro de Administracao",
+    "10": "Diretor",
+    "16": "Presidente",
+    "17": "Procurador",
+    "20": "Sociedade Consorciada",
+    "21": "Sociedade Filiada",
+    "22": "Socio",
+    "23": "Socio Capitalista",
+    "24": "Socio de Industria",
+    "28": "Socio-Gerente",
+    "29": "Socio Ostensivo",
+    "30": "Titular de Empresa Individual",
+    "31": "Beneficiario",
+    "37": "Socio Pessoa Juridica Domiciliado no Exterior",
+    "38": "Socio Pessoa Fisica Residente no Exterior",
+    "47": "Socio Pessoa Fisica Residente no Pais",
+    "49": "Socio-Administrador",
+    "50": "Socio Ostensivo",
+    "52": "Membro de Conselho de Administracao",
+    "53": "Membro de Conselho Fiscal",
+    "54": "Fundador",
+    "55": "Membro de Conselho Consultivo",
+    "60": "Diretor Presidente",
+    "63": "Co-Responsavel",
+    "65": "Titular",
+    "66": "Representante Legal",
+    "70": "Socio (Regime Simples)",
+    "78": "Titular Pessoa Fisica Residente ou Domiciliado no Brasil",
+}
+
 THREE_LEVEL_SUFFIXES = {
     "com.br",
     "org.br",
@@ -170,6 +202,26 @@ def _site_url(value: Optional[str]) -> Optional[str]:
     if "://" not in raw:
         raw = f"https://{raw}"
     return raw.rstrip("/")
+
+
+def _normalize_partner_role(role: Optional[str]) -> Optional[str]:
+    raw = str(role or "").strip()
+    if not raw:
+        return None
+    if raw in QUALIFICACAO_SOCIO_MAP:
+        return QUALIFICACAO_SOCIO_MAP[raw]
+    return raw
+
+
+def _normalize_cached_intelligence(intelligence: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = dict(intelligence or {})
+    contacts = []
+    for contact in normalized.get("contacts") or []:
+        item = dict(contact)
+        item["role"] = _normalize_partner_role(contact.get("role"))
+        contacts.append(item)
+    normalized["contacts"] = contacts
+    return normalized
 
 
 def _pattern_builders() -> dict[str, Callable[[List[str]], Optional[str]]]:
@@ -426,7 +478,7 @@ class ContactIntelligenceService:
         if not row or not row[0]:
             return None
         try:
-            return json.loads(row[0])
+            return _normalize_cached_intelligence(json.loads(row[0]))
         except Exception as exc:
             logger.warning("Falha ao desserializar contact intelligence de %s: %s", cnpj, exc)
             return None
@@ -706,7 +758,7 @@ class ContactIntelligenceService:
             name = str(contact.get("nome") or "").strip()
             if not _looks_like_person(name):
                 continue
-            role = str(contact.get("qualificacao") or "").strip() or None
+            role = _normalize_partner_role(contact.get("qualificacao"))
             linkedin = contact.get("linkedin") or linkedin_by_name.get(_slug(name))
             sourced = self._contact_sourced_emails(name, public_emails, domain)
             emails = list(sourced)

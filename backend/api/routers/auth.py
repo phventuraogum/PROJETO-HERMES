@@ -22,6 +22,7 @@ from collections import defaultdict
 import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
+from api.plan_catalog import is_missing_plans_table
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -232,6 +233,27 @@ async def signup(body: SignupRequest, request: Request):
 async def signup_with_plan(body: SignupWithPlanRequest, request: Request):
     _check_signup_rate(_get_client_ip(request))
 
+    async with httpx.AsyncClient(timeout=10) as c:
+        r = await c.get(
+            f"{settings.SUPABASE_URL}/rest/v1/plans",
+            headers=_supabase_rest_headers(),
+            params={"name": f"eq.{body.plan_name}", "select": "id,name,price_brl"},
+        )
+        if r.status_code >= 400:
+            if is_missing_plans_table(r.status_code, r.text):
+                raise HTTPException(
+                    status_code=503,
+                    detail="Billing nao configurado: execute scripts/all_migrations.sql no Supabase para criar a tabela plans.",
+                )
+            logger.error("Supabase plan lookup: %d %s", r.status_code, r.text[:300])
+            raise HTTPException(status_code=502, detail="Erro ao consultar catalogo de planos.")
+
+        plans = r.json()
+
+    if not plans:
+        raise HTTPException(status_code=400, detail="Plano nao encontrado.")
+    plan = plans[0]
+
     user = await _create_supabase_user(body.email, body.password, body.name)
     user_id = user.get("id")
     if not user_id:
@@ -245,17 +267,6 @@ async def signup_with_plan(body: SignupWithPlanRequest, request: Request):
         await _add_org_member(org_id, user_id, "owner")
 
     session = await _sign_in_user(body.email, body.password)
-
-    async with httpx.AsyncClient(timeout=10) as c:
-        r = await c.get(
-            f"{settings.SUPABASE_URL}/rest/v1/plans?name=eq.{body.plan_name}&select=id,name,price_brl",
-            headers=_supabase_rest_headers(),
-        )
-        plans = r.json() if r.status_code < 300 else []
-
-    if not plans:
-        raise HTTPException(status_code=400, detail="Plano nao encontrado.")
-    plan = plans[0]
 
     if float(plan["price_brl"]) <= 0:
         return {

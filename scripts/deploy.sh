@@ -7,6 +7,8 @@ set -euo pipefail
 
 HERMES_DIR="/opt/hermes"
 COMPOSE_FILE="docker-compose.prod.yml"
+APP_BASE_URL="${APP_BASE_URL:-http://localhost:8082}"
+API_BASE_URL="${API_BASE_URL:-${APP_BASE_URL}/api}"
 
 echo "=========================================="
 echo "  Hermes Deploy — $(date '+%Y-%m-%d %H:%M:%S')"
@@ -57,6 +59,7 @@ SUPABASE_SERVICE_ROLE_KEY="$(read_env_value SUPABASE_SERVICE_ROLE_KEY)"
 ASAAS_API_KEY="$(read_env_value ASAAS_API_KEY)"
 ASAAS_WEBHOOK_TOKEN="$(read_env_value ASAAS_WEBHOOK_TOKEN)"
 CORS_ORIGINS="$(read_env_value CORS_ORIGINS)"
+PRIMARY_ORIGIN="${CORS_ORIGINS%%,*}"
 
 echo "[Pre-flight] Verificando configuracoes criticas..."
 
@@ -122,12 +125,12 @@ sleep 20
 
 MAX_RETRIES=10
 RETRY=0
-until curl -sf http://localhost/health > /dev/null 2>&1; do
+until curl -sf "${API_BASE_URL}/health" > /dev/null 2>&1; do
     RETRY=$((RETRY + 1))
     if [[ $RETRY -ge $MAX_RETRIES ]]; then
         echo "  ERRO: API nao respondeu apos $MAX_RETRIES tentativas"
         echo "  Logs do container:"
-        docker compose -f "$COMPOSE_FILE" logs --tail=30 api
+        docker compose -f "$COMPOSE_FILE" logs --tail=30 api web
         exit 1
     fi
     echo "  Tentativa $RETRY/$MAX_RETRIES..."
@@ -138,28 +141,35 @@ echo "  Health check: OK"
 # ── 5. Verificar seguranca ────────────────────────────────────
 echo "[4/5] Verificando seguranca..."
 
-DOCS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/docs 2>/dev/null || echo "000")
+ROOT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${APP_BASE_URL}/" 2>/dev/null || echo "000")
+if [[ "$ROOT_STATUS" == "200" ]]; then
+    echo "  Frontend publico: OK"
+else
+    echo "  AVISO: raiz publica retornou $ROOT_STATUS"
+fi
+
+DOCS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${APP_BASE_URL}/docs" 2>/dev/null || echo "000")
 if [[ "$DOCS_STATUS" == "404" ]]; then
     echo "  /docs bloqueado: OK"
 else
     echo "  AVISO: /docs retornou $DOCS_STATUS (deveria ser 404)"
 fi
 
-NOAUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/prospeccao/run 2>/dev/null || echo "000")
+NOAUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_BASE_URL}/prospeccao/run" 2>/dev/null || echo "000")
 if [[ "$NOAUTH_STATUS" == "401" || "$NOAUTH_STATUS" == "405" || "$NOAUTH_STATUS" == "422" ]]; then
     echo "  Auth obrigatoria: OK"
 else
     echo "  AVISO: /prospeccao/run sem auth retornou $NOAUTH_STATUS"
 fi
 
-AUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/auth/signup 2>/dev/null || echo "000")
+AUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_BASE_URL}/auth/signup" 2>/dev/null || echo "000")
 if [[ "$AUTH_STATUS" == "405" || "$AUTH_STATUS" == "422" ]]; then
     echo "  /auth/signup acessivel: OK"
 else
     echo "  AVISO: /auth/signup retornou $AUTH_STATUS"
 fi
 
-PLANS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/plans 2>/dev/null || echo "000")
+PLANS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_BASE_URL}/plans" 2>/dev/null || echo "000")
 if [[ "$PLANS_STATUS" == "200" ]]; then
     echo "  /plans acessivel: OK"
 else
@@ -176,7 +186,7 @@ echo "=========================================="
 echo "  Deploy concluido com sucesso!"
 echo "=========================================="
 echo ""
-echo "  URL:   https://${CORS_ORIGINS##*://}"
+echo "  URL:   ${PRIMARY_ORIGIN:-${APP_BASE_URL}}"
 echo "  Docs:  DESABILITADO (producao)"
 echo "  Logs:  docker compose -f $COMPOSE_FILE logs -f"
 echo ""

@@ -26,7 +26,6 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
   addToPipeline,
-  buscarContactIntelligencePorCnpj,
   buscarStatusContactIntelligencePorCnpj,
   buscarEmpresaPorCnpj,
   enfileirarContactIntelligencePorCnpj,
@@ -127,6 +126,7 @@ const EnriquecerCnpj = () => {
   const [isSendingPipeline, setIsSendingPipeline] = useState(false);
 
   const cnpjDigits = useMemo(() => normalizeCnpj(cnpjInput), [cnpjInput]);
+  const empresaCnpj = useMemo(() => normalizeCnpj(empresa?.cnpj || ""), [empresa?.cnpj]);
   const temEnriquecimento = Boolean(
     empresa?.site ||
     empresa?.email_enriquecido ||
@@ -135,7 +135,15 @@ const EnriquecerCnpj = () => {
   );
 
   useEffect(() => {
-    if (!isResolvingContacts || cnpjDigits.length !== 14) return;
+    if (!empresa) return;
+    if (cnpjDigits === empresaCnpj) return;
+    setEmpresa(null);
+    setContactIntel(null);
+    setIsResolvingContacts(false);
+  }, [cnpjDigits, empresa, empresaCnpj]);
+
+  useEffect(() => {
+    if (!isResolvingContacts || cnpjDigits.length !== 14 || !empresa || cnpjDigits !== empresaCnpj) return;
 
     let cancelled = false;
     let timer: number | null = null;
@@ -145,7 +153,7 @@ const EnriquecerCnpj = () => {
         const status = await buscarStatusContactIntelligencePorCnpj(cnpjDigits);
         if (cancelled) return;
 
-        if (status.intelligence) {
+        if (status.status === "completed" && status.intelligence) {
           setContactIntel(status.intelligence);
           setIsResolvingContacts(false);
           toast.success("Inteligencia de contatos concluida em background.");
@@ -178,7 +186,7 @@ const EnriquecerCnpj = () => {
         window.clearTimeout(timer);
       }
     };
-  }, [cnpjDigits, isResolvingContacts]);
+  }, [cnpjDigits, empresa, empresaCnpj, isResolvingContacts]);
 
   const handleBuscar = async () => {
     if (cnpjDigits.length !== 14) {
@@ -188,16 +196,24 @@ const EnriquecerCnpj = () => {
 
     try {
       setIsFetching(true);
+      setIsResolvingContacts(false);
+      setContactIntel(null);
       const encontrada = await buscarEmpresaPorCnpj(cnpjDigits);
       setEmpresa(encontrada);
-      try {
-        const intel = await buscarContactIntelligencePorCnpj(cnpjDigits);
-        setContactIntel(intel.intelligence);
-      } catch {
-        setContactIntel(null);
-      }
       toast.success("Empresa localizada.");
+      try {
+        const status = await enfileirarContactIntelligencePorCnpj(cnpjDigits, { refresh: true });
+        if (status.status === "error") {
+          throw new Error(status.error || "Nao foi possivel pesquisar os contatos deste CNPJ.");
+        }
+        setIsResolvingContacts(true);
+        toast.info("Pesquisa nova de contatos disparada para este CNPJ.");
+      } catch (queueErr: any) {
+        toast.error(queueErr?.message || "Nao foi possivel atualizar os contatos deste CNPJ.");
+      }
     } catch (err: any) {
+      setIsResolvingContacts(false);
+      setEmpresa(null);
       setContactIntel(null);
       toast.error(err?.message || "Nao foi possivel buscar a empresa.");
     } finally {
@@ -213,10 +229,21 @@ const EnriquecerCnpj = () => {
 
     try {
       setIsEnriching(true);
+      setIsResolvingContacts(false);
       const { empresa: enriquecida } = await enriquecerEmpresaPorCnpj(cnpjDigits, empresa);
       setEmpresa(enriquecida);
       setContactIntel(null);
       toast.success("Enriquecimento concluido.");
+      try {
+        const status = await enfileirarContactIntelligencePorCnpj(cnpjDigits, { refresh: true });
+        if (status.status === "error") {
+          throw new Error(status.error || "Nao foi possivel atualizar os contatos.");
+        }
+        setIsResolvingContacts(true);
+        toast.info("Contact Intelligence atualizado em background para este CNPJ.");
+      } catch (queueErr: any) {
+        toast.error(queueErr?.message || "Nao foi possivel atualizar os contatos deste CNPJ.");
+      }
     } catch (err: any) {
       toast.error(err?.message || "Nao foi possivel enriquecer este CNPJ.");
     } finally {
@@ -262,27 +289,14 @@ const EnriquecerCnpj = () => {
 
     try {
       setIsResolvingContacts(true);
-      const cached = await buscarContactIntelligencePorCnpj(cnpjDigits);
-      if (cached.intelligence) {
-        setContactIntel(cached.intelligence);
-        setIsResolvingContacts(false);
-        toast.success("Inteligencia de contatos carregada do cache.");
-        return;
-      }
-
-      const status = await enfileirarContactIntelligencePorCnpj(cnpjDigits);
-      if (status.intelligence) {
-        setContactIntel(status.intelligence);
-        setIsResolvingContacts(false);
-        toast.success("Inteligencia de contatos carregada do cache.");
-        return;
-      }
+      setContactIntel(null);
+      const status = await enfileirarContactIntelligencePorCnpj(cnpjDigits, { refresh: true });
 
       if (status.status === "error") {
         throw new Error(status.error || "Nao foi possivel enfileirar os contatos.");
       }
 
-      toast.info("Contact Intelligence enviado para processamento em background.");
+      toast.info("Contact Intelligence enviado para pesquisa nova em background.");
     } catch (err: any) {
       setIsResolvingContacts(false);
       toast.error(err?.message || "Nao foi possivel resolver os contatos.");

@@ -91,10 +91,9 @@ def _contact_intelligence_status_payload(cnpj: str) -> Dict[str, Any]:
         "error": None,
         "updated_at": None,
     }
+    refresh_in_progress = bool(status.get("refresh")) and status.get("status") in {"queued", "running"}
 
-    if intelligence and not (
-        bool(status.get("refresh")) and status.get("status") in {"queued", "running"}
-    ):
+    if intelligence and not refresh_in_progress:
         status = {
             **status,
             "status": "completed",
@@ -112,7 +111,7 @@ def _contact_intelligence_status_payload(cnpj: str) -> Dict[str, Any]:
         "updated_at": status.get("updated_at"),
         "started_at": status.get("started_at"),
         "finished_at": status.get("finished_at"),
-        "intelligence": intelligence,
+        "intelligence": None if refresh_in_progress else intelligence,
     }
 
 

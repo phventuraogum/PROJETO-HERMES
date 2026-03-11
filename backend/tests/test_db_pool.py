@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -61,6 +62,28 @@ class DbPoolTests(unittest.TestCase):
         with self.db_pool.get_connection(read_only=True) as reader:
             self.assertEqual(id(reader), write_conn_id)
             self.assertEqual(reader.execute("SELECT MAX(id) FROM smoke").fetchone()[0], 3)
+
+    def test_retries_write_connection_on_lock_conflict(self):
+        Path(self.db_path).touch()
+        fake_conn = mock.Mock()
+        fake_conn.execute.return_value = None
+        attempts = []
+
+        def fake_connect(*_args, **kwargs):
+            attempts.append(kwargs.get("read_only"))
+            if len(attempts) == 1:
+                raise RuntimeError('IO Error: Could not set lock on file "/data/cnpj.duckdb"')
+            return fake_conn
+
+        with mock.patch.object(self.db_pool.duckdb, "connect", side_effect=fake_connect), mock.patch.object(
+            self.db_pool.time,
+            "sleep",
+            return_value=None,
+        ):
+            conn = self.db_pool._open_connection(read_only=False)
+
+        self.assertIs(conn, fake_conn)
+        self.assertEqual(attempts, [False, False])
 
 
 if __name__ == "__main__":

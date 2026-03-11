@@ -1,24 +1,26 @@
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Routes, Route } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 
 import Layout from "./components/layout/Layout";
-import Login from "./pages/Login";
-import Landing from "./pages/Landing";
-import Dashboard from "./pages/Dashboard";
-import Configure from "./pages/Configure";
-import EnriquecerCnpj from "./pages/EnriquecerCnpj";
-import QueryWorkbench from "./pages/QueryWorkbench";
-import Results from "./pages/Results";
-import Pipeline from "./pages/Pipeline";
-import History from "./pages/History";
-import Heatmap from "./pages/Heatmap";
-import Settings from "./pages/Settings";
-import ComprarCreditos from "./pages/ComprarCreditos";
-import NotFound from "./pages/NotFound";
 import { RequireAuth } from "./auth/RequireAuth";
+
+const Login = lazy(() => import("./pages/Login"));
+const Landing = lazy(() => import("./pages/Landing"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Configure = lazy(() => import("./pages/Configure"));
+const EnriquecerCnpj = lazy(() => import("./pages/EnriquecerCnpj"));
+const QueryWorkbench = lazy(() => import("./pages/QueryWorkbench"));
+const Results = lazy(() => import("./pages/Results"));
+const Pipeline = lazy(() => import("./pages/Pipeline"));
+const History = lazy(() => import("./pages/History"));
+const Heatmap = lazy(() => import("./pages/Heatmap"));
+const Settings = lazy(() => import("./pages/Settings"));
+const ComprarCreditos = lazy(() => import("./pages/ComprarCreditos"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
@@ -30,104 +32,109 @@ function AuthedLayout({ children }: { children: JSX.Element }) {
   );
 }
 
+function RouteFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+      Carregando modulo...
+    </div>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
 
-      <Routes>
-        {/* LANDING PAGE (publica - página inicial) */}
-        <Route path="/" element={<Landing />} />
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
 
-        {/* LOGIN */}
-        <Route path="/login" element={<Login />} />
+          <Route
+            path="/app"
+            element={
+              <AuthedLayout>
+                <Configure />
+              </AuthedLayout>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <AuthedLayout>
+                <Dashboard />
+              </AuthedLayout>
+            }
+          />
+          <Route
+            path="/cnpj"
+            element={
+              <AuthedLayout>
+                <EnriquecerCnpj />
+              </AuthedLayout>
+            }
+          />
+          <Route
+            path="/query-workbench"
+            element={
+              <AuthedLayout>
+                <QueryWorkbench />
+              </AuthedLayout>
+            }
+          />
+          <Route
+            path="/results"
+            element={
+              <AuthedLayout>
+                <Results />
+              </AuthedLayout>
+            }
+          />
+          <Route
+            path="/pipeline"
+            element={
+              <AuthedLayout>
+                <Pipeline />
+              </AuthedLayout>
+            }
+          />
+          <Route
+            path="/history"
+            element={
+              <AuthedLayout>
+                <History />
+              </AuthedLayout>
+            }
+          />
+          <Route
+            path="/heatmap"
+            element={
+              <AuthedLayout>
+                <Heatmap />
+              </AuthedLayout>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <AuthedLayout>
+                <Settings />
+              </AuthedLayout>
+            }
+          />
+          <Route
+            path="/comprar-creditos"
+            element={
+              <AuthedLayout>
+                <ComprarCreditos />
+              </AuthedLayout>
+            }
+          />
 
-        {/* ROTAS PROTEGIDAS */}
-        <Route
-          path="/app"
-          element={
-            <AuthedLayout>
-              <Configure />
-            </AuthedLayout>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <AuthedLayout>
-              <Dashboard />
-            </AuthedLayout>
-          }
-        />
-        <Route
-          path="/cnpj"
-          element={
-            <AuthedLayout>
-              <EnriquecerCnpj />
-            </AuthedLayout>
-          }
-        />
-        <Route
-          path="/query-workbench"
-          element={
-            <AuthedLayout>
-              <QueryWorkbench />
-            </AuthedLayout>
-          }
-        />
-        <Route
-          path="/results"
-          element={
-            <AuthedLayout>
-              <Results />
-            </AuthedLayout>
-          }
-        />
-        <Route
-          path="/pipeline"
-          element={
-            <AuthedLayout>
-              <Pipeline />
-            </AuthedLayout>
-          }
-        />
-        <Route
-          path="/history"
-          element={
-            <AuthedLayout>
-              <History />
-            </AuthedLayout>
-          }
-        />
-        <Route
-          path="/heatmap"
-          element={
-            <AuthedLayout>
-              <Heatmap />
-            </AuthedLayout>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <AuthedLayout>
-              <Settings />
-            </AuthedLayout>
-          }
-        />
-        <Route
-          path="/comprar-creditos"
-          element={
-            <AuthedLayout>
-              <ComprarCreditos />
-            </AuthedLayout>
-          }
-        />
-
-        {/* FALLBACK */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </TooltipProvider>
   </QueryClientProvider>
 );

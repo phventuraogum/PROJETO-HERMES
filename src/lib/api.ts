@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { loadLatestResult, saveLatestResult } from "@/lib/latestResultStorage";
 
 // URL base do Hermes (FastAPI)
@@ -312,6 +312,23 @@ async function lerResultadoLocal(): Promise<ResultadoSalvo | null> {
 type HermesFetchOptions = RequestInit;
 
 async function getAuthToken(): Promise<string | null> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token ?? null;
+      if (token) {
+        try {
+          localStorage.removeItem("hermes_token");
+        } catch {
+          // ignore
+        }
+        return token;
+      }
+    } catch {
+      // ignore and continue to dev fallback
+    }
+  }
+
   // fluxo atual do app (login dev): token no localStorage
   try {
     const t = localStorage.getItem("hermes_token");
@@ -321,15 +338,6 @@ async function getAuthToken(): Promise<string | null> {
   }
 
   // fallback: se Supabase estiver configurado e houver sessão válida
-  if (supabase) {
-    try {
-      const { data } = await supabase.auth.getSession();
-      return data.session?.access_token ?? null;
-    } catch {
-      return null;
-    }
-  }
-
   return null;
 }
 
@@ -385,6 +393,11 @@ export async function apiFetch<T>(path: string, opts: ApiFetchOptions = {}): Pro
 
 function normalizeCnpjValue(cnpj: string): string {
   return String(cnpj || "").replace(/\D/g, "").slice(0, 14);
+}
+
+function appendFreshQuery(path: string): string {
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}_ts=${Date.now()}`;
 }
 
 function asNullableString(value: unknown): string | null {
@@ -751,7 +764,8 @@ export type ContactIntelligenceStatus = {
 
 export async function buscarEmpresaPorCnpj(cnpj: string): Promise<Empresa> {
   const data = await hermesFetch<BuscarEmpresaResponse>(
-    `/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}`,
+    appendFreshQuery(`/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}`),
+    { cache: "no-store" },
   );
   return mapEmpresaApi(data.empresa ?? {});
 }
@@ -760,9 +774,12 @@ export async function enriquecerEmpresaPorCnpj(
   cnpj: string,
   empresaBase?: Empresa | null,
 ): Promise<{ empresa: Empresa; enrichment: EmpresaEnriquecimentoPayload; message?: string }> {
-  const base = empresaBase ?? (await buscarEmpresaPorCnpj(cnpj));
+  const normalized = normalizeCnpjValue(cnpj);
+  const sameCompany =
+    empresaBase && normalizeCnpjValue(empresaBase.cnpj) === normalized;
+  const base = sameCompany ? empresaBase : await buscarEmpresaPorCnpj(normalized);
   const data = await hermesFetch<EnriquecerEmpresaResponse>(
-    `/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/enriquecer`,
+    `/empresas/${encodeURIComponent(normalized)}/enriquecer`,
     { method: "POST" },
   );
   const enrichment = (data.enriquecimento ?? {}) as Record<string, unknown>;
@@ -777,7 +794,8 @@ export async function buscarContactIntelligencePorCnpj(
   cnpj: string,
 ): Promise<{ cached: boolean; intelligence: ContactIntelligenceResult | null }> {
   const data = await hermesFetch<ContactIntelligenceResponse>(
-    `/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/contact-intelligence`,
+    appendFreshQuery(`/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/contact-intelligence`),
+    { cache: "no-store" },
   );
   return {
     cached: !!data.cached,
@@ -826,7 +844,8 @@ export async function buscarStatusContactIntelligencePorCnpj(
   cnpj: string,
 ): Promise<ContactIntelligenceStatus> {
   const data = await hermesFetch<ContactIntelligenceStatusResponse>(
-    `/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/contact-intelligence/status`,
+    appendFreshQuery(`/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/contact-intelligence/status`),
+    { cache: "no-store" },
   );
   return mapContactIntelligenceStatus(data);
 }

@@ -24,12 +24,18 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Request, HTTPException, Depends
 from pydantic import BaseModel, Field
+from api.plan_catalog import (
+    is_missing_organizations_table,
+    is_missing_plans_table,
+    list_fallback_plans,
+)
 from config import settings
 from middleware.auth import require_auth
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Credits & Billing"])
+_warned_missing_organizations_table = False
 
 # ── Supabase helper ─────────────────────────────────────────────────────────
 
@@ -46,13 +52,70 @@ def _supabase_url(path: str) -> str:
     return f"{settings.SUPABASE_URL}/rest/v1{path}"
 
 
+def _is_organizations_path(path: str) -> bool:
+    return path.startswith("/organizations")
+
+
+def _log_missing_organizations_table_once() -> None:
+    global _warned_missing_organizations_table
+    if _warned_missing_organizations_table:
+        return
+    _warned_missing_organizations_table = True
+    logger.warning(
+        "Tabela public.organizations ausente no Supabase; usando fallback sem saldo persistido."
+    )
+
+
 async def _supabase_get(path: str, params: dict = None) -> list:
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.get(_supabase_url(path), headers=_supabase_headers(), params=params or {})
         if r.status_code >= 400:
+            if _is_organizations_path(path) and is_missing_organizations_table(r.status_code, r.text):
+                _log_missing_organizations_table_once()
+                return []
             logger.error("Supabase GET %s: %d %s", path, r.status_code, r.text[:200])
             return []
         return r.json()
+
+
+async def _load_active_plans() -> tuple[list[dict], str]:
+    async with httpx.AsyncClient(timeout=10) as c:
+        r = await c.get(_supabase_url("/plans"), headers=_supabase_headers(), params={
+            "is_active": "eq.true",
+            "order": "price_brl.asc",
+        })
+        if r.status_code >= 400:
+            if is_missing_plans_table(r.status_code, r.text):
+                logger.warning("Tabela public.plans ausente no Supabase; usando catalogo fallback para GET /plans.")
+                return list_fallback_plans(), "fallback"
+
+            logger.error("Supabase GET /plans: %d %s", r.status_code, r.text[:200])
+            return [], "error"
+
+        return r.json(), "supabase"
+
+
+async def _require_plan_from_supabase(plan_name: str) -> dict:
+    async with httpx.AsyncClient(timeout=10) as c:
+        r = await c.get(
+            _supabase_url("/plans"),
+            headers=_supabase_headers(),
+            params={"name": f"eq.{plan_name}", "select": "id,name,price_brl"},
+        )
+        if r.status_code >= 400:
+            if is_missing_plans_table(r.status_code, r.text):
+                raise HTTPException(
+                    status_code=503,
+                    detail="Billing nao configurado: execute scripts/all_migrations.sql no Supabase para criar a tabela plans.",
+                )
+            logger.error("Supabase GET /plans by name: %d %s", r.status_code, r.text[:200])
+            raise HTTPException(status_code=502, detail="Erro ao consultar catalogo de planos.")
+
+        plans = r.json()
+        if not plans:
+            raise HTTPException(status_code=400, detail="Plano nao encontrado.")
+
+        return plans[0]
 
 
 async def _supabase_post(path: str, data: dict) -> Optional[dict]:
@@ -69,6 +132,9 @@ async def _supabase_patch(path: str, data: dict) -> Optional[dict]:
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.patch(_supabase_url(path), headers=_supabase_headers(), json=data)
         if r.status_code >= 400:
+            if _is_organizations_path(path) and is_missing_organizations_table(r.status_code, r.text):
+                _log_missing_organizations_table_once()
+                return None
             logger.error("Supabase PATCH %s: %d %s", path, r.status_code, r.text[:200])
             return None
         result = r.json()
@@ -169,8 +235,8 @@ CREDIT_PACKAGES = [
 
 @router.get("/plans")
 async def list_plans():
-    plans = await _supabase_get("/plans?is_active=eq.true&order=price_brl.asc")
-    return {"plans": plans}
+    plans, source = await _load_active_plans()
+    return {"plans": plans, "source": source}
 
 
 # ── Endpoints: Creditos ─────────────────────────────────────────────────────
@@ -264,11 +330,7 @@ async def credits_checkout(request: Request, body: CreditCheckoutRequest, _user:
 @router.post("/subscribe/checkout")
 async def subscribe_checkout(request: Request, body: SubscribeRequest, _user: dict = Depends(require_auth)):
     org_id = _get_org_id(request)
-
-    plans = await _supabase_get(f"/plans?name=eq.{body.plan_name}&select=id,name,price_brl")
-    if not plans:
-        raise HTTPException(status_code=400, detail="Plano nao encontrado.")
-    plan = plans[0]
+    plan = await _require_plan_from_supabase(body.plan_name)
 
     if plan["price_brl"] <= 0:
         raise HTTPException(status_code=400, detail="Plano gratuito nao requer assinatura.")

@@ -166,6 +166,37 @@ class EmpresasRouterTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result["cached"])
         self.assertEqual(result["intelligence"]["summary"]["decision_makers"], 2)
 
+    async def test_buscar_contact_intelligence_status_hides_stale_cache_while_refresh_runs(self):
+        cached_payload = {
+            "company": {"cnpj": "12345678000190"},
+            "summary": {"decision_makers": 2},
+        }
+        queued_status = {
+            "cnpj": "12345678000190",
+            "status": "running",
+            "cached": False,
+            "queued": True,
+            "refresh": True,
+            "job_id": "job-123",
+            "updated_at": "2026-03-11T12:00:00+00:00",
+        }
+
+        with mock.patch.object(
+            empresas_router.contact_intelligence_service,
+            "get_cached_company_intelligence",
+            return_value=cached_payload,
+        ), mock.patch.object(
+            empresas_router,
+            "get_contact_intelligence_status",
+            return_value=queued_status,
+        ):
+            payload = empresas_router._contact_intelligence_status_payload("12345678000190")
+
+        self.assertEqual(payload["status"], "running")
+        self.assertFalse(payload["cached"])
+        self.assertTrue(payload["queued"])
+        self.assertIsNone(payload["intelligence"])
+
     async def test_resolver_contact_intelligence_awaits_service(self):
         service_calls = []
 
