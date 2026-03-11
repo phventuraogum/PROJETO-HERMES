@@ -36,6 +36,51 @@ class ContactIntelligenceStatusBatchRequest(BaseModel):
     cnpjs: List[str]
 
 
+def _get_table_columns(conn: Any, table_name: str) -> set[str]:
+    try:
+        rows = conn.execute(f"PRAGMA table_info('{table_name}')").fetchall()
+    except Exception:
+        return set()
+
+    columns: set[str] = set()
+    for row in rows:
+        if not row:
+            continue
+        if len(row) > 1 and row[1]:
+            columns.add(str(row[1]).lower())
+        elif row[0]:
+            columns.add(str(row[0]).lower())
+    return columns
+
+
+def _build_enrichment_selects(conn: Any) -> tuple[str, str]:
+    available_columns = _get_table_columns(conn, "empresas_enriquecidas")
+    if not available_columns:
+        join_clause = ""
+    else:
+        join_clause = """
+                LEFT JOIN empresas_enriquecidas ew
+                    ON ew.cnpj = e.CNPJ_COMPLETO
+        """
+
+    optional_fields = [
+        ("site", "site"),
+        ("email_enriquecido", "email_enriquecido"),
+        ("telefone_enriquecido", "telefone_enriquecido"),
+        ("whatsapp_publico", "whatsapp_publico"),
+        ("whatsapp_enriquecido", "whatsapp_enriquecido"),
+        ("enriquecimento_ia", "enriquecimento_ia"),
+        ("updated_at", "enriquecimento_data"),
+    ]
+    selects = []
+    for column_name, alias in optional_fields:
+        if column_name in available_columns:
+            selects.append(f"ew.{column_name} as {alias}")
+        else:
+            selects.append(f"NULL as {alias}")
+    return ",\n                    ".join(selects), join_clause
+
+
 def _contact_intelligence_status_payload(cnpj: str) -> Dict[str, Any]:
     intelligence = contact_intelligence_service.get_cached_company_intelligence(cnpj)
     status = get_contact_intelligence_status(cnpj) or {
@@ -99,8 +144,9 @@ async def buscar_empresa(
     
     try:
         with get_connection(read_only=True) as conn:
+            enrichment_selects, enrichment_join = _build_enrichment_selects(conn)
             # Busca empresa
-            query = """
+            query = f"""
                 SELECT
                     e.CNPJ_COMPLETO as cnpj,
                     e.RAZAO_SOCIAL as razao_social,
@@ -115,18 +161,11 @@ async def buscar_empresa(
                     ) as capital_social,
                     e.TELEFONE1 as telefone_receita,
                     e.EMAIL as email_receita,
-                    ew.site,
-                    ew.email_enriquecido,
-                    ew.telefone_enriquecido,
-                    ew.whatsapp_publico,
-                    ew.whatsapp_enriquecido,
-                    ew.enriquecimento_ia,
-                    ew.updated_at as enriquecimento_data
+                    {enrichment_selects}
                 FROM cnpj_empresas e
                 LEFT JOIN municipios m
                     ON m.COD_MUNICIPIO = LPAD(e.MUNICIPIO, 4, '0')
-                LEFT JOIN empresas_enriquecidas ew
-                    ON ew.cnpj = e.CNPJ_COMPLETO
+                {enrichment_join}
                 WHERE e.CNPJ_COMPLETO = ?
                 LIMIT 1
             """

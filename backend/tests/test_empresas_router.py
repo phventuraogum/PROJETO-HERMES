@@ -14,6 +14,83 @@ from api.routers import empresas as empresas_router
 
 
 class EmpresasRouterTests(unittest.IsolatedAsyncioTestCase):
+    async def test_buscar_empresa_handles_legacy_enrichment_schema(self):
+        executed_sql = []
+
+        class FakeResult:
+            def __init__(self, rows):
+                self.rows = rows
+
+            def fetchone(self):
+                return self.rows[0] if self.rows else None
+
+            def fetchall(self):
+                return self.rows
+
+        class FakeConn:
+            def execute(self, sql, params=None):
+                executed_sql.append(sql)
+                if "PRAGMA table_info('empresas_enriquecidas')" in sql:
+                    return FakeResult(
+                        [
+                            (0, "cnpj"),
+                            (1, "site"),
+                            (2, "email_enriquecido"),
+                            (3, "telefone_enriquecido"),
+                            (4, "whatsapp_publico"),
+                            (5, "whatsapp_enriquecido"),
+                            (6, "outras_informacoes"),
+                        ]
+                    )
+
+                return FakeResult(
+                    [
+                        (
+                            "12345678000190",
+                            "EMPRESA TESTE LTDA",
+                            "Empresa Teste",
+                            "BELO HORIZONTE",
+                            "MG",
+                            "8640201",
+                            "ATIVA",
+                            "100.000,00",
+                            100000.0,
+                            "(31) 3333-4444",
+                            "contato@receita.com.br",
+                            "https://empresa.com.br",
+                            "contato@empresa.com.br",
+                            "(31) 99999-0000",
+                            "5531999990000",
+                            None,
+                            None,
+                            None,
+                        )
+                    ]
+                )
+
+        @contextlib.contextmanager
+        def fake_get_connection(read_only=True):
+            yield FakeConn()
+
+        with mock.patch.object(
+            empresas_router,
+            "validar_cnpj",
+            return_value=(True, "12345678000190"),
+        ), mock.patch.object(empresas_router, "get_connection", fake_get_connection):
+            result = await empresas_router.buscar_empresa(
+                "12345678000190",
+                incluir_enriquecimento=False,
+                incluir_scores=False,
+                _user={},
+            )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["empresa"]["site"], "https://empresa.com.br")
+        self.assertEqual(result["empresa"]["enriquecimento_ia"], None)
+        self.assertEqual(result["empresa"]["enriquecimento_data"], None)
+        self.assertTrue(any("NULL as enriquecimento_ia" in sql for sql in executed_sql))
+        self.assertFalse(any("ew.enriquecimento_ia" in sql for sql in executed_sql))
+
     async def test_enriquecer_empresa_awaits_service_with_cnae(self):
         service_calls = []
 
