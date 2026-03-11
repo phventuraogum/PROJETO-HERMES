@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
-from api.db_pool import get_connection
+from api.db_pool import close_all_connections, get_connection
 from api.enrichment_merge import merge_enrichment_payload
 from api.validation_service import validar_email, verificar_dominio_registrobr
 
@@ -402,12 +402,27 @@ class ContactIntelligenceService:
             )
 
     def get_cached_company_intelligence(self, cnpj: str) -> Optional[Dict[str, Any]]:
-        self.ensure_schema()
-        with get_connection(read_only=True) as conn:
-            row = conn.execute(
-                "SELECT metadata_json FROM company_domains WHERE cnpj = ? LIMIT 1",
-                [cnpj],
-            ).fetchone()
+        try:
+            with get_connection(read_only=True) as conn:
+                table_exists = conn.execute(
+                    """
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_name = 'company_domains'
+                    LIMIT 1
+                    """
+                ).fetchone()
+                if not table_exists:
+                    return None
+                row = conn.execute(
+                    "SELECT metadata_json FROM company_domains WHERE cnpj = ? LIMIT 1",
+                    [cnpj],
+                ).fetchone()
+        except Exception as exc:
+            message = str(exc).lower()
+            if "company_domains" in message and "exist" in message:
+                return None
+            raise
         if not row or not row[0]:
             return None
         try:
@@ -417,10 +432,11 @@ class ContactIntelligenceService:
             return None
 
     async def resolve_company_intelligence(self, cnpj: str, probe_smtp: bool = False) -> Dict[str, Any]:
-        self.ensure_schema()
         company = self._fetch_company(cnpj)
         merged = await self._build_merged_company(company)
         intelligence = await self._build_intelligence(merged, probe_smtp=probe_smtp)
+        close_all_connections()
+        self.ensure_schema()
         self._persist(cnpj, intelligence)
         return intelligence
 

@@ -1,21 +1,27 @@
 """
-Pool de Conexões DuckDB para Produção
-Gerencia conexões de forma thread-safe e eficiente
+Pool de conexoes DuckDB para producao.
+Gerencia conexoes thread-local com upgrade seguro de modo leitura -> escrita.
 """
+
+import logging
 import os
-import duckdb
 from contextlib import contextmanager
+from pathlib import Path
 from threading import local
 from typing import Generator
-import logging
-from pathlib import Path
+
+import duckdb
 
 from api.dev_sample_db import bootstrap_sample_database
 
 logger = logging.getLogger(__name__)
 
-# Thread-local storage para conexões
 _thread_local = local()
+
+
+def _connection_attrs() -> tuple[str, str]:
+    return ("connection_True", "connection_False")
+
 
 def _default_db_path() -> str:
     configured = os.getenv("HERMES_DUCKDB_PATH")
@@ -31,141 +37,145 @@ def _default_db_path() -> str:
 
 DB_PATH = _default_db_path()
 
-# Configurações de conexão otimizadas
 DUCKDB_CONFIG = {
-    'threads': 1,  # Thread-safe (1 thread por conexão)
-    'max_memory': os.getenv('DUCKDB_MAX_MEMORY', '2GB'),
-    'temp_directory': os.getenv('DUCKDB_TEMP_DIR', '/tmp'),
+    "threads": 1,
+    "max_memory": os.getenv("DUCKDB_MAX_MEMORY", "2GB"),
+    "temp_directory": os.getenv("DUCKDB_TEMP_DIR", "/tmp"),
 }
+
+
+def _drop_connection_attr(attr_name: str) -> None:
+    conn = getattr(_thread_local, attr_name, None)
+    if conn is None:
+        return
+    try:
+        conn.close()
+    except Exception:
+        pass
+    try:
+        delattr(_thread_local, attr_name)
+    except Exception:
+        pass
+
+
+def _drop_connection_handle(conn: duckdb.DuckDBPyConnection) -> None:
+    for attr_name in _connection_attrs():
+        if getattr(_thread_local, attr_name, None) is conn:
+            _drop_connection_attr(attr_name)
+
+
+def _is_connection_alive(conn: duckdb.DuckDBPyConnection | None) -> bool:
+    if conn is None:
+        return False
+    try:
+        conn.execute("SELECT 1")
+        return True
+    except Exception:
+        return False
+
+
+def _open_connection(read_only: bool) -> duckdb.DuckDBPyConnection:
+    if not os.path.exists(DB_PATH):
+        environment = os.getenv("ENVIRONMENT", "development").lower()
+        if environment != "production":
+            bootstrap_sample_database(DB_PATH)
+
+    conn = duckdb.connect(
+        DB_PATH,
+        read_only=read_only,
+        config=DUCKDB_CONFIG,
+    )
+    temp_dir = DUCKDB_CONFIG.get("temp_directory", "/tmp")
+    conn.execute(f"SET temp_directory='{temp_dir}'")
+    logger.debug("Nova conexao DuckDB criada (read_only=%s, temp=%s)", read_only, temp_dir)
+    return conn
 
 
 def _get_connection(read_only: bool = True) -> duckdb.DuckDBPyConnection:
     """
-    Obtém ou cria uma conexão DuckDB thread-local.
-    Reutiliza conexões na mesma thread para melhor performance.
+    Obtem ou cria uma conexao DuckDB thread-local.
+    Se ja existir uma conexao read-write na thread, ela e reutilizada para leituras.
+    Se for necessario escrever e houver uma conexao read-only, ela e reciclada.
     """
-    connection_key = f'connection_{read_only}'
-    
+    connection_key = f"connection_{read_only}"
+    opposite_key = f"connection_{not read_only}"
+
     existing = getattr(_thread_local, connection_key, None)
+    if _is_connection_alive(existing):
+        return existing
     if existing is not None:
-        # Verifica se a conexão ainda está viva (foi fechada explicitamente?)
-        try:
-            existing.execute("SELECT 1")
-            return existing
-        except Exception:
-            # Conexão fechada ou corrompida — recria
-            try:
-                existing.close()
-            except Exception:
-                pass
-            delattr(_thread_local, connection_key)
+        _drop_connection_attr(connection_key)
+
+    opposite = getattr(_thread_local, opposite_key, None)
+    if _is_connection_alive(opposite):
+        if read_only:
+            return opposite
+        _drop_connection_attr(opposite_key)
+    elif opposite is not None:
+        _drop_connection_attr(opposite_key)
 
     try:
-        if not os.path.exists(DB_PATH):
-            environment = os.getenv("ENVIRONMENT", "development").lower()
-            if environment != "production":
-                bootstrap_sample_database(DB_PATH)
-
-        conn = duckdb.connect(
-            DB_PATH,
-            read_only=read_only,
-            config=DUCKDB_CONFIG
-        )
-        temp_dir = DUCKDB_CONFIG.get('temp_directory', '/tmp')
-        conn.execute(f"SET temp_directory='{temp_dir}'")
-        setattr(_thread_local, connection_key, conn)
-        logger.debug(f"Nova conexão DuckDB criada (read_only={read_only}, temp={temp_dir})")
-    except Exception as e:
-        logger.error(f"Erro ao criar conexão DuckDB: {e}")
+        conn = _open_connection(read_only)
+    except Exception as exc:
+        logger.error("Erro ao criar conexao DuckDB: %s", exc)
         raise
 
-    return getattr(_thread_local, connection_key)
+    setattr(_thread_local, connection_key, conn)
+    return conn
 
 
 @contextmanager
 def get_connection(read_only: bool = True) -> Generator[duckdb.DuckDBPyConnection, None, None]:
     """
-    Context manager para conexões DuckDB.
-    
-    Uso:
-        with get_connection(read_only=True) as conn:
-            result = conn.execute("SELECT * FROM empresas LIMIT 10").fetchdf()
-    
-    Args:
-        read_only: Se True, abre conexão somente leitura (padrão)
-    
-    Yields:
-        Conexão DuckDB thread-safe
+    Context manager para conexoes DuckDB.
     """
     conn = _get_connection(read_only)
-    
     try:
         yield conn
-    except Exception as e:
-        logger.error(f"Erro na query DuckDB: {e}")
-        # Em caso de erro, fecha a conexão para forçar recriação
-        if hasattr(_thread_local, f'connection_{read_only}'):
-            try:
-                conn.close()
-            except:
-                pass
-            delattr(_thread_local, f'connection_{read_only}')
+    except Exception as exc:
+        logger.error("Erro na query DuckDB: %s", exc)
+        _drop_connection_handle(conn)
         raise
 
 
-def close_all_connections():
+def close_all_connections() -> None:
     """
-    Fecha todas as conexões thread-local.
-    Útil para cleanup ou testes.
+    Fecha todas as conexoes thread-local.
     """
-    for attr_name in dir(_thread_local):
-        if attr_name.startswith('connection_'):
-            conn = getattr(_thread_local, attr_name, None)
-            if conn:
-                try:
-                    conn.close()
-                except:
-                    pass
-            delattr(_thread_local, attr_name)
-    
-    logger.info("Todas as conexões DuckDB foram fechadas")
+    for attr_name in _connection_attrs():
+        _drop_connection_attr(attr_name)
+    logger.info("Todas as conexoes DuckDB foram fechadas")
 
 
 def test_connection() -> bool:
     """
-    Testa se a conexão está funcionando.
-    Retorna True se OK, False caso contrário.
+    Testa se a conexao esta funcionando.
     """
     try:
         with get_connection(read_only=True) as conn:
             result = conn.execute("SELECT 1 as test").fetchone()
             return result[0] == 1
-    except Exception as e:
-        logger.error(f"Teste de conexão falhou: {e}")
+    except Exception as exc:
+        logger.error("Teste de conexao falhou: %s", exc)
         return False
 
 
-# Healthcheck helper
 def healthcheck() -> dict:
     """
-    Retorna status de saúde do banco de dados.
+    Retorna status de saude do banco de dados.
     """
     try:
         with get_connection(read_only=True) as conn:
-            # Testa conexão
             conn.execute("SELECT 1")
-            
-            # Conta empresas (query simples para testar performance)
             count = conn.execute("SELECT COUNT(*) FROM cnpj_empresas").fetchone()[0]
-            
             return {
                 "status": "healthy",
                 "database": DB_PATH,
                 "total_empresas": int(count),
-                "read_only": True
+                "read_only": True,
             }
-    except Exception as e:
+    except Exception as exc:
         return {
             "status": "unhealthy",
-            "error": str(e)
+            "error": str(exc),
         }
