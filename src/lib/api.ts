@@ -86,6 +86,12 @@ export type ContatoCaptado = {
   tipo?: string | null;
   origem?: string | null;
   confianca?: number | null;
+  validado?: boolean | null;
+  score_validacao?: number | null;
+  metodo_validacao?: string | null;
+  motivo_validacao?: string | null;
+  mx_valido?: boolean | null;
+  smtp_status?: string | null;
 };
 
 export type Empresa = {
@@ -115,13 +121,19 @@ export type Empresa = {
   telefone_estab1?: string | null;
   telefone_estab2?: string | null;
   email?: string | null;
+  email_final?: string | null;
 
   // ── enriquecimento web ─────────────────────────────────────────
   site?: string | null;
   email_enriquecido?: string | null;
+  email_validado?: boolean | null;
+  email_status_validacao?: string | null;
+  email_score_validacao?: number | null;
   telefone_enriquecido?: string | null;
+  telefone_final?: string | null;
   whatsapp_publico?: string | null;
   whatsapp_enriquecido?: string | null;
+  whatsapp_final?: string | null;
   linkedin_empresa?: string | null;
   instagram_empresa?: string | null;
   facebook_empresa?: string | null;
@@ -154,6 +166,11 @@ export type Empresa = {
   cep?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  enriquecimento_data?: string | null;
+  validacao?: Record<string, unknown> | null;
+  confiabilidade?: Record<string, unknown> | null;
+  qualidade?: Record<string, unknown> | null;
+  priorizacao?: Record<string, unknown> | null;
 };
 
 export type ProspeccaoResultado = {
@@ -364,6 +381,219 @@ export async function apiFetch<T>(path: string, opts: ApiFetchOptions = {}): Pro
     headers.set("X-Org-Id", getTenantKey());
   }
   return hermesFetch<T>(path, { ...rest, headers });
+}
+
+function normalizeCnpjValue(cnpj: string): string {
+  return String(cnpj || "").replace(/\D/g, "").slice(0, 14);
+}
+
+function asNullableString(value: unknown): string | null {
+  if (value == null) return null;
+  const text = String(value).trim();
+  return text ? text : null;
+}
+
+function asNullableNumber(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function scoreFromRecord(
+  record: Record<string, unknown> | null | undefined,
+  key = "score_total",
+): number | null {
+  return asNullableNumber(record?.[key]);
+}
+
+function mapEmpresaApi(raw: Record<string, unknown>): Empresa {
+  const emailReceita = asNullableString(raw.email_receita);
+  const emailEnriquecido = asNullableString(raw.email_enriquecido);
+  const emailFinal = asNullableString(raw.email_final) ?? emailEnriquecido ?? emailReceita;
+  const telefoneReceita = asNullableString(raw.telefone_receita);
+  const telefoneEnriquecido = asNullableString(raw.telefone_enriquecido);
+  const telefoneFinal = asNullableString(raw.telefone_final) ?? telefoneEnriquecido ?? telefoneReceita;
+  const whatsappPublico = asNullableString(raw.whatsapp_publico);
+  const whatsappEnriquecido = asNullableString(raw.whatsapp_enriquecido);
+  const whatsappFinal = asNullableString(raw.whatsapp_final) ?? whatsappEnriquecido ?? whatsappPublico;
+  const confiabilidade = asRecord(raw.confiabilidade);
+  const qualidade = asRecord(raw.qualidade);
+  const priorizacao = asRecord(raw.priorizacao);
+
+  return {
+    cnpj: asNullableString(raw.cnpj) ?? "",
+    razao_social: asNullableString(raw.razao_social) ?? "",
+    nome_fantasia: asNullableString(raw.nome_fantasia),
+    situacao_cadastral: asNullableString(raw.situacao_cadastral),
+    cidade: asNullableString(raw.cidade),
+    uf: asNullableString(raw.uf),
+    cnae_principal: asNullableString(raw.cnae_principal),
+    capital_social: asNullableNumber(raw.capital_social),
+    telefone_padrao: telefoneFinal,
+    telefone_receita: telefoneReceita,
+    email: emailReceita,
+    email_final: emailFinal,
+    site: asNullableString(raw.site),
+    email_enriquecido: emailEnriquecido,
+    telefone_enriquecido: telefoneEnriquecido,
+    telefone_final: telefoneFinal,
+    whatsapp_publico: whatsappPublico,
+    whatsapp_enriquecido: whatsappEnriquecido,
+    whatsapp_final: whatsappFinal,
+    resumo_ia_empresa: asNullableString(asRecord(raw.enriquecimento_ia)?.resumo_empresa),
+    score_icp:
+      scoreFromRecord(priorizacao) ??
+      scoreFromRecord(qualidade) ??
+      scoreFromRecord(confiabilidade),
+    enriquecimento_data: asNullableString(raw.enriquecimento_data),
+    validacao: asRecord(raw.validacao),
+    confiabilidade,
+    qualidade,
+    priorizacao,
+  };
+}
+
+function mergeEmpresaWithEnrichment(
+  empresa: Empresa,
+  enrichment: Record<string, unknown>,
+): Empresa {
+  const contatos = asRecord(enrichment.contatos_web) ?? {};
+  const dadosReceita = asRecord(enrichment.dados_receita) ?? {};
+  const whatsappUltra = asRecord(enrichment.whatsapp_ultra) ?? {};
+  const enriquecimentoIa = asRecord(enrichment.enriquecimento_ia) ?? {};
+
+  const emailReceita = asNullableString(dadosReceita.email_receita) ?? empresa.email;
+  const emailEnriquecido =
+    asNullableString(contatos.email_enriquecido) ?? empresa.email_enriquecido;
+  const telefoneEnriquecido =
+    asNullableString(contatos.telefone_enriquecido) ?? empresa.telefone_enriquecido;
+  const whatsappEnriquecido =
+    asNullableString(contatos.whatsapp_enriquecido) ??
+    asNullableString(whatsappUltra.numero) ??
+    empresa.whatsapp_enriquecido;
+
+  return {
+    ...empresa,
+    site: asNullableString(enrichment.site) ?? empresa.site,
+    email: emailReceita,
+    email_final: emailEnriquecido ?? emailReceita ?? empresa.email_final,
+    email_enriquecido: emailEnriquecido,
+    telefone_padrao: telefoneEnriquecido ?? empresa.telefone_padrao,
+    telefone_final: telefoneEnriquecido ?? empresa.telefone_final,
+    telefone_enriquecido: telefoneEnriquecido,
+    whatsapp_final:
+      whatsappEnriquecido ?? empresa.whatsapp_publico ?? empresa.whatsapp_final,
+    whatsapp_enriquecido: whatsappEnriquecido,
+    resumo_ia_empresa:
+      asNullableString(enriquecimentoIa.resumo_empresa) ?? empresa.resumo_ia_empresa,
+  };
+}
+
+export function normalizeCnpj(cnpj: string): string {
+  return normalizeCnpjValue(cnpj);
+}
+
+export type EmpresaEnriquecimentoPayload = {
+  site?: string | null;
+  contatos_web?: Record<string, unknown> | null;
+  whatsapp_ultra?: Record<string, unknown> | null;
+  enriquecimento_ia?: Record<string, unknown> | null;
+  dados_receita?: Record<string, unknown> | null;
+};
+
+type BuscarEmpresaResponse = {
+  success: boolean;
+  empresa: Record<string, unknown>;
+};
+
+type EnriquecerEmpresaResponse = {
+  success: boolean;
+  cnpj: string;
+  enriquecimento: EmpresaEnriquecimentoPayload;
+  message?: string;
+};
+
+export async function buscarEmpresaPorCnpj(cnpj: string): Promise<Empresa> {
+  const data = await hermesFetch<BuscarEmpresaResponse>(
+    `/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}`,
+  );
+  return mapEmpresaApi(data.empresa ?? {});
+}
+
+export async function enriquecerEmpresaPorCnpj(
+  cnpj: string,
+  empresaBase?: Empresa | null,
+): Promise<{ empresa: Empresa; enrichment: EmpresaEnriquecimentoPayload; message?: string }> {
+  const base = empresaBase ?? (await buscarEmpresaPorCnpj(cnpj));
+  const data = await hermesFetch<EnriquecerEmpresaResponse>(
+    `/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/enriquecer`,
+    { method: "POST" },
+  );
+  const enrichment = (data.enriquecimento ?? {}) as Record<string, unknown>;
+  return {
+    empresa: mergeEmpresaWithEnrichment(base, enrichment),
+    enrichment: data.enriquecimento ?? {},
+    message: data.message,
+  };
+}
+
+export async function salvarResultadoEnriquecimentoCnpj(
+  empresa: Empresa,
+  cnpjConsultado?: string,
+): Promise<void> {
+  const enriquecida = Boolean(
+    empresa.site ||
+    empresa.email_enriquecido ||
+    empresa.telefone_enriquecido ||
+    empresa.whatsapp_enriquecido,
+  );
+
+  await salvarResultadoLocal({
+    timestamp: new Date().toISOString(),
+    config: {
+      termo_base: cnpjConsultado ? `CNPJ ${cnpjConsultado}` : `CNPJ ${empresa.cnpj}`,
+      cidade: empresa.cidade ?? "",
+      uf: empresa.uf ?? "",
+      cidades: empresa.cidade ? [empresa.cidade] : [],
+      ufs: empresa.uf ? [empresa.uf] : [],
+      capital_minimo: 0,
+      capital_maximo: null,
+      limite_empresas: 1,
+      portes: empresa.porte ? [empresa.porte] : [],
+      segmentos: empresa.segmento ? [empresa.segmento] : [],
+      cnaes: empresa.cnae_principal ? [empresa.cnae_principal] : [],
+      incluir_cnae_secundario: false,
+      enriquecimento_web: enriquecida,
+      exigir_contato_acionavel: false,
+      priorizar_com_contato: true,
+      excluir_cnpjs: [],
+      idade_minima_anos: null,
+      idade_maxima_anos: null,
+    },
+    resultado: {
+      total_empresas: 1,
+      empresas: [empresa],
+      filtros_icp: {
+        portes: empresa.porte ? [empresa.porte] : [],
+        segmentos: empresa.segmento ? [empresa.segmento] : [],
+        cidade: empresa.cidade ?? null,
+        uf: empresa.uf ?? null,
+        cidades: empresa.cidade ? [empresa.cidade] : null,
+        ufs: empresa.uf ? [empresa.uf] : null,
+        exigir_contato_acionavel: false,
+      },
+      enriquecimento_web: {
+        total_com_enriquecimento: enriquecida ? 1 : 0,
+        total_sem_enriquecimento: enriquecida ? 0 : 1,
+        porcentagem_enriquecida: enriquecida ? 100 : 0,
+      },
+    },
+  });
 }
 
 // ------------------------

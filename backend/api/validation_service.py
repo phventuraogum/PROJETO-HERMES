@@ -5,13 +5,69 @@ Valida CNPJ, emails, telefones e outros dados para garantir qualidade
 import os
 import re
 import logging
+import asyncio
+import smtplib
+import socket
 from typing import Optional, Dict, Any, Tuple, List
 import httpx
 from datetime import datetime
+from functools import lru_cache
+
+import dns.exception
+import dns.resolver
 
 from config import settings
 
 logger = logging.getLogger(__name__)
+
+EMAIL_DOMINIOS_DESCARTAVEIS = {
+    "10minutemail.com",
+    "mailinator.com",
+    "tempmail.com",
+    "guerrillamail.com",
+    "trashmail.com",
+    "throwaway.email",
+    "sharklasers.com",
+    "dispostable.com",
+    "yopmail.com",
+}
+
+EMAIL_DOMINIOS_GRATUITOS = {
+    "gmail.com",
+    "hotmail.com",
+    "outlook.com",
+    "yahoo.com",
+    "icloud.com",
+    "live.com",
+    "proton.me",
+    "protonmail.com",
+    "uol.com.br",
+    "terra.com.br",
+    "bol.com.br",
+    "ig.com.br",
+}
+
+EMAIL_LOCAL_SUSPEITO = {
+    "example",
+    "exemplo",
+    "fake",
+    "falso",
+    "invalido",
+    "invalid",
+    "naoresponder",
+    "noreply",
+    "no-reply",
+    "teste",
+    "test",
+}
+
+SMTP_ACCEPT_CODES = {250, 251, 252}
+SMTP_REJECT_CODES = {550, 551, 552, 553, 554}
+SMTP_TEMPFAIL_CODES = {421, 450, 451, 452}
+
+EMAIL_SMTP_TIMEOUT = float(os.getenv("HERMES_EMAIL_SMTP_TIMEOUT", "8"))
+EMAIL_SMTP_HELO_DOMAIN = os.getenv("HERMES_EMAIL_SMTP_HELO_DOMAIN", "hermescraper.com")
+EMAIL_SMTP_FROM = os.getenv("HERMES_EMAIL_SMTP_FROM", "")
 
 
 # DDDs válidos no Brasil
@@ -99,7 +155,142 @@ def validar_cnpj(cnpj: str) -> Tuple[bool, Optional[str]]:
     return True, cnpj_limpo
 
 
-def validar_email(email: str) -> Dict[str, Any]:
+def _normalizar_email(email: str) -> str:
+    return str(email or "").strip().lower()
+
+
+@lru_cache(maxsize=512)
+def _consultar_mx_email(dominio: str) -> Dict[str, Any]:
+    resultado = {
+        "mx_valido": False,
+        "mx_hosts": [],
+        "dns_status": "nao_consultado",
+    }
+    dominio = str(dominio or "").strip().lower()
+    if not dominio:
+        return resultado
+
+    resolver = dns.resolver.Resolver()
+    resolver.timeout = 4.0
+    resolver.lifetime = 4.0
+
+    try:
+        respostas = resolver.resolve(dominio, "MX")
+        hosts = sorted(
+            (
+                (int(getattr(item, "preference", 0) or 0), str(item.exchange).rstrip(".").lower())
+                for item in respostas
+            ),
+            key=lambda item: item[0],
+        )
+        resultado["mx_hosts"] = [host for _, host in hosts if host]
+        resultado["mx_valido"] = bool(resultado["mx_hosts"])
+        resultado["dns_status"] = "mx"
+        return resultado
+    except dns.resolver.NoAnswer:
+        pass
+    except dns.resolver.NXDOMAIN:
+        resultado["dns_status"] = "nxdomain"
+        return resultado
+    except dns.resolver.NoNameservers:
+        resultado["dns_status"] = "no_nameservers"
+        return resultado
+    except dns.exception.Timeout:
+        resultado["dns_status"] = "timeout"
+        return resultado
+    except Exception as exc:
+        logger.warning("Erro ao consultar MX de %s: %s", dominio, exc)
+        resultado["dns_status"] = "erro"
+        return resultado
+
+    for record_type in ("A", "AAAA"):
+        try:
+            respostas = resolver.resolve(dominio, record_type)
+            hosts = [dominio for _ in respostas]
+            if hosts:
+                resultado["mx_hosts"] = hosts
+                resultado["mx_valido"] = True
+                resultado["dns_status"] = f"fallback_{record_type.lower()}"
+                return resultado
+        except Exception:
+            continue
+
+    resultado["dns_status"] = "sem_mx"
+    return resultado
+
+
+def _smtp_probe_recipient(email: str, mx_hosts: List[str]) -> Dict[str, Any]:
+    probe_from = EMAIL_SMTP_FROM
+    for host in mx_hosts[:3]:
+        try:
+            with smtplib.SMTP(host=host, port=25, timeout=EMAIL_SMTP_TIMEOUT) as smtp:
+                smtp.ehlo_or_helo_if_needed()
+                if smtp.has_extn("starttls"):
+                    try:
+                        smtp.starttls()
+                        smtp.ehlo()
+                    except smtplib.SMTPException:
+                        pass
+
+                mail_code, mail_msg = smtp.mail(probe_from)
+                if mail_code >= 500:
+                    return {
+                        "smtp_status": "sender_rejected",
+                        "smtp_codigo": mail_code,
+                        "smtp_detalhe": mail_msg.decode(errors="ignore") if isinstance(mail_msg, bytes) else str(mail_msg),
+                        "smtp_host": host,
+                    }
+
+                rcpt_code, rcpt_msg = smtp.rcpt(email)
+                detalhe = rcpt_msg.decode(errors="ignore") if isinstance(rcpt_msg, bytes) else str(rcpt_msg)
+                if rcpt_code in SMTP_ACCEPT_CODES:
+                    return {
+                        "smtp_status": "accepted",
+                        "smtp_codigo": rcpt_code,
+                        "smtp_detalhe": detalhe,
+                        "smtp_host": host,
+                    }
+                if rcpt_code in SMTP_REJECT_CODES:
+                    return {
+                        "smtp_status": "rejected",
+                        "smtp_codigo": rcpt_code,
+                        "smtp_detalhe": detalhe,
+                        "smtp_host": host,
+                    }
+                if rcpt_code in SMTP_TEMPFAIL_CODES:
+                    return {
+                        "smtp_status": "tempfail",
+                        "smtp_codigo": rcpt_code,
+                        "smtp_detalhe": detalhe,
+                        "smtp_host": host,
+                    }
+                return {
+                    "smtp_status": "unknown",
+                    "smtp_codigo": rcpt_code,
+                    "smtp_detalhe": detalhe,
+                    "smtp_host": host,
+                }
+        except (socket.timeout, TimeoutError):
+            continue
+        except smtplib.SMTPConnectError:
+            continue
+        except smtplib.SMTPServerDisconnected:
+            continue
+        except OSError:
+            continue
+        except Exception as exc:
+            logger.debug("SMTP probe falhou para %s em %s: %s", email, host, exc)
+            continue
+
+    return {
+        "smtp_status": "unreachable",
+        "smtp_codigo": None,
+        "smtp_detalhe": "Nenhum MX aceitou conexao SMTP",
+        "smtp_host": None,
+    }
+
+
+def _validar_email_legacy(email: str) -> Dict[str, Any]:
     """
     Valida email de forma robusta.
     
@@ -182,6 +373,144 @@ def validar_email(email: str) -> Dict[str, Any]:
         "dominio_descartavel": dominio_descartavel,
         "score": score
     }
+
+
+def validar_email(email: str, probe_smtp: bool = False) -> Dict[str, Any]:
+    """
+    Valida email em camadas:
+    1. formato
+    2. domínio
+    3. MX/DNS
+    4. probe SMTP sem enviar conteúdo (opcional)
+    """
+    resultado = {
+        "valido": False,
+        "formato_valido": False,
+        "dominio_valido": False,
+        "dominio_descartavel": False,
+        "dominio_corporativo": False,
+        "local_suspeito": False,
+        "mx_valido": False,
+        "mx_hosts": [],
+        "dns_status": "nao_consultado",
+        "smtp_status": "not_checked",
+        "smtp_codigo": None,
+        "smtp_detalhe": None,
+        "smtp_host": None,
+        "score": 0.0,
+        "metodo": "formato",
+        "motivo": "Email ausente ou invalido",
+    }
+    if not email or not isinstance(email, str):
+        return resultado
+
+    email = _normalizar_email(email)
+    email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    formato_valido = bool(re.match(email_regex, email))
+    if not formato_valido:
+        resultado["motivo"] = "Formato de email invalido"
+        return resultado
+
+    local, _, dominio = email.partition("@")
+    dominio_valido = (
+        "." in dominio
+        and len(dominio.split(".")[-1]) >= 2
+        and not dominio.startswith(".")
+        and not dominio.endswith(".")
+    )
+    if not dominio_valido:
+        resultado["formato_valido"] = True
+        resultado["motivo"] = "Dominio invalido"
+        return resultado
+
+    dominio_descartavel = dominio in EMAIL_DOMINIOS_DESCARTAVEIS
+    dominio_corporativo = dominio not in EMAIL_DOMINIOS_GRATUITOS
+    local_suspeito = local in EMAIL_LOCAL_SUSPEITO
+
+    mx_info = _consultar_mx_email(dominio)
+    resultado.update(
+        {
+            "formato_valido": True,
+            "dominio_valido": True,
+            "dominio_descartavel": dominio_descartavel,
+            "dominio_corporativo": dominio_corporativo,
+            "local_suspeito": local_suspeito,
+            "mx_valido": bool(mx_info.get("mx_valido")),
+            "mx_hosts": list(mx_info.get("mx_hosts") or []),
+            "dns_status": mx_info.get("dns_status") or "nao_consultado",
+            "metodo": "mx_lookup",
+            "motivo": "MX encontrado" if mx_info.get("mx_valido") else "Dominio sem MX valido",
+        }
+    )
+
+    score = 0.25
+    score += 0.15
+    if not dominio_descartavel:
+        score += 0.10
+    if dominio_corporativo:
+        score += 0.05
+    if not local_suspeito:
+        score += 0.05
+    if resultado["mx_valido"]:
+        score += 0.25
+    elif resultado["dns_status"].startswith("fallback_"):
+        score += 0.15
+
+    if probe_smtp and resultado["mx_hosts"] and not dominio_descartavel:
+        smtp_info = _smtp_probe_recipient(email, resultado["mx_hosts"])
+        resultado.update(smtp_info)
+        resultado["metodo"] = "smtp_probe"
+        smtp_status = resultado.get("smtp_status")
+        if smtp_status == "accepted":
+            score += 0.15
+            resultado["motivo"] = "Servidor SMTP aceitou o destinatario"
+        elif smtp_status in {"tempfail", "unknown"}:
+            score += 0.05
+            resultado["motivo"] = "Servidor SMTP respondeu sem confirmacao definitiva"
+        elif smtp_status == "rejected":
+            score = 0.0
+            resultado["motivo"] = "Servidor SMTP rejeitou o destinatario"
+        elif smtp_status == "sender_rejected":
+            resultado["motivo"] = "Servidor SMTP rejeitou o remetente tecnico"
+        else:
+            resultado["motivo"] = "Nao foi possivel confirmar o destinatario via SMTP"
+
+    score = max(0.0, min(1.0, score))
+    smtp_status = resultado.get("smtp_status")
+    resultado["score"] = score
+    resultado["valido"] = (
+        resultado["formato_valido"]
+        and resultado["dominio_valido"]
+        and not resultado["dominio_descartavel"]
+        and resultado["mx_valido"]
+        and smtp_status != "rejected"
+        and (not resultado["local_suspeito"] or smtp_status == "accepted")
+    )
+    return resultado
+
+
+async def verificar_email_realtime(email: str) -> Dict[str, Any]:
+    return validar_email(email, probe_smtp=True)
+
+
+async def verificar_email_lote(
+    emails: list[str],
+    *,
+    probe_smtp: bool = True,
+    max_concurrent: int = 4,
+) -> Dict[str, Dict[str, Any]]:
+    resultados: Dict[str, Dict[str, Any]] = {}
+    sem = asyncio.Semaphore(max_concurrent)
+
+    async def _uma(email: str) -> None:
+        normalizado = _normalizar_email(email)
+        if not normalizado or normalizado in resultados:
+            return
+        async with sem:
+            resultados[normalizado] = await asyncio.to_thread(validar_email, normalizado, probe_smtp)
+
+    await asyncio.gather(*[_uma(email) for email in emails if email])
+    return resultados
 
 
 def validar_telefone(telefone: str) -> Dict[str, Any]:

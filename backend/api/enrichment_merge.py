@@ -191,6 +191,14 @@ def _score_email(item: Dict[str, Any], dominio_empresa: Optional[str]) -> float:
         return -1.0
     validacao = validar_email(email)
     score = float(validacao.get("score") or 0) * 100
+    if validacao.get("mx_valido"):
+        score += 18
+    if validacao.get("smtp_status") == "accepted":
+        score += 35
+    elif validacao.get("smtp_status") == "rejected":
+        score -= 250
+    elif validacao.get("dominio_descartavel"):
+        score -= 120
     score += min(float(item.get("confianca") or 0), 100.0) * 0.2
     tipo = item.get("tipo") or _email_tipo(email, str(item.get("origem") or ""))
     score += {"comercial": 35, "empresa": 28, "registro": 8, "institucional": 4, "pessoal": 2}.get(str(tipo), 0)
@@ -376,6 +384,7 @@ def merge_enrichment_payload(existing: Dict[str, Any], payload: Dict[str, Any]) 
         email = str(valor).strip().lower()
         if not email:
             return
+        validacao = validar_email(email)
         if _origem_diretorio_descartada(origem):
             dominio = _dominio_email(email)
             if not dominio_empresa or dominio != dominio_empresa:
@@ -387,6 +396,12 @@ def merge_enrichment_payload(existing: Dict[str, Any], payload: Dict[str, Any]) 
                 "origem": origem,
                 "tipo": tipo or _email_tipo(email, origem),
                 "confianca": confianca,
+                "validado": validacao.get("valido"),
+                "score_validacao": validacao.get("score"),
+                "metodo_validacao": validacao.get("metodo"),
+                "motivo_validacao": validacao.get("motivo"),
+                "mx_valido": validacao.get("mx_valido"),
+                "smtp_status": validacao.get("smtp_status"),
             },
         )
 

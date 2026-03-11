@@ -99,6 +99,35 @@ class MainEnrichmentBudgetTests(unittest.TestCase):
         ):
             api_main.enriquecer_empresas_online([empresa])
 
+    def test_verificar_emails_smtp_remove_rejected_email(self):
+        empresa = self._empresa(
+            cnpj="99999999000199",
+            email_enriquecido="contato@empresa.com.br",
+            score_icp=99,
+        )
+
+        async def _fake_verificar(emails, probe_smtp=True, max_concurrent=4):
+            self.assertTrue(probe_smtp)
+            self.assertEqual(emails, ["contato@empresa.com.br"])
+            return {
+                "contato@empresa.com.br": {
+                    "valido": False,
+                    "score": 0.0,
+                    "metodo": "smtp_probe",
+                    "motivo": "Servidor SMTP rejeitou o destinatario",
+                    "mx_valido": True,
+                    "smtp_status": "rejected",
+                }
+            }
+
+        with mock.patch("api.validation_service.verificar_email_lote", side_effect=_fake_verificar):
+            confirmados = api_main._verificar_emails_smtp([empresa])
+
+        self.assertEqual(confirmados, 0)
+        self.assertIsNone(empresa.email_enriquecido)
+        self.assertFalse(empresa.email_validado)
+        self.assertEqual(empresa.email_status_validacao, "rejected")
+
 
 if __name__ == "__main__":
     unittest.main()

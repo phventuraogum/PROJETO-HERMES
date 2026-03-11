@@ -1,6 +1,7 @@
 import os
 import sys
 import unittest
+from unittest import mock
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
 if BACKEND_DIR not in sys.path:
@@ -10,6 +11,26 @@ from api.enrichment_merge import merge_enrichment_payload
 
 
 class EnrichmentMergeTests(unittest.TestCase):
+    @staticmethod
+    def _fake_validar_email(email: str, probe_smtp: bool = False):
+        domain = email.split("@", 1)[1].lower()
+        mx_valido = domain not in {"ideal-axicom.com"}
+        return {
+            "valido": mx_valido,
+            "formato_valido": True,
+            "dominio_valido": True,
+            "dominio_descartavel": False,
+            "mx_valido": mx_valido,
+            "score": 0.95 if mx_valido else 0.2,
+            "metodo": "mx_lookup",
+            "motivo": "MX encontrado" if mx_valido else "Dominio sem MX valido",
+            "smtp_status": "not_checked",
+        }
+
+    def _merge(self, existing, payload):
+        with mock.patch("api.enrichment_merge.validar_email", side_effect=self._fake_validar_email):
+            return merge_enrichment_payload(existing, payload)
+
     def test_prioritizes_company_contacts_and_enriches_socios(self):
         existing = {
             "cnpj": "12345678000199",
@@ -87,7 +108,7 @@ class EnrichmentMergeTests(unittest.TestCase):
             },
         }
 
-        merged = merge_enrichment_payload(existing, payload)
+        merged = self._merge(existing, payload)
 
         self.assertEqual(merged["email_enriquecido"], "comercial@acme.com.br")
         self.assertEqual(merged["whatsapp_enriquecido"], "5511999998888")
@@ -144,7 +165,7 @@ class EnrichmentMergeTests(unittest.TestCase):
             ],
         }
 
-        merged = merge_enrichment_payload(existing, payload)
+        merged = self._merge(existing, payload)
 
         self.assertEqual(merged["site"], "beta.com.br")
         self.assertEqual(merged["email_enriquecido"], "contato@beta.com.br")
@@ -196,7 +217,7 @@ class EnrichmentMergeTests(unittest.TestCase):
             },
         }
 
-        merged = merge_enrichment_payload(existing, payload)
+        merged = self._merge(existing, payload)
 
         self.assertEqual(merged["email_enriquecido"], "contato@totvs.com.br")
         self.assertEqual(merged["emails_captados"][0]["valor"], "contato@totvs.com.br")
@@ -241,7 +262,7 @@ class EnrichmentMergeTests(unittest.TestCase):
             },
         }
 
-        merged = merge_enrichment_payload(existing, payload)
+        merged = self._merge(existing, payload)
 
         self.assertEqual(merged["telefone_enriquecido"], "(31) 3333-4444")
         self.assertIsNone(merged["whatsapp_enriquecido"])

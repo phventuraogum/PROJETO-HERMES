@@ -9,6 +9,8 @@ import Login from "./pages/Login";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Configure from "./pages/Configure";
+import EnriquecerCnpj from "./pages/EnriquecerCnpj";
+import QueryWorkbench from "./pages/QueryWorkbench";
 import Results from "./pages/Results";
 import Pipeline from "./pages/Pipeline";
 import History from "./pages/History";
@@ -55,6 +57,22 @@ const App = () => (
           element={
             <AuthedLayout>
               <Dashboard />
+            </AuthedLayout>
+          }
+        />
+        <Route
+          path="/cnpj"
+          element={
+            <AuthedLayout>
+              <EnriquecerCnpj />
+            </AuthedLayout>
+          }
+        />
+        <Route
+          path="/query-workbench"
+          element={
+            <AuthedLayout>
+              <QueryWorkbench />
             </AuthedLayout>
           }
         />

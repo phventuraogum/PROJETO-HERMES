@@ -195,6 +195,12 @@ class ContatoCaptado(BaseModel):
     tipo: Optional[str] = None
     origem: Optional[str] = None
     confianca: Optional[float] = None
+    validado: Optional[bool] = None
+    score_validacao: Optional[float] = None
+    metodo_validacao: Optional[str] = None
+    motivo_validacao: Optional[str] = None
+    mx_valido: Optional[bool] = None
+    smtp_status: Optional[str] = None
 
 
 class SocioEstruturado(BaseModel):
@@ -248,6 +254,9 @@ class Empresa(BaseModel):
     # ── enriquecimento web ────────────────────────────────────────────────────
     site: Optional[str] = None
     email_enriquecido: Optional[str] = None
+    email_validado: Optional[bool] = None
+    email_status_validacao: Optional[str] = None
+    email_score_validacao: Optional[float] = None
     telefone_enriquecido: Optional[str] = None
     whatsapp_publico: Optional[str] = None
     whatsapp_enriquecido: Optional[str] = None
@@ -1027,6 +1036,7 @@ SYNC_SOCIOS_PER_COMPANY = _env_int("HERMES_SYNC_SOCIAL_PER_COMPANY", 3, minimum=
 MAX_WHATSAPP_ULTRA_EMPRESAS = _env_int("HERMES_SYNC_WHATSAPP_ULTRA_LIMIT", 6, minimum=0)
 SYNC_WHATSAPP_ULTRA_TIMEOUT = _env_int("HERMES_SYNC_WHATSAPP_ULTRA_TIMEOUT", 20, minimum=10)
 SYNC_EVOLUTION_VERIFY_LIMIT = _env_int("HERMES_SYNC_EVOLUTION_VERIFY_LIMIT", 12, minimum=0)
+SYNC_EMAIL_VERIFY_LIMIT = _env_int("HERMES_SYNC_EMAIL_VERIFY_LIMIT", 6, minimum=0)
 
 
 def _tem_email_acionavel(emp: "Empresa") -> bool:
@@ -1508,6 +1518,86 @@ def _verificar_whatsapps_evolution(empresas: List["Empresa"]) -> int:
                 removidos += 1
 
     print(f"[EVOLUTION CHECK] Resultado: {confirmados} confirmados, {removidos} removidos (inválidos)")
+    return confirmados
+
+
+def _verificar_emails_smtp(empresas: List["Empresa"]) -> int:
+    """
+    Verifica em lote os emails principais via MX + SMTP RCPT TO.
+    Não envia mensagem; só testa se o servidor aceita o destinatário.
+    """
+    import asyncio
+    try:
+        from api.validation_service import verificar_email_lote
+    except ImportError:
+        print("[EMAIL CHECK] validation_service indisponivel, pulando")
+        return 0
+
+    candidatos: list[tuple[Empresa, str]] = []
+    vistos = set()
+    for emp in sorted(empresas, key=lambda item: -(item.score_icp or 0)):
+        email = (emp.email_enriquecido or emp.email or "").strip().lower()
+        if not email or email in vistos:
+            continue
+        vistos.add(email)
+        candidatos.append((emp, email))
+        if SYNC_EMAIL_VERIFY_LIMIT and len(candidatos) >= SYNC_EMAIL_VERIFY_LIMIT:
+            break
+
+    if not candidatos:
+        print("[EMAIL CHECK] Nenhum email para verificar")
+        return 0
+
+    print(f"[EMAIL CHECK] Verificando {len(candidatos)} emails via SMTP...")
+    emails = [email for _, email in candidatos]
+    try:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop and loop.is_running():
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                resultados = pool.submit(
+                    asyncio.run,
+                    verificar_email_lote(emails, probe_smtp=True),
+                ).result()
+        else:
+            resultados = asyncio.run(verificar_email_lote(emails, probe_smtp=True))
+    except Exception as exc:
+        print("[EMAIL CHECK] erro:", repr(exc))
+        return 0
+
+    confirmados = 0
+    removidos = 0
+    for emp, email in candidatos:
+        resultado = resultados.get(email) or {}
+        emp.email_validado = resultado.get("valido")
+        emp.email_status_validacao = resultado.get("smtp_status") or resultado.get("metodo")
+        emp.email_score_validacao = resultado.get("score")
+
+        for item in emp.emails_captados or []:
+            if str(item.valor or "").strip().lower() != email:
+                continue
+            item.validado = resultado.get("valido")
+            item.score_validacao = resultado.get("score")
+            item.metodo_validacao = resultado.get("metodo")
+            item.motivo_validacao = resultado.get("motivo")
+            item.mx_valido = resultado.get("mx_valido")
+            item.smtp_status = resultado.get("smtp_status")
+
+        smtp_status = resultado.get("smtp_status")
+        if smtp_status == "accepted":
+            confirmados += 1
+            continue
+        if smtp_status == "rejected":
+            if emp.email_enriquecido and emp.email_enriquecido.strip().lower() == email:
+                emp.email_enriquecido = None
+            if emp.email and emp.email.strip().lower() == email:
+                emp.email = None
+            removidos += 1
+
+    print(f"[EMAIL CHECK] Resultado: {confirmados} confirmados, {removidos} removidos (invalidos)")
     return confirmados
 
 
@@ -1993,6 +2083,12 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
             _verificar_whatsapps_evolution(empresas)
         except Exception as e:
             print("[EVOLUTION CHECK] erro:", repr(e))
+
+        _emit("enriching", 0, 0, "Validando emails via SMTP...")
+        try:
+            _verificar_emails_smtp(empresas)
+        except Exception as e:
+            print("[EMAIL CHECK] erro:", repr(e))
 
     total_empresas = len(empresas)
 

@@ -196,13 +196,13 @@ async def enriquecer_empresa(
             raise HTTPException(status_code=404, detail="Empresa não encontrada")
         
         # Enriquece
-        resultado = enrichment_service.enrich_company_complete(
+        resultado = await enrichment_service.enrich_company_complete(
             cnpj=str(row[0]),
             razao_social=str(row[1] or ""),
             nome_fantasia=str(row[2]) if row[2] else None,
             cidade=str(row[3]) if row[3] else None,
             uf=str(row[4]) if row[4] else None,
-            cnae_principal=str(row[5]) if row[5] else None
+            cnae=str(row[5]) if row[5] else None
         )
         
         return {
