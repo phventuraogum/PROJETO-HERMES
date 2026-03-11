@@ -6,18 +6,20 @@ import os
 import sys
 import asyncio
 import logging
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 WHATSAPP_ULTRA_CACHE_TTL = max(300, int(os.getenv("HERMES_WHATSAPP_ULTRA_CACHE_TTL", "21600") or 21600))
+WORKER_WHATSAPP_VERIFY_LIMIT = max(0, int(os.getenv("HERMES_WORKER_WHATSAPP_VERIFY_LIMIT", "12") or 12))
 
 
 def _load_company_snapshot(cnpj: str) -> tuple[dict, dict] | tuple[None, None]:
     from api.db_pool import get_connection
 
-    with get_connection(read_only=False) as con:
+    with get_connection(read_only=True) as con:
         row = con.execute(
             """
             SELECT
@@ -28,6 +30,7 @@ def _load_company_snapshot(cnpj: str) -> tuple[dict, dict] | tuple[None, None]:
                 UF,
                 CNAE_PRINCIPAL,
                 site,
+                telefone_receita,
                 email_receita,
                 email_enriquecido,
                 telefone_enriquecido,
@@ -62,12 +65,14 @@ def _load_company_snapshot(cnpj: str) -> tuple[dict, dict] | tuple[None, None]:
         "uf": str(row[4]) if row[4] else None,
         "cnae_principal": str(row[5]) if row[5] else None,
         "site": str(row[6]) if row[6] else None,
-        "email": str(row[7]) if row[7] else None,
-        "email_enriquecido": str(row[8]) if row[8] else None,
-        "telefone_enriquecido": str(row[9]) if row[9] else None,
-        "whatsapp_publico": str(row[10]) if row[10] else None,
-        "whatsapp_enriquecido": str(row[11]) if row[11] else None,
-        "outras_informacoes": str(row[12]) if row[12] else None,
+        "telefone_padrao": str(row[7]) if row[7] else None,
+        "telefone_receita": str(row[7]) if row[7] else None,
+        "email": str(row[8]) if row[8] else None,
+        "email_enriquecido": str(row[9]) if row[9] else None,
+        "telefone_enriquecido": str(row[10]) if row[10] else None,
+        "whatsapp_publico": str(row[11]) if row[11] else None,
+        "whatsapp_enriquecido": str(row[12]) if row[12] else None,
+        "outras_informacoes": str(row[13]) if row[13] else None,
     }
     context = {
         "razao_social": snapshot["razao_social"],
@@ -79,6 +84,15 @@ def _load_company_snapshot(cnpj: str) -> tuple[dict, dict] | tuple[None, None]:
         "socios": [str(item[0]).strip() for item in socios_rows if item and item[0]],
     }
     return snapshot, context
+
+
+def _reset_db_connections() -> None:
+    try:
+        from api.db_pool import close_all_connections
+
+        close_all_connections()
+    except Exception:
+        pass
 
 
 def _persist_merged_snapshot(cnpj: str, merged: dict) -> None:
@@ -141,6 +155,172 @@ def _cache_whatsapp_ultra_payload(cnpj: str, payload: dict) -> None:
         logger.debug("[JOB_ENHANCED] cache skip for %s: %s", cnpj, exc)
 
 
+def _score_whatsapp_candidate(origem: str, *, validado: bool = False, confianca: Optional[float] = None) -> float:
+    origem_norm = str(origem or "").lower()
+    score = 60.0
+    if validado:
+        score += 40
+    if "widget" in origem_norm or "site" in origem_norm:
+        score += 18
+    if "maps" in origem_norm:
+        score += 14
+    if "instagram" in origem_norm or "link in bio" in origem_norm or "linktree" in origem_norm:
+        score += 12
+    if "socio" in origem_norm:
+        score += 8
+    if "telefone" in origem_norm or "receita" in origem_norm or "estabelecimento" in origem_norm:
+        score -= 6
+    if "promoc" in origem_norm:
+        score -= 10
+    if confianca is not None:
+        try:
+            score += min(15.0, max(0.0, float(confianca) * 12.0))
+        except (TypeError, ValueError):
+            pass
+    return score
+
+
+def _collect_whatsapp_candidates(merged: Dict[str, Any]) -> List[Dict[str, Any]]:
+    from api.validation_service import normalizar_whatsapp_br
+
+    best_by_number: Dict[str, Dict[str, Any]] = {}
+
+    def add_candidate(
+        valor: Optional[str],
+        origem: str,
+        *,
+        validado: bool = False,
+        confianca: Optional[float] = None,
+        tipo: str = "whatsapp",
+    ) -> None:
+        numero = normalizar_whatsapp_br(str(valor or ""))
+        if not numero:
+            return
+        candidato = {
+            "valor": numero,
+            "origem": origem,
+            "validado": bool(validado),
+            "tipo": tipo,
+            "confianca": confianca,
+            "score": _score_whatsapp_candidate(origem, validado=bool(validado), confianca=confianca),
+        }
+        atual = best_by_number.get(numero)
+        if atual is None or candidato["score"] > atual["score"]:
+            best_by_number[numero] = candidato
+
+    add_candidate(merged.get("whatsapp_enriquecido"), "Atual enriquecido", validado=False)
+    add_candidate(merged.get("whatsapp_publico"), "Atual publico", validado=False, tipo="publico")
+
+    for item in merged.get("whatsapps_captados") or []:
+        add_candidate(
+            item.get("valor"),
+            str(item.get("origem") or "WhatsApp captado"),
+            validado=bool(item.get("validado")),
+            confianca=item.get("confianca"),
+            tipo=str(item.get("tipo") or "whatsapp"),
+        )
+
+    for item in merged.get("telefones_captados") or []:
+        origem = str(item.get("origem") or "Telefone captado")
+        add_candidate(
+            item.get("valor"),
+            f"{origem} -> WhatsApp",
+            validado=False,
+            confianca=item.get("confianca"),
+            tipo="telefone_promovido",
+        )
+
+    for socio in merged.get("socios_estruturado") or []:
+        nome = str(socio.get("nome") or "").strip() or "Socio"
+        add_candidate(
+            socio.get("whatsapp"),
+            f"Socio {nome}",
+            validado=False,
+            tipo="socio",
+        )
+        add_candidate(
+            socio.get("telefone"),
+            f"Socio {nome} telefone -> WhatsApp",
+            validado=False,
+            tipo="socio_telefone",
+        )
+
+    candidatos = list(best_by_number.values())
+    candidatos.sort(key=lambda item: item["score"], reverse=True)
+    return candidatos[:WORKER_WHATSAPP_VERIFY_LIMIT] if WORKER_WHATSAPP_VERIFY_LIMIT else []
+
+
+def _apply_whatsapp_validation(merged: Dict[str, Any], payload: Dict[str, Any]) -> None:
+    if WORKER_WHATSAPP_VERIFY_LIMIT <= 0:
+        return
+
+    try:
+        from api.validation_service import verificar_whatsapp_lote
+    except Exception as exc:
+        logger.debug("[JOB_ENHANCED] validation service unavailable: %s", exc)
+        return
+
+    candidatos = _collect_whatsapp_candidates(merged)
+    if not candidatos:
+        return
+
+    numeros = [item["valor"] for item in candidatos]
+    try:
+        resultados = asyncio.run(verificar_whatsapp_lote(numeros, max_batch=min(50, len(numeros))))
+    except Exception as exc:
+        logger.warning("[JOB_ENHANCED] whatsapp validation failed for %s: %s", merged.get("cnpj"), exc)
+        return
+
+    captados = [dict(item) for item in (merged.get("whatsapps_captados") or [])]
+    captados_by_number = {str(item.get("valor")): item for item in captados if item.get("valor")}
+
+    confirmado: Optional[Dict[str, Any]] = None
+    for candidato in candidatos:
+        numero = candidato["valor"]
+        info = resultados.get(numero) or {}
+        item = captados_by_number.get(numero)
+        if item is None:
+            item = {
+                "valor": numero,
+                "origem": candidato["origem"],
+                "tipo": candidato.get("tipo") or "whatsapp",
+                "confianca": candidato.get("confianca"),
+            }
+            captados.append(item)
+            captados_by_number[numero] = item
+        item["validado"] = bool(info.get("valido"))
+        item["metodo_validacao"] = info.get("metodo")
+        item["score_validacao"] = info.get("score")
+        if item["validado"] and confirmado is None:
+            confirmado = {"candidato": candidato, "validacao": info}
+
+    if captados:
+        merged["whatsapps_captados"] = captados
+
+    if not confirmado:
+        return
+
+    numero = confirmado["candidato"]["valor"]
+    origem = confirmado["candidato"]["origem"]
+    validacao = confirmado["validacao"]
+    merged["whatsapp_enriquecido"] = numero
+    merged["whatsapp_publico"] = numero
+
+    whatsapp_payload = payload.get("whatsapp_ultra") or payload.get("whatsapp") or {}
+    whatsapp_payload = dict(whatsapp_payload) if isinstance(whatsapp_payload, dict) else {}
+    whatsapp_payload.update(
+        {
+            "numero": numero,
+            "fonte": origem,
+            "validado": True,
+            "metodo_validacao": validacao.get("metodo"),
+            "score_validacao": validacao.get("score"),
+        }
+    )
+    payload["whatsapp_ultra"] = whatsapp_payload
+    logger.info("[JOB_ENHANCED] whatsapp confirmado para %s via %s", merged.get("cnpj"), origem)
+
+
 def enrich_company_by_cnpj_enhanced(cnpj: str) -> dict:
     """
     Enhanced background enrichment via EnrichmentService.
@@ -150,6 +330,7 @@ def enrich_company_by_cnpj_enhanced(cnpj: str) -> dict:
         from api.enrichment_service import EnrichmentService
         from api.enrichment_merge import merge_enrichment_payload
 
+        _reset_db_connections()
         snapshot, context = _load_company_snapshot(cnpj)
         if not snapshot or not context:
             logger.warning(f"[JOB_ENHANCED] CNPJ {cnpj} not found")
@@ -172,6 +353,7 @@ def enrich_company_by_cnpj_enhanced(cnpj: str) -> dict:
         )
 
         merged = merge_enrichment_payload(snapshot, resultado)
+        _apply_whatsapp_validation(merged, resultado)
         _cache_whatsapp_ultra_payload(cnpj, resultado)
 
         if any(
@@ -184,6 +366,7 @@ def enrich_company_by_cnpj_enhanced(cnpj: str) -> dict:
             ]
         ):
             try:
+                _reset_db_connections()
                 _persist_merged_snapshot(cnpj, merged)
             except Exception as e:
                 logger.warning(f"[JOB_ENHANCED] persist failed for {cnpj}: {e}")
