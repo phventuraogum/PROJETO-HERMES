@@ -1299,6 +1299,14 @@ export type ProgressEvent = {
   detail: string;
 };
 
+export type QueryTranslationResult = {
+  query: string;
+  source: "heuristic" | "hybrid" | "openai";
+  config: ProspeccaoConfig;
+  highlights: string[];
+  warnings: string[];
+};
+
 export async function runProspeccaoStream(
   configFront: ProspeccaoConfig,
   onProgress: (evt: ProgressEvent) => void,
@@ -1896,6 +1904,27 @@ export async function enviarParaSDR(
     method: "POST",
     body: JSON.stringify({ cnpjs }),
   });
+}
+
+export async function traduzirQueryEmFiltros(
+  query: string,
+  defaults?: Partial<ProspeccaoConfig>,
+): Promise<QueryTranslationResult> {
+  const raw = await hermesFetch<Record<string, unknown>>("/prospeccao/translate-query", {
+    method: "POST",
+    body: JSON.stringify({
+      query,
+      defaults: defaults ?? null,
+    }),
+  });
+
+  return {
+    query: asNullableString(raw.query) ?? query,
+    source: ((asNullableString(raw.source) as QueryTranslationResult["source"] | null) ?? "heuristic"),
+    config: ((asRecord(raw.config) ?? {}) as unknown) as ProspeccaoConfig,
+    highlights: asArray<string>(raw.highlights).map((item) => String(item)),
+    warnings: asArray<string>(raw.warnings).map((item) => String(item)),
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════

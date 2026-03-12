@@ -89,6 +89,26 @@ class LocalSmokeTests(unittest.TestCase):
         self.assertEqual(historico.status_code, 200)
         self.assertGreaterEqual(len(historico.json()), 1)
 
+    def test_translate_query_endpoint_returns_structured_filters(self):
+        response = self.client.post(
+            "/prospeccao/translate-query",
+            json={
+                "query": "administradoras de condominios em MG com whatsapp valido 30 leads",
+                "defaults": {
+                    "enriquecimento_web": True,
+                    "limite_empresas": 50,
+                },
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["config"]["ufs"], ["MG"])
+        self.assertEqual(payload["config"]["limite_empresas"], 30)
+        self.assertTrue(payload["config"]["exigir_contato_acionavel"])
+        self.assertIn(payload["source"], {"heuristic", "hybrid"})
+
 
 if __name__ == "__main__":
     unittest.main()

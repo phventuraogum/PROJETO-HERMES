@@ -37,9 +37,11 @@ import {
   previewSavedSearch,
   runProspeccaoStream,
   salvarResultadoManual,
+  traduzirQueryEmFiltros,
   type ProgressEvent,
   type ProspeccaoConfig,
   type ProspeccaoResultado,
+  type QueryTranslationResult,
   type SavedSearchSummary,
 } from "@/lib/api";
 
@@ -125,6 +127,9 @@ const QueryWorkbench = () => {
   const [saveDescription, setSaveDescription] = useState("");
   const [savingSearch, setSavingSearch] = useState(false);
   const [runningSavedSearchId, setRunningSavedSearchId] = useState<string | null>(null);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [translatingPrompt, setTranslatingPrompt] = useState(false);
+  const [translationResult, setTranslationResult] = useState<QueryTranslationResult | null>(null);
 
   const payload = useMemo<ProspeccaoConfig>(() => {
     const cidades = parseList(cidadesInput);
@@ -222,6 +227,30 @@ const QueryWorkbench = () => {
     }
   };
 
+  const handleTranslateQuery = async () => {
+    const prompt = aiPrompt.trim();
+    if (!prompt) {
+      toast.info("Descreva a prospeccao em texto livre.");
+      return;
+    }
+
+    try {
+      setTranslatingPrompt(true);
+      const translated = await traduzirQueryEmFiltros(prompt, payload);
+      hydrateForm(translated.config);
+      setTranslationResult(translated);
+      toast.success(
+        translated.source === "hybrid"
+          ? "Query traduzida com IA + heuristica."
+          : "Query traduzida e aplicada ao payload.",
+      );
+    } catch (err: any) {
+      toast.error(err?.message || "Nao foi possivel traduzir a query.");
+    } finally {
+      setTranslatingPrompt(false);
+    }
+  };
+
   const handleRun = async () => {
     try {
       setIsRunning(true);
@@ -311,6 +340,67 @@ const QueryWorkbench = () => {
           </div>
         </div>
       </div>
+
+      <Card className="border-zinc-800 bg-zinc-950/60">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Sparkles className="h-4 w-4 text-cyan-300" />
+            Tradutor de Query
+          </CardTitle>
+          <CardDescription>
+            Escreva como pensaria a busca e o Hermes converte para os filtros reais da prospeccao.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Textarea
+            value={aiPrompt}
+            onChange={(event) => setAiPrompt(event.target.value)}
+            placeholder="Ex.: administradoras de condominios em MG com whatsapp valido, capital acima de 500 mil, 80 leads"
+            className="min-h-[104px] border-zinc-700 bg-zinc-900"
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              className="bg-cyan-500 text-zinc-950 hover:bg-cyan-400"
+              onClick={() => void handleTranslateQuery()}
+              disabled={translatingPrompt}
+            >
+              {translatingPrompt ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+              Aplicar query IA
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="border-zinc-700 bg-zinc-900"
+              onClick={() => setAiPrompt("administradoras de condominios em MG com whatsapp valido, capital acima de 500 mil, 80 leads")}
+            >
+              Exemplo B2B
+            </Button>
+          </div>
+
+          {translationResult && (
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
+                  {translationResult.source === "hybrid" ? "IA + heuristica" : "Heuristica"}
+                </Badge>
+                {translationResult.highlights.map((item) => (
+                  <Badge key={item} variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                    {item}
+                  </Badge>
+                ))}
+              </div>
+              {translationResult.warnings.length > 0 && (
+                <div className="space-y-1 text-xs text-amber-200">
+                  {translationResult.warnings.map((warning) => (
+                    <p key={warning}>{warning}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <Card className="border-zinc-800 bg-zinc-950/60">

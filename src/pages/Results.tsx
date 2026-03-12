@@ -37,9 +37,10 @@ import {
 import { cn } from "@/lib/utils";
 import {
   ContatoCaptado, Empresa, SocioEstruturado,
-  ExecucaoResumo, getResultadosUltimaExecucao,
+  ExecucaoResumo, getResultados, getResultadosUltimaExecucao,
   addBatchToPipeline, addToPipeline,
   addLeadListItems,
+  buscarEmpresasParecidasPorCnpj,
   buscarContactIntelligencePorCnpj,
   buscarStatusBatchContactIntelligencePorCnpj,
   createLeadList,
@@ -48,9 +49,13 @@ import {
   enfileirarContactIntelligencePorCnpj,
   getLeadLists,
   getLeadSuppressions,
+  salvarResultadoManual,
   type LeadListSummary,
   type LeadSuppression,
   type ContactIntelligenceResult,
+  type ProspeccaoConfig,
+  type ProspeccaoResultado,
+  type SimilarCompany,
 } from "@/lib/api";
 import { MensagemModal } from "@/components/MensagemModal";
 import { CrmExportModal } from "@/components/CrmExportModal";
@@ -262,6 +267,56 @@ function intelStatusTone(status?: string | null) {
     default:
       return "border-zinc-700 bg-zinc-900 text-zinc-300";
   }
+}
+
+function similarCompanyToEmpresa(item: SimilarCompany): Empresa {
+  return {
+    cnpj: item.cnpj,
+    razao_social: item.razao_social,
+    nome_fantasia: item.nome_fantasia ?? null,
+    cidade: item.cidade ?? null,
+    uf: item.uf ?? null,
+    cnae_principal: item.cnae_principal ?? null,
+    capital_social: item.capital_social ?? null,
+    porte: item.porte_empresa ?? null,
+    telefone_receita: item.telefone_receita ?? null,
+    telefone_padrao: item.telefone_receita ?? null,
+    email: item.email_receita ?? null,
+    email_final: item.email_receita ?? null,
+    site: item.site ?? null,
+    whatsapp_publico: item.whatsapp ?? null,
+    whatsapp_final: item.whatsapp ?? null,
+    score_icp: Number.isFinite(item.similarity_score) ? item.similarity_score : null,
+    fonte_dados_prioritaria: "similar_companies",
+  };
+}
+
+function buildResultadoSnapshot(config: ProspeccaoConfig | null, empresas: Empresa[]): ProspeccaoResultado {
+  const enriquecidas = empresas.filter((empresa) =>
+    Boolean(empresa.site || empresa.email_enriquecido || empresa.telefone_enriquecido || empresa.whatsapp_enriquecido),
+  ).length;
+
+  return {
+    total_empresas: empresas.length,
+    empresas,
+    filtros_icp: {
+      capital_social_minimo: config?.capital_minimo ?? 0,
+      portes: config?.portes ?? [],
+      segmentos: config?.segmentos ?? [],
+      cidade: config?.cidade ?? null,
+      uf: config?.uf ?? null,
+      cidades: config?.cidades ?? null,
+      ufs: config?.ufs ?? null,
+      volume_por_regiao: null,
+      alinhamento_ideal_compra: null,
+      exigir_contato_acionavel: config?.exigir_contato_acionavel ?? false,
+    },
+    enriquecimento_web: {
+      total_com_enriquecimento: enriquecidas,
+      total_sem_enriquecimento: Math.max(0, empresas.length - enriquecidas),
+      porcentagem_enriquecida: empresas.length > 0 ? (enriquecidas / empresas.length) * 100 : 0,
+    },
+  };
 }
 
 // ─── mini copy button ──────────────────────────────────────────────────────────
@@ -994,6 +1049,7 @@ const ResultsPage = () => {
   const location = useLocation();
   const [empresas, setEmpresas]     = useState<Empresa[]>([]);
   const [execucao, setExecucao]     = useState<ExecucaoResumo | null>(null);
+  const [currentConfig, setCurrentConfig] = useState<ProspeccaoConfig | null>(null);
   const [loading, setLoading]       = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode]     = useState<"cards" | "table">("cards");
@@ -1014,6 +1070,7 @@ const ResultsPage = () => {
   const [suppressSelectionOpen, setSuppressSelectionOpen] = useState(false);
   const [suppressionReason, setSuppressionReason] = useState("");
   const [savingSuppressionSelection, setSavingSuppressionSelection] = useState(false);
+  const [expandingSimilar, setExpandingSimilar] = useState(false);
 
   const refreshLeadRegistryMeta = async () => {
     const [lists, suppressions] = await Promise.all([
@@ -1035,6 +1092,7 @@ const ResultsPage = () => {
           getResultadosUltimaExecucao(),
           refreshLeadRegistryMeta(),
         ]);
+        const fullResult = await getResultados().catch(() => null);
 
         if (resultadosResult.status === "fulfilled") {
           const p = resultadosResult.value;
@@ -1047,6 +1105,10 @@ const ResultsPage = () => {
 
         if (registryResult.status === "rejected") {
           toast.error("Nao foi possivel carregar listas e supressoes.");
+        }
+
+        if (fullResult?.config) {
+          setCurrentConfig(fullResult.config);
         }
       } finally {
         setLoading(false);
@@ -1361,6 +1423,78 @@ const ResultsPage = () => {
     }
   };
 
+  const expandirSelecionadasParecidas = async () => {
+    const selecionadas = getSelectedCompanies();
+    if (selecionadas.length === 0) {
+      toast.info("Selecione pelo menos uma empresa");
+      return;
+    }
+
+    const seeds = selecionadas.slice(0, 5);
+    if (selecionadas.length > seeds.length) {
+      toast.info(`Expandindo as ${seeds.length} primeiras empresas selecionadas para manter a busca fluida.`);
+    }
+
+    try {
+      setExpandingSimilar(true);
+      const batches = await Promise.allSettled(
+        seeds.map((empresa) => buscarEmpresasParecidasPorCnpj(empresa.cnpj, 6)),
+      );
+
+      const known = new Set(empresas.map((empresa) => normalizeCnpj(empresa.cnpj)));
+      const additions: Empresa[] = [];
+
+      for (const batch of batches) {
+        if (batch.status !== "fulfilled") {
+          continue;
+        }
+        for (const item of batch.value) {
+          const normalized = normalizeCnpj(item.cnpj);
+          if (!normalized || known.has(normalized)) {
+            continue;
+          }
+          known.add(normalized);
+          additions.push(similarCompanyToEmpresa(item));
+        }
+      }
+
+      if (additions.length === 0) {
+        toast.info("Nenhuma empresa parecida nova foi encontrada para este lote.");
+        return;
+      }
+
+      const merged = [...empresas, ...additions];
+      setEmpresas(merged);
+      setExecucao((prev) => (prev ? { ...prev, total_empresas: merged.length } : prev));
+      await salvarResultadoManual(currentConfig ?? {
+        termo_base: "",
+        cidade: "",
+        uf: "",
+        cidades: [],
+        ufs: [],
+        capital_minimo: 0,
+        capital_maximo: null,
+        limite_empresas: merged.length,
+        portes: [],
+        segmentos: [],
+        cnaes: [],
+        incluir_cnae_secundario: false,
+        enriquecimento_web: true,
+        exigir_contato_acionavel: false,
+        priorizar_com_contato: true,
+        excluir_cnpjs: [],
+        idade_minima_anos: null,
+        idade_maxima_anos: null,
+      }, buildResultadoSnapshot(currentConfig, merged));
+
+      toast.success(`${additions.length} empresa(s) parecida(s) adicionada(s) aos resultados.`);
+    } catch (err: any) {
+      toast.error("Erro ao expandir empresas parecidas: " + (err?.message || ""));
+    } finally {
+      setExpandingSimilar(false);
+    }
+  };
+
   const resolverSelecionadasContactIntel = async () => {
     const selecionadas = getSelectedCompanies();
     if (selecionadas.length === 0) {
@@ -1619,6 +1753,16 @@ const ResultsPage = () => {
               >
                 {resolvingIntelBatch ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
                 Hunter Core ({selected.size})
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 h-9 border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15"
+                onClick={expandirSelecionadasParecidas}
+                disabled={expandingSimilar}
+              >
+                {expandingSimilar ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+                Parecidas ({Math.min(selected.size, 5)})
               </Button>
               <Button
                 variant="outline"

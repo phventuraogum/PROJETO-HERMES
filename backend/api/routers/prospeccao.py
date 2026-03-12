@@ -8,6 +8,7 @@ from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
 from middleware.auth import require_auth
+from api.query_translator import query_translator_service
 
 try:
     from api.prospeccao_service import rodar_prospeccao_otimizada
@@ -52,6 +53,14 @@ class ProspeccaoResponse(BaseModel):
     total: int
     empresas: List[Dict[str, Any]]
     metadata: Dict[str, Any]
+
+
+class QueryTranslateRequest(BaseModel):
+    query: str = Field(..., min_length=3, description="Texto livre da prospeccao")
+    defaults: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Config atual para preservar campos nao mencionados",
+    )
 
 
 @router.post("", response_model=ProspeccaoResponse)
@@ -149,6 +158,23 @@ async def prospeccao(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/translate-query")
+async def translate_query_prompt(
+    body: QueryTranslateRequest = Body(...),
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    try:
+        translated = await query_translator_service.translate_query(
+            body.query,
+            defaults=body.defaults,
+        )
+        return {"success": True, **translated}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.get("")
