@@ -2,6 +2,8 @@ import importlib
 import os
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -37,31 +39,51 @@ class DbPoolTests(unittest.TestCase):
                     os.environ[key] = value
             self.tmpdir.cleanup()
 
-    def test_upgrades_read_only_connection_to_write_connection(self):
+    def test_write_then_read_succeeds_with_fresh_connections(self):
         with self.db_pool.get_connection(read_only=False) as conn:
             conn.execute("CREATE TABLE IF NOT EXISTS smoke (id INTEGER)")
             conn.execute("DELETE FROM smoke")
             conn.execute("INSERT INTO smoke VALUES (1)")
 
-        self.db_pool.close_all_connections()
-
         with self.db_pool.get_connection(read_only=True) as conn:
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM smoke").fetchone()[0], 1)
 
+    def test_writer_waits_for_active_reader(self):
         with self.db_pool.get_connection(read_only=False) as conn:
-            conn.execute("INSERT INTO smoke VALUES (2)")
-            self.assertEqual(conn.execute("SELECT COUNT(*) FROM smoke").fetchone()[0], 2)
+            conn.execute("CREATE TABLE IF NOT EXISTS smoke (id INTEGER)")
+            conn.execute("DELETE FROM smoke")
 
-    def test_reuses_write_connection_for_followup_read(self):
-        with self.db_pool.get_connection(read_only=False) as writable:
-            writable.execute("CREATE TABLE IF NOT EXISTS smoke (id INTEGER)")
-            writable.execute("DELETE FROM smoke")
-            writable.execute("INSERT INTO smoke VALUES (3)")
-            write_conn_id = id(writable)
+        reader_entered = threading.Event()
+        release_reader = threading.Event()
+        writer_finished = threading.Event()
 
-        with self.db_pool.get_connection(read_only=True) as reader:
-            self.assertEqual(id(reader), write_conn_id)
-            self.assertEqual(reader.execute("SELECT MAX(id) FROM smoke").fetchone()[0], 3)
+        def reader_job():
+            with self.db_pool.get_connection(read_only=True) as conn:
+                reader_entered.set()
+                self.assertEqual(conn.execute("SELECT COUNT(*) FROM smoke").fetchone()[0], 0)
+                release_reader.wait(2)
+
+        def writer_job():
+            with self.db_pool.get_connection(read_only=False) as conn:
+                conn.execute("INSERT INTO smoke VALUES (2)")
+            writer_finished.set()
+
+        reader = threading.Thread(target=reader_job)
+        writer = threading.Thread(target=writer_job)
+        reader.start()
+        self.assertTrue(reader_entered.wait(1))
+
+        writer.start()
+        time.sleep(0.2)
+        self.assertFalse(writer_finished.is_set())
+
+        release_reader.set()
+        reader.join(2)
+        writer.join(2)
+        self.assertTrue(writer_finished.is_set())
+
+        with self.db_pool.get_connection(read_only=True) as conn:
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM smoke").fetchone()[0], 1)
 
     def test_retries_write_connection_on_lock_conflict(self):
         Path(self.db_path).touch()

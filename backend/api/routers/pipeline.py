@@ -2,27 +2,31 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Header, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import Optional
+import json
 import os
 import logging
 import requests
+from uuid import uuid4
 
+from api.db_pool import get_connection
+from config import settings
 from middleware.auth import require_auth
 
 logger = logging.getLogger("hermes.pipeline")
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 PLOOMES_BASE = "https://api2.ploomes.com"
 
 router = APIRouter()
 
 TABLE = "pipeline_leads"
+LOCAL_PIPELINE_TABLE = "pipeline_leads_local"
+LOCAL_OUTBOUND_TABLE = "leads_outbound_local"
 
 
 def _svc_headers():
     return {
-        "apikey": SUPABASE_SERVICE_ROLE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+        "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
         "Content-Type": "application/json",
         "Prefer": "return=representation",
     }
@@ -30,6 +34,249 @@ def _svc_headers():
 
 def _org_id(x_org_id: str | None) -> str:
     return (x_org_id or "").strip() or "default"
+
+
+def _supabase_enabled() -> bool:
+    return bool(settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY)
+
+
+def _json_dumps(value: dict | None) -> str | None:
+    if value is None:
+        return None
+    return json.dumps(value, ensure_ascii=False, default=str)
+
+
+def _json_loads(value: str | None) -> dict | None:
+    if not value:
+        return None
+    try:
+        loaded = json.loads(value)
+    except Exception:
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
+def _normalize_timestamp(value) -> str | None:
+    return value.isoformat() if value else None
+
+
+def _ensure_local_pipeline_schema() -> None:
+    with get_connection(read_only=False) as conn:
+        conn.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS {LOCAL_PIPELINE_TABLE} (
+                id VARCHAR PRIMARY KEY,
+                org_id VARCHAR NOT NULL,
+                cnpj VARCHAR NOT NULL,
+                razao_social VARCHAR NOT NULL,
+                nome_fantasia VARCHAR,
+                email VARCHAR,
+                telefone VARCHAR,
+                telefone_receita VARCHAR,
+                telefone_estab1 VARCHAR,
+                telefone_estab2 VARCHAR,
+                whatsapp VARCHAR,
+                whatsapp_enriquecido VARCHAR,
+                site VARCHAR,
+                cidade VARCHAR,
+                uf VARCHAR,
+                segmento VARCHAR,
+                porte VARCHAR,
+                capital_social DOUBLE,
+                cnae_principal VARCHAR,
+                cnae_descricao VARCHAR,
+                socios_resumo VARCHAR,
+                email_enriquecido VARCHAR,
+                telefone_enriquecido VARCHAR,
+                score_icp DOUBLE,
+                estagio VARCHAR NOT NULL,
+                nota VARCHAR,
+                sdr_status VARCHAR,
+                sdr_enviado_em TIMESTAMP,
+                ploomes_contact_id BIGINT,
+                ploomes_deal_id BIGINT,
+                ploomes_synced BOOLEAN DEFAULT FALSE,
+                empresa_data VARCHAR,
+                adicionado_em TIMESTAMP NOT NULL,
+                atualizado_em TIMESTAMP NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{LOCAL_PIPELINE_TABLE}_org_cnpj ON {LOCAL_PIPELINE_TABLE}(org_id, cnpj)"
+        )
+        conn.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS {LOCAL_OUTBOUND_TABLE} (
+                id VARCHAR PRIMARY KEY,
+                org_id VARCHAR NOT NULL,
+                cnpj VARCHAR NOT NULL,
+                status VARCHAR NOT NULL,
+                email VARCHAR,
+                phone VARCHAR,
+                whatsapp VARCHAR,
+                notes VARCHAR,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            f"CREATE INDEX IF NOT EXISTS idx_{LOCAL_OUTBOUND_TABLE}_org_cnpj_status ON {LOCAL_OUTBOUND_TABLE}(org_id, cnpj, status)"
+        )
+
+
+def _row_to_pipeline_dict(row: tuple) -> dict:
+    return {
+        "id": str(row[0]),
+        "org_id": str(row[1]),
+        "cnpj": str(row[2]),
+        "razao_social": str(row[3]),
+        "nome_fantasia": row[4],
+        "estagio": row[5],
+        "score_icp": float(row[6] or 0),
+        "email": row[7],
+        "telefone": row[8],
+        "telefone_receita": row[9],
+        "telefone_estab1": row[10],
+        "telefone_estab2": row[11],
+        "whatsapp": row[12],
+        "whatsapp_enriquecido": row[13],
+        "site": row[14],
+        "cidade": row[15],
+        "uf": row[16],
+        "segmento": row[17],
+        "porte": row[18],
+        "capital_social": float(row[19]) if row[19] is not None else None,
+        "cnae_principal": row[20],
+        "cnae_descricao": row[21],
+        "socios_resumo": row[22],
+        "email_enriquecido": row[23],
+        "telefone_enriquecido": row[24],
+        "nota": row[25] or "",
+        "sdr_status": row[26],
+        "sdr_enviado_em": _normalize_timestamp(row[27]),
+        "ploomes_contact_id": int(row[28]) if row[28] is not None else None,
+        "ploomes_synced": bool(row[29]),
+        "empresa_data": _json_loads(row[30]),
+        "adicionado_em": _normalize_timestamp(row[31]),
+        "atualizado_em": _normalize_timestamp(row[32]),
+    }
+
+
+def _list_pipeline_local(org: str, estagio: str | None = None) -> list[dict]:
+    _ensure_local_pipeline_schema()
+    query = (
+        f"""
+        SELECT
+            id, org_id, cnpj, razao_social, nome_fantasia, estagio, score_icp,
+            email, telefone, telefone_receita, telefone_estab1, telefone_estab2,
+            whatsapp, whatsapp_enriquecido, site, cidade, uf, segmento, porte,
+            capital_social, cnae_principal, cnae_descricao, socios_resumo,
+            email_enriquecido, telefone_enriquecido, nota, sdr_status,
+            sdr_enviado_em, ploomes_contact_id, ploomes_synced, empresa_data,
+            adicionado_em, atualizado_em
+        FROM {LOCAL_PIPELINE_TABLE}
+        WHERE org_id = ?
+        """
+    )
+    params: list[object] = [org]
+    if estagio:
+        query += " AND estagio = ?"
+        params.append(estagio)
+    query += " ORDER BY score_icp DESC, atualizado_em DESC"
+
+    with get_connection(read_only=True) as conn:
+        rows = conn.execute(query, params).fetchall()
+    return [_row_to_pipeline_dict(row) for row in rows]
+
+
+def _get_local_pipeline_row(org: str, cnpj: str) -> dict | None:
+    _ensure_local_pipeline_schema()
+    with get_connection(read_only=True) as conn:
+        row = conn.execute(
+            f"""
+            SELECT
+                id, org_id, cnpj, razao_social, nome_fantasia, estagio, score_icp,
+                email, telefone, telefone_receita, telefone_estab1, telefone_estab2,
+                whatsapp, whatsapp_enriquecido, site, cidade, uf, segmento, porte,
+                capital_social, cnae_principal, cnae_descricao, socios_resumo,
+                email_enriquecido, telefone_enriquecido, nota, sdr_status,
+                sdr_enviado_em, ploomes_contact_id, ploomes_synced, empresa_data,
+                adicionado_em, atualizado_em
+            FROM {LOCAL_PIPELINE_TABLE}
+            WHERE org_id = ? AND cnpj = ?
+            """,
+            [org, cnpj],
+        ).fetchone()
+    return _row_to_pipeline_dict(row) if row else None
+
+
+def _fetch_pipeline_leads_local(org: str, cnpjs: list[str]) -> list[dict]:
+    _ensure_local_pipeline_schema()
+    if not cnpjs:
+        return []
+    placeholders = ",".join(["?"] * len(cnpjs))
+    with get_connection(read_only=True) as conn:
+        rows = conn.execute(
+            f"""
+            SELECT
+                cnpj, razao_social, nome_fantasia, email, email_enriquecido,
+                telefone, telefone_receita, telefone_estab1, telefone_estab2,
+                telefone_enriquecido, whatsapp, whatsapp_enriquecido, segmento,
+                porte, capital_social, cidade, uf, score_icp, cnae_descricao,
+                socios_resumo, sdr_status
+            FROM {LOCAL_PIPELINE_TABLE}
+            WHERE org_id = ? AND cnpj IN ({placeholders})
+            """,
+            [org, *cnpjs],
+        ).fetchall()
+
+    return [
+        {
+            "cnpj": row[0],
+            "razao_social": row[1],
+            "nome_fantasia": row[2],
+            "email": row[3],
+            "email_enriquecido": row[4],
+            "telefone": row[5],
+            "telefone_receita": row[6],
+            "telefone_estab1": row[7],
+            "telefone_estab2": row[8],
+            "telefone_enriquecido": row[9],
+            "whatsapp": row[10],
+            "whatsapp_enriquecido": row[11],
+            "segmento": row[12],
+            "porte": row[13],
+            "capital_social": float(row[14]) if row[14] is not None else None,
+            "cidade": row[15],
+            "uf": row[16],
+            "score_icp": float(row[17] or 0),
+            "cnae_descricao": row[18],
+            "socios_resumo": row[19],
+            "sdr_status": row[20],
+        }
+        for row in rows
+    ]
+
+
+def _find_active_outbound_cnpjs_local(org: str, cnpjs: list[str]) -> set[str]:
+    _ensure_local_pipeline_schema()
+    if not cnpjs:
+        return set()
+    placeholders = ",".join(["?"] * len(cnpjs))
+    with get_connection(read_only=True) as conn:
+        rows = conn.execute(
+            f"""
+            SELECT cnpj
+            FROM {LOCAL_OUTBOUND_TABLE}
+            WHERE org_id = ?
+              AND cnpj IN ({placeholders})
+              AND status IN ('pending', 'processing', 'email_sent', 'whatsapp_sent', 'contacted', 'responded')
+            """,
+            [org, *cnpjs],
+        ).fetchall()
+    return {str(row[0]) for row in rows}
 
 
 # ─── MODELS ────────────────────────────────────────────────
@@ -289,11 +536,14 @@ def ingest_empresas_to_pipeline(
 
 
 def _fetch_pipeline_leads(org: str, cnpjs: list[str]) -> list[dict]:
+    if not _supabase_enabled():
+        return _fetch_pipeline_leads_local(org, cnpjs)
+
     if not cnpjs:
         return []
 
     r = requests.get(
-        f"{SUPABASE_URL}/rest/v1/{TABLE}",
+        f"{settings.SUPABASE_URL}/rest/v1/{TABLE}",
         headers=_svc_headers(),
         params={
             "select": "cnpj,razao_social,nome_fantasia,email,email_enriquecido,"
@@ -312,11 +562,14 @@ def _fetch_pipeline_leads(org: str, cnpjs: list[str]) -> list[dict]:
 
 
 def _find_active_outbound_cnpjs(org: str, cnpjs: list[str]) -> set[str]:
+    if not _supabase_enabled():
+        return _find_active_outbound_cnpjs_local(org, cnpjs)
+
     if not cnpjs:
         return set()
 
     r = requests.get(
-        f"{SUPABASE_URL}/rest/v1/leads_outbound",
+        f"{settings.SUPABASE_URL}/rest/v1/leads_outbound",
         headers=_svc_headers(),
         params={
             "select": "cnpj,status",
@@ -461,44 +714,92 @@ def _send_pipeline_leads_to_sdr(org: str, payload: EnviarParaSDRRequest) -> dict
             "n8n_triggered": False,
         }
 
-    ins = requests.post(
-        f"{SUPABASE_URL}/rest/v1/leads_outbound",
-        headers=_svc_headers(),
-        json=rows_outbound,
-        timeout=15,
-    )
-    if ins.status_code >= 300:
-        raise HTTPException(status_code=ins.status_code, detail=ins.text)
-
-    update_headers = _svc_headers()
-    update_headers["Prefer"] = "return=minimal"
-    for row in rows_outbound:
-        cnpj = row.get("cnpj")
-        if not cnpj:
-            continue
-        update_data: dict = {
-            "sdr_status": "enviado",
-            "sdr_enviado_em": datetime.now(timezone.utc).isoformat(),
-        }
-        if row.get("ploomes_contact_id"):
-            update_data["ploomes_contact_id"] = row["ploomes_contact_id"]
-            update_data["ploomes_synced"] = True
-        if row.get("ploomes_deal_id"):
-            update_data["ploomes_deal_id"] = row["ploomes_deal_id"]
-
-        update_resp = requests.patch(
-            f"{SUPABASE_URL}/rest/v1/{TABLE}",
-            headers=update_headers,
-            params={"org_id": f"eq.{org}", "cnpj": f"eq.{cnpj}"},
-            json=update_data,
-            timeout=10,
+    if not _supabase_enabled():
+        _ensure_local_pipeline_schema()
+        now_iso = datetime.now(timezone.utc).isoformat()
+        with get_connection(read_only=False) as conn:
+            for row in rows_outbound:
+                conn.execute(
+                    f"""
+                    INSERT INTO {LOCAL_OUTBOUND_TABLE} (
+                        id, org_id, cnpj, status, email, phone, whatsapp, notes, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    [
+                        str(uuid4()),
+                        org,
+                        row.get("cnpj"),
+                        row.get("status") or "pending",
+                        row.get("email"),
+                        row.get("phone"),
+                        row.get("whatsapp"),
+                        row.get("notes"),
+                        now_iso,
+                        now_iso,
+                    ],
+                )
+                conn.execute(
+                    f"""
+                    UPDATE {LOCAL_PIPELINE_TABLE}
+                    SET
+                        sdr_status = ?,
+                        sdr_enviado_em = ?,
+                        ploomes_contact_id = ?,
+                        ploomes_deal_id = ?,
+                        ploomes_synced = ?,
+                        atualizado_em = ?
+                    WHERE org_id = ? AND cnpj = ?
+                    """,
+                    [
+                        "enviado",
+                        now_iso,
+                        row.get("ploomes_contact_id"),
+                        row.get("ploomes_deal_id"),
+                        bool(row.get("ploomes_contact_id")),
+                        now_iso,
+                        org,
+                        row.get("cnpj"),
+                    ],
+                )
+    else:
+        ins = requests.post(
+            f"{settings.SUPABASE_URL}/rest/v1/leads_outbound",
+            headers=_svc_headers(),
+            json=rows_outbound,
+            timeout=15,
         )
-        if update_resp.status_code >= 300:
-            logger.warning(
-                "Falha ao atualizar pipeline_leads apos envio SDR (%s): %s",
-                cnpj,
-                update_resp.text[:200],
+        if ins.status_code >= 300:
+            raise HTTPException(status_code=ins.status_code, detail=ins.text)
+
+        update_headers = _svc_headers()
+        update_headers["Prefer"] = "return=minimal"
+        for row in rows_outbound:
+            cnpj = row.get("cnpj")
+            if not cnpj:
+                continue
+            update_data: dict = {
+                "sdr_status": "enviado",
+                "sdr_enviado_em": datetime.now(timezone.utc).isoformat(),
+            }
+            if row.get("ploomes_contact_id"):
+                update_data["ploomes_contact_id"] = row["ploomes_contact_id"]
+                update_data["ploomes_synced"] = True
+            if row.get("ploomes_deal_id"):
+                update_data["ploomes_deal_id"] = row["ploomes_deal_id"]
+
+            update_resp = requests.patch(
+                f"{settings.SUPABASE_URL}/rest/v1/{TABLE}",
+                headers=update_headers,
+                params={"org_id": f"eq.{org}", "cnpj": f"eq.{cnpj}"},
+                json=update_data,
+                timeout=10,
             )
+            if update_resp.status_code >= 300:
+                logger.warning(
+                    "Falha ao atualizar pipeline_leads apos envio SDR (%s): %s",
+                    cnpj,
+                    update_resp.text[:200],
+                )
 
     n8n_webhook = os.getenv("N8N_OUTBOUND_WEBHOOK", "")
     n8n_triggered = False
@@ -539,6 +840,9 @@ def list_pipeline(
     estagio: str | None = Query(default=None),
 ):
     org = _org_id(x_org_id)
+    if not _supabase_enabled():
+        return _list_pipeline_local(org, estagio)
+
     params = {
         "select": "*",
         "org_id": f"eq.{org}",
@@ -548,7 +852,7 @@ def list_pipeline(
         params["estagio"] = f"eq.{estagio}"
 
     r = requests.get(
-        f"{SUPABASE_URL}/rest/v1/{TABLE}",
+        f"{settings.SUPABASE_URL}/rest/v1/{TABLE}",
         headers=_svc_headers(),
         params=params,
         timeout=15,
@@ -570,8 +874,116 @@ def add_to_pipeline(
     emp = payload.empresa
     auto_send_sdr = _auto_send_sdr_enabled(payload.auto_enviar_sdr)
 
+    if not _supabase_enabled():
+        _ensure_local_pipeline_schema()
+        existing = _get_local_pipeline_row(org, emp.cnpj)
+        if existing:
+            response = {"status": "exists", "id": existing["id"], "sdr_auto_enviado": False}
+            if auto_send_sdr and not existing.get("sdr_status"):
+                sdr_result = _send_pipeline_leads_to_sdr(
+                    org,
+                    EnviarParaSDRRequest(
+                        cnpjs=[emp.cnpj],
+                        ploomes_api_key=payload.ploomes_api_key,
+                        ploomes_funnel_id=payload.ploomes_funnel_id,
+                        create_ploomes_deal=payload.create_ploomes_deal,
+                    ),
+                )
+                response["sdr_auto_enviado"] = bool(sdr_result.get("enviados"))
+                response["sdr_result"] = sdr_result
+            return response
+
+        row = {
+            "org_id": org,
+            "id": str(uuid4()),
+            "cnpj": emp.cnpj,
+            "razao_social": emp.razao_social,
+            "nome_fantasia": emp.nome_fantasia,
+            "email": emp.email,
+            "telefone": emp.telefone,
+            "telefone_receita": emp.telefone_receita,
+            "telefone_estab1": emp.telefone_estab1,
+            "telefone_estab2": emp.telefone_estab2,
+            "whatsapp": emp.whatsapp,
+            "whatsapp_enriquecido": emp.whatsapp_enriquecido,
+            "site": emp.site,
+            "cidade": emp.cidade,
+            "uf": emp.uf,
+            "segmento": emp.segmento,
+            "porte": emp.porte,
+            "capital_social": emp.capital_social,
+            "cnae_principal": emp.cnae_principal,
+            "cnae_descricao": emp.cnae_descricao,
+            "socios_resumo": emp.socios_resumo,
+            "email_enriquecido": emp.email_enriquecido,
+            "telefone_enriquecido": emp.telefone_enriquecido,
+            "score_icp": emp.score_icp or 0,
+            "estagio": payload.estagio,
+            "nota": payload.nota,
+            "empresa_data": emp.model_dump(),
+            "adicionado_em": datetime.now(timezone.utc).isoformat(),
+            "atualizado_em": datetime.now(timezone.utc).isoformat(),
+        }
+        with get_connection(read_only=False) as conn:
+            conn.execute(
+                f"""
+                INSERT INTO {LOCAL_PIPELINE_TABLE} (
+                    id, org_id, cnpj, razao_social, nome_fantasia, email, telefone, telefone_receita,
+                    telefone_estab1, telefone_estab2, whatsapp, whatsapp_enriquecido, site, cidade, uf,
+                    segmento, porte, capital_social, cnae_principal, cnae_descricao, socios_resumo,
+                    email_enriquecido, telefone_enriquecido, score_icp, estagio, nota, empresa_data,
+                    adicionado_em, atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    row["id"],
+                    row["org_id"],
+                    row["cnpj"],
+                    row["razao_social"],
+                    row["nome_fantasia"],
+                    row["email"],
+                    row["telefone"],
+                    row["telefone_receita"],
+                    row["telefone_estab1"],
+                    row["telefone_estab2"],
+                    row["whatsapp"],
+                    row["whatsapp_enriquecido"],
+                    row["site"],
+                    row["cidade"],
+                    row["uf"],
+                    row["segmento"],
+                    row["porte"],
+                    row["capital_social"],
+                    row["cnae_principal"],
+                    row["cnae_descricao"],
+                    row["socios_resumo"],
+                    row["email_enriquecido"],
+                    row["telefone_enriquecido"],
+                    row["score_icp"],
+                    row["estagio"],
+                    row["nota"],
+                    _json_dumps(row["empresa_data"]),
+                    row["adicionado_em"],
+                    row["atualizado_em"],
+                ],
+            )
+        response = {"status": "added", "id": row["id"], "sdr_auto_enviado": False}
+        if auto_send_sdr:
+            sdr_result = _send_pipeline_leads_to_sdr(
+                org,
+                EnviarParaSDRRequest(
+                    cnpjs=[emp.cnpj],
+                    ploomes_api_key=payload.ploomes_api_key,
+                    ploomes_funnel_id=payload.ploomes_funnel_id,
+                    create_ploomes_deal=payload.create_ploomes_deal,
+                ),
+            )
+            response["sdr_auto_enviado"] = bool(sdr_result.get("enviados"))
+            response["sdr_result"] = sdr_result
+        return response
+
     check = requests.get(
-        f"{SUPABASE_URL}/rest/v1/{TABLE}",
+        f"{settings.SUPABASE_URL}/rest/v1/{TABLE}",
         headers=_svc_headers(),
         params={
             "select": "id,sdr_status",
@@ -599,6 +1011,7 @@ def add_to_pipeline(
 
     row = {
         "org_id": org,
+        "id": str(uuid4()),
         "cnpj": emp.cnpj,
         "razao_social": emp.razao_social,
         "nome_fantasia": emp.nome_fantasia,
@@ -624,10 +1037,12 @@ def add_to_pipeline(
         "estagio": payload.estagio,
         "nota": payload.nota,
         "empresa_data": emp.model_dump(),
+        "adicionado_em": datetime.now(timezone.utc).isoformat(),
+        "atualizado_em": datetime.now(timezone.utc).isoformat(),
     }
 
     r = requests.post(
-        f"{SUPABASE_URL}/rest/v1/{TABLE}",
+        f"{settings.SUPABASE_URL}/rest/v1/{TABLE}",
         headers=_svc_headers(),
         json=row,
         timeout=10,
@@ -682,8 +1097,16 @@ def move_lead(
     x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
 ):
     org = _org_id(x_org_id)
+    if not _supabase_enabled():
+        _ensure_local_pipeline_schema()
+        with get_connection(read_only=False) as conn:
+            conn.execute(
+                f"UPDATE {LOCAL_PIPELINE_TABLE} SET estagio = ?, atualizado_em = ? WHERE org_id = ? AND cnpj = ?",
+                [payload.estagio, datetime.now(timezone.utc).isoformat(), org, cnpj],
+            )
+        return {"ok": True}
     r = requests.patch(
-        f"{SUPABASE_URL}/rest/v1/{TABLE}",
+        f"{settings.SUPABASE_URL}/rest/v1/{TABLE}",
         headers=_svc_headers(),
         params={"org_id": f"eq.{org}", "cnpj": f"eq.{cnpj}"},
         json={"estagio": payload.estagio},
@@ -704,8 +1127,16 @@ def update_nota(
     x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
 ):
     org = _org_id(x_org_id)
+    if not _supabase_enabled():
+        _ensure_local_pipeline_schema()
+        with get_connection(read_only=False) as conn:
+            conn.execute(
+                f"UPDATE {LOCAL_PIPELINE_TABLE} SET nota = ?, atualizado_em = ? WHERE org_id = ? AND cnpj = ?",
+                [payload.nota, datetime.now(timezone.utc).isoformat(), org, cnpj],
+            )
+        return {"ok": True}
     r = requests.patch(
-        f"{SUPABASE_URL}/rest/v1/{TABLE}",
+        f"{settings.SUPABASE_URL}/rest/v1/{TABLE}",
         headers=_svc_headers(),
         params={"org_id": f"eq.{org}", "cnpj": f"eq.{cnpj}"},
         json={"nota": payload.nota},
@@ -725,8 +1156,20 @@ def remove_from_pipeline(
     x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
 ):
     org = _org_id(x_org_id)
+    if not _supabase_enabled():
+        _ensure_local_pipeline_schema()
+        with get_connection(read_only=False) as conn:
+            conn.execute(
+                f"DELETE FROM {LOCAL_PIPELINE_TABLE} WHERE org_id = ? AND cnpj = ?",
+                [org, cnpj],
+            )
+            conn.execute(
+                f"DELETE FROM {LOCAL_OUTBOUND_TABLE} WHERE org_id = ? AND cnpj = ?",
+                [org, cnpj],
+            )
+        return {"ok": True}
     r = requests.delete(
-        f"{SUPABASE_URL}/rest/v1/{TABLE}",
+        f"{settings.SUPABASE_URL}/rest/v1/{TABLE}",
         headers=_svc_headers(),
         params={"org_id": f"eq.{org}", "cnpj": f"eq.{cnpj}"},
         timeout=10,

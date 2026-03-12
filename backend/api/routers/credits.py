@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Credits & Billing"])
 _warned_missing_organizations_table = False
 _warned_missing_plans_table = False
+_warned_missing_supabase = False
 
 # ── Supabase helper ─────────────────────────────────────────────────────────
 
@@ -51,6 +52,18 @@ def _supabase_headers() -> dict:
 
 def _supabase_url(path: str) -> str:
     return f"{settings.SUPABASE_URL}/rest/v1{path}"
+
+
+def _supabase_enabled() -> bool:
+    return bool(settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY)
+
+
+def _log_missing_supabase_once() -> None:
+    global _warned_missing_supabase
+    if _warned_missing_supabase:
+        return
+    _warned_missing_supabase = True
+    logger.warning("Supabase nao configurado; usando fallbacks locais para billing/credits.")
 
 
 def _is_organizations_path(path: str) -> bool:
@@ -78,6 +91,9 @@ def _log_missing_plans_table_once() -> None:
 
 
 async def _supabase_get(path: str, params: dict = None) -> list:
+    if not _supabase_enabled():
+        _log_missing_supabase_once()
+        return []
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.get(_supabase_url(path), headers=_supabase_headers(), params=params or {})
         if r.status_code >= 400:
@@ -90,6 +106,9 @@ async def _supabase_get(path: str, params: dict = None) -> list:
 
 
 async def _load_active_plans() -> tuple[list[dict], str]:
+    if not _supabase_enabled():
+        _log_missing_supabase_once()
+        return list_fallback_plans(), "fallback"
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.get(_supabase_url("/plans"), headers=_supabase_headers(), params={
             "is_active": "eq.true",
@@ -107,6 +126,13 @@ async def _load_active_plans() -> tuple[list[dict], str]:
 
 
 async def _require_plan_from_supabase(plan_name: str) -> dict:
+    if not _supabase_enabled():
+        _log_missing_supabase_once()
+        fallback = next((plan for plan in list_fallback_plans() if plan.get("name") == plan_name), None)
+        if fallback:
+            return fallback
+        raise HTTPException(status_code=400, detail="Plano nao encontrado.")
+
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.get(
             _supabase_url("/plans"),
@@ -130,6 +156,9 @@ async def _require_plan_from_supabase(plan_name: str) -> dict:
 
 
 async def _supabase_post(path: str, data: dict) -> Optional[dict]:
+    if not _supabase_enabled():
+        _log_missing_supabase_once()
+        return None
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.post(_supabase_url(path), headers=_supabase_headers(), json=data)
         if r.status_code >= 400:
@@ -140,6 +169,9 @@ async def _supabase_post(path: str, data: dict) -> Optional[dict]:
 
 
 async def _supabase_patch(path: str, data: dict) -> Optional[dict]:
+    if not _supabase_enabled():
+        _log_missing_supabase_once()
+        return None
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.patch(_supabase_url(path), headers=_supabase_headers(), json=data)
         if r.status_code >= 400:
@@ -153,6 +185,9 @@ async def _supabase_patch(path: str, data: dict) -> Optional[dict]:
 
 
 async def _supabase_rpc(fn: str, params: dict) -> Optional[dict]:
+    if not _supabase_enabled():
+        _log_missing_supabase_once()
+        return None
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.post(
             f"{settings.SUPABASE_URL}/rest/v1/rpc/{fn}",
