@@ -693,6 +693,32 @@ export type ContactIntelligenceResult = {
   generated_at?: string | null;
 };
 
+export type SimilarCompany = {
+  cnpj: string;
+  razao_social: string;
+  nome_fantasia?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  cnae_principal?: string | null;
+  porte_empresa?: string | null;
+  capital_social?: number | null;
+  email_receita?: string | null;
+  telefone_receita?: string | null;
+  site?: string | null;
+  whatsapp?: string | null;
+  similarity_score: number;
+};
+
+export type ExternalSignal = {
+  id?: string | null;
+  watch_id?: string | null;
+  cnpj: string;
+  signal_type: string;
+  title: string;
+  payload?: Record<string, unknown> | null;
+  created_at?: string | null;
+};
+
 type BuscarEmpresaResponse = {
   success: boolean;
   empresa: Record<string, unknown>;
@@ -738,6 +764,20 @@ type ContactIntelligenceBatchResponse = {
   success: boolean;
   total?: number;
   items?: ContactIntelligenceBatchItemResponse[] | null;
+};
+
+type SimilarCompaniesResponse = {
+  success: boolean;
+  cnpj?: string | null;
+  items?: Record<string, unknown>[] | null;
+  total?: number;
+};
+
+type ExternalSignalsResponse = {
+  success: boolean;
+  cnpj?: string | null;
+  signals?: Record<string, unknown>[] | null;
+  total?: number;
 };
 
 export type ContactIntelligenceBatchItem = {
@@ -937,6 +977,65 @@ export async function enfileirarContactIntelligenceBatchPorCnpj(
     intelligence: mapContactIntelligence(asRecord(item.intelligence)),
     error: asNullableString(item.error),
   })).filter((item) => item.cnpj);
+}
+
+function mapSimilarCompany(raw: Record<string, unknown>): SimilarCompany {
+  return {
+    cnpj: asNullableString(raw.cnpj) ?? "",
+    razao_social: asNullableString(raw.razao_social) ?? "",
+    nome_fantasia: asNullableString(raw.nome_fantasia),
+    cidade: asNullableString(raw.cidade),
+    uf: asNullableString(raw.uf),
+    cnae_principal: asNullableString(raw.cnae_principal),
+    porte_empresa: asNullableString(raw.porte_empresa),
+    capital_social: asNullableNumber(raw.capital_social),
+    email_receita: asNullableString(raw.email_receita),
+    telefone_receita: asNullableString(raw.telefone_receita),
+    site: asNullableString(raw.site),
+    whatsapp: asNullableString(raw.whatsapp),
+    similarity_score: asNullableNumber(raw.similarity_score) ?? 0,
+  };
+}
+
+function mapExternalSignal(raw: Record<string, unknown>, fallbackCnpj?: string): ExternalSignal {
+  return {
+    id: asNullableString(raw.id),
+    watch_id: asNullableString(raw.watch_id),
+    cnpj: asNullableString(raw.cnpj) ?? fallbackCnpj ?? "",
+    signal_type: asNullableString(raw.signal_type) ?? "",
+    title: asNullableString(raw.title) ?? "",
+    payload: asRecord(raw.payload),
+    created_at: asNullableString(raw.created_at),
+  };
+}
+
+export async function buscarEmpresasParecidasPorCnpj(
+  cnpj: string,
+  limit = 12,
+): Promise<SimilarCompany[]> {
+  const data = await hermesFetch<SimilarCompaniesResponse>(
+    appendFreshQuery(
+      `/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/similar-companies?limit=${Math.max(1, Math.min(limit, 25))}`,
+    ),
+    { cache: "no-store" },
+  );
+  return asArray<Record<string, unknown>>(data.items)
+    .map(mapSimilarCompany)
+    .filter((item) => item.cnpj);
+}
+
+export async function buscarSinaisExternosPorCnpj(cnpj: string): Promise<ExternalSignal[]> {
+  const normalized = normalizeCnpjValue(cnpj);
+  const data = await hermesFetch<ExternalSignalsResponse>(
+    appendFreshQuery(`/empresas/${encodeURIComponent(normalized)}/external-signals`),
+    {
+      method: "POST",
+      cache: "no-store",
+    },
+  );
+  return asArray<Record<string, unknown>>(data.signals).map((item) =>
+    mapExternalSignal(item, normalized),
+  );
 }
 
 export async function buscarStatusBatchContactIntelligencePorCnpj(

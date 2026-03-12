@@ -3,22 +3,28 @@ Endpoints de Empresas Individuais
 Para buscar, validar e enriquecer empresas específicas.
 Todos os endpoints requerem autenticação.
 """
-from fastapi import APIRouter, HTTPException, Path, Query, Depends, Body
+from fastapi import APIRouter, HTTPException, Path, Query, Depends, Body, Request
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel
 
+from api.company_intelligence_extras import company_intelligence_extras_service
 from api.db_pool import get_connection
 from api.contact_intelligence import contact_intelligence_service
 from api.contact_intelligence_queue import (
     get_contact_intelligence_status,
     queue_contact_intelligence,
 )
+from api.lead_registry import lead_registry_service
 from api.validation_service import validar_cnpj, verificar_cnpj_receita, calcular_score_confiabilidade
 from api.quality_service import QualityService, calcular_score_priorizacao
 from api.enrichment_service import enrichment_service
 from middleware.auth import require_auth
 
 router = APIRouter(prefix="/empresas", tags=["Empresas"])
+
+
+def _org_id(request: Request) -> str:
+    return (request.headers.get("X-Org-Id") or "").strip() or "default"
 
 
 class ContactIntelligenceRequest(BaseModel):
@@ -243,6 +249,55 @@ async def buscar_empresa(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{cnpj}/similar-companies")
+async def buscar_empresas_parecidas(
+    cnpj: str = Path(..., description="CNPJ da empresa"),
+    limit: int = Query(12, ge=1, le=25, description="Quantidade maxima de empresas parecidas"),
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    cnpj_valido, cnpj_limpo = validar_cnpj(cnpj)
+    if not cnpj_valido:
+        raise HTTPException(status_code=400, detail="CNPJ invalido")
+
+    try:
+        similares = company_intelligence_extras_service.find_similar_companies(cnpj_limpo, limit=limit)
+        return {
+            "success": True,
+            "cnpj": cnpj_limpo,
+            "items": similares,
+            "total": len(similares),
+        }
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/{cnpj}/external-signals")
+async def buscar_sinais_externos_empresa(
+    request: Request,
+    cnpj: str = Path(..., description="CNPJ da empresa"),
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    cnpj_valido, cnpj_limpo = validar_cnpj(cnpj)
+    if not cnpj_valido:
+        raise HTTPException(status_code=400, detail="CNPJ invalido")
+
+    try:
+        signals = await company_intelligence_extras_service.fetch_external_signals(cnpj_limpo)
+        persisted = lead_registry_service.record_company_signals(_org_id(request), cnpj_limpo, signals)
+        return {
+            "success": True,
+            "cnpj": cnpj_limpo,
+            "signals": persisted if persisted else signals,
+            "total": len(persisted if persisted else signals),
+        }
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.post("/{cnpj}/enriquecer")

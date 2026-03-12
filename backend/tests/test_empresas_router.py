@@ -14,6 +14,74 @@ from api.routers import empresas as empresas_router
 
 
 class EmpresasRouterTests(unittest.IsolatedAsyncioTestCase):
+    async def test_buscar_empresas_parecidas_uses_extras_service(self):
+        with mock.patch.object(
+            empresas_router,
+            "validar_cnpj",
+            return_value=(True, "15103354000139"),
+        ), mock.patch.object(
+            empresas_router.company_intelligence_extras_service,
+            "find_similar_companies",
+            return_value=[
+                {"cnpj": "11111111000100", "razao_social": "ENERGIA SUL LTDA", "similarity_score": 82.0}
+            ],
+        ) as mocked_service:
+            result = await empresas_router.buscar_empresas_parecidas(
+                "15103354000139",
+                limit=8,
+                _user={},
+            )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["total"], 1)
+        self.assertEqual(result["items"][0]["cnpj"], "11111111000100")
+        mocked_service.assert_called_once_with("15103354000139", limit=8)
+
+    async def test_buscar_sinais_externos_empresa_persists_results(self):
+        request = mock.Mock()
+        request.headers = {"X-Org-Id": "org-a"}
+
+        async def fake_fetch(cnpj):
+            self.assertEqual(cnpj, "15103354000139")
+            return [
+                {
+                    "signal_type": "jobs_signal",
+                    "title": "Sinal de vagas: Trabalhe conosco",
+                    "payload": {"url": "https://empresa.com/jobs"},
+                }
+            ]
+
+        with mock.patch.object(
+            empresas_router,
+            "validar_cnpj",
+            return_value=(True, "15103354000139"),
+        ), mock.patch.object(
+            empresas_router.company_intelligence_extras_service,
+            "fetch_external_signals",
+            side_effect=fake_fetch,
+        ), mock.patch.object(
+            empresas_router.lead_registry_service,
+            "record_company_signals",
+            return_value=[
+                {
+                    "id": "sig-1",
+                    "cnpj": "15103354000139",
+                    "signal_type": "jobs_signal",
+                    "title": "Sinal de vagas: Trabalhe conosco",
+                }
+            ],
+        ) as mocked_record:
+            result = await empresas_router.buscar_sinais_externos_empresa(
+                request,
+                "15103354000139",
+                _user={},
+            )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["total"], 1)
+        self.assertEqual(result["signals"][0]["signal_type"], "jobs_signal")
+        mocked_record.assert_called_once()
+
     async def test_buscar_empresa_handles_legacy_enrichment_schema(self):
         executed_sql = []
 

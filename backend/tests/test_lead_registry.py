@@ -246,6 +246,44 @@ class LeadRegistryTests(unittest.TestCase):
         self.assertEqual(self.service.list_watchlist("org-a"), [])
         self.assertEqual(self.service.list_company_signals("org-a", cnpj="15103354000139"), [])
 
+    def test_record_company_signals_deduplicates_same_payload(self):
+        self.service.upsert_watch_company(
+            "org-a",
+            {
+                "cnpj": "15.103.354/0001-39",
+                "razao_social": "DEODE INOVACAO E EFICIENCIA EM ENERGIA LTDA",
+            },
+            source="manual",
+        )
+
+        first = self.service.record_company_signals(
+            "org-a",
+            "15103354000139",
+            [
+                {
+                    "signal_type": "jobs_signal",
+                    "title": "Sinal de vagas: Trabalhe conosco",
+                    "payload": {"url": "https://empresa.com/jobs", "snippet": "Estamos contratando"},
+                }
+            ],
+        )
+        second = self.service.record_company_signals(
+            "org-a",
+            "15103354000139",
+            [
+                {
+                    "signal_type": "jobs_signal",
+                    "title": "Sinal de vagas: Trabalhe conosco",
+                    "payload": {"url": "https://empresa.com/jobs", "snippet": "Estamos contratando"},
+                }
+            ],
+        )
+
+        self.assertEqual(len(first), 1)
+        self.assertEqual(len(second), 0)
+        signals = self.service.list_company_signals("org-a", cnpj="15103354000139")
+        self.assertEqual(len(signals), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

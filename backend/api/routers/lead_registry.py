@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from api.company_intelligence_extras import company_intelligence_extras_service
 from api.db_pool import get_connection
 from api.lead_registry import lead_registry_service
 from middleware.auth import require_auth
@@ -438,15 +439,20 @@ async def refresh_company_watchlist(
         raise HTTPException(status_code=404, detail="Empresa nao encontrada para refresh da watchlist.")
 
     try:
+        sync_result = lead_registry_service.sync_watch_snapshot(
+            _org_id(request),
+            cnpj,
+            _build_watch_snapshot(company),
+            company=company,
+            source="watch_refresh",
+        )
+        external_signals = await company_intelligence_extras_service.fetch_external_signals(cnpj, company=company)
+        recorded = lead_registry_service.record_company_signals(_org_id(request), cnpj, external_signals)
+        merged_signals = list(sync_result.get("signals") or []) + recorded
         return {
             "ok": True,
-            **lead_registry_service.sync_watch_snapshot(
-                _org_id(request),
-                cnpj,
-                _build_watch_snapshot(company),
-                company=company,
-                source="watch_refresh",
-            ),
+            "watch": sync_result.get("watch"),
+            "signals": merged_signals,
         }
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

@@ -1253,6 +1253,86 @@ class LeadRegistryService:
             for row in rows
         ]
 
+    def record_company_signals(self, org_id: str, cnpj: str, signals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        self.ensure_schema()
+        cnpj_clean = _normalize_cnpj(cnpj)
+        if not cnpj_clean or not signals:
+            return []
+
+        now = _utcnow_iso()
+        recorded: List[Dict[str, Any]] = []
+        with get_connection(read_only=False) as conn:
+            watch_row = conn.execute(
+                "SELECT id FROM company_watchlist WHERE org_id = ? AND cnpj = ? LIMIT 1",
+                [org_id, cnpj_clean],
+            ).fetchone()
+            watch_id = str(watch_row[0]) if watch_row and watch_row[0] else None
+
+            for signal in signals:
+                signal_type = str(signal.get("signal_type") or "").strip()
+                title = str(signal.get("title") or "").strip()
+                payload = _sanitize_jsonish(signal.get("payload") or {})
+                payload_key = _json_dumps(payload)
+                if not signal_type or not title:
+                    continue
+
+                existing = conn.execute(
+                    """
+                    SELECT 1
+                    FROM company_signals
+                    WHERE org_id = ?
+                      AND cnpj = ?
+                      AND signal_type = ?
+                      AND title = ?
+                      AND COALESCE(payload_json, '') = ?
+                    LIMIT 1
+                    """,
+                    [org_id, cnpj_clean, signal_type, title, payload_key],
+                ).fetchone()
+                if existing:
+                    continue
+
+                signal_id = str(uuid4())
+                conn.execute(
+                    """
+                    INSERT INTO company_signals (
+                        id,
+                        org_id,
+                        watch_id,
+                        cnpj,
+                        signal_type,
+                        title,
+                        payload_json,
+                        created_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    [signal_id, org_id, watch_id, cnpj_clean, signal_type, title, payload_key, now],
+                )
+                recorded.append(
+                    {
+                        "id": signal_id,
+                        "watch_id": watch_id,
+                        "cnpj": cnpj_clean,
+                        "signal_type": signal_type,
+                        "title": title,
+                        "payload": payload,
+                        "created_at": now,
+                    }
+                )
+
+            if recorded and watch_id:
+                conn.execute(
+                    """
+                    UPDATE company_watchlist
+                    SET last_signal_at = ?, updated_at = ?
+                    WHERE org_id = ? AND cnpj = ?
+                    """,
+                    [now, now, org_id, cnpj_clean],
+                )
+
+        return recorded
+
     def delete_watch_company(self, org_id: str, cnpj: str) -> bool:
         self.ensure_schema()
         cnpj_clean = _normalize_cnpj(cnpj)

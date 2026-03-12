@@ -1,19 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   BadgeCheck,
   Brain,
   Building2,
+  Factory,
   Globe,
   Link2,
   Loader2,
   Mail,
+  Newspaper,
   Phone,
+  RefreshCw,
   Search,
   ShieldCheck,
   Sparkles,
   Target,
+  TrendingUp,
   Users,
   WalletCards,
 } from "lucide-react";
@@ -26,7 +30,9 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
   addToPipeline,
+  buscarEmpresasParecidasPorCnpj,
   buscarStatusContactIntelligencePorCnpj,
+  buscarSinaisExternosPorCnpj,
   buscarEmpresaPorCnpj,
   enfileirarContactIntelligencePorCnpj,
   enriquecerEmpresaPorCnpj,
@@ -34,6 +40,8 @@ import {
   salvarResultadoEnriquecimentoCnpj,
   type ContactIntelligenceResult,
   type Empresa,
+  type ExternalSignal,
+  type SimilarCompany,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -96,6 +104,51 @@ function formatPattern(pattern?: string | null): string {
   return pattern ? pattern.replaceAll("_", " / ").replaceAll(".", " . ") : "Nao inferido";
 }
 
+function signalTone(signalType?: string | null): string {
+  switch (signalType) {
+    case "jobs_signal":
+      return "border-sky-500/30 bg-sky-500/10 text-sky-300";
+    case "funding_signal":
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+    case "growth_signal":
+      return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+    case "news_signal":
+      return "border-violet-500/30 bg-violet-500/10 text-violet-300";
+    default:
+      return "border-zinc-700 bg-zinc-900 text-zinc-300";
+  }
+}
+
+function signalLabel(signalType?: string | null): string {
+  switch (signalType) {
+    case "jobs_signal":
+      return "Vagas";
+    case "funding_signal":
+      return "Investimento";
+    case "growth_signal":
+      return "Expansao";
+    case "news_signal":
+      return "Noticia";
+    default:
+      return "Signal";
+  }
+}
+
+function signalUrl(signal: ExternalSignal): string | null {
+  const url = signal.payload?.url;
+  return typeof url === "string" && url ? url : null;
+}
+
+function signalSnippet(signal: ExternalSignal): string | null {
+  const snippet = signal.payload?.snippet;
+  return typeof snippet === "string" && snippet ? snippet : null;
+}
+
+function signalDomain(signal: ExternalSignal): string | null {
+  const domain = signal.payload?.domain;
+  return typeof domain === "string" && domain ? domain : null;
+}
+
 const scoreCards = (empresa: Empresa) => [
   {
     label: "Confiabilidade",
@@ -119,11 +172,18 @@ const EnriquecerCnpj = () => {
   const [cnpjInput, setCnpjInput] = useState("");
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [contactIntel, setContactIntel] = useState<ContactIntelligenceResult | null>(null);
+  const [similarCompanies, setSimilarCompanies] = useState<SimilarCompany[]>([]);
+  const [externalSignals, setExternalSignals] = useState<ExternalSignal[]>([]);
   const [isFetching, setIsFetching] = useState(false);
   const [isEnriching, setIsEnriching] = useState(false);
   const [isResolvingContacts, setIsResolvingContacts] = useState(false);
+  const [isLoadingSimilar, setIsLoadingSimilar] = useState(false);
+  const [isLoadingSignals, setIsLoadingSignals] = useState(false);
   const [isSavingResult, setIsSavingResult] = useState(false);
   const [isSendingPipeline, setIsSendingPipeline] = useState(false);
+  const searchRequestRef = useRef(0);
+  const similarRequestRef = useRef(0);
+  const signalRequestRef = useRef(0);
 
   const cnpjDigits = useMemo(() => normalizeCnpj(cnpjInput), [cnpjInput]);
   const empresaCnpj = useMemo(() => normalizeCnpj(empresa?.cnpj || ""), [empresa?.cnpj]);
@@ -139,8 +199,99 @@ const EnriquecerCnpj = () => {
     if (cnpjDigits === empresaCnpj) return;
     setEmpresa(null);
     setContactIntel(null);
+    setSimilarCompanies([]);
+    setExternalSignals([]);
     setIsResolvingContacts(false);
   }, [cnpjDigits, empresa, empresaCnpj]);
+
+  const loadSimilarCompanies = async (targetCnpj: string, showErrors = false) => {
+    const normalized = normalizeCnpj(targetCnpj);
+    if (normalized.length !== 14) return;
+    const requestId = ++similarRequestRef.current;
+    try {
+      setIsLoadingSimilar(true);
+      const items = await buscarEmpresasParecidasPorCnpj(normalized, 8);
+      if (requestId !== similarRequestRef.current) return;
+      setSimilarCompanies(items);
+    } catch (err: any) {
+      if (requestId !== similarRequestRef.current) return;
+      setSimilarCompanies([]);
+      if (showErrors) {
+        toast.error(err?.message || "Nao foi possivel carregar empresas parecidas.");
+      }
+    } finally {
+      if (requestId === similarRequestRef.current) {
+        setIsLoadingSimilar(false);
+      }
+    }
+  };
+
+  const loadExternalSignals = async (targetCnpj: string, showErrors = false) => {
+    const normalized = normalizeCnpj(targetCnpj);
+    if (normalized.length !== 14) return;
+    const requestId = ++signalRequestRef.current;
+    try {
+      setIsLoadingSignals(true);
+      const items = await buscarSinaisExternosPorCnpj(normalized);
+      if (requestId !== signalRequestRef.current) return;
+      setExternalSignals(items);
+    } catch (err: any) {
+      if (requestId !== signalRequestRef.current) return;
+      setExternalSignals([]);
+      if (showErrors) {
+        toast.error(err?.message || "Nao foi possivel carregar sinais externos.");
+      }
+    } finally {
+      if (requestId === signalRequestRef.current) {
+        setIsLoadingSignals(false);
+      }
+    }
+  };
+
+  const pesquisarCnpj = async (targetCnpj: string) => {
+    const normalized = normalizeCnpj(targetCnpj);
+    if (normalized.length !== 14) {
+      toast.error("Informe um CNPJ valido com 14 digitos.");
+      return;
+    }
+    const requestId = ++searchRequestRef.current;
+
+    try {
+      setIsFetching(true);
+      setIsResolvingContacts(false);
+      setContactIntel(null);
+      setSimilarCompanies([]);
+      setExternalSignals([]);
+      const encontrada = await buscarEmpresaPorCnpj(normalized);
+      if (requestId !== searchRequestRef.current) return;
+      setEmpresa(encontrada);
+      toast.success("Empresa localizada.");
+      try {
+        const status = await enfileirarContactIntelligencePorCnpj(normalized, { refresh: true });
+        if (requestId !== searchRequestRef.current) return;
+        if (status.status === "error") {
+          throw new Error(status.error || "Nao foi possivel pesquisar os contatos deste CNPJ.");
+        }
+        setIsResolvingContacts(true);
+        toast.info("Pesquisa nova de contatos disparada para este CNPJ.");
+      } catch (queueErr: any) {
+        if (requestId !== searchRequestRef.current) return;
+        toast.error(queueErr?.message || "Nao foi possivel atualizar os contatos deste CNPJ.");
+      }
+    } catch (err: any) {
+      if (requestId !== searchRequestRef.current) return;
+      setIsResolvingContacts(false);
+      setEmpresa(null);
+      setContactIntel(null);
+      setSimilarCompanies([]);
+      setExternalSignals([]);
+      toast.error(err?.message || "Nao foi possivel buscar a empresa.");
+    } finally {
+      if (requestId === searchRequestRef.current) {
+        setIsFetching(false);
+      }
+    }
+  };
 
   useEffect(() => {
     if (!isResolvingContacts || cnpjDigits.length !== 14 || !empresa || cnpjDigits !== empresaCnpj) return;
@@ -188,37 +339,14 @@ const EnriquecerCnpj = () => {
     };
   }, [cnpjDigits, empresa, empresaCnpj, isResolvingContacts]);
 
-  const handleBuscar = async () => {
-    if (cnpjDigits.length !== 14) {
-      toast.error("Informe um CNPJ valido com 14 digitos.");
-      return;
-    }
+  useEffect(() => {
+    if (!empresa || empresaCnpj.length !== 14 || empresaCnpj !== cnpjDigits) return;
+    void loadSimilarCompanies(empresaCnpj);
+    void loadExternalSignals(empresaCnpj);
+  }, [cnpjDigits, empresa, empresaCnpj]);
 
-    try {
-      setIsFetching(true);
-      setIsResolvingContacts(false);
-      setContactIntel(null);
-      const encontrada = await buscarEmpresaPorCnpj(cnpjDigits);
-      setEmpresa(encontrada);
-      toast.success("Empresa localizada.");
-      try {
-        const status = await enfileirarContactIntelligencePorCnpj(cnpjDigits, { refresh: true });
-        if (status.status === "error") {
-          throw new Error(status.error || "Nao foi possivel pesquisar os contatos deste CNPJ.");
-        }
-        setIsResolvingContacts(true);
-        toast.info("Pesquisa nova de contatos disparada para este CNPJ.");
-      } catch (queueErr: any) {
-        toast.error(queueErr?.message || "Nao foi possivel atualizar os contatos deste CNPJ.");
-      }
-    } catch (err: any) {
-      setIsResolvingContacts(false);
-      setEmpresa(null);
-      setContactIntel(null);
-      toast.error(err?.message || "Nao foi possivel buscar a empresa.");
-    } finally {
-      setIsFetching(false);
-    }
+  const handleBuscar = async () => {
+    await pesquisarCnpj(cnpjDigits);
   };
 
   const handleEnriquecer = async () => {
@@ -233,6 +361,8 @@ const EnriquecerCnpj = () => {
       const { empresa: enriquecida } = await enriquecerEmpresaPorCnpj(cnpjDigits, empresa);
       setEmpresa(enriquecida);
       setContactIntel(null);
+      void loadSimilarCompanies(cnpjDigits);
+      void loadExternalSignals(cnpjDigits);
       toast.success("Enriquecimento concluido.");
       try {
         const status = await enfileirarContactIntelligencePorCnpj(cnpjDigits, { refresh: true });
@@ -301,6 +431,12 @@ const EnriquecerCnpj = () => {
       setIsResolvingContacts(false);
       toast.error(err?.message || "Nao foi possivel resolver os contatos.");
     }
+  };
+
+  const handleCarregarSimilar = async (targetCnpj: string) => {
+    const normalized = normalizeCnpj(targetCnpj);
+    setCnpjInput(normalized);
+    await pesquisarCnpj(normalized);
   };
 
   return (
@@ -587,6 +723,165 @@ const EnriquecerCnpj = () => {
                     </div>
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[1.05fr_1fr]">
+            <Card className="border-zinc-800 bg-zinc-950/60">
+              <CardHeader className="flex flex-row items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Factory className="h-4 w-4 text-amber-300" />
+                    Empresas parecidas
+                  </CardTitle>
+                  <CardDescription>
+                    Lookalikes por CNAE, porte, geografia e cobertura de contato para expandir o ICP.
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-zinc-700 bg-zinc-900"
+                  onClick={() => void loadSimilarCompanies(empresa.cnpj, true)}
+                  disabled={isLoadingSimilar}
+                >
+                  {isLoadingSimilar ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  Atualizar
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {isLoadingSimilar && similarCompanies.length === 0 ? (
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm text-zinc-400">
+                    Carregando empresas parecidas...
+                  </div>
+                ) : similarCompanies.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+                    Nenhuma empresa parecida encontrada para este recorte ainda.
+                  </div>
+                ) : (
+                  similarCompanies.map((item) => (
+                    <div key={item.cnpj} className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-2">
+                          <div>
+                            <p className="text-sm font-semibold text-zinc-100">{item.razao_social}</p>
+                            <p className="mt-1 text-xs text-zinc-500">
+                              {formatCnpj(item.cnpj)}
+                              {" · "}
+                              {[item.cidade, item.uf].filter(Boolean).join(" / ") || "Localizacao nao informada"}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300">
+                              Similaridade {formatPercent(item.similarity_score)}
+                            </Badge>
+                            {item.site && (
+                              <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
+                                Site
+                              </Badge>
+                            )}
+                            {item.whatsapp && (
+                              <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
+                                WhatsApp
+                              </Badge>
+                            )}
+                            {item.email_receita && (
+                              <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300">
+                                Email
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-zinc-700 bg-zinc-950"
+                          onClick={() => void handleCarregarSimilar(item.cnpj)}
+                          disabled={isFetching || isEnriching}
+                        >
+                          <ArrowRight className="mr-2 h-4 w-4" />
+                          Abrir CNPJ
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-zinc-800 bg-zinc-950/60">
+              <CardHeader className="flex flex-row items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Newspaper className="h-4 w-4 text-violet-300" />
+                    Sinais externos
+                  </CardTitle>
+                  <CardDescription>
+                    Vagas, investimento, expansao e noticias recentes rastreadas para este CNPJ.
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-zinc-700 bg-zinc-900"
+                  onClick={() => void loadExternalSignals(empresa.cnpj, true)}
+                  disabled={isLoadingSignals}
+                >
+                  {isLoadingSignals ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  Atualizar
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {isLoadingSignals && externalSignals.length === 0 ? (
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm text-zinc-400">
+                    Capturando sinais externos...
+                  </div>
+                ) : externalSignals.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+                    Nenhum sinal externo relevante apareceu para este CNPJ ate agora.
+                  </div>
+                ) : (
+                  externalSignals.slice(0, 8).map((signal, index) => (
+                    <div key={`${signal.signal_type}-${signal.title}-${index}`} className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-2">
+                          <Badge variant="outline" className={signalTone(signal.signal_type)}>
+                            {signal.signal_type === "jobs_signal" && <Users className="mr-1 h-3 w-3" />}
+                            {signal.signal_type === "funding_signal" && <TrendingUp className="mr-1 h-3 w-3" />}
+                            {signal.signal_type === "growth_signal" && <Factory className="mr-1 h-3 w-3" />}
+                            {signal.signal_type === "news_signal" && <Newspaper className="mr-1 h-3 w-3" />}
+                            {signalLabel(signal.signal_type)}
+                          </Badge>
+                          <p className="text-sm font-medium text-zinc-100">{signal.title}</p>
+                          {signalSnippet(signal) && (
+                            <p className="text-sm leading-6 text-zinc-400">{signalSnippet(signal)}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                        {signalDomain(signal) && <span>{signalDomain(signal)}</span>}
+                        {signal.created_at && (
+                          <>
+                            <span>·</span>
+                            <span>{new Date(signal.created_at).toLocaleString("pt-BR")}</span>
+                          </>
+                        )}
+                      </div>
+                      {signalUrl(signal) && (
+                        <a
+                          href={signalUrl(signal) ?? undefined}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 inline-flex items-center gap-2 text-sm text-cyan-300 hover:text-cyan-200"
+                        >
+                          <Link2 className="h-4 w-4" />
+                          Abrir fonte
+                        </a>
+                      )}
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>
