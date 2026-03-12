@@ -166,6 +166,13 @@ try:
 except Exception as e:
     logger.warning(f"[WARN] Lead Registry router nao disponivel: {e}")
 
+try:
+    from api.routers.fiscal_public import router as fiscal_public_router
+    app.include_router(fiscal_public_router)
+    logger.info("[OK] Fiscal Public router carregado")
+except Exception as e:
+    logger.warning(f"[WARN] Fiscal Public router nao disponivel: {e}")
+
 # ============================================================
 # ENDPOINTS LEGADOS
 # Protegidos com require_auth quando HERMES_AUTH_REQUIRED=true

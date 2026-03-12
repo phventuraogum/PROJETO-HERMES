@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Settings, FileText, History, Map, Kanban, Building2, Coins, Plus, Sliders, Search, TerminalSquare, Archive } from "lucide-react";
+import { LayoutDashboard, Settings, FileText, History, Map, Kanban, Building2, Coins, Plus, Sliders, Search, TerminalSquare, Archive, Scale } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
 import LogoutButton from "@/auth/LogoutButton";
@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 const menuItems = [
   { icon: Search,         label: "Enriquecer CNPJ",       path: "/cnpj" },
+  { icon: Scale,          label: "Consulta Fiscal",       path: "/consulta-fiscal" },
   { icon: TerminalSquare, label: "Workbench Query",       path: "/query-workbench" },
   { icon: Settings,       label: "Configurar Prospecção", path: "/app" },
   { icon: LayoutDashboard,label: "Dashboard",             path: "/dashboard" },

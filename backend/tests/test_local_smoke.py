@@ -109,6 +109,35 @@ class LocalSmokeTests(unittest.TestCase):
         self.assertTrue(payload["config"]["exigir_contato_acionavel"])
         self.assertIn(payload["source"], {"heuristic", "hybrid"})
 
+    def test_fiscal_public_import_and_lookup_endpoints(self):
+        csv_sample = (
+            "CNPJ;Nome Devedor;Situacao Inscricao;Numero Inscricao;Data Inscricao;Valor Originario;Valor Consolidado\n"
+            "15.103.354/0001-39;DEODE INOVACAO E EFICIENCIA EM ENERGIA LTDA;IRREGULAR;INSC-001;01/02/2026;120.000,00;145.500,25\n"
+        )
+
+        imported = self.client.post(
+            "/fiscal-public/import-text",
+            json={
+                "content": csv_sample,
+                "filename": "pgfn-publica.csv",
+                "source_label": "PGFN Dados Abertos",
+            },
+        )
+
+        self.assertEqual(imported.status_code, 200)
+        import_payload = imported.json()
+        self.assertTrue(import_payload["success"])
+        self.assertEqual(import_payload["snapshot"]["record_count"], 1)
+
+        looked_up = self.client.get("/fiscal-public/15103354000139")
+        self.assertEqual(looked_up.status_code, 200)
+        payload = looked_up.json()
+        self.assertTrue(payload["success"])
+        self.assertTrue(payload["summary"]["has_snapshot"])
+        self.assertTrue(payload["summary"]["has_records"])
+        self.assertEqual(payload["summary"]["total_records"], 1)
+        self.assertEqual(payload["records"][0]["numero_inscricao"], "INSC-001")
+
 
 if __name__ == "__main__":
     unittest.main()

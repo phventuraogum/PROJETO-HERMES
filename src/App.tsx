@@ -13,6 +13,7 @@ const Landing = lazy(() => import("./pages/Landing"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Configure = lazy(() => import("./pages/Configure"));
 const EnriquecerCnpj = lazy(() => import("./pages/EnriquecerCnpj"));
+const ConsultaFiscal = lazy(() => import("./pages/ConsultaFiscal"));
 const QueryWorkbench = lazy(() => import("./pages/QueryWorkbench"));
 const LeadLists = lazy(() => import("./pages/LeadLists"));
 const Results = lazy(() => import("./pages/Results"));
@@ -73,6 +74,14 @@ const App = () => (
             element={
               <AuthedLayout>
                 <EnriquecerCnpj />
+              </AuthedLayout>
+            }
+          />
+          <Route
+            path="/consulta-fiscal"
+            element={
+              <AuthedLayout>
+                <ConsultaFiscal />
               </AuthedLayout>
             }
           />

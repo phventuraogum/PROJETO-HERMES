@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   BadgeCheck,
@@ -169,6 +169,7 @@ const scoreCards = (empresa: Empresa) => [
 
 const EnriquecerCnpj = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [cnpjInput, setCnpjInput] = useState("");
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [contactIntel, setContactIntel] = useState<ContactIntelligenceResult | null>(null);
@@ -203,6 +204,13 @@ const EnriquecerCnpj = () => {
     setExternalSignals([]);
     setIsResolvingContacts(false);
   }, [cnpjDigits, empresa, empresaCnpj]);
+
+  useEffect(() => {
+    const incoming = normalizeCnpj(searchParams.get("cnpj") || "");
+    if (incoming.length !== 14) return;
+    if (incoming === cnpjDigits) return;
+    setCnpjInput(incoming);
+  }, [cnpjDigits, searchParams]);
 
   const loadSimilarCompanies = async (targetCnpj: string, showErrors = false) => {
     const normalized = normalizeCnpj(targetCnpj);

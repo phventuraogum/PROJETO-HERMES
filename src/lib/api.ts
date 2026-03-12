@@ -369,7 +369,9 @@ async function hermesFetch<T>(path: string, opts: HermesFetchOptions = {}): Prom
   if (typeof window !== "undefined") headers.set("X-Org-Id", getTenantKey());
 
   const hasBody = !!opts.body;
-  if (hasBody && !headers.has("Content-Type")) {
+  const isFormData =
+    typeof FormData !== "undefined" && opts.body instanceof FormData;
+  if (hasBody && !isFormData && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -780,6 +782,19 @@ type ExternalSignalsResponse = {
   total?: number;
 };
 
+type FiscalPublicSnapshotResponse = {
+  success: boolean;
+  snapshot?: Record<string, unknown> | null;
+};
+
+type FiscalPublicLookupResponse = {
+  success: boolean;
+  cnpj?: string | null;
+  snapshot?: Record<string, unknown> | null;
+  summary?: Record<string, unknown> | null;
+  records?: Record<string, unknown>[] | null;
+};
+
 export type ContactIntelligenceBatchItem = {
   cnpj: string;
   status: string;
@@ -800,6 +815,55 @@ export type ContactIntelligenceStatus = {
   startedAt?: string | null;
   finishedAt?: string | null;
   intelligence: ContactIntelligenceResult | null;
+};
+
+export type FiscalPublicSnapshot = {
+  id: string;
+  provider: string;
+  source_label?: string | null;
+  filename?: string | null;
+  notes?: string | null;
+  status?: string | null;
+  record_count: number;
+  unique_cnpjs: number;
+  skipped_rows: number;
+  imported_at?: string | null;
+  column_map?: Record<string, string> | null;
+};
+
+export type FiscalPublicRecord = {
+  id: string;
+  cnpj: string;
+  nome_devedor?: string | null;
+  situacao?: string | null;
+  numero_inscricao?: string | null;
+  data_inscricao?: string | null;
+  valor_originario?: number | null;
+  valor_consolidado?: number | null;
+  tipo_credito?: string | null;
+  tipo_devedor?: string | null;
+  indicador_ajuizado?: boolean | null;
+  unidade_responsavel?: string | null;
+  processo_judicial?: string | null;
+  source_url?: string | null;
+  imported_at?: string | null;
+};
+
+export type FiscalPublicLookup = {
+  cnpj: string;
+  snapshot: FiscalPublicSnapshot | null;
+  summary: {
+    has_snapshot: boolean;
+    has_records: boolean;
+    total_records: number;
+    total_valor_originario: number;
+    total_valor_consolidado: number;
+    ajuizadas: number;
+    latest_data_inscricao?: string | null;
+    nome_devedor?: string | null;
+    situacoes: string[];
+  };
+  records: FiscalPublicRecord[];
 };
 
 export async function buscarEmpresaPorCnpj(cnpj: string): Promise<Empresa> {
@@ -1009,6 +1073,64 @@ function mapExternalSignal(raw: Record<string, unknown>, fallbackCnpj?: string):
   };
 }
 
+function mapFiscalPublicSnapshot(raw: Record<string, unknown> | null | undefined): FiscalPublicSnapshot | null {
+  if (!raw) return null;
+  return {
+    id: asNullableString(raw.id) ?? "",
+    provider: asNullableString(raw.provider) ?? "",
+    source_label: asNullableString(raw.source_label),
+    filename: asNullableString(raw.filename),
+    notes: asNullableString(raw.notes),
+    status: asNullableString(raw.status),
+    record_count: asNullableNumber(raw.record_count) ?? 0,
+    unique_cnpjs: asNullableNumber(raw.unique_cnpjs) ?? 0,
+    skipped_rows: asNullableNumber(raw.skipped_rows) ?? 0,
+    imported_at: asNullableString(raw.imported_at),
+    column_map: (asRecord(raw.column_map) as Record<string, string> | null) ?? null,
+  };
+}
+
+function mapFiscalPublicRecord(raw: Record<string, unknown>): FiscalPublicRecord {
+  return {
+    id: asNullableString(raw.id) ?? "",
+    cnpj: asNullableString(raw.cnpj) ?? "",
+    nome_devedor: asNullableString(raw.nome_devedor),
+    situacao: asNullableString(raw.situacao),
+    numero_inscricao: asNullableString(raw.numero_inscricao),
+    data_inscricao: asNullableString(raw.data_inscricao),
+    valor_originario: asNullableNumber(raw.valor_originario),
+    valor_consolidado: asNullableNumber(raw.valor_consolidado),
+    tipo_credito: asNullableString(raw.tipo_credito),
+    tipo_devedor: asNullableString(raw.tipo_devedor),
+    indicador_ajuizado:
+      raw.indicador_ajuizado == null ? null : Boolean(raw.indicador_ajuizado),
+    unidade_responsavel: asNullableString(raw.unidade_responsavel),
+    processo_judicial: asNullableString(raw.processo_judicial),
+    source_url: asNullableString(raw.source_url),
+    imported_at: asNullableString(raw.imported_at),
+  };
+}
+
+function mapFiscalPublicLookup(raw: FiscalPublicLookupResponse): FiscalPublicLookup {
+  const summary = asRecord(raw.summary) ?? {};
+  return {
+    cnpj: asNullableString(raw.cnpj) ?? "",
+    snapshot: mapFiscalPublicSnapshot(asRecord(raw.snapshot)),
+    summary: {
+      has_snapshot: !!summary.has_snapshot,
+      has_records: !!summary.has_records,
+      total_records: asNullableNumber(summary.total_records) ?? 0,
+      total_valor_originario: asNullableNumber(summary.total_valor_originario) ?? 0,
+      total_valor_consolidado: asNullableNumber(summary.total_valor_consolidado) ?? 0,
+      ajuizadas: asNullableNumber(summary.ajuizadas) ?? 0,
+      latest_data_inscricao: asNullableString(summary.latest_data_inscricao),
+      nome_devedor: asNullableString(summary.nome_devedor),
+      situacoes: asArray<string>(summary.situacoes).map((item) => String(item)),
+    },
+    records: asArray<Record<string, unknown>>(raw.records).map(mapFiscalPublicRecord),
+  };
+}
+
 export async function buscarEmpresasParecidasPorCnpj(
   cnpj: string,
   limit = 12,
@@ -1036,6 +1158,77 @@ export async function buscarSinaisExternosPorCnpj(cnpj: string): Promise<Externa
   return asArray<Record<string, unknown>>(data.signals).map((item) =>
     mapExternalSignal(item, normalized),
   );
+}
+
+export async function getFiscalPublicSnapshotMeta(): Promise<FiscalPublicSnapshot | null> {
+  const data = await hermesFetch<FiscalPublicSnapshotResponse>(
+    appendFreshQuery("/fiscal-public/meta"),
+    { cache: "no-store" },
+  );
+  return mapFiscalPublicSnapshot(asRecord(data.snapshot));
+}
+
+export async function consultarFiscalPublicaPorCnpj(cnpj: string): Promise<FiscalPublicLookup> {
+  const data = await hermesFetch<FiscalPublicLookupResponse>(
+    appendFreshQuery(`/fiscal-public/${encodeURIComponent(normalizeCnpjValue(cnpj))}`),
+    { cache: "no-store" },
+  );
+  return mapFiscalPublicLookup(data);
+}
+
+export async function importarBaseFiscalPublicaArquivo(
+  file: File,
+  opts?: {
+    provider?: string;
+    sourceLabel?: string;
+    notes?: string | null;
+  },
+): Promise<FiscalPublicSnapshot> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("provider", opts?.provider ?? "pgfn_open_data_manual");
+  form.append("source_label", opts?.sourceLabel ?? "PGFN Dados Abertos");
+  if (opts?.notes) {
+    form.append("notes", opts.notes);
+  }
+
+  const data = await hermesFetch<FiscalPublicSnapshotResponse>("/fiscal-public/import", {
+    method: "POST",
+    body: form,
+  });
+
+  const snapshot = mapFiscalPublicSnapshot(asRecord(data.snapshot));
+  if (!snapshot) {
+    throw new Error("Nao foi possivel importar a base fiscal.");
+  }
+  return snapshot;
+}
+
+export async function importarBaseFiscalPublicaTexto(
+  content: string,
+  opts?: {
+    filename?: string | null;
+    provider?: string;
+    sourceLabel?: string;
+    notes?: string | null;
+  },
+): Promise<FiscalPublicSnapshot> {
+  const data = await hermesFetch<FiscalPublicSnapshotResponse>("/fiscal-public/import-text", {
+    method: "POST",
+    body: JSON.stringify({
+      content,
+      filename: opts?.filename ?? null,
+      provider: opts?.provider ?? "pgfn_open_data_manual",
+      source_label: opts?.sourceLabel ?? "PGFN Dados Abertos",
+      notes: opts?.notes ?? null,
+    }),
+  });
+
+  const snapshot = mapFiscalPublicSnapshot(asRecord(data.snapshot));
+  if (!snapshot) {
+    throw new Error("Nao foi possivel importar a base fiscal.");
+  }
+  return snapshot;
 }
 
 export async function buscarStatusBatchContactIntelligencePorCnpj(
