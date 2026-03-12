@@ -17,7 +17,14 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Search, Download, ExternalLink, Globe,
   MapPin, Building2, Users, Instagram, Linkedin, Facebook,
@@ -25,17 +32,24 @@ import {
   Mail, Phone, LayoutGrid, List, ChevronDown,
   ArrowUpDown, CheckSquare2, X, Copy, Check,
   TrendingUp, Percent, Wallet, Target, Wand2,
-  Loader2, ShieldCheck,
+  Loader2, ShieldCheck, FolderPlus, ShieldBan,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   ContatoCaptado, Empresa, SocioEstruturado,
   ExecucaoResumo, getResultadosUltimaExecucao,
   addBatchToPipeline, addToPipeline,
+  addLeadListItems,
   buscarContactIntelligencePorCnpj,
   buscarStatusBatchContactIntelligencePorCnpj,
+  createLeadList,
+  createLeadSuppressions,
   enfileirarContactIntelligenceBatchPorCnpj,
   enfileirarContactIntelligencePorCnpj,
+  getLeadLists,
+  getLeadSuppressions,
+  type LeadListSummary,
+  type LeadSuppression,
   type ContactIntelligenceResult,
 } from "@/lib/api";
 import { MensagemModal } from "@/components/MensagemModal";
@@ -171,6 +185,10 @@ function dedupeContactItems(items?: ContatoCaptado[] | null, extras: string[] = 
 
 function contactSource(item?: ContatoCaptado | null) {
   return item?.origem?.trim() || "Captado";
+}
+
+function normalizeCnpj(cnpj?: string | null) {
+  return String(cnpj || "").replace(/\D/g, "").slice(0, 14);
 }
 
 function primaryLinkedin(emp: Empresa) {
@@ -986,6 +1004,25 @@ const ResultsPage = () => {
   const [contactIntelByCnpj, setContactIntelByCnpj] = useState<Record<string, ContactIntelligenceResult>>({});
   const [resolvingIntelBatch, setResolvingIntelBatch] = useState(false);
   const [resolvingIntelCnpjs, setResolvingIntelCnpjs] = useState<Set<string>>(new Set());
+  const [leadLists, setLeadLists] = useState<LeadListSummary[]>([]);
+  const [suppressionEntries, setSuppressionEntries] = useState<LeadSuppression[]>([]);
+  const [saveListOpen, setSaveListOpen] = useState(false);
+  const [saveListTarget, setSaveListTarget] = useState<string>("__new__");
+  const [newListName, setNewListName] = useState("");
+  const [newListDescription, setNewListDescription] = useState("");
+  const [savingListSelection, setSavingListSelection] = useState(false);
+  const [suppressSelectionOpen, setSuppressSelectionOpen] = useState(false);
+  const [suppressionReason, setSuppressionReason] = useState("");
+  const [savingSuppressionSelection, setSavingSuppressionSelection] = useState(false);
+
+  const refreshLeadRegistryMeta = async () => {
+    const [lists, suppressions] = await Promise.all([
+      getLeadLists(),
+      getLeadSuppressions(),
+    ]);
+    setLeadLists(lists);
+    setSuppressionEntries(suppressions);
+  };
 
   useEffect(() => {
     const stateResultados = Array.isArray((location.state as { resultados?: Empresa[] } | null)?.resultados)
@@ -994,14 +1031,73 @@ const ResultsPage = () => {
 
     (async () => {
       try {
-        const p = await getResultadosUltimaExecucao();
-        setEmpresas((p.resultados && p.resultados.length > 0) ? p.resultados : stateResultados);
-        setExecucao(p.execucao);
+        const [resultadosResult, registryResult] = await Promise.allSettled([
+          getResultadosUltimaExecucao(),
+          refreshLeadRegistryMeta(),
+        ]);
+
+        if (resultadosResult.status === "fulfilled") {
+          const p = resultadosResult.value;
+          setEmpresas((p.resultados && p.resultados.length > 0) ? p.resultados : stateResultados);
+          setExecucao(p.execucao);
+        } else {
+          setEmpresas(stateResultados);
+          toast.error("Nao foi possivel carregar a ultima execucao.");
+        }
+
+        if (registryResult.status === "rejected") {
+          toast.error("Nao foi possivel carregar listas e supressoes.");
+        }
       } finally {
         setLoading(false);
       }
     })();
   }, [location.state]);
+
+  useEffect(() => {
+    if (leadLists.length === 0) {
+      setSaveListTarget("__new__");
+      return;
+    }
+
+    setSaveListTarget((current) => (
+      current !== "__new__" && leadLists.some((list) => list.id === current)
+        ? current
+        : leadLists[0].id
+    ));
+  }, [leadLists]);
+
+  const suppressedCnpjs = useMemo(
+    () => new Set(
+      suppressionEntries
+        .map((entry) => normalizeCnpj(entry.cnpj))
+        .filter(Boolean),
+    ),
+    [suppressionEntries],
+  );
+
+  const visibleEmpresas = useMemo(
+    () => empresas.filter((empresa) => !suppressedCnpjs.has(normalizeCnpj(empresa.cnpj))),
+    [empresas, suppressedCnpjs],
+  );
+
+  const suppressedCount = Math.max(0, empresas.length - visibleEmpresas.length);
+
+  useEffect(() => {
+    const allowed = new Set(visibleEmpresas.map((empresa) => empresa.cnpj));
+    setSelected((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      prev.forEach((cnpj) => {
+        if (allowed.has(cnpj)) {
+          next.add(cnpj);
+        } else {
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [visibleEmpresas]);
 
   useEffect(() => {
     if (resolvingIntelCnpjs.size === 0) return;
@@ -1074,11 +1170,11 @@ const ResultsPage = () => {
 
   // ── stats ──────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const t = empresas.length;
+    const t = visibleEmpresas.length;
     if (!t) return null;
-    const comEmail = empresas.filter(e => e.email || e.email_enriquecido).length;
-    const comWa    = empresas.filter(e => e.whatsapp_publico || e.whatsapp_enriquecido).length;
-    const comLinkedin = empresas.filter(e => {
+    const comEmail = visibleEmpresas.filter(e => e.email || e.email_enriquecido).length;
+    const comWa    = visibleEmpresas.filter(e => e.whatsapp_publico || e.whatsapp_enriquecido).length;
+    const comLinkedin = visibleEmpresas.filter(e => {
       const links = [
         ...(e.redes_sociais_empresa ?? []),
         ...(e.redes_sociais_socios?.flatMap(s => s.links) ?? []),
@@ -1086,14 +1182,14 @@ const ResultsPage = () => {
       ];
       return links.some(l => /linkedin/i.test(l));
     }).length;
-    const scoreList = empresas.map(e => e.score_icp ?? 0);
+    const scoreList = visibleEmpresas.map(e => e.score_icp ?? 0);
     const scoreAvg  = scoreList.reduce((a, b) => a + b, 0) / t;
     return { t, comEmail, comWa, comLinkedin, scoreAvg };
-  }, [empresas]);
+  }, [visibleEmpresas]);
 
   // ── filtros + sort ─────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    let list = [...empresas];
+    let list = [...visibleEmpresas];
 
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
@@ -1132,7 +1228,7 @@ const ResultsPage = () => {
     });
 
     return list;
-  }, [empresas, searchTerm, activeChips, sortKey, sortAsc]);
+  }, [visibleEmpresas, searchTerm, activeChips, sortKey, sortAsc]);
 
   // ── seleção ────────────────────────────────────────────────────────────────
   const toggleChip = (c: FilterChip) =>
@@ -1149,6 +1245,77 @@ const ResultsPage = () => {
   const exportSelected = () => {
     const list = filtered.filter(e => selected.has(e.cnpj));
     downloadCsv(list, "hermes-selecionadas");
+  };
+
+  const getSelectedCompanies = () => filtered.filter((empresa) => selected.has(empresa.cnpj));
+
+  const salvarSelecionadasEmLista = async () => {
+    const selecionadas = getSelectedCompanies();
+    if (selecionadas.length === 0) {
+      toast.info("Selecione pelo menos uma empresa");
+      return;
+    }
+
+    try {
+      setSavingListSelection(true);
+      let targetListId = saveListTarget;
+
+      if (targetListId === "__new__") {
+        const name = newListName.trim();
+        if (!name) {
+          toast.info("Informe o nome da nova lista.");
+          return;
+        }
+        const created = await createLeadList(name, newListDescription.trim() || null);
+        targetListId = created.id;
+      }
+
+      const result = await addLeadListItems(
+        targetListId,
+        selecionadas.map((empresa) => ({
+          empresa,
+          scoreIcp: empresa.score_icp ?? 0,
+          source: "results_selection",
+        })),
+      );
+
+      await refreshLeadRegistryMeta();
+      setSaveListOpen(false);
+      setNewListName("");
+      setNewListDescription("");
+      setSelected(new Set());
+      toast.success(`${result.added} lead(s) salvos na lista.`);
+    } catch (err: any) {
+      toast.error("Erro ao salvar selecao em lista: " + (err?.message || ""));
+    } finally {
+      setSavingListSelection(false);
+    }
+  };
+
+  const suprimirSelecionadas = async () => {
+    const selecionadas = getSelectedCompanies();
+    if (selecionadas.length === 0) {
+      toast.info("Selecione pelo menos uma empresa");
+      return;
+    }
+
+    try {
+      setSavingSuppressionSelection(true);
+      const result = await createLeadSuppressions({
+        cnpjs: selecionadas.map((empresa) => normalizeCnpj(empresa.cnpj)).filter(Boolean),
+        reason: suppressionReason.trim() || null,
+        source: "results_selection",
+      });
+      await refreshLeadRegistryMeta();
+      setSuppressSelectionOpen(false);
+      setSuppressionReason("");
+      setSelected(new Set());
+      toast.success(`${result.added} lead(s) suprimidos do fluxo operacional.`);
+    } catch (err: any) {
+      toast.error("Erro ao suprimir selecao: " + (err?.message || ""));
+    } finally {
+      setSavingSuppressionSelection(false);
+    }
   };
 
   const resolveOneContactIntel = async (cnpj: string) => {
@@ -1195,7 +1362,7 @@ const ResultsPage = () => {
   };
 
   const resolverSelecionadasContactIntel = async () => {
-    const selecionadas = filtered.filter(e => selected.has(e.cnpj));
+    const selecionadas = getSelectedCompanies();
     if (selecionadas.length === 0) {
       toast.info("Selecione pelo menos uma empresa");
       return;
@@ -1259,7 +1426,7 @@ const ResultsPage = () => {
   };
 
   const enviarSelecionadasParaPipelineESDR = async () => {
-    const selecionadas = filtered.filter(e => selected.has(e.cnpj));
+    const selecionadas = getSelectedCompanies();
     if (selecionadas.length === 0) {
       toast.info("Selecione pelo menos uma empresa");
       return;
@@ -1418,13 +1585,31 @@ const ResultsPage = () => {
                 </DropdownMenuItem>
               </>}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => downloadCsv(empresas, "hermes-todos")}>
-                CSV — todos ({empresas.length})
+              <DropdownMenuItem onClick={() => downloadCsv(visibleEmpresas, "hermes-todos")}>
+                CSV — todos ({visibleEmpresas.length})
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           {selected.size > 0 && (
             <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 h-9 border-cyan-500/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/15"
+                onClick={() => setSaveListOpen(true)}
+              >
+                <FolderPlus className="h-3.5 w-3.5" />
+                Salvar em lista ({selected.size})
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 h-9 border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15"
+                onClick={() => setSuppressSelectionOpen(true)}
+              >
+                <ShieldBan className="h-3.5 w-3.5" />
+                Suprimir ({selected.size})
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -1478,7 +1663,10 @@ const ResultsPage = () => {
                 {selected.size} selecionadas
               </span>
             )}
-            <span>{filtered.length} de {empresas.length}</span>
+            {suppressedCount > 0 && (
+              <span>{suppressedCount} suprimidas</span>
+            )}
+            <span>{filtered.length} de {visibleEmpresas.length}</span>
           </div>
         </div>
       </div>
@@ -1625,6 +1813,120 @@ const ResultsPage = () => {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={saveListOpen} onOpenChange={setSaveListOpen}>
+        <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100">
+          <DialogHeader>
+            <DialogTitle>Salvar selecao em lista</DialogTitle>
+            <DialogDescription>
+              Guarde esse lote para outreach, revisao ou nova rodada operacional.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs text-zinc-500">Destino</p>
+              <Select value={saveListTarget} onValueChange={setSaveListTarget}>
+                <SelectTrigger className="border-zinc-700 bg-zinc-900">
+                  <SelectValue placeholder="Escolha uma lista" />
+                </SelectTrigger>
+                <SelectContent>
+                  {leadLists.map((list) => (
+                    <SelectItem key={list.id} value={list.id}>
+                      {list.name} ({list.item_count})
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="__new__">Criar nova lista</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {saveListTarget === "__new__" && (
+              <>
+                <Input
+                  value={newListName}
+                  onChange={(event) => setNewListName(event.target.value)}
+                  placeholder="Nome da nova lista"
+                  className="border-zinc-700 bg-zinc-900"
+                />
+                <Textarea
+                  value={newListDescription}
+                  onChange={(event) => setNewListDescription(event.target.value)}
+                  placeholder="Descricao opcional"
+                  className="min-h-[88px] border-zinc-700 bg-zinc-900"
+                />
+              </>
+            )}
+
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 text-xs text-zinc-400">
+              {selected.size} lead(s) selecionados serao salvos.
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              className="border-zinc-700 bg-zinc-900"
+              onClick={() => setSaveListOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              className="bg-cyan-500 text-zinc-950 hover:bg-cyan-400"
+              onClick={() => void salvarSelecionadasEmLista()}
+              disabled={savingListSelection}
+            >
+              {savingListSelection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderPlus className="mr-2 h-4 w-4" />}
+              Salvar lista
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={suppressSelectionOpen} onOpenChange={setSuppressSelectionOpen}>
+        <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100">
+          <DialogHeader>
+            <DialogTitle>Suprimir selecao</DialogTitle>
+            <DialogDescription>
+              Esses CNPJs saem do fluxo operacional e deixam de aparecer nas proximas rodadas.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <Textarea
+              value={suppressionReason}
+              onChange={(event) => setSuppressionReason(event.target.value)}
+              placeholder="Motivo da supressao"
+              className="min-h-[96px] border-zinc-700 bg-zinc-900"
+            />
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-100">
+              {selected.size} lead(s) selecionados serao removidos da tela e bloqueados nas proximas prospeccoes.
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              className="border-zinc-700 bg-zinc-900"
+              onClick={() => setSuppressSelectionOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              className="bg-amber-500 text-zinc-950 hover:bg-amber-400"
+              onClick={() => void suprimirSelecionadas()}
+              disabled={savingSuppressionSelection}
+            >
+              {savingSuppressionSelection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldBan className="mr-2 h-4 w-4" />}
+              Suprimir lote
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

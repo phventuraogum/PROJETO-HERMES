@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Settings, FileText, History, Map, Kanban, Building2, Coins, Plus, Sliders, Search, TerminalSquare } from "lucide-react";
+import { LayoutDashboard, Settings, FileText, History, Map, Kanban, Building2, Coins, Plus, Sliders, Search, TerminalSquare, Archive } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
 import LogoutButton from "@/auth/LogoutButton";
@@ -17,6 +17,7 @@ const menuItems = [
   { icon: Settings,       label: "Configurar Prospecção", path: "/app" },
   { icon: LayoutDashboard,label: "Dashboard",             path: "/dashboard" },
   { icon: FileText,       label: "Resultados",            path: "/results" },
+  { icon: Archive,        label: "Listas e Supressao",    path: "/lead-lists" },
   { icon: Coins,          label: "Comprar créditos",      path: "/comprar-creditos" },
   { icon: Kanban,         label: "Pipeline",              path: "/pipeline" },
   { icon: History,        label: "Histórico",             path: "/history" },

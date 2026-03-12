@@ -14,6 +14,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Configure = lazy(() => import("./pages/Configure"));
 const EnriquecerCnpj = lazy(() => import("./pages/EnriquecerCnpj"));
 const QueryWorkbench = lazy(() => import("./pages/QueryWorkbench"));
+const LeadLists = lazy(() => import("./pages/LeadLists"));
 const Results = lazy(() => import("./pages/Results"));
 const Pipeline = lazy(() => import("./pages/Pipeline"));
 const History = lazy(() => import("./pages/History"));
@@ -80,6 +81,14 @@ const App = () => (
             element={
               <AuthedLayout>
                 <QueryWorkbench />
+              </AuthedLayout>
+            }
+          />
+          <Route
+            path="/lead-lists"
+            element={
+              <AuthedLayout>
+                <LeadLists />
               </AuthedLayout>
             }
           />

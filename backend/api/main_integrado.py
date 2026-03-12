@@ -159,12 +159,20 @@ try:
 except Exception as e:
     logger.warning(f"[WARN] SDR router nao disponivel: {e}")
 
+try:
+    from api.routers.lead_registry import router as lead_registry_router
+    app.include_router(lead_registry_router)
+    logger.info("[OK] Lead Registry router carregado")
+except Exception as e:
+    logger.warning(f"[WARN] Lead Registry router nao disponivel: {e}")
+
 # ============================================================
 # ENDPOINTS LEGADOS
 # Protegidos com require_auth quando HERMES_AUTH_REQUIRED=true
 # ============================================================
 
 try:
+    from api.lead_registry import lead_registry_service
     from api.main import (
         rodar_prospeccao_icp,
         gerar_mapa_calor,
@@ -231,6 +239,17 @@ try:
 
         _threading.Thread(target=_run_background, daemon=True).start()
 
+    def _apply_suppression_registry(config: ProspeccaoConfig, org_id: str) -> ProspeccaoConfig:
+        suppressed_cnpjs = lead_registry_service.get_suppressed_cnpjs(org_id)
+        if not suppressed_cnpjs:
+            return config
+
+        current = list(config.excluir_cnpjs or [])
+        merged = sorted({str(cnpj).strip() for cnpj in current + suppressed_cnpjs if str(cnpj).strip()})
+        next_config = config.model_copy(deep=True)
+        next_config.excluir_cnpjs = merged
+        return next_config
+
     @app.post("/prospeccao/run", response_model=ProspeccaoResultado, tags=["Prospecção Legado"])
     async def prospeccao_run_legacy(
         request: Request,
@@ -241,7 +260,8 @@ try:
         org_id = get_org_id(request)
         logger.info(f"Prospecção iniciada | user={user.get('email')} | termo={getattr(config, 'termo', '')} | org={org_id}")
         try:
-            resultado = await asyncio.to_thread(rodar_prospeccao_icp, config)
+            effective_config = _apply_suppression_registry(config, org_id)
+            resultado = await asyncio.to_thread(rodar_prospeccao_icp, effective_config)
             result_store.save_result(
                 org_id,
                 config.model_dump(by_alias=True),
@@ -262,6 +282,7 @@ try:
     ):
         """Executa prospecção com progresso via Server-Sent Events."""
         org_id = get_org_id(request)
+        effective_config = _apply_suppression_registry(config, org_id)
 
         progress_queue: _queue.Queue = _queue.Queue()
 
@@ -273,7 +294,7 @@ try:
 
         def run_in_thread():
             try:
-                result = rodar_prospeccao_icp(config, on_progress=on_progress)
+                result = rodar_prospeccao_icp(effective_config, on_progress=on_progress)
                 result_holder.append(result)
             except Exception as exc:
                 error_holder.append(str(exc))
@@ -406,12 +427,15 @@ try:
 
     @app.post("/prospeccao/insights-ia", tags=["Prospecção Legado"])
     async def insights_ia_legacy(
+        request: Request,
         config: ProspeccaoConfig,
         user: dict = Depends(require_auth),
     ):
         """Gera insights de IA sobre os leads prospectados."""
         from api.main import AI_API_KEY
-        resultado_base = await asyncio.to_thread(rodar_prospeccao_icp, config)
+        org_id = get_org_id(request)
+        effective_config = _apply_suppression_registry(config, org_id)
+        resultado_base = await asyncio.to_thread(rodar_prospeccao_icp, effective_config)
         if not AI_API_KEY:
             return {
                 "ia_ativa": False,

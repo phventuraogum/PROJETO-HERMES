@@ -1789,6 +1789,136 @@ export async function enviarParaSDR(
 }
 
 // ═══════════════════════════════════════════════════════════════
+// LEAD REGISTRY (listas salvas + supressão)
+// ═══════════════════════════════════════════════════════════════
+
+export type LeadListSummary = {
+  id: string;
+  name: string;
+  description?: string | null;
+  item_count: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+  last_item_added_at?: string | null;
+};
+
+export type LeadListItem = {
+  id: string;
+  cnpj: string;
+  score_icp?: number | null;
+  source?: string | null;
+  added_at?: string | null;
+  empresa: Empresa;
+};
+
+export type LeadSuppression = {
+  id: string;
+  cnpj?: string | null;
+  email?: string | null;
+  domain?: string | null;
+  reason?: string | null;
+  source?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+function mapLeadListItem(raw: Record<string, unknown>): LeadListItem {
+  return {
+    id: asNullableString(raw.id) ?? "",
+    cnpj: asNullableString(raw.cnpj) ?? "",
+    score_icp: asNullableNumber(raw.score_icp),
+    source: asNullableString(raw.source),
+    added_at: asNullableString(raw.added_at),
+    empresa: mapEmpresaApi(asRecord(raw.empresa) ?? {}),
+  };
+}
+
+export async function getLeadLists(): Promise<LeadListSummary[]> {
+  return hermesFetch<LeadListSummary[]>("/lead-lists");
+}
+
+export async function createLeadList(
+  name: string,
+  description?: string | null,
+): Promise<LeadListSummary> {
+  return hermesFetch<LeadListSummary>("/lead-lists", {
+    method: "POST",
+    body: JSON.stringify({ name, description }),
+  });
+}
+
+export async function updateLeadList(
+  listId: string,
+  body: { name?: string; description?: string | null },
+): Promise<void> {
+  await hermesFetch(`/lead-lists/${encodeURIComponent(listId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteLeadList(listId: string): Promise<void> {
+  await hermesFetch(`/lead-lists/${encodeURIComponent(listId)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getLeadListItems(listId: string): Promise<LeadListItem[]> {
+  const rows = await hermesFetch<Record<string, unknown>[]>(
+    `/lead-lists/${encodeURIComponent(listId)}/items`,
+  );
+  return rows.map(mapLeadListItem);
+}
+
+export async function addLeadListItems(
+  listId: string,
+  empresas: { empresa: Empresa; scoreIcp?: number; source?: string }[],
+): Promise<{ ok: boolean; added: number; total: number }> {
+  return hermesFetch(`/lead-lists/${encodeURIComponent(listId)}/items`, {
+    method: "POST",
+    body: JSON.stringify({
+      items: empresas.map(({ empresa, scoreIcp, source }) => ({
+        empresa,
+        score_icp: scoreIcp ?? empresa.score_icp ?? 0,
+        source: source ?? "results_selection",
+      })),
+    }),
+  });
+}
+
+export async function removeLeadListItem(listId: string, cnpj: string): Promise<void> {
+  await hermesFetch(
+    `/lead-lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(normalizeCnpjValue(cnpj))}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export async function getLeadSuppressions(): Promise<LeadSuppression[]> {
+  return hermesFetch<LeadSuppression[]>("/lead-suppressions");
+}
+
+export async function createLeadSuppressions(body: {
+  cnpjs?: string[];
+  emails?: string[];
+  domains?: string[];
+  reason?: string | null;
+  source?: string | null;
+}): Promise<{ ok: boolean; added: number; total: number }> {
+  return hermesFetch("/lead-suppressions", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function removeLeadSuppression(suppressionId: string): Promise<void> {
+  await hermesFetch(`/lead-suppressions/${encodeURIComponent(suppressionId)}`, {
+    method: "DELETE",
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
 // HISTÓRICO LOCAL (múltiplas buscas salvas)
 // ═══════════════════════════════════════════════════════════════
 
