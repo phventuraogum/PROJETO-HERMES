@@ -1024,6 +1024,17 @@ export async function salvarResultadoEnriquecimentoCnpj(
   });
 }
 
+export async function salvarResultadoManual(
+  config: ProspeccaoConfig,
+  resultado: ProspeccaoResultado,
+): Promise<void> {
+  await salvarResultadoLocal({
+    timestamp: new Date().toISOString(),
+    config,
+    resultado,
+  });
+}
+
 // ------------------------
 // CRÉDITOS
 // ------------------------
@@ -1822,6 +1833,63 @@ export type LeadSuppression = {
   updated_at?: string | null;
 };
 
+export type SavedSearchSummary = {
+  id: string;
+  kind: "search" | "dynamic";
+  name: string;
+  description?: string | null;
+  config: ProspeccaoConfig;
+  source?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  last_run_at?: string | null;
+};
+
+export type WatchCompanySnapshot = {
+  has_site?: boolean;
+  has_email?: boolean;
+  has_phone?: boolean;
+  has_whatsapp?: boolean;
+  has_whatsapp_validated?: boolean;
+  has_linkedin_company?: boolean;
+  decision_makers?: number;
+  total_contact_emails?: number;
+  deliverable_emails?: number;
+  public_email_count?: number;
+  generic_inbox_count?: number;
+  whatsapp_candidates?: number;
+  validated_whatsapp_candidates?: number;
+  email_pattern?: string | null;
+};
+
+export type WatchCompany = {
+  id: string;
+  cnpj: string;
+  razao_social?: string | null;
+  nome_fantasia?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  reason?: string | null;
+  source?: string | null;
+  snapshot: WatchCompanySnapshot;
+  created_at?: string | null;
+  updated_at?: string | null;
+  last_signal_at?: string | null;
+  last_refresh_at?: string | null;
+  signal_count: number;
+  last_signal_event_at?: string | null;
+};
+
+export type CompanySignal = {
+  id: string;
+  watch_id?: string | null;
+  cnpj: string;
+  signal_type: string;
+  title: string;
+  payload?: Record<string, unknown> | null;
+  created_at?: string | null;
+};
+
 function mapLeadListItem(raw: Record<string, unknown>): LeadListItem {
   return {
     id: asNullableString(raw.id) ?? "",
@@ -1830,6 +1898,69 @@ function mapLeadListItem(raw: Record<string, unknown>): LeadListItem {
     source: asNullableString(raw.source),
     added_at: asNullableString(raw.added_at),
     empresa: mapEmpresaApi(asRecord(raw.empresa) ?? {}),
+  };
+}
+
+function mapSavedSearch(raw: Record<string, unknown>): SavedSearchSummary {
+  const kind = asNullableString(raw.kind) === "dynamic" ? "dynamic" : "search";
+  return {
+    id: asNullableString(raw.id) ?? "",
+    kind,
+    name: asNullableString(raw.name) ?? "",
+    description: asNullableString(raw.description),
+    config: ((asRecord(raw.config) ?? {}) as unknown) as ProspeccaoConfig,
+    source: asNullableString(raw.source),
+    created_at: asNullableString(raw.created_at),
+    updated_at: asNullableString(raw.updated_at),
+    last_run_at: asNullableString(raw.last_run_at),
+  };
+}
+
+function mapWatchCompany(raw: Record<string, unknown>): WatchCompany {
+  const snapshot = asRecord(raw.snapshot) ?? {};
+  return {
+    id: asNullableString(raw.id) ?? "",
+    cnpj: asNullableString(raw.cnpj) ?? "",
+    razao_social: asNullableString(raw.razao_social),
+    nome_fantasia: asNullableString(raw.nome_fantasia),
+    cidade: asNullableString(raw.cidade),
+    uf: asNullableString(raw.uf),
+    reason: asNullableString(raw.reason),
+    source: asNullableString(raw.source),
+    snapshot: {
+      has_site: !!snapshot.has_site,
+      has_email: !!snapshot.has_email,
+      has_phone: !!snapshot.has_phone,
+      has_whatsapp: !!snapshot.has_whatsapp,
+      has_whatsapp_validated: !!snapshot.has_whatsapp_validated,
+      has_linkedin_company: !!snapshot.has_linkedin_company,
+      decision_makers: asNullableNumber(snapshot.decision_makers) ?? 0,
+      total_contact_emails: asNullableNumber(snapshot.total_contact_emails) ?? 0,
+      deliverable_emails: asNullableNumber(snapshot.deliverable_emails) ?? 0,
+      public_email_count: asNullableNumber(snapshot.public_email_count) ?? 0,
+      generic_inbox_count: asNullableNumber(snapshot.generic_inbox_count) ?? 0,
+      whatsapp_candidates: asNullableNumber(snapshot.whatsapp_candidates) ?? 0,
+      validated_whatsapp_candidates: asNullableNumber(snapshot.validated_whatsapp_candidates) ?? 0,
+      email_pattern: asNullableString(snapshot.email_pattern),
+    },
+    created_at: asNullableString(raw.created_at),
+    updated_at: asNullableString(raw.updated_at),
+    last_signal_at: asNullableString(raw.last_signal_at),
+    last_refresh_at: asNullableString(raw.last_refresh_at),
+    signal_count: asNullableNumber(raw.signal_count) ?? 0,
+    last_signal_event_at: asNullableString(raw.last_signal_event_at),
+  };
+}
+
+function mapCompanySignal(raw: Record<string, unknown>): CompanySignal {
+  return {
+    id: asNullableString(raw.id) ?? "",
+    watch_id: asNullableString(raw.watch_id),
+    cnpj: asNullableString(raw.cnpj) ?? "",
+    signal_type: asNullableString(raw.signal_type) ?? "",
+    title: asNullableString(raw.title) ?? "",
+    payload: asRecord(raw.payload),
+    created_at: asNullableString(raw.created_at),
   };
 }
 
@@ -1916,6 +2047,106 @@ export async function removeLeadSuppression(suppressionId: string): Promise<void
   await hermesFetch(`/lead-suppressions/${encodeURIComponent(suppressionId)}`, {
     method: "DELETE",
   });
+}
+
+export async function getSavedSearches(kind?: "search" | "dynamic"): Promise<SavedSearchSummary[]> {
+  const suffix = kind ? `?kind=${encodeURIComponent(kind)}` : "";
+  const rows = await hermesFetch<Record<string, unknown>[]>(`/saved-searches${suffix}`);
+  return rows.map(mapSavedSearch);
+}
+
+export async function createSavedSearch(body: {
+  name: string;
+  description?: string | null;
+  config: ProspeccaoConfig;
+  kind?: "search" | "dynamic";
+  source?: string | null;
+}): Promise<SavedSearchSummary> {
+  const raw = await hermesFetch<Record<string, unknown>>("/saved-searches", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return mapSavedSearch(raw);
+}
+
+export async function updateSavedSearch(
+  searchId: string,
+  body: {
+    name?: string;
+    description?: string | null;
+    config?: ProspeccaoConfig;
+    kind?: "search" | "dynamic";
+    source?: string | null;
+  },
+): Promise<void> {
+  await hermesFetch(`/saved-searches/${encodeURIComponent(searchId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteSavedSearch(searchId: string): Promise<void> {
+  await hermesFetch(`/saved-searches/${encodeURIComponent(searchId)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function previewSavedSearch(searchId: string): Promise<ProspeccaoResultado> {
+  return hermesFetch<ProspeccaoResultado>(`/saved-searches/${encodeURIComponent(searchId)}/preview`, {
+    method: "POST",
+  });
+}
+
+export async function getCompanyWatchlist(): Promise<WatchCompany[]> {
+  const rows = await hermesFetch<Record<string, unknown>[]>("/company-watchlist");
+  return rows.map(mapWatchCompany);
+}
+
+export async function followCompany(body: {
+  cnpj?: string;
+  empresa?: Empresa | null;
+  reason?: string | null;
+  source?: string | null;
+}): Promise<{ watch: WatchCompany; signals: CompanySignal[] }> {
+  const raw = await hermesFetch<Record<string, unknown>>("/company-watchlist", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return {
+    watch: mapWatchCompany(asRecord(raw.watch) ?? {}),
+    signals: asArray<Record<string, unknown>>(raw.signals).map(mapCompanySignal),
+  };
+}
+
+export async function refreshWatchedCompany(cnpj: string): Promise<{ watch: WatchCompany; signals: CompanySignal[] }> {
+  const raw = await hermesFetch<Record<string, unknown>>(
+    `/company-watchlist/${encodeURIComponent(normalizeCnpjValue(cnpj))}/refresh`,
+    {
+      method: "POST",
+    },
+  );
+  return {
+    watch: mapWatchCompany(asRecord(raw.watch) ?? {}),
+    signals: asArray<Record<string, unknown>>(raw.signals).map(mapCompanySignal),
+  };
+}
+
+export async function unfollowCompany(cnpj: string): Promise<void> {
+  await hermesFetch(`/company-watchlist/${encodeURIComponent(normalizeCnpjValue(cnpj))}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getCompanySignals(opts?: {
+  cnpj?: string | null;
+  limit?: number;
+}): Promise<CompanySignal[]> {
+  const params = new URLSearchParams();
+  if (opts?.cnpj) params.set("cnpj", normalizeCnpjValue(opts.cnpj));
+  if (opts?.limit) params.set("limit", String(opts.limit));
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const rows = await hermesFetch<Record<string, unknown>[]>(`/company-signals${suffix}`);
+  return rows.map(mapCompanySignal);
 }
 
 // ═══════════════════════════════════════════════════════════════

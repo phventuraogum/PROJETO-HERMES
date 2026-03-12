@@ -1,12 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
+  BookmarkPlus,
   Copy,
   FileJson,
   Filter,
   Loader2,
   Play,
+  RefreshCw,
   Sparkles,
   TerminalSquare,
 } from "lucide-react";
@@ -15,16 +17,30 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  createSavedSearch,
+  deleteSavedSearch,
+  getSavedSearches,
+  previewSavedSearch,
   runProspeccaoStream,
+  salvarResultadoManual,
   type ProgressEvent,
   type ProspeccaoConfig,
   type ProspeccaoResultado,
+  type SavedSearchSummary,
 } from "@/lib/api";
 
 type QueryPreset = {
@@ -74,6 +90,15 @@ function parseList(value: string): string[] {
     .filter(Boolean);
 }
 
+function formatDate(value?: string | null): string {
+  if (!value) return "Nunca";
+  try {
+    return new Date(value).toLocaleString("pt-BR");
+  } catch {
+    return value;
+  }
+}
+
 const QueryWorkbench = () => {
   const navigate = useNavigate();
 
@@ -92,6 +117,14 @@ const QueryWorkbench = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState<ProgressEvent | null>(null);
   const [ultimoResultado, setUltimoResultado] = useState<ProspeccaoResultado | null>(null);
+  const [savedSearches, setSavedSearches] = useState<SavedSearchSummary[]>([]);
+  const [loadingSavedSearches, setLoadingSavedSearches] = useState(true);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveKind, setSaveKind] = useState<"search" | "dynamic">("search");
+  const [saveName, setSaveName] = useState("");
+  const [saveDescription, setSaveDescription] = useState("");
+  const [savingSearch, setSavingSearch] = useState(false);
+  const [runningSavedSearchId, setRunningSavedSearchId] = useState<string | null>(null);
 
   const payload = useMemo<ProspeccaoConfig>(() => {
     const cidades = parseList(cidadesInput);
@@ -140,6 +173,36 @@ const QueryWorkbench = () => {
     return Math.min(100, Math.round((progress.current / progress.total) * 100));
   }, [progress]);
 
+  const hydrateForm = (config: ProspeccaoConfig) => {
+    setTermoBase(config.termo_base ?? "");
+    setCidadesInput((config.cidades ?? (config.cidade ? [config.cidade] : [])).join(", "));
+    setUfsInput((config.ufs ?? (config.uf ? [config.uf] : [])).join(", "));
+    setPortesInput((config.portes ?? []).join(", "));
+    setSegmentosInput((config.segmentos ?? []).join(", "));
+    setCnaesInput((config.cnaes ?? []).join(", "));
+    setCapitalMinimo(String(config.capital_minimo ?? 0));
+    setCapitalMaximo(config.capital_maximo != null ? String(config.capital_maximo) : "");
+    setLimiteEmpresas(String(config.limite_empresas ?? 50));
+    setEnriquecimentoWeb(config.enriquecimento_web ?? true);
+    setExigirContato(config.exigir_contato_acionavel ?? false);
+    setPriorizarContato(config.priorizar_com_contato ?? true);
+  };
+
+  const reloadSavedSearches = async () => {
+    try {
+      setLoadingSavedSearches(true);
+      setSavedSearches(await getSavedSearches());
+    } catch (err: any) {
+      toast.error(err?.message || "Nao foi possivel carregar as buscas salvas.");
+    } finally {
+      setLoadingSavedSearches(false);
+    }
+  };
+
+  useEffect(() => {
+    void reloadSavedSearches();
+  }, []);
+
   const applyPreset = (preset: QueryPreset) => {
     setTermoBase(preset.termo_base);
     setCidadesInput(preset.cidades.join(", "));
@@ -170,6 +233,66 @@ const QueryWorkbench = () => {
       toast.error(err?.message || "Falha ao executar a query.");
     } finally {
       setIsRunning(false);
+    }
+  };
+
+  const openSaveDialog = (kind: "search" | "dynamic") => {
+    setSaveKind(kind);
+    setSaveName(payload.termo_base ? `${payload.termo_base} ${kind === "dynamic" ? "dinamica" : "salva"}` : "");
+    setSaveDescription("");
+    setSaveDialogOpen(true);
+  };
+
+  const handleSaveSearch = async () => {
+    const name = saveName.trim();
+    if (!name) {
+      toast.info("Informe um nome para a busca salva.");
+      return;
+    }
+
+    try {
+      setSavingSearch(true);
+      await createSavedSearch({
+        name,
+        description: saveDescription.trim() || null,
+        config: payload,
+        kind: saveKind,
+        source: "query_workbench",
+      });
+      setSaveDialogOpen(false);
+      setSaveName("");
+      setSaveDescription("");
+      await reloadSavedSearches();
+      toast.success(saveKind === "dynamic" ? "Lista dinamica salva." : "Busca salva criada.");
+    } catch (err: any) {
+      toast.error(err?.message || "Nao foi possivel salvar a busca.");
+    } finally {
+      setSavingSearch(false);
+    }
+  };
+
+  const handleRunSavedSearch = async (search: SavedSearchSummary) => {
+    try {
+      setRunningSavedSearchId(search.id);
+      const resultado = await previewSavedSearch(search.id);
+      await salvarResultadoManual(search.config, resultado);
+      toast.success(`${resultado.total_empresas} empresas retornadas pela busca salva.`);
+      await reloadSavedSearches();
+      navigate("/results");
+    } catch (err: any) {
+      toast.error(err?.message || "Nao foi possivel rodar a busca salva.");
+    } finally {
+      setRunningSavedSearchId(null);
+    }
+  };
+
+  const handleDeleteSavedSearch = async (searchId: string) => {
+    try {
+      await deleteSavedSearch(searchId);
+      await reloadSavedSearches();
+      toast.success("Busca salva removida.");
+    } catch (err: any) {
+      toast.error(err?.message || "Nao foi possivel remover a busca salva.");
     }
   };
 
@@ -373,15 +496,37 @@ const QueryWorkbench = () => {
                 <Copy className="mr-2 h-4 w-4" />
                 Copiar JSON
               </Button>
-              <Button
-                type="button"
-                className="bg-amber-500 text-zinc-950 hover:bg-amber-400"
-                onClick={() => void handleRun()}
-                disabled={isRunning}
-              >
-                {isRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-                Rodar query
-              </Button>
+              <div className="grid gap-3">
+                <Button
+                  type="button"
+                  className="bg-amber-500 text-zinc-950 hover:bg-amber-400"
+                  onClick={() => void handleRun()}
+                  disabled={isRunning}
+                >
+                  {isRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+                  Rodar query
+                </Button>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-zinc-700 bg-zinc-900"
+                    onClick={() => openSaveDialog("search")}
+                  >
+                    <BookmarkPlus className="mr-2 h-4 w-4" />
+                    Salvar busca
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
+                    onClick={() => openSaveDialog("dynamic")}
+                  >
+                    <BookmarkPlus className="mr-2 h-4 w-4" />
+                    Lista dinamica
+                  </Button>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-3 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
@@ -432,6 +577,173 @@ const QueryWorkbench = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="border-zinc-800 bg-zinc-950/60">
+        <CardHeader>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <BookmarkPlus className="h-4 w-4 text-cyan-300" />
+                Buscas salvas e listas dinamicas
+              </CardTitle>
+              <CardDescription>
+                Reaproveite queries, rode previews de lista dinamica e carregue filtros prontos no Workbench.
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="border-zinc-700 bg-zinc-900"
+              onClick={() => void reloadSavedSearches()}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Atualizar
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadingSavedSearches ? (
+            <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm text-zinc-400">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Carregando buscas salvas...
+            </div>
+          ) : savedSearches.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+              Nenhuma busca salva ainda. Monte uma query acima e salve como busca ou lista dinamica.
+            </div>
+          ) : (
+            <div className="grid gap-3 xl:grid-cols-2">
+              {savedSearches.map((search) => (
+                <div
+                  key={search.id}
+                  className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-zinc-100">{search.name}</p>
+                        <Badge
+                          variant="outline"
+                          className={
+                            search.kind === "dynamic"
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                              : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
+                          }
+                        >
+                          {search.kind === "dynamic" ? "dinamica" : "salva"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-zinc-500">
+                        {search.description || "Sem descricao"} . Ultima execucao: {formatDate(search.last_run_at)}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-zinc-500 hover:text-rose-300"
+                      onClick={() => void handleDeleteSavedSearch(search.id)}
+                    >
+                      Excluir
+                    </Button>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                      {(search.config.ufs ?? []).length || (search.config.uf ? 1 : 0)} UF(s)
+                    </Badge>
+                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                      {(search.config.cnaes ?? []).length} CNAE(s)
+                    </Badge>
+                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                      limite {search.config.limite_empresas}
+                    </Badge>
+                  </div>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-zinc-700 bg-zinc-900"
+                      onClick={() => {
+                        hydrateForm(search.config);
+                        toast.success("Busca carregada no Workbench.");
+                      }}
+                    >
+                      Carregar filtros
+                    </Button>
+                    <Button
+                      type="button"
+                      className="bg-white text-zinc-950 hover:bg-zinc-200"
+                      onClick={() => void handleRunSavedSearch(search)}
+                      disabled={runningSavedSearchId === search.id}
+                    >
+                      {runningSavedSearchId === search.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Play className="mr-2 h-4 w-4" />
+                      )}
+                      Abrir no Results
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100">
+          <DialogHeader>
+            <DialogTitle>
+              {saveKind === "dynamic" ? "Salvar lista dinamica" : "Salvar busca"}
+            </DialogTitle>
+            <DialogDescription>
+              O payload atual sera persistido e podera ser reexecutado sem remontar a query.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="save-name">Nome</Label>
+              <Input
+                id="save-name"
+                value={saveName}
+                onChange={(event) => setSaveName(event.target.value)}
+                className="border-zinc-700 bg-zinc-900"
+                placeholder="Administradoras MG com contato"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="save-description">Descricao</Label>
+              <Textarea
+                id="save-description"
+                value={saveDescription}
+                onChange={(event) => setSaveDescription(event.target.value)}
+                className="min-h-24 border-zinc-700 bg-zinc-900"
+                placeholder="Filtro pronto para campanhas e reruns."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              className="border-zinc-700 bg-zinc-900"
+              onClick={() => setSaveDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              className="bg-amber-500 text-zinc-950 hover:bg-amber-400"
+              onClick={() => void handleSaveSearch()}
+              disabled={savingSearch}
+            >
+              {savingSearch ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookmarkPlus className="mr-2 h-4 w-4" />}
+              Salvar agora
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
