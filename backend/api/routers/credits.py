@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Credits & Billing"])
 _warned_missing_organizations_table = False
+_warned_missing_plans_table = False
 
 # ── Supabase helper ─────────────────────────────────────────────────────────
 
@@ -66,6 +67,16 @@ def _log_missing_organizations_table_once() -> None:
     )
 
 
+def _log_missing_plans_table_once() -> None:
+    global _warned_missing_plans_table
+    if _warned_missing_plans_table:
+        return
+    _warned_missing_plans_table = True
+    logger.warning(
+        "Tabela public.plans ausente no Supabase; usando catalogo fallback para GET /plans."
+    )
+
+
 async def _supabase_get(path: str, params: dict = None) -> list:
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.get(_supabase_url(path), headers=_supabase_headers(), params=params or {})
@@ -86,7 +97,7 @@ async def _load_active_plans() -> tuple[list[dict], str]:
         })
         if r.status_code >= 400:
             if is_missing_plans_table(r.status_code, r.text):
-                logger.warning("Tabela public.plans ausente no Supabase; usando catalogo fallback para GET /plans.")
+                _log_missing_plans_table_once()
                 return list_fallback_plans(), "fallback"
 
             logger.error("Supabase GET /plans: %d %s", r.status_code, r.text[:200])
