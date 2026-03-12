@@ -7,8 +7,21 @@ que ainda nao foram migrados para routers proprios.
 import os
 import asyncio
 import logging
+import warnings
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from dotenv import load_dotenv
+
+warnings.filterwarnings(
+    "ignore",
+    message=".*asyncio.iscoroutinefunction.*",
+    category=DeprecationWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    message="Please use `import python_multipart` instead.",
+    category=PendingDeprecationWarning,
+)
 
 load_dotenv()
 
@@ -16,9 +29,12 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
+from pydantic.warnings import UnsupportedFieldAttributeWarning
 
 from config import settings
 from api.result_store import result_store
+
+warnings.simplefilter("ignore", UnsupportedFieldAttributeWarning)
 
 # ============================================================
 # LOGGING ESTRUTURADO
@@ -33,10 +49,37 @@ logger = logging.getLogger("hermes.main")
 # APP PRINCIPAL
 # ============================================================
 
-# Swagger/Docs desabilitados em produção (não expor schema da API)
-_docs_url   = None if settings.is_production else "/docs"
-_redoc_url  = None if settings.is_production else "/redoc"
+# Swagger/Docs disabled in production to avoid exposing the API schema.
+_docs_url = None if settings.is_production else "/docs"
+_redoc_url = None if settings.is_production else "/redoc"
 _openapi_url = None if settings.is_production else "/openapi.json"
+
+
+async def _run_startup_checks() -> None:
+    logger.info("=" * 60)
+    logger.info("HERMES API v2.1 iniciando")
+    logger.info(f"Ambiente:       {settings.ENVIRONMENT}")
+    logger.info(f"Auth obrigatoria: {settings.HERMES_AUTH_REQUIRED}")
+    logger.info(f"Rate limiting:  {settings.RATE_LIMIT_ENABLED}")
+    logger.info(f"Swagger/Docs:   {'DESABILITADO (producao)' if settings.is_production else '/docs'}")
+    logger.info(f"CORS origens:   {settings.CORS_ORIGINS}")
+    logger.info("=" * 60)
+
+    if settings.is_production:
+        from config import validate_production_settings
+
+        try:
+            validate_production_settings()
+            logger.info("Validacao de producao: OK")
+        except ValueError as e:
+            logger.critical(f"CONFIGURACAO INVALIDA PARA PRODUCAO: {e}")
+            raise SystemExit(1)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    await _run_startup_checks()
+    yield
 
 app = FastAPI(
     title="Hermes API - Prospecção B2B",
@@ -57,6 +100,7 @@ app = FastAPI(
     docs_url=_docs_url,
     redoc_url=_redoc_url,
     openapi_url=_openapi_url,
+    lifespan=lifespan,
 )
 
 # ============================================================
@@ -491,32 +535,6 @@ except Exception as e:
 def health_check():
     """Health check básico (público — usado pelo Docker/load balancer)."""
     return {"status": "ok", "version": "2.1.0", "environment": settings.ENVIRONMENT}
-
-# ============================================================
-# STARTUP
-# ============================================================
-
-@app.on_event("startup")
-async def startup():
-    logger.info("=" * 60)
-    logger.info("HERMES API v2.1 iniciando")
-    logger.info(f"Ambiente:       {settings.ENVIRONMENT}")
-    logger.info(f"Auth obrigatória: {settings.HERMES_AUTH_REQUIRED}")
-    logger.info(f"Rate limiting:  {settings.RATE_LIMIT_ENABLED}")
-    logger.info(f"Swagger/Docs:   {'DESABILITADO (produção)' if settings.is_production else '/docs'}")
-    logger.info(f"CORS origens:   {settings.CORS_ORIGINS}")
-    logger.info("=" * 60)
-
-    # Valida configurações críticas em produção
-    if settings.is_production:
-        from config import validate_production_settings
-        try:
-            validate_production_settings()
-            logger.info("Validação de produção: OK")
-        except ValueError as e:
-            logger.critical(f"CONFIGURAÇÃO INVÁLIDA PARA PRODUÇÃO: {e}")
-            raise SystemExit(1)
-
 
 if __name__ == "__main__":
     import uvicorn

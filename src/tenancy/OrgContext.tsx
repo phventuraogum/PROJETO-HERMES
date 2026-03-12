@@ -13,6 +13,7 @@ type OrgCtx = {
 
 const Ctx = createContext<OrgCtx | null>(null);
 const LS_KEY = "hermes.org_id";
+const DEFAULT_ORG: Org = { id: "default", name: "Minha Organizacao", slug: "default", role: "admin" };
 
 export function OrgProvider({ children }: { children: React.ReactNode }) {
   const { accessToken } = useAuth();
@@ -29,7 +30,7 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!accessToken) {
-      setOrgs([defaultOrg]);
+      setOrgs([DEFAULT_ORG]);
       const current = localStorage.getItem(LS_KEY);
       if (!current || !current.trim()) {
         localStorage.setItem(LS_KEY, "default");
@@ -42,14 +43,14 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
       setLoadingOrgs(true);
       try {
         const data = await apiFetch<Org[]>("/admin/orgs", { skipOrgHeader: true });
-        const list = Array.isArray(data) && data.length > 0 ? data : [defaultOrg];
+        const list = Array.isArray(data) && data.length > 0 ? data : [DEFAULT_ORG];
         setOrgs(list);
 
         const saved = localStorage.getItem(LS_KEY);
         const pick = (saved && list.find(o => o.id === saved)?.id) || list[0]?.id || "default";
         setOrgId(pick);
       } catch {
-        setOrgs([defaultOrg]);
+        setOrgs([DEFAULT_ORG]);
         const fallback = localStorage.getItem(LS_KEY) || "default";
         localStorage.setItem(LS_KEY, fallback);
         setOrgIdState(fallback);

@@ -350,7 +350,9 @@ async function readApiError(res: Response): Promise<string> {
       if (j?.detail) return JSON.stringify(j.detail);
       return JSON.stringify(j);
     }
-  } catch {}
+  } catch {
+    // fall through to plain-text parsing
+  }
   try {
     const t = await res.text();
     return t || `Erro HTTP ${res.status} - ${res.statusText}`;
@@ -1493,7 +1495,7 @@ export async function exportBatchToCrm(
   apiKey: string,
   leads: LeadExportPayload[],
   opts?: { funnel_id?: number; create_deal?: boolean }
-): Promise<{ total: number; success: number; results: any[] }> {
+): Promise<{ total: number; success: number; results: Array<Record<string, unknown>> }> {
   return hermesFetch("/crm/export/batch", {
     method: "POST",
     body: JSON.stringify({
@@ -1613,7 +1615,9 @@ export async function runProspeccaoStream(
               resolve(data);
               return true;
             }
-          } catch {}
+          } catch {
+            // ignore malformed SSE lines and keep streaming
+          }
         }
       }
       return false;

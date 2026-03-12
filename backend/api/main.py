@@ -3,6 +3,7 @@ import re
 import math
 import os
 import json
+import warnings
 from urllib.parse import urlparse
 
 import duckdb  # type: ignore
@@ -10,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field, ConfigDict
+from pydantic.warnings import UnsupportedFieldAttributeWarning
 
 from api.db_pool import get_connection, healthcheck as db_healthcheck
 from api.cache_service import cache_service
@@ -27,6 +29,13 @@ from api.utils import (
 )
 
 _as_opt_str = as_opt_str
+
+warnings.filterwarnings(
+    "ignore",
+    message=".*(validation_alias|serialization_alias|alias).*",
+    category=UnsupportedFieldAttributeWarning,
+)
+warnings.simplefilter("ignore", UnsupportedFieldAttributeWarning)
 
 try:
     from redis import Redis
@@ -171,20 +180,20 @@ class ProspeccaoConfig(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    termo: str = Field("", alias="termo_base")
+    termo: str = Field("", validation_alias="termo_base", serialization_alias="termo_base")
     cidade: str = ""
     uf: str = ""
     cidades: Optional[List[str]] = None
     ufs: Optional[List[str]] = None
-    capital_minima: int = Field(0, alias="capital_minimo")
-    capital_maxima: Optional[int] = Field(None, alias="capital_maximo")
+    capital_minima: int = Field(0, validation_alias="capital_minimo", serialization_alias="capital_minimo")
+    capital_maxima: Optional[int] = Field(None, validation_alias="capital_maximo", serialization_alias="capital_maximo")
     limite_empresas: int = 50
     portes: Optional[List[str]] = None
     segmentos: Optional[List[str]] = None
     cnaes: Optional[List[str]] = None
     incluir_cnae_secundario: bool = False
-    enriquecer_web: bool = Field(False, alias="enriquecimento_web")
-    exigir_contato: bool = Field(False, alias="exigir_contato_acionavel")
+    enriquecer_web: bool = Field(False, validation_alias="enriquecimento_web", serialization_alias="enriquecimento_web")
+    exigir_contato: bool = Field(False, validation_alias="exigir_contato_acionavel", serialization_alias="exigir_contato_acionavel")
     priorizar_com_contato: bool = True
     excluir_cnpjs: Optional[List[str]] = None
     idade_minima_anos: Optional[int] = None

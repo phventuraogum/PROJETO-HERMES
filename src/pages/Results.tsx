@@ -1297,7 +1297,15 @@ const ResultsPage = () => {
     setActiveChips(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
 
   const toggleSelect = (cnpj: string, checked: boolean) =>
-    setSelected(prev => { const n = new Set(prev); checked ? n.add(cnpj) : n.delete(cnpj); return n; });
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(cnpj);
+      } else {
+        next.delete(cnpj);
+      }
+      return next;
+    });
 
   const toggleSelectAll = () => {
     if (selected.size === filtered.length) setSelected(new Set());
