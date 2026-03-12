@@ -508,3 +508,126 @@ def resolve_contact_intelligence_job(
             ),
         )
         return {"cnpj": cnpj, "status": "error", "error": str(exc)}
+
+
+def run_lead_refresh_job(org_id: str, job_id: str) -> dict:
+    from api.contact_intelligence import contact_intelligence_service
+    from api.company_intelligence_extras import company_intelligence_extras_service
+    from api.lead_registry import build_watch_snapshot, lead_registry_service
+
+    job = lead_registry_service.get_refresh_job(org_id, job_id)
+    if not job:
+        raise LookupError(f"Lead refresh job {job_id} nao encontrado")
+
+    options = dict(job.get("options") or {})
+    probe_smtp = bool(options.get("probe_smtp"))
+    refresh_external_signals = bool(options.get("refresh_external_signals"))
+    refresh_enrichment = bool(options.get("refresh_enrichment", True))
+    refresh_contact_intelligence = bool(options.get("refresh_contact_intelligence", True))
+    sync_watchlist = bool(options.get("sync_watchlist", True))
+
+    lead_registry_service.mark_refresh_job_running(org_id, job_id)
+    targets = lead_registry_service.list_refresh_job_targets(org_id, job_id, limit=500)
+
+    for target in targets:
+        cnpj = str(target.get("cnpj") or "").strip()
+        if not cnpj:
+            continue
+
+        payload: Dict[str, Any] = {"cnpj": cnpj}
+        try:
+            _reset_db_connections()
+            lead_registry_service.mark_refresh_target_running(org_id, job_id, cnpj, "enrichment")
+
+            enrichment_result: Dict[str, Any] = {"status": "skipped"}
+            if refresh_enrichment:
+                enrichment_result = enrich_company_by_cnpj_enhanced(cnpj)
+            payload["enrichment"] = enrichment_result
+
+            lead_registry_service.mark_refresh_target_running(org_id, job_id, cnpj, "contact_intelligence")
+            intelligence: Dict[str, Any] | None = None
+            if refresh_contact_intelligence:
+                intelligence = asyncio.run(
+                    contact_intelligence_service.resolve_company_intelligence(
+                        cnpj,
+                        probe_smtp=probe_smtp,
+                    )
+                )
+            else:
+                intelligence = contact_intelligence_service.get_cached_company_intelligence(cnpj)
+
+            snapshot, _context = _load_company_snapshot(cnpj)
+            if not snapshot:
+                raise LookupError("Empresa nao encontrada apos refresh")
+
+            refresh_summary = build_watch_snapshot(snapshot, intelligence=intelligence)
+            state = lead_registry_service.upsert_refresh_state(
+                org_id,
+                cnpj,
+                source_kind=job.get("source_kind"),
+                source_ref=job.get("source_ref"),
+                job_id=job_id,
+                summary=refresh_summary,
+            )
+
+            internal_signals: List[Dict[str, Any]] = []
+            watch_company = lead_registry_service.get_watch_company(org_id, cnpj)
+            if sync_watchlist and watch_company:
+                sync_result = lead_registry_service.sync_watch_snapshot(
+                    org_id,
+                    cnpj,
+                    refresh_summary,
+                    company=snapshot,
+                    source="lead_refresh_job",
+                )
+                internal_signals = list(sync_result.get("signals") or [])
+
+            external_signals_recorded: List[Dict[str, Any]] = []
+            if refresh_external_signals:
+                external_signals = asyncio.run(
+                    company_intelligence_extras_service.fetch_external_signals(cnpj, company=snapshot)
+                )
+                external_signals_recorded = lead_registry_service.record_company_signals(
+                    org_id,
+                    cnpj,
+                    external_signals,
+                )
+
+            result = {
+                "cnpj": cnpj,
+                "status": "completed",
+                "enrichment": enrichment_result,
+                "contact_intelligence_summary": (intelligence or {}).get("summary") or {},
+                "refresh_state": state,
+                "signals_recorded": len(internal_signals) + len(external_signals_recorded),
+            }
+            lead_registry_service.complete_refresh_target(
+                org_id,
+                job_id,
+                cnpj,
+                stage="completed",
+                payload=payload,
+                result=result,
+            )
+        except Exception as exc:
+            logger.error("[JOB_ENHANCED] lead refresh failed for %s in job %s: %s", cnpj, job_id, exc)
+            lead_registry_service.upsert_refresh_state(
+                org_id,
+                cnpj,
+                source_kind=job.get("source_kind"),
+                source_ref=job.get("source_ref"),
+                job_id=job_id,
+                summary=payload.get("refresh_summary"),
+                error=str(exc),
+            )
+            lead_registry_service.fail_refresh_target(
+                org_id,
+                job_id,
+                cnpj,
+                stage="error",
+                error=str(exc),
+                payload=payload,
+            )
+
+    finalized = lead_registry_service.finalize_refresh_job(org_id, job_id)
+    return finalized or {"id": job_id, "status": "completed"}

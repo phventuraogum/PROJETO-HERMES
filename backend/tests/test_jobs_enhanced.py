@@ -12,7 +12,11 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 
-from api.jobs_enhanced import enrich_company_by_cnpj_enhanced, resolve_contact_intelligence_job
+from api.jobs_enhanced import (
+    enrich_company_by_cnpj_enhanced,
+    resolve_contact_intelligence_job,
+    run_lead_refresh_job,
+)
 
 
 def _normalizar_whatsapp_br(numero: str | None) -> str | None:
@@ -273,6 +277,123 @@ class JobsEnhancedTests(unittest.TestCase):
         self.assertTrue(service_calls[0]["probe_smtp"])
         self.assertEqual(statuses[0][1]["status"], "running")
         self.assertEqual(statuses[-1][1]["status"], "completed")
+
+    def test_run_lead_refresh_job_updates_registry_and_watchlist(self):
+        registry_calls = []
+        signal_payloads = []
+
+        class FakeRegistryService:
+            def get_refresh_job(self, org_id, job_id):
+                self.last_job = (org_id, job_id)
+                return {
+                    "id": job_id,
+                    "source_kind": "watchlist",
+                    "source_ref": None,
+                    "options": {
+                        "probe_smtp": True,
+                        "refresh_external_signals": True,
+                        "refresh_enrichment": True,
+                        "refresh_contact_intelligence": True,
+                        "sync_watchlist": True,
+                    },
+                }
+
+            def mark_refresh_job_running(self, org_id, job_id):
+                registry_calls.append(("job_running", org_id, job_id))
+                return True
+
+            def list_refresh_job_targets(self, org_id, job_id, limit=500):
+                self.last_limit = limit
+                return [{"id": "t-1", "cnpj": "12345678000199"}]
+
+            def mark_refresh_target_running(self, org_id, job_id, cnpj, stage):
+                registry_calls.append(("target_running", stage, cnpj))
+                return True
+
+            def upsert_refresh_state(self, org_id, cnpj, **kwargs):
+                registry_calls.append(("state", cnpj, kwargs))
+                return {"cnpj": cnpj, "freshness_status": "fresh"}
+
+            def get_watch_company(self, org_id, cnpj):
+                return {"cnpj": cnpj, "razao_social": "EMPRESA TESTE LTDA"}
+
+            def sync_watch_snapshot(self, org_id, cnpj, snapshot, **kwargs):
+                registry_calls.append(("sync_watch", cnpj, snapshot))
+                return {"signals": [{"signal_type": "deliverable_emails_increased"}]}
+
+            def record_company_signals(self, org_id, cnpj, signals):
+                signal_payloads.extend(signals)
+                return [{"id": "sig-1", "cnpj": cnpj, "signal_type": "jobs_signal"}]
+
+            def complete_refresh_target(self, org_id, job_id, cnpj, **kwargs):
+                registry_calls.append(("target_completed", cnpj, kwargs))
+                return True
+
+            def fail_refresh_target(self, org_id, job_id, cnpj, **kwargs):
+                registry_calls.append(("target_failed", cnpj, kwargs))
+                return True
+
+            def finalize_refresh_job(self, org_id, job_id):
+                registry_calls.append(("job_finalized", org_id, job_id))
+                return {"id": job_id, "status": "completed", "success_targets": 1, "failed_targets": 0}
+
+        fake_lead_registry_module = types.ModuleType("api.lead_registry")
+        fake_lead_registry_module.lead_registry_service = FakeRegistryService()
+        fake_lead_registry_module.build_watch_snapshot = lambda company, intelligence=None: {
+            "has_site": bool(company.get("site")),
+            "decision_makers": int((intelligence or {}).get("summary", {}).get("decision_makers") or 0),
+            "deliverable_emails": int((intelligence or {}).get("summary", {}).get("deliverable") or 0),
+            "validated_whatsapp_candidates": 1 if company.get("whatsapp_enriquecido") else 0,
+        }
+
+        class FakeContactIntelligenceService:
+            async def resolve_company_intelligence(self, cnpj, probe_smtp=False):
+                return {
+                    "company": {"cnpj": cnpj},
+                    "summary": {"decision_makers": 4, "deliverable": 2},
+                }
+
+        fake_contact_module = types.ModuleType("api.contact_intelligence")
+        fake_contact_module.contact_intelligence_service = FakeContactIntelligenceService()
+
+        class FakeExtrasService:
+            async def fetch_external_signals(self, cnpj, company=None):
+                return [
+                    {
+                        "signal_type": "jobs_signal",
+                        "title": "Nova pagina de vagas detectada",
+                        "payload": {"cnpj": cnpj},
+                    }
+                ]
+
+        fake_extras_module = types.ModuleType("api.company_intelligence_extras")
+        fake_extras_module.company_intelligence_extras_service = FakeExtrasService()
+
+        with mock.patch("api.jobs_enhanced.enrich_company_by_cnpj_enhanced", return_value={"status": "enriched"}), \
+             mock.patch("api.jobs_enhanced._load_company_snapshot", return_value=(
+                 {
+                     "cnpj": "12345678000199",
+                     "razao_social": "EMPRESA TESTE LTDA",
+                     "site": "https://empresa.com.br",
+                     "whatsapp_enriquecido": "5531999999999",
+                 },
+                 {},
+             )), \
+             mock.patch("api.jobs_enhanced._reset_db_connections", return_value=None), \
+             mock.patch.dict(
+                 sys.modules,
+                 {
+                     "api.lead_registry": fake_lead_registry_module,
+                     "api.contact_intelligence": fake_contact_module,
+                     "api.company_intelligence_extras": fake_extras_module,
+                 },
+             ):
+            result = run_lead_refresh_job("org-a", "job-1")
+
+        self.assertEqual(result["status"], "completed")
+        self.assertTrue(any(call[0] == "sync_watch" for call in registry_calls))
+        self.assertTrue(any(call[0] == "target_completed" for call in registry_calls))
+        self.assertEqual(signal_payloads[0]["signal_type"], "jobs_signal")
 
 
 if __name__ == "__main__":

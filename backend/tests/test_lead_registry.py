@@ -284,6 +284,82 @@ class LeadRegistryTests(unittest.TestCase):
         signals = self.service.list_company_signals("org-a", cnpj="15103354000139")
         self.assertEqual(len(signals), 1)
 
+    def test_refresh_jobs_and_states_track_progress(self):
+        job = self.service.create_refresh_job(
+            "org-a",
+            name="Refresh carteira SDR",
+            source_kind="lead_list",
+            source_ref="lista-1",
+            source_label="Lista SDR",
+            cnpjs=[
+                "12.345.678/0001-90",
+                "12345678000190",
+                "98.765.432/0001-10",
+            ],
+            options={"probe_smtp": True},
+        )
+
+        self.assertEqual(job["total_targets"], 2)
+        self.assertEqual(job["status"], "queued")
+
+        self.assertTrue(self.service.mark_refresh_job_running("org-a", job["id"]))
+        self.assertTrue(
+            self.service.mark_refresh_target_running(
+                "org-a",
+                job["id"],
+                "12345678000190",
+                "contact_intelligence",
+            )
+        )
+        self.assertTrue(
+            self.service.complete_refresh_target(
+                "org-a",
+                job["id"],
+                "12345678000190",
+                stage="completed",
+                payload={"cnpj": "12345678000190"},
+                result={"signals_recorded": 2},
+            )
+        )
+        self.assertTrue(
+            self.service.fail_refresh_target(
+                "org-a",
+                job["id"],
+                "98765432000110",
+                stage="error",
+                error="timeout",
+            )
+        )
+
+        finalized = self.service.finalize_refresh_job("org-a", job["id"])
+        assert finalized is not None
+        self.assertEqual(finalized["status"], "completed_with_errors")
+        self.assertEqual(finalized["success_targets"], 1)
+        self.assertEqual(finalized["failed_targets"], 1)
+
+        targets = self.service.list_refresh_job_targets("org-a", job["id"])
+        self.assertEqual(len(targets), 2)
+        self.assertTrue(any(item["status"] == "completed" for item in targets))
+        self.assertTrue(any(item["status"] == "failed" for item in targets))
+
+        state = self.service.upsert_refresh_state(
+            "org-a",
+            "12345678000190",
+            source_kind="lead_list",
+            source_ref="lista-1",
+            job_id=job["id"],
+            summary={
+                "has_site": True,
+                "decision_makers": 3,
+                "deliverable_emails": 2,
+                "validated_whatsapp_candidates": 1,
+            },
+        )
+        self.assertEqual(state["freshness_status"], "fresh")
+        due = self.service.list_refresh_states("org-a", due_only=False, limit=10)
+        self.assertEqual(len(due), 1)
+        self.assertEqual(due[0]["cnpj"], "12345678000190")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Archive,
   BookmarkPlus,
+  Clock3,
   FolderPlus,
   Loader2,
   Mail,
@@ -29,10 +30,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  createLeadRefreshJob,
   createLeadList,
   createLeadSuppressions,
   deleteLeadList,
   deleteSavedSearch,
+  getLeadRefreshJobTargets,
+  getLeadRefreshJobs,
+  getLeadRefreshStates,
   followCompany,
   getCompanySignals,
   getCompanyWatchlist,
@@ -47,6 +52,9 @@ import {
   salvarResultadoManual,
   unfollowCompany,
   type CompanySignal,
+  type LeadRefreshJob,
+  type LeadRefreshJobTarget,
+  type LeadRefreshState,
   type LeadListItem,
   type LeadListSummary,
   type LeadSuppression,
@@ -72,8 +80,13 @@ const LeadLists = () => {
   const [savedSearches, setSavedSearches] = useState<SavedSearchSummary[]>([]);
   const [watchlist, setWatchlist] = useState<WatchCompany[]>([]);
   const [signals, setSignals] = useState<CompanySignal[]>([]);
+  const [refreshJobs, setRefreshJobs] = useState<LeadRefreshJob[]>([]);
+  const [selectedRefreshJobId, setSelectedRefreshJobId] = useState("");
+  const [refreshJobTargets, setRefreshJobTargets] = useState<LeadRefreshJobTarget[]>([]);
+  const [refreshStates, setRefreshStates] = useState<LeadRefreshState[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [loadingRefreshTargets, setLoadingRefreshTargets] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createDescription, setCreateDescription] = useState("");
@@ -88,10 +101,19 @@ const LeadLists = () => {
   const [savingWatch, setSavingWatch] = useState(false);
   const [runningSavedSearchId, setRunningSavedSearchId] = useState<string | null>(null);
   const [refreshingWatchCnpj, setRefreshingWatchCnpj] = useState<string | null>(null);
+  const [queueingRefreshKey, setQueueingRefreshKey] = useState<string | null>(null);
 
   const selectedList = useMemo(
     () => lists.find((list) => list.id === selectedListId) ?? null,
     [lists, selectedListId],
+  );
+  const selectedRefreshJob = useMemo(
+    () => refreshJobs.find((job) => job.id === selectedRefreshJobId) ?? null,
+    [refreshJobs, selectedRefreshJobId],
+  );
+  const activeRefreshJobs = useMemo(
+    () => refreshJobs.filter((job) => job.status === "queued" || job.status === "running"),
+    [refreshJobs],
   );
 
   const reloadLists = async () => {
@@ -107,23 +129,47 @@ const LeadLists = () => {
   const reloadSavedSearches = async () => setSavedSearches(await getSavedSearches());
   const reloadWatchlist = async () => setWatchlist(await getCompanyWatchlist());
   const reloadSignals = async () => setSignals(await getCompanySignals({ limit: 30 }));
+  const reloadRefreshJobs = async () => {
+    const jobs = await getLeadRefreshJobs(20);
+    setRefreshJobs(jobs);
+    setSelectedRefreshJobId((current) => {
+      if (!current) return jobs[0]?.id || "";
+      return jobs.some((job) => job.id === current) ? current : jobs[0]?.id || "";
+    });
+  };
+  const reloadRefreshStates = async () => setRefreshStates(await getLeadRefreshStates({ dueOnly: true, limit: 20 }));
 
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
-        const [nextLists, nextSuppressions, nextSavedSearches, nextWatchlist, nextSignals] = await Promise.all([
+        const [
+          nextLists,
+          nextSuppressions,
+          nextSavedSearches,
+          nextWatchlist,
+          nextSignals,
+          nextRefreshJobs,
+          nextRefreshStates,
+        ] = await Promise.all([
           getLeadLists(),
           getLeadSuppressions(),
           getSavedSearches(),
           getCompanyWatchlist(),
           getCompanySignals({ limit: 30 }),
+          getLeadRefreshJobs(20),
+          getLeadRefreshStates({ dueOnly: true, limit: 20 }),
         ]);
         setLists(nextLists);
         setSuppressions(nextSuppressions);
         setSavedSearches(nextSavedSearches);
         setWatchlist(nextWatchlist);
         setSignals(nextSignals);
+        setRefreshJobs(nextRefreshJobs);
+        setRefreshStates(nextRefreshStates);
+        if (nextRefreshJobs.length > 0) {
+          setSelectedRefreshJobId((current) => current || nextRefreshJobs[0].id);
+        }
         if (nextLists.length > 0) setSelectedListId((current) => current || nextLists[0].id);
       } catch (err: any) {
         toast.error(err?.message || "Nao foi possivel carregar o registry operacional.");
@@ -151,6 +197,46 @@ const LeadLists = () => {
     };
     void loadItems();
   }, [selectedListId]);
+
+  useEffect(() => {
+    if (!selectedRefreshJobId) {
+      setRefreshJobTargets([]);
+      return;
+    }
+    const loadTargets = async () => {
+      try {
+        setLoadingRefreshTargets(true);
+        setRefreshJobTargets(await getLeadRefreshJobTargets(selectedRefreshJobId, 80));
+      } catch (err: any) {
+        toast.error(err?.message || "Nao foi possivel carregar os alvos do refresh.");
+      } finally {
+        setLoadingRefreshTargets(false);
+      }
+    };
+    void loadTargets();
+  }, [selectedRefreshJobId]);
+
+  useEffect(() => {
+    if (activeRefreshJobs.length === 0) return undefined;
+    const timer = window.setInterval(() => {
+      void (async () => {
+        try {
+          await Promise.all([
+            reloadRefreshJobs(),
+            reloadRefreshStates(),
+            reloadWatchlist(),
+            reloadSignals(),
+            selectedRefreshJobId
+              ? getLeadRefreshJobTargets(selectedRefreshJobId, 80).then(setRefreshJobTargets)
+              : Promise.resolve(),
+          ]);
+        } catch {
+          // polling best-effort; explicit handlers already report on direct actions
+        }
+      })();
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [activeRefreshJobs.length, selectedRefreshJobId]);
 
   const handleCreateList = async () => {
     const name = createName.trim();
@@ -315,6 +401,82 @@ const LeadLists = () => {
     }
   };
 
+  const handleQueueRefreshJob = async (
+    key: string,
+    body: {
+      source_kind: "manual" | "lead_list" | "watchlist" | "saved_search";
+      source_ref?: string | null;
+      cnpjs?: string[];
+      name?: string | null;
+      limit_targets?: number;
+      probe_smtp?: boolean;
+      refresh_external_signals?: boolean;
+    },
+    successMessage: string,
+  ) => {
+    try {
+      setQueueingRefreshKey(key);
+      const job = await createLeadRefreshJob(body);
+      await Promise.all([reloadRefreshJobs(), reloadRefreshStates()]);
+      setSelectedRefreshJobId(job.id);
+      toast.success(successMessage);
+    } catch (err: any) {
+      toast.error(err?.message || "Nao foi possivel enfileirar o refresh em lote.");
+    } finally {
+      setQueueingRefreshKey(null);
+    }
+  };
+
+  const handleQueueSelectedListRefresh = async () => {
+    if (!selectedList) {
+      toast.info("Selecione uma lista para reverificar.");
+      return;
+    }
+    await handleQueueRefreshJob(
+      `list:${selectedList.id}`,
+      {
+        source_kind: "lead_list",
+        source_ref: selectedList.id,
+        name: `Refresh ${selectedList.name}`,
+        limit_targets: Math.max(1, Math.min(selectedList.item_count || 1, 120)),
+        probe_smtp: true,
+      },
+      "Refresh da lista enfileirado.",
+    );
+  };
+
+  const handleQueueWatchlistRefresh = async () => {
+    if (watchlist.length === 0) {
+      toast.info("Nenhuma empresa na watchlist para reverificar.");
+      return;
+    }
+    await handleQueueRefreshJob(
+      "watchlist",
+      {
+        source_kind: "watchlist",
+        name: "Refresh da watchlist",
+        limit_targets: Math.max(1, Math.min(watchlist.length, 120)),
+        probe_smtp: true,
+        refresh_external_signals: true,
+      },
+      "Refresh da watchlist enfileirado.",
+    );
+  };
+
+  const handleQueueSavedSearchRefresh = async (search: SavedSearchSummary) => {
+    await handleQueueRefreshJob(
+      `search:${search.id}`,
+      {
+        source_kind: "saved_search",
+        source_ref: search.id,
+        name: `Refresh ${search.name}`,
+        limit_targets: Math.max(1, Math.min(search.config.limite_empresas || 50, 120)),
+        probe_smtp: true,
+      },
+      "Refresh da busca salva enfileirado.",
+    );
+  };
+
   return (
     <div className="space-y-6 p-1">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -333,6 +495,213 @@ const LeadLists = () => {
           Criar lista
         </Button>
       </div>
+
+      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.35fr]">
+        <Card className="border-zinc-800 bg-zinc-950/60">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <RefreshCw className="h-4 w-4 text-cyan-300" />
+              Bulk center e reverificacao
+            </CardTitle>
+            <CardDescription>
+              Reenriquece listas, watchlist e buscas salvas em background para manter contatos frescos.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <Button
+                type="button"
+                className="justify-start gap-2 bg-cyan-500 text-zinc-950 hover:bg-cyan-400"
+                onClick={() => void handleQueueWatchlistRefresh()}
+                disabled={queueingRefreshKey === "watchlist" || watchlist.length === 0}
+              >
+                {queueingRefreshKey === "watchlist" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Reverificar watchlist
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="justify-start gap-2 border-zinc-700 bg-zinc-900"
+                onClick={() => void handleQueueSelectedListRefresh()}
+                disabled={queueingRefreshKey === `list:${selectedList?.id || ""}` || !selectedList}
+              >
+                {queueingRefreshKey === `list:${selectedList?.id || ""}` ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Archive className="h-4 w-4" />
+                )}
+                Reverificar lista ativa
+              </Button>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Jobs ativos</p>
+                <p className="mt-2 text-2xl font-semibold text-zinc-100">{activeRefreshJobs.length}</p>
+                <p className="mt-1 text-xs text-zinc-500">Executando no worker</p>
+              </div>
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Pendentes</p>
+                <p className="mt-2 text-2xl font-semibold text-zinc-100">{refreshStates.length}</p>
+                <p className="mt-1 text-xs text-zinc-500">CNPJs com refresh vencido</p>
+              </div>
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Lista ativa</p>
+                <p className="mt-2 text-lg font-semibold text-zinc-100">{selectedList?.name || "Nenhuma"}</p>
+                <p className="mt-1 text-xs text-zinc-500">{selectedList?.item_count || 0} lead(s)</p>
+              </div>
+            </div>
+
+            {refreshStates.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Fila natural de reverificacao</p>
+                {refreshStates.slice(0, 5).map((entry) => (
+                  <div key={entry.id} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-zinc-100">{entry.cnpj}</p>
+                        <p className="text-xs text-zinc-500">
+                          Proximo refresh: {formatDate(entry.next_refresh_at)} . Ultimo refresh: {formatDate(entry.last_refresh_at)}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={
+                          entry.freshness_status === "fresh"
+                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                            : entry.freshness_status === "warming"
+                              ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
+                              : "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                        }
+                      >
+                        {entry.freshness_status || "pendente"}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-800 bg-zinc-950/60">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Clock3 className="h-4 w-4 text-emerald-300" />
+              Jobs recentes
+            </CardTitle>
+            <CardDescription>
+              Acompanhe refresh de listas, buscas salvas e watchlist sem travar o frontend.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {loading ? (
+              <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm text-zinc-400">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Carregando jobs de refresh...
+              </div>
+            ) : refreshJobs.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+                Nenhum job de refresh em lote ainda.
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  {refreshJobs.map((job) => (
+                    <button
+                      key={job.id}
+                      type="button"
+                      onClick={() => setSelectedRefreshJobId(job.id)}
+                      className={`w-full rounded-xl border p-4 text-left transition-colors ${
+                        selectedRefreshJobId === job.id
+                          ? "border-emerald-500/40 bg-emerald-500/10"
+                          : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold text-zinc-100">{job.name}</p>
+                          <p className="text-xs text-zinc-500">
+                            {job.source_label || job.source_kind} . {job.processed_targets}/{job.total_targets} alvo(s)
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={
+                            job.status === "completed"
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                              : job.status === "completed_with_errors"
+                                ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                                : job.status === "failed"
+                                  ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
+                                  : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
+                          }
+                        >
+                          {job.status}
+                        </Badge>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {selectedRefreshJob && (
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-zinc-100">{selectedRefreshJob.name}</p>
+                        <p className="text-xs text-zinc-500">
+                          {selectedRefreshJob.source_label || selectedRefreshJob.source_kind} . Atualizado {formatDate(selectedRefreshJob.updated_at)}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                        SMTP {selectedRefreshJob.options.probe_smtp ? "on" : "off"}
+                      </Badge>
+                    </div>
+                    {selectedRefreshJob.error && (
+                      <p className="mt-3 text-xs text-rose-300">{selectedRefreshJob.error}</p>
+                    )}
+                    <div className="mt-4 space-y-2">
+                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Alvos recentes</p>
+                      {loadingRefreshTargets ? (
+                        <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950/70 p-3 text-sm text-zinc-400">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Carregando alvos...
+                        </div>
+                      ) : refreshJobTargets.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-950/60 p-3 text-sm text-zinc-500">
+                          Nenhum alvo carregado para este job.
+                        </div>
+                      ) : (
+                        refreshJobTargets.slice(0, 8).map((target) => (
+                          <div key={target.id} className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="space-y-1">
+                                <p className="text-sm font-semibold text-zinc-100">{target.cnpj}</p>
+                                <p className="text-xs text-zinc-500">
+                                  {target.stage || "queued"} . {formatDate(target.updated_at)}
+                                </p>
+                              </div>
+                              <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                                {target.status}
+                              </Badge>
+                            </div>
+                            {target.error && <p className="mt-2 text-xs text-rose-300">{target.error}</p>}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.35fr]">
         <Card className="border-zinc-800 bg-zinc-950/60">
           <CardHeader>
@@ -546,6 +915,20 @@ const LeadLists = () => {
                   >
                     {runningSavedSearchId === search.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Abrir no Results
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-2 w-full border-zinc-700 bg-zinc-900"
+                    onClick={() => void handleQueueSavedSearchRefresh(search)}
+                    disabled={queueingRefreshKey === `search:${search.id}`}
+                  >
+                    {queueingRefreshKey === `search:${search.id}` ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                    )}
+                    Reverificar leads desta busca
                   </Button>
                 </div>
               ))

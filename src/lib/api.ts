@@ -2264,6 +2264,67 @@ export type CompanySignal = {
   created_at?: string | null;
 };
 
+export type LeadRefreshJobOptions = {
+  probe_smtp?: boolean;
+  refresh_external_signals?: boolean;
+  refresh_enrichment?: boolean;
+  refresh_contact_intelligence?: boolean;
+  sync_watchlist?: boolean;
+};
+
+export type LeadRefreshJob = {
+  id: string;
+  name: string;
+  source_kind: string;
+  source_ref?: string | null;
+  source_label?: string | null;
+  status: string;
+  options: LeadRefreshJobOptions;
+  total_targets: number;
+  processed_targets: number;
+  success_targets: number;
+  failed_targets: number;
+  queued_at?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  updated_at?: string | null;
+  error?: string | null;
+  rq_job_id?: string | null;
+};
+
+export type LeadRefreshJobTarget = {
+  id: string;
+  cnpj: string;
+  source_kind: string;
+  status: string;
+  stage?: string | null;
+  payload?: Record<string, unknown> | null;
+  result?: Record<string, unknown> | null;
+  error?: string | null;
+  created_at?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type LeadRefreshState = {
+  id: string;
+  cnpj: string;
+  source_kind?: string | null;
+  source_ref?: string | null;
+  last_job_id?: string | null;
+  freshness_status?: string | null;
+  summary?: WatchCompanySnapshot | null;
+  last_error?: string | null;
+  last_refresh_at?: string | null;
+  last_enriched_at?: string | null;
+  last_contact_refresh_at?: string | null;
+  last_verified_at?: string | null;
+  next_refresh_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
 function mapLeadListItem(raw: Record<string, unknown>): LeadListItem {
   return {
     id: asNullableString(raw.id) ?? "",
@@ -2335,6 +2396,81 @@ function mapCompanySignal(raw: Record<string, unknown>): CompanySignal {
     title: asNullableString(raw.title) ?? "",
     payload: asRecord(raw.payload),
     created_at: asNullableString(raw.created_at),
+  };
+}
+
+function mapLeadRefreshJob(raw: Record<string, unknown>): LeadRefreshJob {
+  return {
+    id: asNullableString(raw.id) ?? "",
+    name: asNullableString(raw.name) ?? "",
+    source_kind: asNullableString(raw.source_kind) ?? "manual",
+    source_ref: asNullableString(raw.source_ref),
+    source_label: asNullableString(raw.source_label),
+    status: asNullableString(raw.status) ?? "queued",
+    options: (asRecord(raw.options) as LeadRefreshJobOptions | null) ?? {},
+    total_targets: asNullableNumber(raw.total_targets) ?? 0,
+    processed_targets: asNullableNumber(raw.processed_targets) ?? 0,
+    success_targets: asNullableNumber(raw.success_targets) ?? 0,
+    failed_targets: asNullableNumber(raw.failed_targets) ?? 0,
+    queued_at: asNullableString(raw.queued_at),
+    started_at: asNullableString(raw.started_at),
+    finished_at: asNullableString(raw.finished_at),
+    updated_at: asNullableString(raw.updated_at),
+    error: asNullableString(raw.error),
+    rq_job_id: asNullableString(raw.rq_job_id),
+  };
+}
+
+function mapLeadRefreshJobTarget(raw: Record<string, unknown>): LeadRefreshJobTarget {
+  return {
+    id: asNullableString(raw.id) ?? "",
+    cnpj: asNullableString(raw.cnpj) ?? "",
+    source_kind: asNullableString(raw.source_kind) ?? "manual",
+    status: asNullableString(raw.status) ?? "queued",
+    stage: asNullableString(raw.stage),
+    payload: asRecord(raw.payload),
+    result: asRecord(raw.result),
+    error: asNullableString(raw.error),
+    created_at: asNullableString(raw.created_at),
+    started_at: asNullableString(raw.started_at),
+    finished_at: asNullableString(raw.finished_at),
+    updated_at: asNullableString(raw.updated_at),
+  };
+}
+
+function mapLeadRefreshState(raw: Record<string, unknown>): LeadRefreshState {
+  const summary = asRecord(raw.summary) ?? {};
+  return {
+    id: asNullableString(raw.id) ?? "",
+    cnpj: asNullableString(raw.cnpj) ?? "",
+    source_kind: asNullableString(raw.source_kind),
+    source_ref: asNullableString(raw.source_ref),
+    last_job_id: asNullableString(raw.last_job_id),
+    freshness_status: asNullableString(raw.freshness_status),
+    summary: {
+      has_site: !!summary.has_site,
+      has_email: !!summary.has_email,
+      has_phone: !!summary.has_phone,
+      has_whatsapp: !!summary.has_whatsapp,
+      has_whatsapp_validated: !!summary.has_whatsapp_validated,
+      has_linkedin_company: !!summary.has_linkedin_company,
+      decision_makers: asNullableNumber(summary.decision_makers) ?? 0,
+      total_contact_emails: asNullableNumber(summary.total_contact_emails) ?? 0,
+      deliverable_emails: asNullableNumber(summary.deliverable_emails) ?? 0,
+      public_email_count: asNullableNumber(summary.public_email_count) ?? 0,
+      generic_inbox_count: asNullableNumber(summary.generic_inbox_count) ?? 0,
+      whatsapp_candidates: asNullableNumber(summary.whatsapp_candidates) ?? 0,
+      validated_whatsapp_candidates: asNullableNumber(summary.validated_whatsapp_candidates) ?? 0,
+      email_pattern: asNullableString(summary.email_pattern),
+    },
+    last_error: asNullableString(raw.last_error),
+    last_refresh_at: asNullableString(raw.last_refresh_at),
+    last_enriched_at: asNullableString(raw.last_enriched_at),
+    last_contact_refresh_at: asNullableString(raw.last_contact_refresh_at),
+    last_verified_at: asNullableString(raw.last_verified_at),
+    next_refresh_at: asNullableString(raw.next_refresh_at),
+    created_at: asNullableString(raw.created_at),
+    updated_at: asNullableString(raw.updated_at),
   };
 }
 
@@ -2521,6 +2657,58 @@ export async function getCompanySignals(opts?: {
   const suffix = params.toString() ? `?${params.toString()}` : "";
   const rows = await hermesFetch<Record<string, unknown>[]>(`/company-signals${suffix}`);
   return rows.map(mapCompanySignal);
+}
+
+export async function getLeadRefreshJobs(limit = 20): Promise<LeadRefreshJob[]> {
+  const rows = await hermesFetch<Record<string, unknown>[]>(
+    `/lead-refresh-jobs?limit=${Math.max(1, Math.min(limit, 100))}`,
+  );
+  return rows.map(mapLeadRefreshJob);
+}
+
+export async function getLeadRefreshJob(jobId: string): Promise<LeadRefreshJob> {
+  const raw = await hermesFetch<Record<string, unknown>>(
+    `/lead-refresh-jobs/${encodeURIComponent(jobId)}`,
+  );
+  return mapLeadRefreshJob(raw);
+}
+
+export async function getLeadRefreshJobTargets(
+  jobId: string,
+  limit = 200,
+): Promise<LeadRefreshJobTarget[]> {
+  const rows = await hermesFetch<Record<string, unknown>[]>(
+    `/lead-refresh-jobs/${encodeURIComponent(jobId)}/targets?limit=${Math.max(1, Math.min(limit, 500))}`,
+  );
+  return rows.map(mapLeadRefreshJobTarget);
+}
+
+export async function getLeadRefreshStates(opts?: {
+  dueOnly?: boolean;
+  limit?: number;
+}): Promise<LeadRefreshState[]> {
+  const params = new URLSearchParams();
+  if (opts?.dueOnly) params.set("due_only", "true");
+  if (opts?.limit) params.set("limit", String(opts.limit));
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const rows = await hermesFetch<Record<string, unknown>[]>(`/lead-refresh-states${suffix}`);
+  return rows.map(mapLeadRefreshState);
+}
+
+export async function createLeadRefreshJob(body: {
+  source_kind: "manual" | "lead_list" | "watchlist" | "saved_search";
+  source_ref?: string | null;
+  cnpjs?: string[];
+  name?: string | null;
+  limit_targets?: number;
+  probe_smtp?: boolean;
+  refresh_external_signals?: boolean;
+}): Promise<LeadRefreshJob> {
+  const raw = await hermesFetch<Record<string, unknown>>("/lead-refresh-jobs", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return mapLeadRefreshJob(raw);
 }
 
 // ═══════════════════════════════════════════════════════════════

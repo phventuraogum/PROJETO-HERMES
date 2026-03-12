@@ -7,7 +7,8 @@ from pydantic import BaseModel, Field
 
 from api.company_intelligence_extras import company_intelligence_extras_service
 from api.db_pool import get_connection
-from api.lead_registry import lead_registry_service
+from api.lead_refresh_queue import queue_lead_refresh_job
+from api.lead_registry import build_watch_snapshot, lead_registry_service
 from middleware.auth import require_auth
 
 router = APIRouter(tags=["Lead Registry"])
@@ -68,6 +69,16 @@ class WatchCompanyCreateBody(BaseModel):
     source: Optional[str] = Field(default=None, max_length=120)
 
 
+class LeadRefreshJobCreateBody(BaseModel):
+    source_kind: str = Field(..., min_length=1, max_length=40)
+    source_ref: Optional[str] = Field(default=None, max_length=120)
+    cnpjs: Optional[List[str]] = None
+    name: Optional[str] = Field(default=None, max_length=160)
+    limit_targets: int = Field(default=50, ge=1, le=250)
+    probe_smtp: bool = False
+    refresh_external_signals: bool = False
+
+
 def _normalize_cnpj(value: Any) -> str:
     return "".join(ch for ch in str(value or "") if ch.isdigit())[:14]
 
@@ -115,35 +126,83 @@ def _fetch_watch_company(cnpj: str) -> Optional[Dict[str, Any]]:
     }
 
 
-def _build_watch_snapshot(company: Dict[str, Any]) -> Dict[str, Any]:
-    from api.contact_intelligence import ContactIntelligenceService
-
-    cnpj = _normalize_cnpj(company.get("cnpj"))
-    cached_intelligence = ContactIntelligenceService().get_cached_company_intelligence(cnpj) or {}
-    summary = cached_intelligence.get("summary") or {}
-    domain_profile = cached_intelligence.get("domain_profile") or {}
-
-    public_emails = domain_profile.get("public_emails") or []
-    generic_inboxes = domain_profile.get("generic_inboxes") or []
-    has_whatsapp = bool(company.get("whatsapp_enriquecido") or company.get("whatsapp_publico"))
-    has_whatsapp_validated = bool(company.get("whatsapp_enriquecido"))
-
-    return {
-        "has_site": bool(company.get("site")),
-        "has_email": bool(company.get("email_final")),
-        "has_phone": bool(company.get("telefone_final")),
-        "has_whatsapp": has_whatsapp,
-        "has_whatsapp_validated": has_whatsapp_validated,
-        "has_linkedin_company": bool(domain_profile.get("linkedin_company")),
-        "decision_makers": int(summary.get("decision_makers") or 0),
-        "total_contact_emails": int(summary.get("total_contact_emails") or 0),
-        "deliverable_emails": int(summary.get("deliverable") or 0),
-        "public_email_count": len(public_emails),
-        "generic_inbox_count": len(generic_inboxes),
-        "whatsapp_candidates": 1 if has_whatsapp else 0,
-        "validated_whatsapp_candidates": 1 if has_whatsapp_validated else 0,
-        "email_pattern": domain_profile.get("email_pattern"),
+def _normalize_refresh_source_kind(value: Any) -> str:
+    raw = str(value or "").strip().lower()
+    aliases = {
+        "lista": "lead_list",
+        "lead-list": "lead_list",
+        "lead_list": "lead_list",
+        "search": "saved_search",
+        "saved-search": "saved_search",
+        "saved_search": "saved_search",
+        "watch": "watchlist",
+        "watch-list": "watchlist",
+        "watchlist": "watchlist",
+        "manual": "manual",
     }
+    return aliases.get(raw, raw or "manual")
+
+
+def _resolve_refresh_targets(
+    org_id: str,
+    body: LeadRefreshJobCreateBody,
+) -> tuple[str, str | None, str | None, List[str]]:
+    source_kind = _normalize_refresh_source_kind(body.source_kind)
+    limit_targets = max(1, min(int(body.limit_targets or 50), 250))
+
+    if source_kind == "manual":
+        cnpjs = [_normalize_cnpj(value) for value in (body.cnpjs or [])]
+        resolved = [cnpj for cnpj in cnpjs if cnpj]
+        return source_kind, None, "CNPJs manuais", resolved[:limit_targets]
+
+    if source_kind == "lead_list":
+        if not body.source_ref:
+            raise HTTPException(status_code=400, detail="Informe a lista para o refresh.")
+        items = lead_registry_service.get_list_items(org_id, body.source_ref)
+        resolved = [item["cnpj"] for item in items if item.get("cnpj")]
+        selected = next((item for item in lead_registry_service.list_lists(org_id) if item["id"] == body.source_ref), None)
+        if selected is None:
+            raise HTTPException(status_code=404, detail="Lista nao encontrada para refresh.")
+        return source_kind, body.source_ref, selected.get("name"), resolved[:limit_targets]
+
+    if source_kind == "watchlist":
+        if body.source_ref:
+            cnpj = _normalize_cnpj(body.source_ref)
+            if not cnpj:
+                raise HTTPException(status_code=400, detail="CNPJ invalido para refresh da watchlist.")
+            watch = lead_registry_service.get_watch_company(org_id, cnpj)
+            if not watch:
+                raise HTTPException(status_code=404, detail="Empresa nao encontrada na watchlist.")
+            return source_kind, cnpj, watch.get("nome_fantasia") or watch.get("razao_social") or cnpj, [cnpj]
+        watchlist = lead_registry_service.list_watchlist(org_id)
+        resolved = [item["cnpj"] for item in watchlist if item.get("cnpj")]
+        return source_kind, None, "Watchlist", resolved[:limit_targets]
+
+    if source_kind == "saved_search":
+        if not body.source_ref:
+            raise HTTPException(status_code=400, detail="Informe a busca salva para o refresh.")
+        saved_search = lead_registry_service.get_saved_search(org_id, body.source_ref)
+        if not saved_search:
+            raise HTTPException(status_code=404, detail="Busca salva nao encontrada para refresh.")
+        try:
+            from api.main import ProspeccaoConfig, rodar_prospeccao_icp
+
+            config = ProspeccaoConfig.model_validate(saved_search.get("config") or {})
+            config = _apply_suppression_registry(config, org_id)
+            result = rodar_prospeccao_icp(config)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Falha ao resolver a busca salva: {exc}")
+
+        resolved = [
+            _normalize_cnpj(item.get("cnpj"))
+            for item in (result.get("empresas") or [])
+            if isinstance(item, dict)
+        ]
+        return source_kind, body.source_ref, saved_search.get("name"), [cnpj for cnpj in resolved if cnpj][:limit_targets]
+
+    raise HTTPException(status_code=400, detail="Tipo de refresh em lote nao suportado.")
 
 
 def _apply_suppression_registry(config: Any, org_id: str) -> Any:
@@ -417,7 +476,7 @@ async def create_company_watchlist(
         sync = lead_registry_service.sync_watch_snapshot(
             _org_id(request),
             cnpj,
-            _build_watch_snapshot(company),
+            build_watch_snapshot(company),
             company=company,
             source=body.source,
         )
@@ -442,7 +501,7 @@ async def refresh_company_watchlist(
         sync_result = lead_registry_service.sync_watch_snapshot(
             _org_id(request),
             cnpj,
-            _build_watch_snapshot(company),
+            build_watch_snapshot(company),
             company=company,
             source="watch_refresh",
         )
@@ -478,3 +537,84 @@ async def list_company_signals(
     _user: dict = Depends(require_auth),
 ) -> List[Dict[str, Any]]:
     return lead_registry_service.list_company_signals(_org_id(request), cnpj=cnpj, limit=limit)
+
+
+@router.get("/lead-refresh-jobs")
+async def list_lead_refresh_jobs(
+    request: Request,
+    limit: int = 20,
+    _user: dict = Depends(require_auth),
+) -> List[Dict[str, Any]]:
+    return lead_registry_service.list_refresh_jobs(_org_id(request), limit=limit)
+
+
+@router.get("/lead-refresh-jobs/{job_id}")
+async def get_lead_refresh_job(
+    job_id: str,
+    request: Request,
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    job = lead_registry_service.get_refresh_job(_org_id(request), job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job de refresh nao encontrado.")
+    return job
+
+
+@router.get("/lead-refresh-jobs/{job_id}/targets")
+async def list_lead_refresh_job_targets(
+    job_id: str,
+    request: Request,
+    limit: int = 200,
+    _user: dict = Depends(require_auth),
+) -> List[Dict[str, Any]]:
+    job = lead_registry_service.get_refresh_job(_org_id(request), job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job de refresh nao encontrado.")
+    return lead_registry_service.list_refresh_job_targets(_org_id(request), job_id, limit=limit)
+
+
+@router.get("/lead-refresh-states")
+async def list_lead_refresh_states(
+    request: Request,
+    due_only: bool = False,
+    limit: int = 100,
+    _user: dict = Depends(require_auth),
+) -> List[Dict[str, Any]]:
+    return lead_registry_service.list_refresh_states(_org_id(request), due_only=due_only, limit=limit)
+
+
+@router.post("/lead-refresh-jobs")
+async def create_lead_refresh_job(
+    body: LeadRefreshJobCreateBody,
+    request: Request,
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    org_id = _org_id(request)
+    source_kind, source_ref, source_label, cnpjs = _resolve_refresh_targets(org_id, body)
+    if not cnpjs:
+        raise HTTPException(status_code=400, detail="Nenhum CNPJ disponivel para o refresh em lote.")
+
+    options = {
+        "probe_smtp": body.probe_smtp,
+        "refresh_external_signals": body.refresh_external_signals or source_kind == "watchlist",
+        "refresh_enrichment": True,
+        "refresh_contact_intelligence": True,
+        "sync_watchlist": True,
+    }
+
+    try:
+        job = lead_registry_service.create_refresh_job(
+            org_id,
+            name=body.name or f"Refresh {source_label or source_kind}",
+            source_kind=source_kind,
+            source_ref=source_ref,
+            source_label=source_label,
+            cnpjs=cnpjs,
+            options=options,
+        )
+        queued = queue_lead_refresh_job(org_id, job["id"])
+        return queued or job
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))

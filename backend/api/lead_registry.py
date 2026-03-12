@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
@@ -100,6 +100,96 @@ def _normalize_watch_snapshot(snapshot: Optional[Dict[str, Any]]) -> Dict[str, A
         "whatsapp_candidates": as_int("whatsapp_candidates"),
         "validated_whatsapp_candidates": as_int("validated_whatsapp_candidates"),
         "email_pattern": as_str("email_pattern"),
+    }
+
+
+def _normalize_refresh_summary(summary: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    data = _normalize_watch_snapshot(summary or {})
+    deliverable = 0
+    if summary:
+        try:
+            deliverable = max(
+                int(float(summary.get("deliverable_emails") or 0)),
+                int(float(summary.get("deliverable") or 0)),
+            )
+        except (TypeError, ValueError):
+            deliverable = 0
+    data["deliverable_emails"] = deliverable
+    return data
+
+
+def _refresh_plan(summary: Optional[Dict[str, Any]], *, error: Optional[str] = None) -> Dict[str, Any]:
+    normalized = _normalize_refresh_summary(summary)
+    if error:
+        days = 1
+        freshness = "error"
+    elif normalized.get("validated_whatsapp_candidates") or normalized.get("deliverable_emails"):
+        days = 14
+        freshness = "fresh"
+    elif normalized.get("decision_makers") or normalized.get("total_contact_emails") or normalized.get("has_site"):
+        days = 7
+        freshness = "warming"
+    else:
+        days = 3
+        freshness = "needs_attention"
+
+    now = datetime.now(timezone.utc)
+    return {
+        "summary": normalized,
+        "freshness_status": freshness,
+        "next_refresh_at": (now + timedelta(days=days)).isoformat(),
+    }
+
+
+def build_watch_snapshot(
+    company: Optional[Dict[str, Any]],
+    *,
+    intelligence: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    from api.contact_intelligence import contact_intelligence_service
+
+    company_data = dict(company or {})
+    cnpj = _normalize_cnpj(company_data.get("cnpj"))
+    cached_intelligence = intelligence or {}
+    if not cached_intelligence and cnpj:
+        cached_intelligence = contact_intelligence_service.get_cached_company_intelligence(cnpj) or {}
+
+    summary = cached_intelligence.get("summary") or {}
+    domain_profile = cached_intelligence.get("domain_profile") or {}
+    public_emails = domain_profile.get("public_emails") or []
+    generic_inboxes = domain_profile.get("generic_inboxes") or []
+    whatsapp_candidates = company_data.get("whatsapps_captados") or []
+    validated_candidates = [
+        item for item in whatsapp_candidates
+        if isinstance(item, dict) and item.get("validado")
+    ]
+    has_whatsapp = bool(company_data.get("whatsapp_enriquecido") or company_data.get("whatsapp_publico") or whatsapp_candidates)
+    has_whatsapp_validated = bool(company_data.get("whatsapp_enriquecido") or validated_candidates)
+
+    return {
+        "has_site": bool(company_data.get("site")),
+        "has_email": bool(
+            company_data.get("email_final")
+            or company_data.get("email_enriquecido")
+            or company_data.get("email")
+        ),
+        "has_phone": bool(
+            company_data.get("telefone_final")
+            or company_data.get("telefone_enriquecido")
+            or company_data.get("telefone_receita")
+            or company_data.get("telefone_padrao")
+        ),
+        "has_whatsapp": has_whatsapp,
+        "has_whatsapp_validated": has_whatsapp_validated,
+        "has_linkedin_company": bool(domain_profile.get("linkedin_company") or company_data.get("linkedin_empresa")),
+        "decision_makers": int(summary.get("decision_makers") or 0),
+        "total_contact_emails": int(summary.get("total_contact_emails") or 0),
+        "deliverable_emails": int(summary.get("deliverable_emails") or summary.get("deliverable") or 0),
+        "public_email_count": len(public_emails),
+        "generic_inbox_count": len(generic_inboxes),
+        "whatsapp_candidates": max(len(whatsapp_candidates), 1 if has_whatsapp else 0),
+        "validated_whatsapp_candidates": max(len(validated_candidates), 1 if has_whatsapp_validated else 0),
+        "email_pattern": domain_profile.get("email_pattern"),
     }
 
 
@@ -203,12 +293,83 @@ class LeadRegistryService:
                 )
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS lead_refresh_jobs (
+                    id VARCHAR PRIMARY KEY,
+                    org_id VARCHAR NOT NULL,
+                    name VARCHAR NOT NULL,
+                    source_kind VARCHAR NOT NULL,
+                    source_ref VARCHAR,
+                    source_label VARCHAR,
+                    status VARCHAR NOT NULL,
+                    options_json VARCHAR,
+                    total_targets INTEGER NOT NULL,
+                    processed_targets INTEGER NOT NULL,
+                    success_targets INTEGER NOT NULL,
+                    failed_targets INTEGER NOT NULL,
+                    queued_at TIMESTAMP NOT NULL,
+                    started_at TIMESTAMP,
+                    finished_at TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL,
+                    error VARCHAR,
+                    rq_job_id VARCHAR
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS lead_refresh_job_targets (
+                    id VARCHAR PRIMARY KEY,
+                    job_id VARCHAR NOT NULL,
+                    org_id VARCHAR NOT NULL,
+                    cnpj VARCHAR NOT NULL,
+                    source_kind VARCHAR NOT NULL,
+                    status VARCHAR NOT NULL,
+                    stage VARCHAR,
+                    payload_json VARCHAR,
+                    result_json VARCHAR,
+                    error VARCHAR,
+                    created_at TIMESTAMP NOT NULL,
+                    started_at TIMESTAMP,
+                    finished_at TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS lead_refresh_state (
+                    id VARCHAR PRIMARY KEY,
+                    org_id VARCHAR NOT NULL,
+                    cnpj VARCHAR NOT NULL,
+                    source_kind VARCHAR,
+                    source_ref VARCHAR,
+                    last_job_id VARCHAR,
+                    freshness_status VARCHAR,
+                    summary_json VARCHAR,
+                    last_error VARCHAR,
+                    last_refresh_at TIMESTAMP,
+                    last_enriched_at TIMESTAMP,
+                    last_contact_refresh_at TIMESTAMP,
+                    last_verified_at TIMESTAMP,
+                    next_refresh_at TIMESTAMP,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL
+                )
+                """
+            )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_lead_lists_org ON lead_lists(org_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_lead_list_items_org_list ON lead_list_items(org_id, list_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_suppressions_org ON lead_suppressions(org_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_saved_searches_org_kind ON saved_searches(org_id, kind)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_watchlist_org_cnpj ON company_watchlist(org_id, cnpj)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_company_signals_org_cnpj_created ON company_signals(org_id, cnpj, created_at)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_lead_refresh_jobs_org_updated ON lead_refresh_jobs(org_id, updated_at)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_lead_refresh_targets_job_status ON lead_refresh_job_targets(job_id, status)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_lead_refresh_targets_org_cnpj ON lead_refresh_job_targets(org_id, cnpj)")
+            conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_lead_refresh_state_org_cnpj ON lead_refresh_state(org_id, cnpj)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_lead_refresh_state_org_next_refresh ON lead_refresh_state(org_id, next_refresh_at)")
         close_all_connections()
 
     def list_lists(self, org_id: str) -> List[Dict[str, Any]]:
@@ -1356,6 +1517,753 @@ class LeadRegistryService:
                 [org_id, cnpj_clean],
             )
         return True
+
+    def _map_refresh_job_row(self, row: Any) -> Dict[str, Any]:
+        return {
+            "id": str(row[0]),
+            "name": str(row[1]),
+            "source_kind": str(row[2]),
+            "source_ref": str(row[3]) if row[3] else None,
+            "source_label": str(row[4]) if row[4] else None,
+            "status": str(row[5]),
+            "options": _json_loads(row[6], {}),
+            "total_targets": int(row[7] or 0),
+            "processed_targets": int(row[8] or 0),
+            "success_targets": int(row[9] or 0),
+            "failed_targets": int(row[10] or 0),
+            "queued_at": row[11].isoformat() if row[11] else None,
+            "started_at": row[12].isoformat() if row[12] else None,
+            "finished_at": row[13].isoformat() if row[13] else None,
+            "updated_at": row[14].isoformat() if row[14] else None,
+            "error": str(row[15]) if row[15] else None,
+            "rq_job_id": str(row[16]) if row[16] else None,
+        }
+
+    def _map_refresh_target_row(self, row: Any) -> Dict[str, Any]:
+        return {
+            "id": str(row[0]),
+            "cnpj": str(row[1]),
+            "source_kind": str(row[2]),
+            "status": str(row[3]),
+            "stage": str(row[4]) if row[4] else None,
+            "payload": _json_loads(row[5], {}),
+            "result": _json_loads(row[6], {}),
+            "error": str(row[7]) if row[7] else None,
+            "created_at": row[8].isoformat() if row[8] else None,
+            "started_at": row[9].isoformat() if row[9] else None,
+            "finished_at": row[10].isoformat() if row[10] else None,
+            "updated_at": row[11].isoformat() if row[11] else None,
+        }
+
+    def _recompute_refresh_job_counts(self, conn: Any, org_id: str, job_id: str) -> Dict[str, int]:
+        row = conn.execute(
+            """
+            SELECT
+                COUNT(*) AS total_targets,
+                SUM(CASE WHEN status IN ('completed', 'failed') THEN 1 ELSE 0 END) AS processed_targets,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS success_targets,
+                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_targets
+            FROM lead_refresh_job_targets
+            WHERE org_id = ? AND job_id = ?
+            """,
+            [org_id, job_id],
+        ).fetchone()
+
+        counts = {
+            "total_targets": int((row[0] if row else 0) or 0),
+            "processed_targets": int((row[1] if row else 0) or 0),
+            "success_targets": int((row[2] if row else 0) or 0),
+            "failed_targets": int((row[3] if row else 0) or 0),
+        }
+        conn.execute(
+            """
+            UPDATE lead_refresh_jobs
+            SET total_targets = ?,
+                processed_targets = ?,
+                success_targets = ?,
+                failed_targets = ?,
+                updated_at = ?
+            WHERE org_id = ? AND id = ?
+            """,
+            [
+                counts["total_targets"],
+                counts["processed_targets"],
+                counts["success_targets"],
+                counts["failed_targets"],
+                _utcnow_iso(),
+                org_id,
+                job_id,
+            ],
+        )
+        return counts
+
+    def create_refresh_job(
+        self,
+        org_id: str,
+        *,
+        name: str,
+        source_kind: str,
+        cnpjs: List[str],
+        source_ref: Optional[str] = None,
+        source_label: Optional[str] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        self.ensure_schema()
+        name_clean = str(name or "").strip()
+        if not name_clean:
+            raise ValueError("Informe um nome para o refresh em lote.")
+
+        normalized_cnpjs = []
+        seen: set[str] = set()
+        for raw in cnpjs or []:
+            cnpj = _normalize_cnpj(raw)
+            if not cnpj or cnpj in seen:
+                continue
+            seen.add(cnpj)
+            normalized_cnpjs.append(cnpj)
+
+        if not normalized_cnpjs:
+            raise ValueError("Nenhum CNPJ valido foi informado para o refresh.")
+
+        now = _utcnow_iso()
+        job_id = str(uuid4())
+        source_kind_clean = str(source_kind or "manual").strip() or "manual"
+
+        with get_connection(read_only=False) as conn:
+            conn.execute(
+                """
+                INSERT INTO lead_refresh_jobs (
+                    id,
+                    org_id,
+                    name,
+                    source_kind,
+                    source_ref,
+                    source_label,
+                    status,
+                    options_json,
+                    total_targets,
+                    processed_targets,
+                    success_targets,
+                    failed_targets,
+                    queued_at,
+                    started_at,
+                    finished_at,
+                    updated_at,
+                    error,
+                    rq_job_id
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    job_id,
+                    org_id,
+                    name_clean,
+                    source_kind_clean,
+                    str(source_ref).strip() if source_ref else None,
+                    str(source_label).strip() if source_label else None,
+                    "queued",
+                    _json_dumps(options or {}),
+                    len(normalized_cnpjs),
+                    0,
+                    0,
+                    0,
+                    now,
+                    None,
+                    None,
+                    now,
+                    None,
+                    None,
+                ],
+            )
+
+            for cnpj in normalized_cnpjs:
+                conn.execute(
+                    """
+                    INSERT INTO lead_refresh_job_targets (
+                        id,
+                        job_id,
+                        org_id,
+                        cnpj,
+                        source_kind,
+                        status,
+                        stage,
+                        payload_json,
+                        result_json,
+                        error,
+                        created_at,
+                        started_at,
+                        finished_at,
+                        updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    [
+                        str(uuid4()),
+                        job_id,
+                        org_id,
+                        cnpj,
+                        source_kind_clean,
+                        "queued",
+                        "queued",
+                        _json_dumps({}),
+                        _json_dumps({}),
+                        None,
+                        now,
+                        None,
+                        None,
+                        now,
+                    ],
+                )
+
+        return self.get_refresh_job(org_id, job_id) or {}
+
+    def attach_refresh_job_queue(self, org_id: str, job_id: str, rq_job_id: Optional[str]) -> bool:
+        self.ensure_schema()
+        with get_connection(read_only=False) as conn:
+            existing = conn.execute(
+                "SELECT 1 FROM lead_refresh_jobs WHERE org_id = ? AND id = ? LIMIT 1",
+                [org_id, job_id],
+            ).fetchone()
+            if not existing:
+                return False
+            conn.execute(
+                """
+                UPDATE lead_refresh_jobs
+                SET rq_job_id = ?,
+                    status = 'queued',
+                    updated_at = ?
+                WHERE org_id = ? AND id = ?
+                """,
+                [rq_job_id, _utcnow_iso(), org_id, job_id],
+            )
+        return True
+
+    def get_refresh_job(self, org_id: str, job_id: str) -> Optional[Dict[str, Any]]:
+        self.ensure_schema()
+        with get_connection(read_only=True) as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    id,
+                    name,
+                    source_kind,
+                    source_ref,
+                    source_label,
+                    status,
+                    options_json,
+                    total_targets,
+                    processed_targets,
+                    success_targets,
+                    failed_targets,
+                    queued_at,
+                    started_at,
+                    finished_at,
+                    updated_at,
+                    error,
+                    rq_job_id
+                FROM lead_refresh_jobs
+                WHERE org_id = ? AND id = ?
+                LIMIT 1
+                """,
+                [org_id, job_id],
+            ).fetchone()
+        return self._map_refresh_job_row(row) if row else None
+
+    def list_refresh_jobs(self, org_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+        self.ensure_schema()
+        with get_connection(read_only=True) as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    id,
+                    name,
+                    source_kind,
+                    source_ref,
+                    source_label,
+                    status,
+                    options_json,
+                    total_targets,
+                    processed_targets,
+                    success_targets,
+                    failed_targets,
+                    queued_at,
+                    started_at,
+                    finished_at,
+                    updated_at,
+                    error,
+                    rq_job_id
+                FROM lead_refresh_jobs
+                WHERE org_id = ?
+                ORDER BY updated_at DESC, queued_at DESC
+                LIMIT ?
+                """,
+                [org_id, max(1, min(int(limit or 20), 100))],
+            ).fetchall()
+        return [self._map_refresh_job_row(row) for row in rows]
+
+    def list_refresh_job_targets(self, org_id: str, job_id: str, limit: int = 200) -> List[Dict[str, Any]]:
+        self.ensure_schema()
+        with get_connection(read_only=True) as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    id,
+                    cnpj,
+                    source_kind,
+                    status,
+                    stage,
+                    payload_json,
+                    result_json,
+                    error,
+                    created_at,
+                    started_at,
+                    finished_at,
+                    updated_at
+                FROM lead_refresh_job_targets
+                WHERE org_id = ? AND job_id = ?
+                ORDER BY updated_at DESC, created_at DESC
+                LIMIT ?
+                """,
+                [org_id, job_id, max(1, min(int(limit or 200), 500))],
+            ).fetchall()
+        return [self._map_refresh_target_row(row) for row in rows]
+
+    def mark_refresh_job_running(self, org_id: str, job_id: str) -> bool:
+        self.ensure_schema()
+        now = _utcnow_iso()
+        with get_connection(read_only=False) as conn:
+            existing = conn.execute(
+                "SELECT 1 FROM lead_refresh_jobs WHERE org_id = ? AND id = ? LIMIT 1",
+                [org_id, job_id],
+            ).fetchone()
+            if not existing:
+                return False
+            conn.execute(
+                """
+                UPDATE lead_refresh_jobs
+                SET status = 'running',
+                    started_at = COALESCE(started_at, ?),
+                    updated_at = ?,
+                    error = NULL
+                WHERE org_id = ? AND id = ?
+                """,
+                [now, now, org_id, job_id],
+            )
+        return True
+
+    def mark_refresh_target_running(self, org_id: str, job_id: str, cnpj: str, stage: str) -> bool:
+        self.ensure_schema()
+        cnpj_clean = _normalize_cnpj(cnpj)
+        if not cnpj_clean:
+            return False
+        now = _utcnow_iso()
+        with get_connection(read_only=False) as conn:
+            existing = conn.execute(
+                """
+                SELECT 1
+                FROM lead_refresh_job_targets
+                WHERE org_id = ? AND job_id = ? AND cnpj = ?
+                LIMIT 1
+                """,
+                [org_id, job_id, cnpj_clean],
+            ).fetchone()
+            if not existing:
+                return False
+            conn.execute(
+                """
+                UPDATE lead_refresh_job_targets
+                SET status = 'running',
+                    stage = ?,
+                    started_at = COALESCE(started_at, ?),
+                    updated_at = ?,
+                    error = NULL
+                WHERE org_id = ? AND job_id = ? AND cnpj = ?
+                """,
+                [stage, now, now, org_id, job_id, cnpj_clean],
+            )
+            conn.execute(
+                "UPDATE lead_refresh_jobs SET updated_at = ? WHERE org_id = ? AND id = ?",
+                [now, org_id, job_id],
+            )
+        return True
+
+    def complete_refresh_target(
+        self,
+        org_id: str,
+        job_id: str,
+        cnpj: str,
+        *,
+        stage: str,
+        payload: Optional[Dict[str, Any]] = None,
+        result: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        self.ensure_schema()
+        cnpj_clean = _normalize_cnpj(cnpj)
+        if not cnpj_clean:
+            return False
+        now = _utcnow_iso()
+        with get_connection(read_only=False) as conn:
+            existing = conn.execute(
+                """
+                SELECT 1
+                FROM lead_refresh_job_targets
+                WHERE org_id = ? AND job_id = ? AND cnpj = ?
+                LIMIT 1
+                """,
+                [org_id, job_id, cnpj_clean],
+            ).fetchone()
+            if not existing:
+                return False
+            conn.execute(
+                """
+                UPDATE lead_refresh_job_targets
+                SET status = 'completed',
+                    stage = ?,
+                    payload_json = ?,
+                    result_json = ?,
+                    error = NULL,
+                    finished_at = ?,
+                    updated_at = ?
+                WHERE org_id = ? AND job_id = ? AND cnpj = ?
+                """,
+                [
+                    stage,
+                    _json_dumps(payload or {}),
+                    _json_dumps(result or {}),
+                    now,
+                    now,
+                    org_id,
+                    job_id,
+                    cnpj_clean,
+                ],
+            )
+            self._recompute_refresh_job_counts(conn, org_id, job_id)
+        return True
+
+    def fail_refresh_target(
+        self,
+        org_id: str,
+        job_id: str,
+        cnpj: str,
+        *,
+        stage: str,
+        error: str,
+        payload: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        self.ensure_schema()
+        cnpj_clean = _normalize_cnpj(cnpj)
+        if not cnpj_clean:
+            return False
+        now = _utcnow_iso()
+        with get_connection(read_only=False) as conn:
+            existing = conn.execute(
+                """
+                SELECT 1
+                FROM lead_refresh_job_targets
+                WHERE org_id = ? AND job_id = ? AND cnpj = ?
+                LIMIT 1
+                """,
+                [org_id, job_id, cnpj_clean],
+            ).fetchone()
+            if not existing:
+                return False
+            conn.execute(
+                """
+                UPDATE lead_refresh_job_targets
+                SET status = 'failed',
+                    stage = ?,
+                    payload_json = ?,
+                    error = ?,
+                    finished_at = ?,
+                    updated_at = ?
+                WHERE org_id = ? AND job_id = ? AND cnpj = ?
+                """,
+                [
+                    stage,
+                    _json_dumps(payload or {}),
+                    error,
+                    now,
+                    now,
+                    org_id,
+                    job_id,
+                    cnpj_clean,
+                ],
+            )
+            self._recompute_refresh_job_counts(conn, org_id, job_id)
+        return True
+
+    def finalize_refresh_job(self, org_id: str, job_id: str, error: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        self.ensure_schema()
+        now = _utcnow_iso()
+        with get_connection(read_only=False) as conn:
+            existing = conn.execute(
+                """
+                SELECT total_targets
+                FROM lead_refresh_jobs
+                WHERE org_id = ? AND id = ?
+                LIMIT 1
+                """,
+                [org_id, job_id],
+            ).fetchone()
+            if not existing:
+                return None
+
+            counts = self._recompute_refresh_job_counts(conn, org_id, job_id)
+            total_targets = counts["total_targets"]
+            failed_targets = counts["failed_targets"]
+            success_targets = counts["success_targets"]
+
+            if error:
+                status = "failed"
+            elif total_targets > 0 and failed_targets >= total_targets:
+                status = "failed"
+            elif failed_targets > 0:
+                status = "completed_with_errors"
+            elif success_targets >= total_targets:
+                status = "completed"
+            else:
+                status = "running"
+
+            conn.execute(
+                """
+                UPDATE lead_refresh_jobs
+                SET status = ?,
+                    finished_at = CASE WHEN ? IN ('completed', 'completed_with_errors', 'failed') THEN ? ELSE finished_at END,
+                    updated_at = ?,
+                    error = ?
+                WHERE org_id = ? AND id = ?
+                """,
+                [status, status, now, now, error, org_id, job_id],
+            )
+        return self.get_refresh_job(org_id, job_id)
+
+    def upsert_refresh_state(
+        self,
+        org_id: str,
+        cnpj: str,
+        *,
+        source_kind: Optional[str] = None,
+        source_ref: Optional[str] = None,
+        job_id: Optional[str] = None,
+        summary: Optional[Dict[str, Any]] = None,
+        error: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        self.ensure_schema()
+        cnpj_clean = _normalize_cnpj(cnpj)
+        if not cnpj_clean:
+            raise ValueError("Informe um CNPJ valido para atualizar o refresh state.")
+
+        refresh_meta = _refresh_plan(summary, error=error)
+        normalized_summary = refresh_meta["summary"]
+        freshness_status = refresh_meta["freshness_status"]
+        now = _utcnow_iso()
+
+        with get_connection(read_only=False) as conn:
+            row = conn.execute(
+                """
+                SELECT id, created_at
+                FROM lead_refresh_state
+                WHERE org_id = ? AND cnpj = ?
+                LIMIT 1
+                """,
+                [org_id, cnpj_clean],
+            ).fetchone()
+
+            if row:
+                state_id = str(row[0])
+                created_at = row[1].isoformat() if row[1] else now
+                conn.execute(
+                    """
+                    UPDATE lead_refresh_state
+                    SET source_kind = ?,
+                        source_ref = ?,
+                        last_job_id = ?,
+                        freshness_status = ?,
+                        summary_json = ?,
+                        last_error = ?,
+                        last_refresh_at = ?,
+                        last_enriched_at = ?,
+                        last_contact_refresh_at = ?,
+                        last_verified_at = ?,
+                        next_refresh_at = ?,
+                        updated_at = ?
+                    WHERE org_id = ? AND cnpj = ?
+                    """,
+                    [
+                        str(source_kind).strip() if source_kind else None,
+                        str(source_ref).strip() if source_ref else None,
+                        str(job_id).strip() if job_id else None,
+                        freshness_status,
+                        _json_dumps(normalized_summary),
+                        error,
+                        now,
+                        now,
+                        now,
+                        now,
+                        refresh_meta["next_refresh_at"],
+                        now,
+                        org_id,
+                        cnpj_clean,
+                    ],
+                )
+            else:
+                state_id = str(uuid4())
+                created_at = now
+                conn.execute(
+                    """
+                    INSERT INTO lead_refresh_state (
+                        id,
+                        org_id,
+                        cnpj,
+                        source_kind,
+                        source_ref,
+                        last_job_id,
+                        freshness_status,
+                        summary_json,
+                        last_error,
+                        last_refresh_at,
+                        last_enriched_at,
+                        last_contact_refresh_at,
+                        last_verified_at,
+                        next_refresh_at,
+                        created_at,
+                        updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    [
+                        state_id,
+                        org_id,
+                        cnpj_clean,
+                        str(source_kind).strip() if source_kind else None,
+                        str(source_ref).strip() if source_ref else None,
+                        str(job_id).strip() if job_id else None,
+                        freshness_status,
+                        _json_dumps(normalized_summary),
+                        error,
+                        now,
+                        now,
+                        now,
+                        now,
+                        refresh_meta["next_refresh_at"],
+                        created_at,
+                        now,
+                    ],
+                )
+
+        return self.get_refresh_state(org_id, cnpj_clean) or {
+            "id": state_id,
+            "cnpj": cnpj_clean,
+            "freshness_status": freshness_status,
+            "summary": normalized_summary,
+            "last_error": error,
+            "last_refresh_at": now,
+            "next_refresh_at": refresh_meta["next_refresh_at"],
+            "created_at": created_at,
+            "updated_at": now,
+        }
+
+    def get_refresh_state(self, org_id: str, cnpj: str) -> Optional[Dict[str, Any]]:
+        self.ensure_schema()
+        cnpj_clean = _normalize_cnpj(cnpj)
+        if not cnpj_clean:
+            return None
+        with get_connection(read_only=True) as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    id,
+                    cnpj,
+                    source_kind,
+                    source_ref,
+                    last_job_id,
+                    freshness_status,
+                    summary_json,
+                    last_error,
+                    last_refresh_at,
+                    last_enriched_at,
+                    last_contact_refresh_at,
+                    last_verified_at,
+                    next_refresh_at,
+                    created_at,
+                    updated_at
+                FROM lead_refresh_state
+                WHERE org_id = ? AND cnpj = ?
+                LIMIT 1
+                """,
+                [org_id, cnpj_clean],
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "id": str(row[0]),
+            "cnpj": str(row[1]),
+            "source_kind": str(row[2]) if row[2] else None,
+            "source_ref": str(row[3]) if row[3] else None,
+            "last_job_id": str(row[4]) if row[4] else None,
+            "freshness_status": str(row[5]) if row[5] else None,
+            "summary": _json_loads(row[6], {}),
+            "last_error": str(row[7]) if row[7] else None,
+            "last_refresh_at": row[8].isoformat() if row[8] else None,
+            "last_enriched_at": row[9].isoformat() if row[9] else None,
+            "last_contact_refresh_at": row[10].isoformat() if row[10] else None,
+            "last_verified_at": row[11].isoformat() if row[11] else None,
+            "next_refresh_at": row[12].isoformat() if row[12] else None,
+            "created_at": row[13].isoformat() if row[13] else None,
+            "updated_at": row[14].isoformat() if row[14] else None,
+        }
+
+    def list_refresh_states(self, org_id: str, *, due_only: bool = False, limit: int = 100) -> List[Dict[str, Any]]:
+        self.ensure_schema()
+        params: List[Any] = [org_id]
+        sql = """
+            SELECT
+                id,
+                cnpj,
+                source_kind,
+                source_ref,
+                last_job_id,
+                freshness_status,
+                summary_json,
+                last_error,
+                last_refresh_at,
+                last_enriched_at,
+                last_contact_refresh_at,
+                last_verified_at,
+                next_refresh_at,
+                created_at,
+                updated_at
+            FROM lead_refresh_state
+            WHERE org_id = ?
+        """
+        if due_only:
+            sql += " AND next_refresh_at <= NOW()"
+        sql += " ORDER BY next_refresh_at ASC NULLS LAST, updated_at DESC LIMIT ?"
+        params.append(max(1, min(int(limit or 100), 500)))
+
+        with get_connection(read_only=True) as conn:
+            rows = conn.execute(sql, params).fetchall()
+
+        return [
+            {
+                "id": str(row[0]),
+                "cnpj": str(row[1]),
+                "source_kind": str(row[2]) if row[2] else None,
+                "source_ref": str(row[3]) if row[3] else None,
+                "last_job_id": str(row[4]) if row[4] else None,
+                "freshness_status": str(row[5]) if row[5] else None,
+                "summary": _json_loads(row[6], {}),
+                "last_error": str(row[7]) if row[7] else None,
+                "last_refresh_at": row[8].isoformat() if row[8] else None,
+                "last_enriched_at": row[9].isoformat() if row[9] else None,
+                "last_contact_refresh_at": row[10].isoformat() if row[10] else None,
+                "last_verified_at": row[11].isoformat() if row[11] else None,
+                "next_refresh_at": row[12].isoformat() if row[12] else None,
+                "created_at": row[13].isoformat() if row[13] else None,
+                "updated_at": row[14].isoformat() if row[14] else None,
+            }
+            for row in rows
+        ]
 
 
 lead_registry_service = LeadRegistryService()
