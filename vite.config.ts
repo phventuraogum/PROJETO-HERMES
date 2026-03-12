@@ -33,33 +33,6 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (!id.includes("node_modules")) {
-            return;
-          }
-          if (id.includes("react") || id.includes("@tanstack")) {
-            return "react-vendor";
-          }
-          if (id.includes("@radix-ui") || id.includes("cmdk") || id.includes("vaul")) {
-            return "ui-vendor";
-          }
-          if (id.includes("recharts")) {
-            return "charts-vendor";
-          }
-          if (id.includes("leaflet") || id.includes("react-leaflet")) {
-            return "maps-vendor";
-          }
-          if (id.includes("@supabase")) {
-            return "supabase-vendor";
-          }
-          if (id.includes("lucide-react") || id.includes("sonner")) {
-            return "ux-vendor";
-          }
-          return "vendor";
-        },
-      },
-    },
+    chunkSizeWarningLimit: 700,
   },
 }));
