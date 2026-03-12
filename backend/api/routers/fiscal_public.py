@@ -32,6 +32,14 @@ class FiscalImportTextBody(BaseModel):
     notes: Optional[str] = None
 
 
+class FiscalImportPathsBody(BaseModel):
+    paths: list[str]
+    filename: Optional[str] = None
+    provider: str = DEFAULT_PROVIDER
+    source_label: str = DEFAULT_SOURCE_LABEL
+    notes: Optional[str] = None
+
+
 @router.get("/meta")
 async def get_fiscal_snapshot_meta(
     request: Request,
@@ -86,6 +94,31 @@ async def import_fiscal_snapshot_text(
         snapshot = public_fiscal_data_service.import_snapshot(
             _org_id(request),
             body.content.encode("utf-8"),
+            filename=body.filename,
+            provider=body.provider or DEFAULT_PROVIDER,
+            source_label=body.source_label or DEFAULT_SOURCE_LABEL,
+            notes=body.notes,
+        )
+        return {
+            "success": True,
+            "snapshot": snapshot,
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/import-paths")
+async def import_fiscal_snapshot_paths(
+    request: Request,
+    body: FiscalImportPathsBody = Body(...),
+    _user: dict = Depends(require_auth),
+) -> dict[str, Any]:
+    try:
+        snapshot = public_fiscal_data_service.import_snapshot_paths(
+            _org_id(request),
+            body.paths,
             filename=body.filename,
             provider=body.provider or DEFAULT_PROVIDER,
             source_label=body.source_label or DEFAULT_SOURCE_LABEL,

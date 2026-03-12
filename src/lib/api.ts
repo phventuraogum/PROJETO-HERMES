@@ -835,17 +835,25 @@ export type FiscalPublicRecord = {
   id: string;
   cnpj: string;
   nome_devedor?: string | null;
+  tipo_pessoa?: string | null;
+  uf_devedor?: string | null;
   situacao?: string | null;
+  tipo_situacao_inscricao?: string | null;
   numero_inscricao?: string | null;
   data_inscricao?: string | null;
   valor_originario?: number | null;
   valor_consolidado?: number | null;
   tipo_credito?: string | null;
+  receita_principal?: string | null;
   tipo_devedor?: string | null;
   indicador_ajuizado?: boolean | null;
   unidade_responsavel?: string | null;
+  entidade_responsavel?: string | null;
+  unidade_inscricao?: string | null;
   processo_judicial?: string | null;
   source_url?: string | null;
+  source_file_name?: string | null;
+  source_member_name?: string | null;
   imported_at?: string | null;
 };
 
@@ -862,6 +870,9 @@ export type FiscalPublicLookup = {
     latest_data_inscricao?: string | null;
     nome_devedor?: string | null;
     situacoes: string[];
+    ufs: string[];
+    tipos_credito: string[];
+    fontes: string[];
   };
   records: FiscalPublicRecord[];
 };
@@ -1095,18 +1106,26 @@ function mapFiscalPublicRecord(raw: Record<string, unknown>): FiscalPublicRecord
     id: asNullableString(raw.id) ?? "",
     cnpj: asNullableString(raw.cnpj) ?? "",
     nome_devedor: asNullableString(raw.nome_devedor),
+    tipo_pessoa: asNullableString(raw.tipo_pessoa),
+    uf_devedor: asNullableString(raw.uf_devedor),
     situacao: asNullableString(raw.situacao),
+    tipo_situacao_inscricao: asNullableString(raw.tipo_situacao_inscricao),
     numero_inscricao: asNullableString(raw.numero_inscricao),
     data_inscricao: asNullableString(raw.data_inscricao),
     valor_originario: asNullableNumber(raw.valor_originario),
     valor_consolidado: asNullableNumber(raw.valor_consolidado),
     tipo_credito: asNullableString(raw.tipo_credito),
+    receita_principal: asNullableString(raw.receita_principal),
     tipo_devedor: asNullableString(raw.tipo_devedor),
     indicador_ajuizado:
       raw.indicador_ajuizado == null ? null : Boolean(raw.indicador_ajuizado),
     unidade_responsavel: asNullableString(raw.unidade_responsavel),
+    entidade_responsavel: asNullableString(raw.entidade_responsavel),
+    unidade_inscricao: asNullableString(raw.unidade_inscricao),
     processo_judicial: asNullableString(raw.processo_judicial),
     source_url: asNullableString(raw.source_url),
+    source_file_name: asNullableString(raw.source_file_name),
+    source_member_name: asNullableString(raw.source_member_name),
     imported_at: asNullableString(raw.imported_at),
   };
 }
@@ -1126,6 +1145,9 @@ function mapFiscalPublicLookup(raw: FiscalPublicLookupResponse): FiscalPublicLoo
       latest_data_inscricao: asNullableString(summary.latest_data_inscricao),
       nome_devedor: asNullableString(summary.nome_devedor),
       situacoes: asArray<string>(summary.situacoes).map((item) => String(item)),
+      ufs: asArray<string>(summary.ufs).map((item) => String(item)),
+      tipos_credito: asArray<string>(summary.tipos_credito).map((item) => String(item)),
+      fontes: asArray<string>(summary.fontes).map((item) => String(item)),
     },
     records: asArray<Record<string, unknown>>(raw.records).map(mapFiscalPublicRecord),
   };
@@ -1217,6 +1239,33 @@ export async function importarBaseFiscalPublicaTexto(
     method: "POST",
     body: JSON.stringify({
       content,
+      filename: opts?.filename ?? null,
+      provider: opts?.provider ?? "pgfn_open_data_manual",
+      source_label: opts?.sourceLabel ?? "PGFN Dados Abertos",
+      notes: opts?.notes ?? null,
+    }),
+  });
+
+  const snapshot = mapFiscalPublicSnapshot(asRecord(data.snapshot));
+  if (!snapshot) {
+    throw new Error("Nao foi possivel importar a base fiscal.");
+  }
+  return snapshot;
+}
+
+export async function importarBaseFiscalPublicaCaminhos(
+  paths: string[],
+  opts?: {
+    filename?: string | null;
+    provider?: string;
+    sourceLabel?: string;
+    notes?: string | null;
+  },
+): Promise<FiscalPublicSnapshot> {
+  const data = await hermesFetch<FiscalPublicSnapshotResponse>("/fiscal-public/import-paths", {
+    method: "POST",
+    body: JSON.stringify({
+      paths,
       filename: opts?.filename ?? null,
       provider: opts?.provider ?? "pgfn_open_data_manual",
       source_label: opts?.sourceLabel ?? "PGFN Dados Abertos",

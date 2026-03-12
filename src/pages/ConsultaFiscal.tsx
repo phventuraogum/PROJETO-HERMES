@@ -22,6 +22,7 @@ import {
   consultarFiscalPublicaPorCnpj,
   getFiscalPublicSnapshotMeta,
   importarBaseFiscalPublicaArquivo,
+  importarBaseFiscalPublicaCaminhos,
   importarBaseFiscalPublicaTexto,
   normalizeCnpj,
   type FiscalPublicLookup,
@@ -83,10 +84,13 @@ const ConsultaFiscal = () => {
   const [notes, setNotes] = useState("");
   const [rawText, setRawText] = useState("");
   const [textFilename, setTextFilename] = useState("pgfn-manual.csv");
+  const [serverPaths, setServerPaths] = useState("");
+  const [serverFilename, setServerFilename] = useState("pgfn-oficial-zip");
   const [isLoadingMeta, setIsLoadingMeta] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [isImportingFile, setIsImportingFile] = useState(false);
   const [isImportingText, setIsImportingText] = useState(false);
+  const [isImportingPaths, setIsImportingPaths] = useState(false);
 
   const cnpjDigits = useMemo(() => normalizeCnpj(cnpjInput), [cnpjInput]);
 
@@ -182,6 +186,36 @@ const ConsultaFiscal = () => {
       toast.error(err?.message || "Nao foi possivel importar o texto.");
     } finally {
       setIsImportingText(false);
+    }
+  };
+
+  const handleImportPaths = async () => {
+    const paths = serverPaths
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (paths.length === 0) {
+      toast.error("Informe um ou mais caminhos do servidor.");
+      return;
+    }
+
+    try {
+      setIsImportingPaths(true);
+      const meta = await importarBaseFiscalPublicaCaminhos(paths, {
+        filename: serverFilename || "pgfn-oficial-zip",
+        sourceLabel,
+        notes: notes || null,
+      });
+      setSnapshot(meta);
+      toast.success("Base fiscal do servidor importada com sucesso.");
+      if (cnpjDigits.length === 14) {
+        await handleLookup();
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Nao foi possivel importar os caminhos do servidor.");
+    } finally {
+      setIsImportingPaths(false);
     }
   };
 
@@ -318,11 +352,11 @@ const ConsultaFiscal = () => {
             Importacao Manual da Base
           </CardTitle>
           <CardDescription>
-            Suba um CSV/TSV/JSON publico ou cole os dados manualmente. O Hermes consulta sempre o ultimo snapshot importado.
+            Suba um CSV/TSV/JSON/ZIP publico, cole os dados manualmente ou importe arquivos grandes ja copiados para a VPS.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 xl:grid-cols-3">
             <div className="space-y-3 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
               <div className="space-y-2">
                 <Label htmlFor="fiscal-source">Fonte exibida</Label>
@@ -348,7 +382,7 @@ const ConsultaFiscal = () => {
                 <Input
                   id="fiscal-file"
                   type="file"
-                  accept=".csv,.tsv,.txt,.json"
+                  accept=".csv,.tsv,.txt,.json,.zip"
                   className="border-zinc-700 bg-zinc-950 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-800 file:px-3 file:py-1 file:text-sm file:text-zinc-200"
                   onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
                 />
@@ -393,6 +427,38 @@ const ConsultaFiscal = () => {
               >
                 {isImportingText ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                 Importar texto
+              </Button>
+            </div>
+
+            <div className="space-y-3 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+              <div className="space-y-2">
+                <Label htmlFor="fiscal-server-name">Nome do snapshot grande</Label>
+                <Input
+                  id="fiscal-server-name"
+                  value={serverFilename}
+                  onChange={(e) => setServerFilename(e.target.value)}
+                  className="border-zinc-700 bg-zinc-950"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fiscal-server-paths">Caminhos no servidor</Label>
+                <Textarea
+                  id="fiscal-server-paths"
+                  value={serverPaths}
+                  onChange={(e) => setServerPaths(e.target.value)}
+                  placeholder={"/opt/hermes/data/fiscal/pgfn-nao-2025Q4.zip\n/opt/hermes/data/fiscal/pgfn-previdenciario-2025Q4.zip"}
+                  className="min-h-[160px] border-zinc-700 bg-zinc-950"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-zinc-700 bg-zinc-950"
+                onClick={() => void handleImportPaths()}
+                disabled={isImportingPaths}
+              >
+                {isImportingPaths ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                Importar caminhos do servidor
               </Button>
             </div>
           </div>
@@ -469,6 +535,18 @@ const ConsultaFiscal = () => {
                       <p className="mt-1 text-sm text-zinc-400">
                         Ultima data de inscricao encontrada: {formatDate(lookup.summary.latest_data_inscricao)}
                       </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {lookup.summary.ufs.map((item) => (
+                          <Badge key={`uf-${item}`} variant="outline" className="border-zinc-700 text-zinc-300">
+                            UF {item}
+                          </Badge>
+                        ))}
+                        {lookup.summary.tipos_credito.map((item) => (
+                          <Badge key={`credito-${item}`} variant="outline" className="border-zinc-700 text-zinc-300">
+                            {item}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                   </>
                 )}
@@ -505,6 +583,12 @@ const ConsultaFiscal = () => {
                   <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Cobertura</p>
                   <p className="mt-2 text-sm font-medium text-zinc-100">
                     Publica / sem autorizacao
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Arquivos fonte</p>
+                  <p className="mt-2 text-sm font-medium text-zinc-100">
+                    {lookup.summary.fontes.length || 0}
                   </p>
                 </div>
               </CardContent>
@@ -554,10 +638,17 @@ const ConsultaFiscal = () => {
                         </div>
 
                         <div className="flex flex-wrap gap-4 text-sm text-zinc-500">
+                          {record.tipo_pessoa && <span>Tipo pessoa: {record.tipo_pessoa}</span>}
+                          {record.uf_devedor && <span>UF: {record.uf_devedor}</span>}
+                          {record.tipo_situacao_inscricao && <span>Tipo situacao: {record.tipo_situacao_inscricao}</span>}
                           {record.tipo_credito && <span>Credito: {record.tipo_credito}</span>}
+                          {record.receita_principal && <span>Receita: {record.receita_principal}</span>}
                           {record.tipo_devedor && <span>Devedor: {record.tipo_devedor}</span>}
                           {record.unidade_responsavel && <span>Unidade: {record.unidade_responsavel}</span>}
+                          {record.entidade_responsavel && <span>Entidade: {record.entidade_responsavel}</span>}
+                          {record.unidade_inscricao && <span>Unidade inscricao: {record.unidade_inscricao}</span>}
                           {record.processo_judicial && <span>Processo: {record.processo_judicial}</span>}
+                          {record.source_member_name && <span>Arquivo: {record.source_member_name}</span>}
                         </div>
                       </div>
 
