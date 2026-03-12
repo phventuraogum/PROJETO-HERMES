@@ -62,7 +62,7 @@ services:
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY:-}
       - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-}
     volumes:
-      - duckdb_data:/data:ro
+      - duckdb_data:/data
     expose:
       - "8000"
     depends_on:
