@@ -73,6 +73,7 @@ DOMINIOS_BANIDOS = [
     "cnpj.services", "findcnpj.com.br", "brasilcnpj.com",
     "portalcnpj.com.br", "buscacnpj.com.br", "dadosmarket.com.br",
     "dnb.com", "yelp.com", "facebook.com", "linkedin.com", "instagram.com",
+    "google.com", "google.com.br", "dicio.com.br", "wikipedia.org", "wiktionary.org",
     "jusbrasil.com.br", "econodata.com.br", "casa.dados.com.br",
     "zhihu.com", "baidu.com", "forum.cfx.re"
 ]
@@ -352,7 +353,7 @@ def _pontuar_resultado_site_oficial(resultado: Dict[str, Any], empresa_nome: str
     host = _extrair_host(link_bruto)
     if not host:
         return -100.0
-    if any(b in host for b in DOMINIOS_BANIDOS):
+    if _host_contato_banido(host):
         return -100.0
 
     titulo = _normalizar_texto_busca(resultado.get("titulo", ""))
@@ -811,7 +812,7 @@ def filtrar_resultados(resultados: List[Dict], empresa_nome: str = "") -> List[D
         dominio_limpo = dominio.replace("www.", "")
         
         # Checa banidos
-        if any(b in dominio_limpo for b in DOMINIOS_BANIDOS):
+        if _host_contato_banido(dominio_limpo):
             continue
             
         if dominio_limpo in vistos:
@@ -821,6 +822,8 @@ def filtrar_resultados(resultados: List[Dict], empresa_nome: str = "") -> List[D
         candidato = dict(r)
         candidato["link"] = link_normalizado
         candidato["_score_site"] = _pontuar_resultado_site_oficial(r, empresa_nome) if empresa_nome else 0.0
+        if empresa_nome and float(candidato.get("_score_site", 0.0) or 0.0) < 1.0:
+            continue
         filtrados.append(candidato)
 
     filtrados.sort(key=lambda item: item.get("_score_site", 0.0), reverse=True)

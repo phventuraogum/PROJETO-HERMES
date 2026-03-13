@@ -253,6 +253,71 @@ class MainEnrichmentBudgetTests(unittest.TestCase):
         self.assertFalse(empresa.email_validado)
         self.assertEqual(empresa.email_status_validacao, "rejected")
 
+    def test_aplicar_merge_enriquecimento_clears_invalid_scraped_fields(self):
+        empresa = self._empresa(
+            cnpj="19191919000119",
+            site="https://google.com",
+            email_enriquecido="press@google.com",
+            telefone_enriquecido="(11) 4729-9240",
+            whatsapp_publico="5585996127279",
+            whatsapps_captados=[
+                api_main.ContatoCaptado(valor="5585996127279", origem="Scraping Web"),
+            ],
+        )
+
+        with mock.patch.object(
+            api_main,
+            "merge_enrichment_payload",
+            return_value={
+                "site": None,
+                "email_enriquecido": None,
+                "telefone_enriquecido": None,
+                "whatsapp_publico": None,
+                "whatsapp_enriquecido": None,
+                "emails_captados": None,
+                "telefones_captados": None,
+                "whatsapps_captados": None,
+            },
+        ):
+            api_main._aplicar_merge_enriquecimento(empresa, {"site": "https://google.com"})
+
+        self.assertIsNone(empresa.site)
+        self.assertIsNone(empresa.email_enriquecido)
+        self.assertIsNone(empresa.telefone_enriquecido)
+        self.assertIsNone(empresa.whatsapp_publico)
+        self.assertIsNone(empresa.whatsapps_captados)
+
+    def test_sanear_whatsapps_compartilhados_no_lote_suppresses_duplicate_number(self):
+        numero = "5511957946737"
+        empresa_a = self._empresa(
+            cnpj="20202020000120",
+            razao_social="GLOBALCAST CONTABILIDADE LTDA",
+            nome_fantasia="GLOBALCAST CONTABILIDADE",
+            site="https://globalauditoria.com.br",
+            whatsapp_enriquecido=numero,
+            whatsapps_captados=[
+                api_main.ContatoCaptado(valor=numero, origem="Promocao maps", validado=True),
+            ],
+        )
+        empresa_b = self._empresa(
+            cnpj="21212121000121",
+            razao_social="CONTABILIX CONTABILIDADE ONLINE LTDA",
+            nome_fantasia="CONTABILIX CONTABILIDADE ONLINE",
+            site="https://www.contabilix.com.br",
+            whatsapp_enriquecido=numero,
+            whatsapps_captados=[
+                api_main.ContatoCaptado(valor=numero, origem="Promocao maps", validado=True),
+            ],
+        )
+
+        suprimidos = api_main._sanear_whatsapps_compartilhados_no_lote([empresa_a, empresa_b])
+
+        self.assertEqual(suprimidos, 2)
+        self.assertIsNone(empresa_a.whatsapp_enriquecido)
+        self.assertIsNone(empresa_b.whatsapp_enriquecido)
+        self.assertEqual(empresa_a.whatsapps_captados[0].metodo_validacao, "batch_duplicate_suppressed")
+        self.assertEqual(empresa_b.whatsapps_captados[0].metodo_validacao, "batch_duplicate_suppressed")
+
 
 if __name__ == "__main__":
     unittest.main()

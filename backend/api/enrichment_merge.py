@@ -87,6 +87,47 @@ DOMINIOS_CONTATO_DESCARTADOS = {
     "empresascnpj.com",
     "buscacnpj.com.br",
     "portalcnpj.com.br",
+    "google.com",
+    "google.com.br",
+    "dicio.com.br",
+    "wikipedia.org",
+    "wiktionary.org",
+}
+
+TERMOS_EMPRESA_IGNORADOS = {
+    "de",
+    "da",
+    "do",
+    "das",
+    "dos",
+    "e",
+    "a",
+    "o",
+    "em",
+    "com",
+    "para",
+    "ltda",
+    "sa",
+    "s",
+    "me",
+    "epp",
+    "eireli",
+    "grupo",
+    "holding",
+    "empresa",
+    "companhia",
+    "comercio",
+    "industrial",
+    "industria",
+    "servicos",
+}
+
+SUFIXOS_DOMINIO_3_NIVEIS = {
+    "com.br",
+    "org.br",
+    "net.br",
+    "gov.br",
+    "edu.br",
 }
 
 
@@ -119,6 +160,21 @@ def _dominio_site(site: Optional[str]) -> Optional[str]:
     return host or None
 
 
+def _dominio_registravel(host: Optional[str]) -> Optional[str]:
+    host_limpo = str(host or "").lower().strip(".")
+    if not host_limpo:
+        return None
+
+    partes = host_limpo.split(".")
+    if len(partes) <= 2:
+        return host_limpo
+
+    if ".".join(partes[-2:]) in SUFIXOS_DOMINIO_3_NIVEIS and len(partes) >= 3:
+        return ".".join(partes[-3:])
+
+    return ".".join(partes[-2:])
+
+
 def _dominio_email(email: str) -> str:
     try:
         return email.split("@", 1)[1].lower()
@@ -126,11 +182,59 @@ def _dominio_email(email: str) -> str:
         return ""
 
 
+def _dominio_descartado(host_or_domain: Optional[str]) -> bool:
+    dominio = _dominio_registravel(str(host_or_domain or "").lower())
+    if not dominio:
+        return False
+    return any(
+        dominio == bloqueado or dominio.endswith("." + bloqueado)
+        for bloqueado in DOMINIOS_CONTATO_DESCARTADOS
+    )
+
+
 def _origem_diretorio_descartada(origem: str) -> bool:
     origem_norm = str(origem or "").lower()
     if not origem_norm:
         return False
     return any(dominio in origem_norm for dominio in DOMINIOS_CONTATO_DESCARTADOS)
+
+
+def _tokens_empresa(*nomes: Optional[str]) -> List[str]:
+    tokens: List[str] = []
+    for nome in nomes:
+        texto = unicodedata.normalize("NFKD", str(nome or "")).lower()
+        texto = "".join(ch for ch in texto if not unicodedata.combining(ch))
+        for token in re.split(r"[^a-z0-9]+", texto):
+            if len(token) <= 2 or token in TERMOS_EMPRESA_IGNORADOS or token in tokens:
+                continue
+            tokens.append(token)
+    return tokens[:6]
+
+
+def _sigla_empresa(tokens: List[str]) -> str:
+    if not tokens:
+        return ""
+    iniciais = "".join(token[0] for token in tokens if token)
+    return iniciais[:6] if len(iniciais) >= 2 else ""
+
+
+def _site_parece_oficial(site: Optional[str], razao_social: Optional[str], nome_fantasia: Optional[str]) -> bool:
+    dominio = _dominio_registravel(_dominio_site(site))
+    if not dominio or _dominio_descartado(dominio):
+        return False
+
+    host_principal = dominio.split(".")[0]
+    tokens = _tokens_empresa(nome_fantasia, razao_social)
+    if not tokens:
+        return True
+
+    sigla = _sigla_empresa(tokens)
+    concatenado = "".join(tokens[:2])
+    if sigla and sigla in host_principal:
+        return True
+    if concatenado and concatenado in host_principal:
+        return True
+    return any(token in host_principal for token in tokens if len(token) >= 4)
 
 
 def _email_local_tokens(email: str) -> List[str]:
@@ -363,9 +467,16 @@ def _serializar_redes_socios(socios: List[Dict[str, Any]], redes_existentes: Dic
 
 
 def merge_enrichment_payload(existing: Dict[str, Any], payload: Dict[str, Any]) -> Dict[str, Any]:
-    site = payload.get("site") or existing.get("site")
-    dominio_empresa = _dominio_site(site or existing.get("site"))
-    existing_site_descartado = _origem_diretorio_descartada(existing.get("site") or "")
+    razao_social = existing.get("razao_social")
+    nome_fantasia = existing.get("nome_fantasia")
+    site_payload = _normalizar_url(payload.get("site"))
+    site_existente = _normalizar_url(existing.get("site"))
+    site_payload_valido = _site_parece_oficial(site_payload, razao_social, nome_fantasia)
+    site_existente_valido = _site_parece_oficial(site_existente, razao_social, nome_fantasia)
+    site = site_payload if site_payload_valido else (site_existente if site_existente_valido else None)
+    dominio_empresa = _dominio_registravel(_dominio_site(site))
+    existing_site_descartado = not site_existente_valido
+    permitir_contatos_scraping_payload = bool(site_payload_valido or (not site_payload and site_existente_valido))
 
     emails: List[Dict[str, Any]] = []
     telefones: List[Dict[str, Any]] = []
@@ -384,10 +495,12 @@ def merge_enrichment_payload(existing: Dict[str, Any], payload: Dict[str, Any]) 
         email = str(valor).strip().lower()
         if not email:
             return
+        dominio_email = _dominio_email(email)
+        if _dominio_descartado(dominio_email):
+            return
         validacao = validar_email(email)
         if _origem_diretorio_descartada(origem):
-            dominio = _dominio_email(email)
-            if not dominio_empresa or dominio != dominio_empresa:
+            if not dominio_empresa or dominio_email != dominio_empresa:
                 return
         _append_unique(
             emails,
@@ -455,18 +568,19 @@ def merge_enrichment_payload(existing: Dict[str, Any], payload: Dict[str, Any]) 
         add_whatsapp(existing.get("whatsapp_enriquecido"), "Atual", tipo="enriquecido")
 
     origem_payload = str(payload.get("contatos_source") or payload.get("source") or "Scraping Web")
-    if payload.get("email"):
+    if permitir_contatos_scraping_payload and payload.get("email"):
         add_email(payload.get("email"), origem_payload)
-    if payload.get("telefone"):
+    if permitir_contatos_scraping_payload and payload.get("telefone"):
         add_telefone(payload.get("telefone"), origem_payload)
-    if payload.get("whatsapp_publico"):
+    if permitir_contatos_scraping_payload and payload.get("whatsapp_publico"):
         add_whatsapp(payload.get("whatsapp_publico"), origem_payload, tipo="publico")
 
     contatos_web = payload.get("contatos_web") or {}
     origem_contatos_web = str(contatos_web.get("origem") or origem_payload or "Core Scraper")
-    add_email(contatos_web.get("email_enriquecido"), origem_contatos_web)
-    add_telefone(contatos_web.get("telefone_enriquecido"), origem_contatos_web)
-    add_whatsapp(contatos_web.get("whatsapp_enriquecido"), origem_contatos_web, tipo="publico")
+    if permitir_contatos_scraping_payload:
+        add_email(contatos_web.get("email_enriquecido"), origem_contatos_web)
+        add_telefone(contatos_web.get("telefone_enriquecido"), origem_contatos_web)
+        add_whatsapp(contatos_web.get("whatsapp_enriquecido"), origem_contatos_web, tipo="publico")
 
     email_waterfall = payload.get("email_waterfall") or {}
     add_email(

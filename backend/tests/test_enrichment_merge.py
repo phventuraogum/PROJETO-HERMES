@@ -167,7 +167,7 @@ class EnrichmentMergeTests(unittest.TestCase):
 
         merged = self._merge(existing, payload)
 
-        self.assertEqual(merged["site"], "beta.com.br")
+        self.assertEqual(merged["site"], "https://beta.com.br")
         self.assertEqual(merged["email_enriquecido"], "contato@beta.com.br")
         self.assertEqual(merged["whatsapp_enriquecido"], "5521988881111")
         self.assertEqual(merged["instagram_empresa"], "https://instagram.com/beta")
@@ -270,6 +270,57 @@ class EnrichmentMergeTests(unittest.TestCase):
             "informecadastral.com.br" not in str(item.get("origem") or "").lower()
             for item in (merged.get("telefones_captados") or [])
         ))
+
+    def test_discards_generic_site_and_scraped_contacts_from_payload(self):
+        existing = {
+            "cnpj": "12345678000199",
+            "razao_social": "LAP CONTABILIDADE LTDA",
+            "nome_fantasia": "LAP CONTABILIDADE",
+            "site": None,
+            "email": None,
+            "email_enriquecido": "press@google.com",
+            "telefone_padrao": None,
+            "telefone_receita": None,
+            "telefone_estab1": None,
+            "telefone_estab2": None,
+            "telefone_enriquecido": "(11) 4729-9240",
+            "whatsapp_publico": "5585996127279",
+            "whatsapp_enriquecido": None,
+            "redes_sociais_empresa": [],
+            "redes_sociais_socios": [],
+            "socios_estruturado": [],
+            "outras_informacoes": None,
+            "registro_dono": None,
+            "registro_email": None,
+            "fonte_dados_prioritaria": None,
+            "emails_captados": None,
+            "telefones_captados": None,
+            "whatsapps_captados": None,
+            "linkedin_empresa": None,
+            "instagram_empresa": None,
+            "facebook_empresa": None,
+            "resumo_ia_empresa": None,
+        }
+
+        payload = {
+            "site": "https://google.com/",
+            "email": "press@google.com",
+            "telefone": "(11) 4729-9240",
+            "whatsapp_publico": "5585996127279",
+            "contatos_web": {
+                "origem": "Core Scraper",
+                "email_enriquecido": "press@google.com",
+                "telefone_enriquecido": "(11) 4729-9240",
+                "whatsapp_enriquecido": "5585996127279",
+            },
+        }
+
+        merged = self._merge(existing, payload)
+
+        self.assertIsNone(merged["site"])
+        self.assertIsNone(merged["email_enriquecido"])
+        self.assertIsNone(merged["telefone_enriquecido"])
+        self.assertIsNone(merged["whatsapp_enriquecido"])
 
 
 if __name__ == "__main__":

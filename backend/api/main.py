@@ -1027,23 +1027,33 @@ def _aplicar_merge_enriquecimento(emp: "Empresa", payload: Dict[str, Any]) -> No
         return
 
     merged = merge_enrichment_payload(emp.model_dump(), payload)
+    campos_limpaveis = {
+        "site",
+        "email_enriquecido",
+        "telefone_enriquecido",
+        "whatsapp_publico",
+        "whatsapp_enriquecido",
+        "emails_captados",
+        "telefones_captados",
+        "whatsapps_captados",
+    }
     for campo, valor in merged.items():
-        if valor is None:
+        if valor is None and campo not in campos_limpaveis:
             continue
         if campo == "emails_captados":
-            emp.emails_captados = [
+            emp.emails_captados = None if valor is None else [
                 item if isinstance(item, ContatoCaptado) else ContatoCaptado(**item)
                 for item in valor
             ]
             continue
         if campo == "telefones_captados":
-            emp.telefones_captados = [
+            emp.telefones_captados = None if valor is None else [
                 item if isinstance(item, ContatoCaptado) else ContatoCaptado(**item)
                 for item in valor
             ]
             continue
         if campo == "whatsapps_captados":
-            emp.whatsapps_captados = [
+            emp.whatsapps_captados = None if valor is None else [
                 item if isinstance(item, ContatoCaptado) else ContatoCaptado(**item)
                 for item in valor
             ]
@@ -1446,6 +1456,100 @@ def _marcar_whatsapp_rejeitado(emp: "Empresa", candidato: Dict[str, Any], numero
             motivo_validacao="Numero rejeitado pela Evolution API",
         )
     return atualizado
+
+
+SUFIXOS_DOMINIO_3_NIVEIS = {
+    "com.br",
+    "org.br",
+    "net.br",
+    "gov.br",
+    "edu.br",
+}
+
+
+def _dominio_registravel_site(site: Optional[str]) -> Optional[str]:
+    try:
+        host = (urlparse(str(site or "")).hostname or "").lower().strip(".")
+    except Exception:
+        host = ""
+    if not host:
+        return None
+
+    partes = host.split(".")
+    if len(partes) <= 2:
+        return host
+    if ".".join(partes[-2:]) in SUFIXOS_DOMINIO_3_NIVEIS and len(partes) >= 3:
+        return ".".join(partes[-3:])
+    return ".".join(partes[-2:])
+
+
+def _candidato_whatsapp_por_numero(emp: "Empresa", numero: str) -> Optional[Dict[str, Any]]:
+    numero_norm = _normalizar_celular_br(numero or "")
+    if not numero_norm:
+        return None
+    for candidato in _coletar_candidatos_whatsapp(emp):
+        if _normalizar_celular_br(candidato.get("numero") or "") == numero_norm:
+            return candidato
+    return None
+
+
+def _suprimir_whatsapp_compartilhado(emp: "Empresa", numero: str, motivo: str) -> bool:
+    numero_norm = _normalizar_celular_br(numero or "")
+    if not numero_norm:
+        return False
+
+    atualizado = False
+    if _normalizar_celular_br(emp.whatsapp_enriquecido or "") == numero_norm:
+        emp.whatsapp_enriquecido = None
+        atualizado = True
+    if _normalizar_celular_br(emp.whatsapp_publico or "") == numero_norm:
+        emp.whatsapp_publico = None
+        atualizado = True
+
+    for item in emp.whatsapps_captados or []:
+        if _normalizar_celular_br(item.valor or "") != numero_norm:
+            continue
+        item.validado = False
+        item.metodo_validacao = "batch_duplicate_suppressed"
+        item.score_validacao = 0.0
+        item.motivo_validacao = motivo
+        atualizado = True
+
+    return atualizado
+
+
+def _sanear_whatsapps_compartilhados_no_lote(empresas: List["Empresa"]) -> int:
+    ocorrencias: Dict[str, List[tuple["Empresa", Optional[Dict[str, Any]]]]] = {}
+
+    for emp in empresas:
+        numero = _normalizar_celular_br(emp.whatsapp_enriquecido or emp.whatsapp_publico or "")
+        if not numero:
+            continue
+        ocorrencias.setdefault(numero, []).append((emp, _candidato_whatsapp_por_numero(emp, numero)))
+
+    suprimidos = 0
+    for numero, usos in ocorrencias.items():
+        cnpjs = {emp.cnpj or str(id(emp)) for emp, _ in usos}
+        if len(cnpjs) < 2:
+            continue
+
+        dominios = {
+            _dominio_registravel_site(emp.site)
+            or (_dominio_registravel_site(f"https://{(emp.email_enriquecido or emp.email or '').split('@', 1)[1]}") if "@" in str(emp.email_enriquecido or emp.email or "") else None)
+            for emp, _ in usos
+        }
+        dominios_validos = {dominio for dominio in dominios if dominio}
+        if len(dominios_validos) <= 1:
+            continue
+
+        motivo = f"Numero {numero} repetido em multiplas empresas do mesmo lote"
+        for emp, _ in usos:
+            if _suprimir_whatsapp_compartilhado(emp, numero, motivo):
+                suprimidos += 1
+
+    if suprimidos:
+        print(f"[WHATSAPP DEDUPE] {suprimidos} atribuicoes suprimidas por numero repetido no lote")
+    return suprimidos
 
 
 def _potencial_whatsapp_inline(emp: "Empresa") -> tuple:
@@ -2641,6 +2745,12 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
             _verificar_whatsapps_evolution(empresas)
         except Exception as e:
             print("[EVOLUTION CHECK] erro:", repr(e))
+
+        _emit("enriching_whatsapp_ultra", 0, 0, "Saneando WhatsApps repetidos no lote...")
+        try:
+            _sanear_whatsapps_compartilhados_no_lote(empresas)
+        except Exception as e:
+            print("[WHATSAPP DEDUPE] erro:", repr(e))
 
         _emit("enriching", 0, 0, "Validando emails via SMTP...")
         try:
