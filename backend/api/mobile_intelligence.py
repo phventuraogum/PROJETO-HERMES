@@ -106,6 +106,52 @@ DOMAIN_TOKEN_STOPWORDS = {
     "me",
     "eireli",
 }
+PERSON_TOKEN_STOPWORDS = {
+    "de",
+    "da",
+    "do",
+    "das",
+    "dos",
+    "e",
+    "di",
+    "du",
+    "del",
+    "della",
+    "van",
+    "von",
+    "jr",
+    "junior",
+    "filho",
+}
+PROFILE_PROBE_SOURCE_HINTS = {
+    "instagram.com": "Instagram",
+    "facebook.com": "Facebook",
+    "linktr.ee": "Link in bio",
+    "beacons.ai": "Link in bio",
+    "bio.site": "Link in bio",
+    "lnk.bio": "Link in bio",
+    "linkin.bio": "Link in bio",
+}
+DECISION_MAKER_ROLE_WEIGHTS = {
+    "socio administrador": 0.99,
+    "socio-administrador": 0.99,
+    "administrador": 0.97,
+    "fundador": 0.96,
+    "cofundador": 0.95,
+    "presidente": 0.95,
+    "diretor": 0.93,
+    "ceo": 0.93,
+    "cfo": 0.91,
+    "coo": 0.9,
+    "head": 0.88,
+    "gerente": 0.84,
+    "comercial": 0.82,
+    "financeiro": 0.8,
+    "operacoes": 0.79,
+    "operacao": 0.79,
+    "rh": 0.76,
+    "recursos humanos": 0.76,
+}
 
 
 def _utcnow_iso() -> str:
@@ -210,6 +256,12 @@ def _normalize_token(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", "", text.lower())
 
 
+def _normalize_search_text(value: Any) -> str:
+    text = unicodedata.normalize("NFKD", str(value or ""))
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
 def _hostname_from_url(value: Any) -> str:
     text = _normalize_site_candidate(value)
     if not text:
@@ -295,14 +347,70 @@ def _collect_site_candidates(snapshot: Dict[str, Any]) -> List[str]:
         candidates.append(normalized)
 
     add(snapshot.get("site"))
+    add(snapshot.get("cached_site_url"))
+    add(snapshot.get("cached_domain"))
     add(_corporate_domain_from_email(snapshot.get("email_final")))
     add(_corporate_domain_from_email(snapshot.get("email_enriquecido")))
     add(_corporate_domain_from_email(snapshot.get("email_receita")))
+    for profile in snapshot.get("company_profiles") or []:
+        if isinstance(profile, dict):
+            add(profile.get("url"))
+        else:
+            add(profile)
+    for url in snapshot.get("redes_sociais_empresa") or []:
+        add(url)
 
     for url in URL_PATTERN.findall(_decode_loose_text(snapshot.get("outras_informacoes"))):
         add(url)
         if len(candidates) >= 4:
             break
+
+    return candidates[:4]
+
+
+def _profile_probe_source_hint(value: Any) -> Optional[str]:
+    domain = _registrable_domain(value)
+    if not domain:
+        return None
+    return PROFILE_PROBE_SOURCE_HINTS.get(domain)
+
+
+def _collect_profile_candidates(snapshot: Dict[str, Any]) -> List[str]:
+    seen: set[str] = set()
+    candidates: List[str] = []
+
+    def add(value: Any) -> None:
+        normalized = _normalize_site_candidate(value)
+        if not normalized or normalized in seen:
+            return
+        if not _profile_probe_source_hint(normalized):
+            return
+        seen.add(normalized)
+        candidates.append(normalized)
+
+    for profile in snapshot.get("company_profiles") or []:
+        if isinstance(profile, dict):
+            add(profile.get("url"))
+        else:
+            add(profile)
+    for url in snapshot.get("redes_sociais_empresa") or []:
+        add(url)
+    for item in snapshot.get("redes_sociais_socios") or []:
+        if isinstance(item, dict):
+            for link in item.get("links") or []:
+                add(link)
+        else:
+            add(item)
+    for partner in snapshot.get("socios_estruturado") or []:
+        if not isinstance(partner, dict):
+            continue
+        for link in partner.get("links_sociais") or []:
+            add(link)
+        add(partner.get("linkedin"))
+    for contact in snapshot.get("cached_contacts") or []:
+        if not isinstance(contact, dict):
+            continue
+        add(contact.get("linkedin"))
 
     return candidates[:4]
 
@@ -438,6 +546,279 @@ def _extract_contextual_phones(raw_text: Any) -> List[Dict[str, Any]]:
         )
 
     return results
+
+
+def _extract_profile_snippet_phones(raw_text: Any, source_url: Any) -> List[Dict[str, Any]]:
+    if not _profile_probe_source_hint(source_url):
+        return []
+    text = _decode_loose_text(raw_text)
+    if not text:
+        return []
+
+    results: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for match in FORMATTED_PHONE_PATTERN.finditer(text):
+        raw_phone = match.group(0)
+        if not _match_contains_phone_formatting(raw_phone):
+            continue
+        normalized_phone = _normalize_phone(raw_phone)
+        if not normalized_phone or normalized_phone in seen:
+            continue
+        if not _has_valid_brazilian_ddd(normalized_phone):
+            continue
+        seen.add(normalized_phone)
+        context = _text_context_window(text, match.start(), match.end())
+        likely_whatsapp = any(term in context for term in WHATSAPP_CONTEXT_TERMS)
+        results.append(
+            {
+                "phone": raw_phone,
+                "source_label": f"{_profile_probe_source_hint(source_url) or 'Perfil publico'} decisor",
+                "kind": "whatsapp" if likely_whatsapp else "phone",
+                "contact_level": "decision_maker",
+                "confidence": 0.76 if likely_whatsapp else 0.64,
+            }
+        )
+
+    return results
+
+
+def _normalize_person_name(value: Any) -> str:
+    raw = " ".join(str(value or "").strip().split())
+    if not raw:
+        return ""
+    tokens = [token for token in raw.split(" ") if token]
+    if len(tokens) <= 6:
+        return " ".join(tokens)
+    return " ".join(tokens[:6])
+
+
+def _person_name_tokens(value: Any) -> List[str]:
+    return [
+        token
+        for token in _normalize_search_text(value).split()
+        if len(token) >= 3 and token not in PERSON_TOKEN_STOPWORDS
+    ]
+
+
+def _company_name_tokens(value: Any) -> List[str]:
+    return [
+        token
+        for token in _normalize_search_text(value).split()
+        if len(token) >= 4 and token not in DOMAIN_TOKEN_STOPWORDS and token not in PERSON_TOKEN_STOPWORDS
+    ]
+
+
+def _decision_role_weight(role: Any) -> float:
+    normalized = _normalize_search_text(role)
+    score = 0.58
+    for hint, weight in DECISION_MAKER_ROLE_WEIGHTS.items():
+        if hint in normalized:
+            score = max(score, weight)
+    return score
+
+
+def _build_decision_maker_targets(snapshot: Dict[str, Any]) -> List[Dict[str, Any]]:
+    targets: Dict[str, Dict[str, Any]] = {}
+
+    def register(
+        *,
+        name: Any,
+        role: Any = None,
+        linkedin: Any = None,
+        social_urls: Optional[List[Any]] = None,
+        source_label: Any = None,
+        has_phone: bool = False,
+    ) -> None:
+        clean_name = _normalize_person_name(name)
+        if not clean_name:
+            return
+        key = _normalize_token(clean_name)
+        if len(key) < 6:
+            return
+        entry = {
+            "name": clean_name,
+            "role": str(role or "").strip() or None,
+            "linkedin": _normalize_site_candidate(linkedin),
+            "social_urls": [],
+            "source_label": str(source_label or "Decisor resolvido"),
+            "priority": _decision_role_weight(role),
+        }
+        if entry["linkedin"]:
+            entry["priority"] = min(entry["priority"] + 0.05, 0.99)
+        if has_phone:
+            entry["priority"] = min(entry["priority"] + 0.03, 0.99)
+
+        current = targets.get(key)
+        if current is None or entry["priority"] > current.get("priority", 0):
+            targets[key] = entry
+            current = targets[key]
+        else:
+            if not current.get("role") and entry.get("role"):
+                current["role"] = entry["role"]
+            if not current.get("linkedin") and entry.get("linkedin"):
+                current["linkedin"] = entry["linkedin"]
+            if source_label and source_label not in str(current.get("source_label") or ""):
+                current["source_label"] = f"{current.get('source_label')}; {source_label}"
+
+        for url in social_urls or []:
+            normalized = _normalize_site_candidate(url)
+            if normalized and normalized not in current["social_urls"]:
+                current["social_urls"].append(normalized)
+        if current.get("linkedin") and current["linkedin"] not in current["social_urls"]:
+            current["social_urls"].append(current["linkedin"])
+
+    for partner in snapshot.get("socios_estruturado") or []:
+        if not isinstance(partner, dict):
+            continue
+        register(
+            name=partner.get("nome"),
+            role=partner.get("cargo_atual") or partner.get("qualificacao"),
+            linkedin=partner.get("linkedin"),
+            social_urls=partner.get("links_sociais") or [],
+            source_label=partner.get("fonte_contato") or "Socio estruturado",
+            has_phone=bool(partner.get("telefone") or partner.get("whatsapp")),
+        )
+
+    for contact in snapshot.get("cached_contacts") or []:
+        if not isinstance(contact, dict):
+            continue
+        register(
+            name=contact.get("name") or contact.get("contact_name"),
+            role=contact.get("role") or contact.get("contact_role"),
+            linkedin=contact.get("linkedin") or contact.get("linkedin_url"),
+            social_urls=[contact.get("linkedin") or contact.get("linkedin_url")],
+            source_label=contact.get("source") or contact.get("source_label") or "Contact intelligence",
+        )
+
+    ordered = sorted(targets.values(), key=lambda item: item.get("priority") or 0, reverse=True)
+    return ordered[:4]
+
+
+def _decision_maker_mobile_count(candidates: Dict[str, Dict[str, Any]]) -> int:
+    return sum(
+        1
+        for item in candidates.values()
+        if item.get("contact_level") == "decision_maker" and _is_mobile_br(item.get("normalized_phone"))
+    )
+
+
+def _search_result_matches_target(
+    title: Any,
+    description: Any,
+    link: Any,
+    *,
+    person_name: Any,
+    company_name: Any,
+) -> bool:
+    universe = _normalize_search_text(f"{title or ''} {description or ''} {link or ''}")
+    if not universe:
+        return False
+
+    name_tokens = _person_name_tokens(person_name)
+    company_tokens = _company_name_tokens(company_name)
+    if not name_tokens or not company_tokens:
+        return False
+
+    name_hits = sum(1 for token in name_tokens if token in universe)
+    company_hits = sum(1 for token in company_tokens[:4] if token in universe)
+    return name_hits >= min(2, len(name_tokens)) and company_hits >= 1
+
+
+def _decision_search_source_label(link: Any, *, fallback: str = "Busca publica decisor") -> str:
+    hint = _profile_probe_source_hint(link)
+    if hint:
+        return f"{hint} decisor"
+    if "linkedin.com" in _hostname_from_url(link):
+        return "LinkedIn decisor"
+    return fallback
+
+
+async def _probe_decision_maker_public_search(target: Dict[str, Any], snapshot: Dict[str, Any]) -> List[Dict[str, Any]]:
+    name = str(target.get("name") or "").strip()
+    company_name = str(snapshot.get("nome_fantasia") or snapshot.get("razao_social") or "").strip()
+    city = str(snapshot.get("cidade") or "").strip()
+    if not name or not company_name:
+        return []
+
+    try:
+        from core_scraper import buscar_google
+    except Exception:
+        return []
+
+    linkedin_query_hint = ""
+    if not target.get("linkedin"):
+        try:
+            from whatsapp_linkedin_ultra import buscar_linkedin_multiplas_fontes
+
+            linkedin_match = await asyncio.wait_for(
+                buscar_linkedin_multiplas_fontes(name, company_name, city),
+                timeout=18.0,
+            )
+        except Exception:
+            linkedin_match = None
+        if isinstance(linkedin_match, dict) and linkedin_match.get("link"):
+            linkedin_query_hint = str(linkedin_match.get("link"))
+
+    base_queries = [
+        f'"{name}" "{company_name}" {city} whatsapp',
+        f'"{name}" "{company_name}" {city} celular telefone',
+        f'site:instagram.com "{name}" "{company_name}" whatsapp',
+    ]
+    if linkedin_query_hint:
+        base_queries.append(f'"{name}" "{company_name}" "{linkedin_query_hint}"')
+
+    try:
+        search_batches = await asyncio.gather(
+            *[
+                asyncio.wait_for(buscar_google(query, num_results=4), timeout=18.0)
+                for query in base_queries[:3]
+            ],
+            return_exceptions=True,
+        )
+    except Exception:
+        return []
+
+    candidates: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for batch in search_batches:
+        if isinstance(batch, Exception) or not isinstance(batch, list):
+            continue
+        for result in batch:
+            if not isinstance(result, dict):
+                continue
+            link = result.get("link") or ""
+            title = result.get("titulo") or result.get("title") or ""
+            description = result.get("descricao") or result.get("snippet") or ""
+            if not _search_result_matches_target(title, description, link, person_name=name, company_name=company_name):
+                continue
+            raw_text = " ".join(part for part in [title, description, link] if part)
+            extracted = _extract_contextual_phones(raw_text)
+            if not extracted:
+                extracted = _extract_profile_snippet_phones(raw_text, link)
+            for item in extracted:
+                normalized_phone = _normalize_phone(item.get("phone"))
+                if not normalized_phone or normalized_phone in seen:
+                    continue
+                seen.add(normalized_phone)
+                candidates.append(
+                    {
+                        "phone": item.get("phone"),
+                        "source_label": _decision_search_source_label(
+                            link,
+                            fallback=str(item.get("source_label") or "Busca publica decisor"),
+                        ),
+                        "source_url": link or None,
+                        "contact_name": name,
+                        "contact_role": target.get("role"),
+                        "contact_level": "decision_maker",
+                        "kind": item.get("kind") or "phone",
+                        "confidence": max(float(item.get("confidence") or 0.0), 0.68),
+                    }
+                )
+
+    return candidates
 
 
 def _score_source(source_label: str) -> float:
@@ -595,7 +976,10 @@ class MobileIntelligenceService:
                     {self._select_expr(columns, ['outras_informacoes'], 'outras_informacoes')},
                     {self._select_expr(columns, ['telefones_captados'], 'telefones_captados')},
                     {self._select_expr(columns, ['whatsapps_captados'], 'whatsapps_captados')},
-                    {self._select_expr(columns, ['socios_estruturado'], 'socios_estruturado')}
+                    {self._select_expr(columns, ['socios_estruturado'], 'socios_estruturado')},
+                    {self._select_expr(columns, ['linkedin_empresa'], 'linkedin_empresa')},
+                    {self._select_expr(columns, ['redes_sociais_empresa'], 'redes_sociais_empresa')},
+                    {self._select_expr(columns, ['redes_sociais_socios'], 'redes_sociais_socios')}
                 FROM vw_prospeccao_base
                 WHERE {cnpj_column} = ?
                 LIMIT 1
@@ -603,6 +987,87 @@ class MobileIntelligenceService:
             row = conn.execute(query, [cnpj]).fetchone()
             if not row:
                 raise LookupError("Empresa nao encontrada para mobile intelligence.")
+
+            domain_row = None
+            domain_columns = self._get_columns(conn, "company_domains")
+            if domain_columns:
+                domain_row = conn.execute(
+                    """
+                    SELECT domain, site_url, linkedin_company, metadata_json
+                    FROM company_domains
+                    WHERE cnpj = ?
+                    LIMIT 1
+                    """,
+                    [cnpj],
+                ).fetchone()
+
+            cached_contact_rows: List[Any] = []
+            contact_columns = self._get_columns(conn, "company_contacts")
+            if contact_columns:
+                cached_contact_rows = conn.execute(
+                    """
+                    SELECT contact_name, role, linkedin_url, source_label
+                    FROM company_contacts
+                    WHERE cnpj = ?
+                    ORDER BY generated_at DESC, contact_name ASC
+                    """,
+                    [cnpj],
+                ).fetchall()
+
+        cached_intelligence = _coerce_jsonish(domain_row[3], {}) if domain_row and domain_row[3] else {}
+        domain_profile = cached_intelligence.get("domain_profile") if isinstance(cached_intelligence, dict) else {}
+        cached_contacts: List[Dict[str, Any]] = []
+        seen_contacts: set[str] = set()
+
+        def add_cached_contact(contact: Dict[str, Any]) -> None:
+            name = _normalize_person_name(contact.get("name") or contact.get("contact_name"))
+            if not name:
+                return
+            key = _normalize_token(name)
+            if key in seen_contacts:
+                return
+            seen_contacts.add(key)
+            cached_contacts.append(
+                {
+                    "name": name,
+                    "role": str(contact.get("role") or contact.get("contact_role") or "").strip() or None,
+                    "linkedin": _normalize_site_candidate(contact.get("linkedin") or contact.get("linkedin_url")),
+                    "source": str(contact.get("source") or contact.get("source_label") or "Contact intelligence"),
+                }
+            )
+
+        for cached_row in cached_contact_rows:
+            add_cached_contact(
+                {
+                    "contact_name": cached_row[0],
+                    "contact_role": cached_row[1],
+                    "linkedin_url": cached_row[2],
+                    "source_label": cached_row[3],
+                }
+            )
+        for contact in (cached_intelligence.get("contacts") or []) if isinstance(cached_intelligence, dict) else []:
+            if isinstance(contact, dict):
+                add_cached_contact(contact)
+
+        company_profiles = []
+        seen_profile_urls: set[str] = set()
+
+        def add_company_profile(raw_profile: Any, profile_type: Optional[str] = None) -> None:
+            if isinstance(raw_profile, dict):
+                url = _normalize_site_candidate(raw_profile.get("url"))
+                normalized_type = str(raw_profile.get("type") or profile_type or "").strip() or None
+            else:
+                url = _normalize_site_candidate(raw_profile)
+                normalized_type = str(profile_type or "").strip() or None
+            if not url or url in seen_profile_urls:
+                return
+            seen_profile_urls.add(url)
+            company_profiles.append({"type": normalized_type, "url": url})
+
+        for profile in (domain_profile.get("company_profiles") or []) if isinstance(domain_profile, dict) else []:
+            add_company_profile(profile)
+        if domain_row and domain_row[2]:
+            add_company_profile(domain_row[2], "linkedin")
 
         return {
             "cnpj": str(row[0] or cnpj),
@@ -624,6 +1089,13 @@ class MobileIntelligenceService:
             "telefones_captados": _coerce_jsonish(row[16], []),
             "whatsapps_captados": _coerce_jsonish(row[17], []),
             "socios_estruturado": _coerce_jsonish(row[18], []),
+            "linkedin_empresa": str(row[19]) if row[19] else (str(domain_row[2]) if domain_row and domain_row[2] else None),
+            "redes_sociais_empresa": _coerce_jsonish(row[20], []),
+            "redes_sociais_socios": _coerce_jsonish(row[21], []),
+            "cached_domain": str(domain_row[0]) if domain_row and domain_row[0] else None,
+            "cached_site_url": str(domain_row[1]) if domain_row and domain_row[1] else None,
+            "company_profiles": company_profiles,
+            "cached_contacts": cached_contacts,
         }
 
     def get_cached_mobile_waterfall(self, cnpj: str) -> Optional[Dict[str, Any]]:
@@ -814,7 +1286,7 @@ class MobileIntelligenceService:
             if not isinstance(partner, dict):
                 continue
             partner_name = str(partner.get("nome") or "").strip() or None
-            partner_role = str(partner.get("qualificacao") or "").strip() or None
+            partner_role = str(partner.get("cargo_atual") or partner.get("qualificacao") or "").strip() or None
             add_candidate(
                 partner.get("whatsapp"),
                 f"Socio {partner_name or 'decisor'}",
@@ -832,6 +1304,19 @@ class MobileIntelligenceService:
                 contact_level="decision_maker",
                 kind="phone",
             )
+            for extra_phone_key, extra_kind in (
+                ("telefone_linkedin", "phone"),
+                ("celular", "phone"),
+                ("mobile", "phone"),
+            ):
+                add_candidate(
+                    partner.get(extra_phone_key),
+                    f"Socio {partner_name or 'decisor'} {extra_phone_key}",
+                    contact_name=partner_name,
+                    contact_role=partner_role,
+                    contact_level="decision_maker",
+                    kind=extra_kind,
+                )
 
         for item in _extract_contextual_phones(snapshot.get("outras_informacoes")):
             add_candidate(
@@ -843,23 +1328,31 @@ class MobileIntelligenceService:
             )
 
         if _needs_deep_mobile_probe(candidates):
-            for site_candidate in _collect_site_candidates(snapshot)[:2]:
+            for site_candidate in (_collect_site_candidates(snapshot) + _collect_profile_candidates(snapshot))[:4]:
                 site_data = await _probe_site_contacts(site_candidate)
                 if not isinstance(site_data, dict) or not site_data:
                     continue
                 site_source_url = str(site_data.get("site") or site_candidate)
-                if site_data.get("site") and not _same_registrable_domain(site_candidate, site_data.get("site")):
+                profile_hint = _profile_probe_source_hint(site_candidate)
+                if (
+                    site_data.get("site")
+                    and not profile_hint
+                    and not _same_registrable_domain(site_candidate, site_data.get("site"))
+                ):
                     continue
+                site_source_label = str(site_data.get("source") or "Site fallback")
+                if profile_hint:
+                    site_source_label = profile_hint
                 add_candidate(
                     site_data.get("whatsapp"),
-                    str(site_data.get("source") or "Site fallback"),
+                    site_source_label,
                     source_url=site_source_url,
                     kind="whatsapp",
                     confidence=0.78,
                 )
                 add_candidate(
                     site_data.get("telefone"),
-                    str(site_data.get("source") or "Site fallback telefone"),
+                    f"{site_source_label} telefone",
                     source_url=site_source_url,
                     kind="phone",
                     confidence=0.66,
@@ -870,7 +1363,57 @@ class MobileIntelligenceService:
         stats_after_site_probe = _candidate_stats(candidates)
         if (
             stats_after_site_probe["verified_whatsapp_candidates"] == 0
-            and stats_after_site_probe["likely_whatsapp_candidates"] == 0
+            and _decision_maker_mobile_count(candidates) == 0
+        ):
+            for target in _build_decision_maker_targets(snapshot):
+                for profile_url in (target.get("social_urls") or [])[:2]:
+                    if not _profile_probe_source_hint(profile_url):
+                        continue
+                    profile_data = await _probe_site_contacts(profile_url)
+                    if not isinstance(profile_data, dict) or not profile_data:
+                        continue
+                    profile_source_url = str(profile_data.get("site") or profile_url)
+                    profile_source_label = _profile_probe_source_hint(profile_url) or "Perfil decisor"
+                    add_candidate(
+                        profile_data.get("whatsapp"),
+                        f"{profile_source_label} decisor",
+                        contact_name=target.get("name"),
+                        contact_role=target.get("role"),
+                        contact_level="decision_maker",
+                        source_url=profile_source_url,
+                        kind="whatsapp",
+                        confidence=0.8,
+                    )
+                    add_candidate(
+                        profile_data.get("telefone"),
+                        f"{profile_source_label} decisor telefone",
+                        contact_name=target.get("name"),
+                        contact_role=target.get("role"),
+                        contact_level="decision_maker",
+                        source_url=profile_source_url,
+                        kind="phone",
+                        confidence=0.68,
+                    )
+
+                public_candidates = await _probe_decision_maker_public_search(target, snapshot)
+                for public_candidate in public_candidates:
+                    add_candidate(
+                        public_candidate.get("phone"),
+                        str(public_candidate.get("source_label") or "Busca publica decisor"),
+                        contact_name=public_candidate.get("contact_name"),
+                        contact_role=public_candidate.get("contact_role"),
+                        contact_level=str(public_candidate.get("contact_level") or "decision_maker"),
+                        source_url=public_candidate.get("source_url"),
+                        kind=str(public_candidate.get("kind") or "phone"),
+                        confidence=public_candidate.get("confidence"),
+                    )
+                if _decision_maker_mobile_count(candidates) >= 2 or _candidate_stats(candidates)["likely_whatsapp_candidates"] > 0:
+                    break
+
+        stats_after_decision_probe = _candidate_stats(candidates)
+        if (
+            stats_after_decision_probe["verified_whatsapp_candidates"] == 0
+            and stats_after_decision_probe["likely_whatsapp_candidates"] == 0
         ):
             search_result = await _probe_external_whatsapp_search(
                 str(snapshot.get("nome_fantasia") or snapshot.get("razao_social") or ""),

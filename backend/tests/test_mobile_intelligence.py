@@ -72,14 +72,17 @@ class MobileIntelligenceTests(unittest.TestCase):
                     outras_informacoes VARCHAR,
                     telefones_captados VARCHAR,
                     whatsapps_captados VARCHAR,
-                    socios_estruturado VARCHAR
+                    socios_estruturado VARCHAR,
+                    linkedin_empresa VARCHAR,
+                    redes_sociais_empresa VARCHAR,
+                    redes_sociais_socios VARCHAR
                 )
                 """
             )
             conn.execute("DELETE FROM prospect_base")
             conn.executemany(
                 """
-                INSERT INTO prospect_base VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO prospect_base VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -120,6 +123,9 @@ class MobileIntelligenceTests(unittest.TestCase):
                                 }
                             ]
                         ),
+                        "https://www.linkedin.com/company/deode/",
+                        json.dumps(["https://www.instagram.com/deodeenergia/"]),
+                        json.dumps([]),
                     ),
                     (
                         "03023889000110",
@@ -139,6 +145,9 @@ class MobileIntelligenceTests(unittest.TestCase):
                         None,
                         None,
                         json.dumps([]),
+                        json.dumps([]),
+                        json.dumps([]),
+                        None,
                         json.dumps([]),
                         json.dumps([]),
                     ),
@@ -162,6 +171,9 @@ class MobileIntelligenceTests(unittest.TestCase):
                         json.dumps([]),
                         json.dumps([]),
                         json.dumps([]),
+                        None,
+                        json.dumps([]),
+                        json.dumps([]),
                     ),
                     (
                         "11876543000121",
@@ -183,7 +195,90 @@ class MobileIntelligenceTests(unittest.TestCase):
                         json.dumps([]),
                         json.dumps([]),
                         json.dumps([]),
+                        None,
+                        json.dumps([]),
+                        json.dumps([]),
                     ),
+                ],
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS company_domains (
+                    cnpj VARCHAR PRIMARY KEY,
+                    domain VARCHAR,
+                    site_url VARCHAR,
+                    domain_source VARCHAR,
+                    source_url VARCHAR,
+                    linkedin_company VARCHAR,
+                    email_pattern VARCHAR,
+                    pattern_confidence DOUBLE,
+                    metadata_json VARCHAR,
+                    generated_at TIMESTAMP
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS company_contacts (
+                    cnpj VARCHAR,
+                    contact_name VARCHAR,
+                    role VARCHAR,
+                    linkedin_url VARCHAR,
+                    source_label VARCHAR,
+                    generated_at TIMESTAMP
+                )
+                """
+            )
+            conn.execute("DELETE FROM company_domains")
+            conn.execute("DELETE FROM company_contacts")
+            conn.execute(
+                """
+                INSERT INTO company_domains (
+                    cnpj, domain, site_url, domain_source, source_url, linkedin_company,
+                    email_pattern, pattern_confidence, metadata_json, generated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                [
+                    "03023889000110",
+                    "sem-mobile.com.br",
+                    "https://sem-mobile.com.br",
+                    "site",
+                    "https://sem-mobile.com.br",
+                    "https://www.linkedin.com/company/sem-mobile/",
+                    "first.last",
+                    0.88,
+                    json.dumps(
+                        {
+                            "domain_profile": {
+                                "company_profiles": [
+                                    {"type": "linkinbio", "url": "https://linktr.ee/semmobile"},
+                                    {"type": "instagram", "url": "https://www.instagram.com/semmobile/"},
+                                ]
+                            },
+                            "contacts": [
+                                {
+                                    "name": "CARLOS MENDES",
+                                    "role": "Diretor Comercial",
+                                    "linkedin": "https://www.linkedin.com/in/carlos-mendes-semmobile/",
+                                    "source": "Contact intelligence",
+                                }
+                            ],
+                        }
+                    ),
+                ],
+            )
+            conn.execute(
+                """
+                INSERT INTO company_contacts (
+                    cnpj, contact_name, role, linkedin_url, source_label, generated_at
+                ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                [
+                    "03023889000110",
+                    "CARLOS MENDES",
+                    "Diretor Comercial",
+                    "https://www.linkedin.com/in/carlos-mendes-semmobile/",
+                    "Contact intelligence",
                 ],
             )
             conn.execute(
@@ -351,12 +446,56 @@ class MobileIntelligenceTests(unittest.TestCase):
                 )
             )
 
-        site_probe.assert_awaited_once_with("https://sem-mobile.com.br")
+        awaited_urls = [call.args[0] for call in site_probe.await_args_list]
+        self.assertIn("https://sem-mobile.com.br", awaited_urls)
         external_probe.assert_awaited_once()
         candidates = {item["normalized_phone"]: item for item in payload["candidates"]}
         self.assertIn("5531996665555", candidates)
         self.assertTrue(candidates["5531996665555"]["verified_whatsapp"])
         self.assertEqual(candidates["5531996665555"]["source_label"], "Google Maps")
+
+    def test_mobile_waterfall_uses_cached_profiles_and_decision_maker_search(self):
+        async def fake_verifier(numbers, max_batch=10):
+            return {
+                "5531997778888": {
+                    "valido": True,
+                    "numero_limpo": "5531997778888",
+                    "score": 1.0,
+                    "metodo": "evolution_api",
+                }
+            }
+
+        async def fake_profile_probe(url):
+            if url == "https://linktr.ee/semmobile":
+                return {"site": "https://linktr.ee/semmobile", "whatsapp": "(31) 99777-8888", "source": "HTTPX"}
+            return {}
+
+        profile_probe = AsyncMock(side_effect=fake_profile_probe)
+        decision_probe = AsyncMock(return_value=[])
+        external_probe = AsyncMock(return_value={})
+
+        with (
+            patch("api.mobile_intelligence._probe_site_contacts", profile_probe),
+            patch("api.mobile_intelligence._probe_decision_maker_public_search", decision_probe),
+            patch("api.mobile_intelligence._probe_external_whatsapp_search", external_probe),
+            patch("api.mobile_intelligence.verificar_whatsapp_lote", fake_verifier),
+        ):
+            payload = asyncio.run(
+                self.service.resolve_company_mobile_waterfall(
+                    "03023889000110",
+                    refresh=True,
+                    verify_whatsapp=True,
+                )
+            )
+
+        awaited_urls = [call.args[0] for call in profile_probe.await_args_list]
+        self.assertIn("https://sem-mobile.com.br", awaited_urls)
+        self.assertIn("https://linktr.ee/semmobile", awaited_urls)
+        decision_probe.assert_awaited()
+        candidates = {item["normalized_phone"]: item for item in payload["candidates"]}
+        self.assertIn("5531997778888", candidates)
+        self.assertTrue(candidates["5531997778888"]["verified_whatsapp"])
+        self.assertEqual(candidates["5531997778888"]["source_label"], "Link in bio")
 
     def test_collect_site_candidates_discards_mismatched_generic_domain(self):
         candidates = self.mobile_intelligence._collect_site_candidates(
@@ -372,6 +511,57 @@ class MobileIntelligenceTests(unittest.TestCase):
         )
 
         self.assertEqual(candidates, [])
+
+    def test_mobile_waterfall_uses_cached_contact_target_for_public_decision_probe(self):
+        async def fake_verifier(numbers, max_batch=10):
+            return {
+                "5531988887777": {
+                    "valido": True,
+                    "numero_limpo": "5531988887777",
+                    "score": 1.0,
+                    "metodo": "evolution_api",
+                }
+            }
+
+        site_probe = AsyncMock(return_value={})
+        external_probe = AsyncMock(return_value={})
+        decision_probe = AsyncMock(
+            return_value=[
+                {
+                    "phone": "(31) 98888-7777",
+                    "source_label": "Instagram decisor",
+                    "source_url": "https://www.instagram.com/semmobile/",
+                    "contact_name": "CARLOS MENDES",
+                    "contact_role": "Diretor Comercial",
+                    "contact_level": "decision_maker",
+                    "kind": "whatsapp",
+                    "confidence": 0.86,
+                }
+            ]
+        )
+
+        with (
+            patch("api.mobile_intelligence._probe_site_contacts", site_probe),
+            patch("api.mobile_intelligence._probe_decision_maker_public_search", decision_probe),
+            patch("api.mobile_intelligence._probe_external_whatsapp_search", external_probe),
+            patch("api.mobile_intelligence.verificar_whatsapp_lote", fake_verifier),
+        ):
+            payload = asyncio.run(
+                self.service.resolve_company_mobile_waterfall(
+                    "03023889000110",
+                    refresh=True,
+                    verify_whatsapp=True,
+                )
+            )
+
+        decision_probe.assert_awaited()
+        first_target = decision_probe.await_args_list[0].args[0]
+        self.assertEqual(first_target["name"], "CARLOS MENDES")
+        self.assertEqual(first_target["role"], "Diretor Comercial")
+        candidates = {item["normalized_phone"]: item for item in payload["candidates"]}
+        self.assertIn("5531988887777", candidates)
+        self.assertEqual(candidates["5531988887777"]["contact_level"], "decision_maker")
+        self.assertTrue(candidates["5531988887777"]["verified_whatsapp"])
 
     def test_health_center_flags_gaps_for_watchlist(self):
         async def fake_verifier(numbers, max_batch=10):
