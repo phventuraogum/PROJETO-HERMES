@@ -60,53 +60,53 @@ All colors MUST be HSL.
   }
 
   .light {
-    --background: 210 33% 98%;
-    --foreground: 222 47% 12%;
+    --background: 210 36% 96%;
+    --foreground: 222 42% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 12%;
+    --card-foreground: 222 42% 14%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 12%;
+    --popover: 210 40% 99%;
+    --popover-foreground: 222 42% 14%;
 
-    --primary: 192 91% 41%;
+    --primary: 192 88% 39%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 257 82% 61%;
+    --secondary: 257 70% 58%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 210 26% 93%;
-    --muted-foreground: 215 16% 40%;
+    --muted: 212 28% 91%;
+    --muted-foreground: 220 14% 36%;
 
-    --accent: 43 96% 56%;
-    --accent-foreground: 222 47% 12%;
+    --accent: 43 96% 53%;
+    --accent-foreground: 222 42% 14%;
 
     --success: 142 71% 34%;
     --success-foreground: 210 40% 98%;
 
-    --warning: 38 92% 48%;
-    --warning-foreground: 222 47% 12%;
+    --warning: 38 90% 46%;
+    --warning-foreground: 222 42% 14%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214 24% 87%;
-    --input: 214 24% 87%;
-    --ring: 192 91% 41%;
+    --border: 214 24% 82%;
+    --input: 214 24% 84%;
+    --ring: 192 88% 39%;
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 47% 18%;
-    --sidebar-primary: 192 91% 41%;
+    --sidebar-background: 210 32% 97%;
+    --sidebar-foreground: 222 38% 20%;
+    --sidebar-primary: 192 88% 39%;
     --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 210 32% 95%;
-    --sidebar-accent-foreground: 222 47% 18%;
-    --sidebar-border: 214 24% 87%;
-    --sidebar-ring: 192 91% 41%;
+    --sidebar-accent: 210 28% 92%;
+    --sidebar-accent-foreground: 222 38% 20%;
+    --sidebar-border: 214 24% 84%;
+    --sidebar-ring: 192 88% 39%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(192 91% 41%), hsl(257 82% 61%));
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 30% 97%));
-    --glow-primary: 0 0 20px hsl(192 91% 41% / 0.18);
-    --glow-secondary: 0 0 20px hsl(257 82% 61% / 0.16);
+    --gradient-primary: linear-gradient(135deg, hsl(192 88% 39%), hsl(257 70% 58%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 28% 95%));
+    --glow-primary: 0 0 24px hsl(192 88% 39% / 0.14);
+    --glow-secondary: 0 0 24px hsl(257 70% 58% / 0.12);
   }
 }
 
@@ -122,6 +122,14 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground antialiased;
     transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .light body {
+    background-image:
+      radial-gradient(circle at top left, hsl(192 88% 39% / 0.06), transparent 28%),
+      radial-gradient(circle at top right, hsl(257 70% 58% / 0.05), transparent 24%),
+      linear-gradient(180deg, hsl(210 36% 97%), hsl(210 34% 95%));
+    background-attachment: fixed;
   }
 
   /* Scrollbar styles */

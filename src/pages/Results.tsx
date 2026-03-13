@@ -1886,7 +1886,7 @@ const ResultsPage = () => {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-zinc-800 bg-zinc-900/40">
+                  <TableRow className="border-border/80 bg-muted/60">
                     <TableHead className="w-8 pl-4" />
                     <TableHead>Empresa</TableHead>
                     <TableHead>Segmento</TableHead>
@@ -1899,7 +1899,13 @@ const ResultsPage = () => {
                 </TableHeader>
                 <TableBody>
                   {filtered.map(emp => (
-                    <TableRow key={emp.cnpj} className={cn("border-zinc-800 transition-colors hover:bg-zinc-900/60", selected.has(emp.cnpj) && "bg-primary/5")}>
+                    <TableRow
+                      key={emp.cnpj}
+                      className={cn(
+                        "border-border/75 transition-colors hover:bg-muted/55",
+                        selected.has(emp.cnpj) && "bg-primary/8",
+                      )}
+                    >
                       <TableCell className="pl-4">
                         <Checkbox
                           checked={selected.has(emp.cnpj)}
@@ -1919,11 +1925,15 @@ const ResultsPage = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {emp.segmento && <Badge variant="outline" className="border-zinc-700 bg-zinc-800/60 text-[10px]">{emp.segmento}</Badge>}
+                        {emp.segmento && (
+                          <Badge variant="outline" className="border-border bg-muted/70 text-[10px] text-foreground/80">
+                            {emp.segmento}
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span className="text-sm">{emp.cidade || "—"}</span>
-                        {emp.uf && <span className="ml-1 text-xs text-zinc-500">/ {emp.uf}</span>}
+                        {emp.uf && <span className="ml-1 text-xs text-muted-foreground">/ {emp.uf}</span>}
                       </TableCell>
                       <TableCell>
                         <span className="text-sm font-medium">{formatBRL(emp.capital_social)}</span>
