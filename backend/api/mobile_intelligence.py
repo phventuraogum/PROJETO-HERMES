@@ -6,7 +6,8 @@ import html
 import json
 import logging
 import re
-from urllib.parse import unquote
+import unicodedata
+from urllib.parse import unquote, urlparse
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
@@ -77,6 +78,34 @@ FREE_EMAIL_DOMAINS = {
     "bol.com.br",
 }
 URL_PATTERN = re.compile(r"https?://[^\s\"'<>]+", re.IGNORECASE)
+DOMAIN_TOKEN_STOPWORDS = {
+    "brasil",
+    "grupo",
+    "holding",
+    "empresa",
+    "empresas",
+    "comercio",
+    "comercial",
+    "industria",
+    "servicos",
+    "servico",
+    "sistemas",
+    "solucoes",
+    "solucao",
+    "tecnologia",
+    "tecnologias",
+    "logistica",
+    "mais",
+    "participacoes",
+    "participacao",
+    "administracao",
+    "administradora",
+    "administradoras",
+    "ltda",
+    "sa",
+    "me",
+    "eireli",
+}
 
 
 def _utcnow_iso() -> str:
@@ -175,6 +204,71 @@ def _normalize_site_candidate(value: Any) -> Optional[str]:
     return text
 
 
+def _normalize_token(value: Any) -> str:
+    text = unicodedata.normalize("NFKD", str(value or ""))
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z0-9]+", "", text.lower())
+
+
+def _hostname_from_url(value: Any) -> str:
+    text = _normalize_site_candidate(value)
+    if not text:
+        return ""
+    parsed = urlparse(text)
+    return (parsed.netloc or parsed.path or "").lower().strip(".")
+
+
+def _registrable_domain(value: Any) -> str:
+    host = _hostname_from_url(value)
+    if not host:
+        return ""
+    parts = [part for part in host.split(".") if part]
+    if len(parts) >= 3 and parts[-1] == "br" and parts[-2] in {"com", "net", "org", "gov", "edu", "co", "jus", "leg"}:
+        return ".".join(parts[-3:])
+    if len(parts) >= 2:
+        return ".".join(parts[-2:])
+    return host
+
+
+def _company_domain_tokens(snapshot: Dict[str, Any]) -> List[str]:
+    raw = unicodedata.normalize(
+        "NFKD",
+        " ".join(
+            [
+                str(snapshot.get("nome_fantasia") or ""),
+                str(snapshot.get("razao_social") or ""),
+            ]
+        ),
+    )
+    normalized_text = "".join(ch for ch in raw if not unicodedata.combining(ch))
+    tokens: List[str] = []
+    seen: set[str] = set()
+    for part in re.split(r"[^a-z0-9]+", normalized_text.lower()):
+        token = _normalize_token(part)
+        if len(token) < 4 or token in DOMAIN_TOKEN_STOPWORDS or token in seen:
+            continue
+        seen.add(token)
+        tokens.append(token)
+    return tokens
+
+
+def _site_candidate_matches_company(site_url: str, snapshot: Dict[str, Any]) -> bool:
+    registrable = _registrable_domain(site_url)
+    if not registrable:
+        return False
+    core = registrable.split(".", 1)[0]
+    tokens = _company_domain_tokens(snapshot)
+    if not tokens:
+        return True
+    return any(token in core or core in token for token in tokens)
+
+
+def _same_registrable_domain(first: Any, second: Any) -> bool:
+    first_domain = _registrable_domain(first)
+    second_domain = _registrable_domain(second)
+    return bool(first_domain and second_domain and first_domain == second_domain)
+
+
 def _corporate_domain_from_email(value: Any) -> Optional[str]:
     raw = str(value or "").strip().lower()
     if "@" not in raw:
@@ -194,6 +288,8 @@ def _collect_site_candidates(snapshot: Dict[str, Any]) -> List[str]:
     def add(value: Any) -> None:
         normalized = _normalize_site_candidate(value)
         if not normalized or normalized in seen:
+            return
+        if not _site_candidate_matches_company(normalized, snapshot):
             return
         seen.add(normalized)
         candidates.append(normalized)
@@ -752,6 +848,8 @@ class MobileIntelligenceService:
                 if not isinstance(site_data, dict) or not site_data:
                     continue
                 site_source_url = str(site_data.get("site") or site_candidate)
+                if site_data.get("site") and not _same_registrable_domain(site_candidate, site_data.get("site")):
+                    continue
                 add_candidate(
                     site_data.get("whatsapp"),
                     str(site_data.get("source") or "Site fallback"),

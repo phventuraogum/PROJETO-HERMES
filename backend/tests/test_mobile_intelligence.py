@@ -358,6 +358,21 @@ class MobileIntelligenceTests(unittest.TestCase):
         self.assertTrue(candidates["5531996665555"]["verified_whatsapp"])
         self.assertEqual(candidates["5531996665555"]["source_label"], "Google Maps")
 
+    def test_collect_site_candidates_discards_mismatched_generic_domain(self):
+        candidates = self.mobile_intelligence._collect_site_candidates(
+            {
+                "razao_social": "MAIS EPI E COMERCIO DE MAQUINAS-FERRAMENTAS LTDA",
+                "nome_fantasia": None,
+                "site": "https://www.maisgoias.com.br/",
+                "email_final": None,
+                "email_enriquecido": None,
+                "email_receita": None,
+                "outras_informacoes": None,
+            }
+        )
+
+        self.assertEqual(candidates, [])
+
     def test_health_center_flags_gaps_for_watchlist(self):
         async def fake_verifier(numbers, max_batch=10):
             return {}
