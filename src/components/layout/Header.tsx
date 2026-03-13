@@ -1,8 +1,12 @@
-import { Target } from "lucide-react";
+import { MoonStar, SunMedium, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useTheme } from "@/theme/ThemeContext";
 
 const Header = () => {
+  const { theme, toggleTheme } = useTheme();
+  const isLight = theme === "light";
+
   return (
     <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-6 sticky top-0 z-50">
       <div className="flex items-center gap-3">
@@ -22,6 +26,15 @@ const Header = () => {
       </div>
 
       <div className="flex items-center gap-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleTheme}
+          className="gap-2 border-border/70 bg-background/70 text-foreground hover:bg-accent/60"
+        >
+          {isLight ? <MoonStar className="h-4 w-4" /> : <SunMedium className="h-4 w-4" />}
+          {isLight ? "Dark mode" : "Light mode"}
+        </Button>
         <Button variant="ghost" size="sm" className="text-muted-foreground">
           Ajuda
         </Button>
