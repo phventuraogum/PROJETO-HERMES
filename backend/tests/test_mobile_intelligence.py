@@ -6,7 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -60,6 +60,9 @@ class MobileIntelligenceTests(unittest.TestCase):
                     cidade_nome VARCHAR,
                     uf VARCHAR,
                     site VARCHAR,
+                    email_receita VARCHAR,
+                    email_enriquecido VARCHAR,
+                    email_final VARCHAR,
                     telefone_receita VARCHAR,
                     telefone_final VARCHAR,
                     telefone_enriquecido VARCHAR,
@@ -76,7 +79,7 @@ class MobileIntelligenceTests(unittest.TestCase):
             conn.execute("DELETE FROM prospect_base")
             conn.executemany(
                 """
-                INSERT INTO prospect_base VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO prospect_base VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -86,6 +89,9 @@ class MobileIntelligenceTests(unittest.TestCase):
                         "JUIZ DE FORA",
                         "MG",
                         "https://deodenergia.com",
+                        "contato@deodenergia.com",
+                        "comercial@deodenergia.com",
+                        "comercial@deodenergia.com",
                         "3232560690",
                         "3230256069",
                         "32988445566",
@@ -122,6 +128,9 @@ class MobileIntelligenceTests(unittest.TestCase):
                         "BELO HORIZONTE",
                         "MG",
                         "https://sem-mobile.com.br",
+                        None,
+                        None,
+                        None,
                         "3133334444",
                         None,
                         None,
@@ -140,6 +149,9 @@ class MobileIntelligenceTests(unittest.TestCase):
                         "CURITIBA",
                         "PR",
                         "https://ri.rumolog.com/en/",
+                        None,
+                        "contato@rumolog.com",
+                        "contato@rumolog.com",
                         "4134238000",
                         "(41) 3423-8000",
                         None,
@@ -147,6 +159,27 @@ class MobileIntelligenceTests(unittest.TestCase):
                         None,
                         None,
                         "Fale com nosso chatbot no WhatsApp (14) 92003-0379 ou com o gerente comercial no celular 11999887766.",
+                        json.dumps([]),
+                        json.dumps([]),
+                        json.dumps([]),
+                    ),
+                    (
+                        "11876543000121",
+                        "DOMINIO FALLBACK LTDA",
+                        "DOMINIO FALLBACK",
+                        "SAO PAULO",
+                        "SP",
+                        None,
+                        None,
+                        None,
+                        "atendimento@dominio-fallback.com.br",
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
                         json.dumps([]),
                         json.dumps([]),
                         json.dumps([]),
@@ -243,11 +276,100 @@ class MobileIntelligenceTests(unittest.TestCase):
         self.assertTrue(candidates["5514920030379"]["verified_whatsapp"])
         self.assertEqual(candidates["5514920030379"]["phone_type"], "whatsapp_verified")
 
+    def test_mobile_waterfall_probes_site_from_corporate_email_domain(self):
+        async def fake_verifier(numbers, max_batch=10):
+            return {
+                "5531998877665": {
+                    "valido": True,
+                    "numero_limpo": "5531998877665",
+                    "score": 1.0,
+                    "metodo": "evolution_api",
+                }
+            }
+
+        site_probe = AsyncMock(
+            return_value={
+                "site": "https://dominio-fallback.com.br",
+                "whatsapp": "(31) 99887-7665",
+                "telefone": "(31) 3344-5566",
+                "source": "Site fallback",
+            }
+        )
+        external_probe = AsyncMock(return_value={})
+
+        with (
+            patch("api.mobile_intelligence._probe_site_contacts", site_probe),
+            patch("api.mobile_intelligence._probe_external_whatsapp_search", external_probe),
+            patch("api.mobile_intelligence.verificar_whatsapp_lote", fake_verifier),
+        ):
+            payload = asyncio.run(
+                self.service.resolve_company_mobile_waterfall(
+                    "11876543000121",
+                    refresh=True,
+                    verify_whatsapp=True,
+                )
+            )
+
+        site_probe.assert_awaited_once_with("https://dominio-fallback.com.br")
+        external_probe.assert_not_awaited()
+        candidates = {item["normalized_phone"]: item for item in payload["candidates"]}
+        self.assertIn("5531998877665", candidates)
+        self.assertEqual(candidates["5531998877665"]["source_url"], "https://dominio-fallback.com.br")
+        self.assertEqual(payload["summary"]["verified_whatsapp_candidates"], 1)
+
+    def test_mobile_waterfall_uses_external_search_when_site_probe_stays_empty(self):
+        async def fake_verifier(numbers, max_batch=10):
+            return {
+                "5531996665555": {
+                    "valido": True,
+                    "numero_limpo": "5531996665555",
+                    "score": 1.0,
+                    "metodo": "evolution_api",
+                }
+            }
+
+        site_probe = AsyncMock(return_value={})
+        external_probe = AsyncMock(
+            return_value={
+                "whatsapp": "(31) 99666-5555",
+                "whatsapp_source": "Google Maps",
+                "phone": "(31) 3333-4444",
+                "phone_source": "Google Maps",
+            }
+        )
+
+        with (
+            patch("api.mobile_intelligence._probe_site_contacts", site_probe),
+            patch("api.mobile_intelligence._probe_external_whatsapp_search", external_probe),
+            patch("api.mobile_intelligence.verificar_whatsapp_lote", fake_verifier),
+        ):
+            payload = asyncio.run(
+                self.service.resolve_company_mobile_waterfall(
+                    "03023889000110",
+                    refresh=True,
+                    verify_whatsapp=True,
+                )
+            )
+
+        site_probe.assert_awaited_once_with("https://sem-mobile.com.br")
+        external_probe.assert_awaited_once()
+        candidates = {item["normalized_phone"]: item for item in payload["candidates"]}
+        self.assertIn("5531996665555", candidates)
+        self.assertTrue(candidates["5531996665555"]["verified_whatsapp"])
+        self.assertEqual(candidates["5531996665555"]["source_label"], "Google Maps")
+
     def test_health_center_flags_gaps_for_watchlist(self):
         async def fake_verifier(numbers, max_batch=10):
             return {}
 
-        with patch("api.mobile_intelligence.verificar_whatsapp_lote", fake_verifier):
+        site_probe = AsyncMock(return_value={})
+        external_probe = AsyncMock(return_value={})
+
+        with (
+            patch("api.mobile_intelligence._probe_site_contacts", site_probe),
+            patch("api.mobile_intelligence._probe_external_whatsapp_search", external_probe),
+            patch("api.mobile_intelligence.verificar_whatsapp_lote", fake_verifier),
+        ):
             asyncio.run(
                 self.service.resolve_company_mobile_waterfall(
                     "15103354000139",

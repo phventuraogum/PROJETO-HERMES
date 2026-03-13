@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import ast
 import html
 import json
@@ -64,6 +65,18 @@ DECISION_MAKER_TERMS = {
     "responsavel",
     "responsável",
 }
+FREE_EMAIL_DOMAINS = {
+    "gmail.com",
+    "hotmail.com",
+    "outlook.com",
+    "yahoo.com",
+    "icloud.com",
+    "live.com",
+    "uol.com.br",
+    "terra.com.br",
+    "bol.com.br",
+}
+URL_PATTERN = re.compile(r"https?://[^\s\"'<>]+", re.IGNORECASE)
 
 
 def _utcnow_iso() -> str:
@@ -148,6 +161,114 @@ def _match_contains_phone_formatting(value: str) -> bool:
     return any(token in value for token in ("(", ")", "-", ".", " ", "+"))
 
 
+def _normalize_site_candidate(value: Any) -> Optional[str]:
+    text = _decode_loose_text(value).strip().strip(".,);]")
+    if not text:
+        return None
+    if text.startswith("www."):
+        text = f"https://{text}"
+    if not text.startswith(("http://", "https://")):
+        if re.fullmatch(r"[a-z0-9.-]+\.[a-z]{2,}", text, re.IGNORECASE):
+            text = f"https://{text}"
+        else:
+            return None
+    return text
+
+
+def _corporate_domain_from_email(value: Any) -> Optional[str]:
+    raw = str(value or "").strip().lower()
+    if "@" not in raw:
+        return None
+    domain = raw.split("@", 1)[1].strip().strip(".,);]")
+    if not domain or domain in FREE_EMAIL_DOMAINS:
+        return None
+    if not re.fullmatch(r"[a-z0-9.-]+\.[a-z]{2,}", domain, re.IGNORECASE):
+        return None
+    return domain
+
+
+def _collect_site_candidates(snapshot: Dict[str, Any]) -> List[str]:
+    seen: set[str] = set()
+    candidates: List[str] = []
+
+    def add(value: Any) -> None:
+        normalized = _normalize_site_candidate(value)
+        if not normalized or normalized in seen:
+            return
+        seen.add(normalized)
+        candidates.append(normalized)
+
+    add(snapshot.get("site"))
+    add(_corporate_domain_from_email(snapshot.get("email_final")))
+    add(_corporate_domain_from_email(snapshot.get("email_enriquecido")))
+    add(_corporate_domain_from_email(snapshot.get("email_receita")))
+
+    for url in URL_PATTERN.findall(_decode_loose_text(snapshot.get("outras_informacoes"))):
+        add(url)
+        if len(candidates) >= 4:
+            break
+
+    return candidates[:4]
+
+
+async def _probe_site_contacts(site_url: str) -> Dict[str, Any]:
+    try:
+        from core_scraper import extrair_contatos_site
+
+        return await asyncio.wait_for(extrair_contatos_site(site_url, modo_rapido=True), timeout=18.0)
+    except Exception:
+        return {}
+
+
+async def _probe_external_whatsapp_search(company_name: str, city: str, cnpj: str) -> Dict[str, Any]:
+    try:
+        from whatsapp_linkedin_ultra import (
+            buscar_google_maps,
+            buscar_whatsapp_direto,
+            buscar_whatsapp_redes_sociais,
+        )
+    except Exception:
+        return {}
+
+    result: Dict[str, Any] = {}
+
+    try:
+        maps = await asyncio.wait_for(buscar_google_maps(company_name, city or "", cnpj or ""), timeout=18.0)
+        if isinstance(maps, dict):
+            if maps.get("whatsapp_maps"):
+                result["whatsapp"] = maps.get("whatsapp_maps")
+                result["whatsapp_source"] = "Google Maps"
+            if maps.get("telefone_maps"):
+                result["phone"] = maps.get("telefone_maps")
+                result["phone_source"] = "Google Maps"
+    except Exception:
+        pass
+
+    if not result.get("whatsapp"):
+        try:
+            direct = await asyncio.wait_for(buscar_whatsapp_direto(company_name, city or ""), timeout=18.0)
+            if direct:
+                result["whatsapp"] = direct
+                result["whatsapp_source"] = "Busca direta"
+        except Exception:
+            pass
+
+    if not result.get("whatsapp"):
+        try:
+            social = await asyncio.wait_for(buscar_whatsapp_redes_sociais(company_name), timeout=18.0)
+            if isinstance(social, dict):
+                if social.get("whats_instagram"):
+                    result["whatsapp"] = social.get("whats_instagram")
+                    result["whatsapp_source"] = "Instagram Bio"
+                elif social.get("whats_facebook"):
+                    result["whatsapp"] = social.get("whats_facebook")
+                    result["whatsapp_source"] = "Facebook Page"
+        except Exception:
+            pass
+
+    return result
+
+
 def _extract_contextual_phones(raw_text: Any) -> List[Dict[str, Any]]:
     text = _decode_loose_text(raw_text)
     if not text:
@@ -228,10 +349,18 @@ def _score_source(source_label: str) -> float:
     score = 0.56
     if "evolution" in source:
         score += 0.34
+    if "google maps" in source:
+        score += 0.16
     if "instagram" in source or "link in bio" in source or "linktree" in source:
         score += 0.18
+    if "facebook" in source:
+        score += 0.14
     if "site" in source or "widget" in source or "whatsapp" in source:
         score += 0.16
+    if "site fallback" in source or "scrapling" in source:
+        score += 0.10
+    if "busca direta" in source:
+        score += 0.12
     if "receita" in source:
         score += 0.06
     if "telefone captado" in source or "opencnpj" in source:
@@ -259,6 +388,22 @@ def _phone_type(contact_level: str, *, likely_whatsapp: bool, verified_whatsapp:
     if is_mobile:
         return "company_mobile"
     return "company_phone"
+
+
+def _candidate_stats(candidates: Dict[str, Dict[str, Any]]) -> Dict[str, int]:
+    current = list(candidates.values())
+    return {
+        "mobile_candidates": sum(1 for item in current if _is_mobile_br(item.get("normalized_phone"))),
+        "likely_whatsapp_candidates": sum(1 for item in current if item.get("likely_whatsapp")),
+        "verified_whatsapp_candidates": sum(1 for item in current if item.get("verified_whatsapp")),
+    }
+
+
+def _needs_deep_mobile_probe(candidates: Dict[str, Dict[str, Any]]) -> bool:
+    stats = _candidate_stats(candidates)
+    return stats["verified_whatsapp_candidates"] == 0 and (
+        stats["likely_whatsapp_candidates"] == 0 or stats["mobile_candidates"] < 2
+    )
 
 
 class MobileIntelligenceService:
@@ -342,6 +487,9 @@ class MobileIntelligenceService:
                     {self._select_expr(columns, ['cidade_nome', 'cidade', 'nome_municipio'], 'cidade')},
                     {self._select_expr(columns, ['uf'], 'uf')},
                     {self._select_expr(columns, ['site'], 'site')},
+                    {self._select_expr(columns, ['email_receita'], 'email_receita')},
+                    {self._select_expr(columns, ['email_enriquecido'], 'email_enriquecido')},
+                    {self._select_expr(columns, ['email_final'], 'email_final')},
                     {self._select_expr(columns, ['telefone_padrao', 'telefone_receita', 'telefone1'], 'telefone_base')},
                     {self._select_expr(columns, ['telefone_final'], 'telefone_final')},
                     {self._select_expr(columns, ['telefone_enriquecido'], 'telefone_enriquecido')},
@@ -367,16 +515,19 @@ class MobileIntelligenceService:
             "cidade": str(row[3]) if row[3] else None,
             "uf": str(row[4]) if row[4] else None,
             "site": str(row[5]) if row[5] else None,
-            "telefone_base": str(row[6]) if row[6] else None,
-            "telefone_final": str(row[7]) if row[7] else None,
-            "telefone_enriquecido": str(row[8]) if row[8] else None,
-            "whatsapp_publico": str(row[9]) if row[9] else None,
-            "whatsapp_enriquecido": str(row[10]) if row[10] else None,
-            "whatsapp_final": str(row[11]) if row[11] else None,
-            "outras_informacoes": str(row[12]) if row[12] else None,
-            "telefones_captados": _coerce_jsonish(row[13], []),
-            "whatsapps_captados": _coerce_jsonish(row[14], []),
-            "socios_estruturado": _coerce_jsonish(row[15], []),
+            "email_receita": str(row[6]) if row[6] else None,
+            "email_enriquecido": str(row[7]) if row[7] else None,
+            "email_final": str(row[8]) if row[8] else None,
+            "telefone_base": str(row[9]) if row[9] else None,
+            "telefone_final": str(row[10]) if row[10] else None,
+            "telefone_enriquecido": str(row[11]) if row[11] else None,
+            "whatsapp_publico": str(row[12]) if row[12] else None,
+            "whatsapp_enriquecido": str(row[13]) if row[13] else None,
+            "whatsapp_final": str(row[14]) if row[14] else None,
+            "outras_informacoes": str(row[15]) if row[15] else None,
+            "telefones_captados": _coerce_jsonish(row[16], []),
+            "whatsapps_captados": _coerce_jsonish(row[17], []),
+            "socios_estruturado": _coerce_jsonish(row[18], []),
         }
 
     def get_cached_mobile_waterfall(self, cnpj: str) -> Optional[Dict[str, Any]]:
@@ -594,6 +745,53 @@ class MobileIntelligenceService:
                 kind=str(item.get("kind") or "phone"),
                 confidence=float(item.get("confidence") or 0.0),
             )
+
+        if _needs_deep_mobile_probe(candidates):
+            for site_candidate in _collect_site_candidates(snapshot)[:2]:
+                site_data = await _probe_site_contacts(site_candidate)
+                if not isinstance(site_data, dict) or not site_data:
+                    continue
+                site_source_url = str(site_data.get("site") or site_candidate)
+                add_candidate(
+                    site_data.get("whatsapp"),
+                    str(site_data.get("source") or "Site fallback"),
+                    source_url=site_source_url,
+                    kind="whatsapp",
+                    confidence=0.78,
+                )
+                add_candidate(
+                    site_data.get("telefone"),
+                    str(site_data.get("source") or "Site fallback telefone"),
+                    source_url=site_source_url,
+                    kind="phone",
+                    confidence=0.66,
+                )
+                if not _needs_deep_mobile_probe(candidates):
+                    break
+
+        stats_after_site_probe = _candidate_stats(candidates)
+        if (
+            stats_after_site_probe["verified_whatsapp_candidates"] == 0
+            and stats_after_site_probe["likely_whatsapp_candidates"] == 0
+        ):
+            search_result = await _probe_external_whatsapp_search(
+                str(snapshot.get("nome_fantasia") or snapshot.get("razao_social") or ""),
+                str(snapshot.get("cidade") or ""),
+                str(snapshot.get("cnpj") or cnpj_clean),
+            )
+            if isinstance(search_result, dict) and search_result:
+                add_candidate(
+                    search_result.get("whatsapp"),
+                    str(search_result.get("whatsapp_source") or "Busca externa"),
+                    kind="whatsapp",
+                    confidence=0.76,
+                )
+                add_candidate(
+                    search_result.get("phone"),
+                    str(search_result.get("phone_source") or "Busca externa telefone"),
+                    kind="phone",
+                    confidence=0.62,
+                )
 
         ordered = sorted(candidates.values(), key=lambda item: item.get("score_total") or 0, reverse=True)
         if verify_whatsapp:
