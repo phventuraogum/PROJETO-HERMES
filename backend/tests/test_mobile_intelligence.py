@@ -563,6 +563,32 @@ class MobileIntelligenceTests(unittest.TestCase):
         self.assertEqual(candidates["5531988887777"]["contact_level"], "decision_maker")
         self.assertTrue(candidates["5531988887777"]["verified_whatsapp"])
 
+    def test_mobile_waterfall_bootstraps_contact_intelligence_when_cache_is_missing(self):
+        async def fake_verifier(numbers, max_batch=10):
+            return {}
+
+        site_probe = AsyncMock(return_value={})
+        external_probe = AsyncMock(return_value={})
+        decision_probe = AsyncMock(return_value=[])
+        contact_bootstrap = AsyncMock(return_value={"contacts": []})
+
+        with (
+            patch("api.mobile_intelligence._probe_site_contacts", site_probe),
+            patch("api.mobile_intelligence._probe_external_whatsapp_search", external_probe),
+            patch("api.mobile_intelligence._probe_decision_maker_public_search", decision_probe),
+            patch("api.mobile_intelligence.verificar_whatsapp_lote", fake_verifier),
+            patch("api.contact_intelligence.contact_intelligence_service.resolve_company_intelligence", contact_bootstrap),
+        ):
+            asyncio.run(
+                self.service.resolve_company_mobile_waterfall(
+                    "11876543000121",
+                    refresh=True,
+                    verify_whatsapp=True,
+                )
+            )
+
+        contact_bootstrap.assert_awaited_once_with("11876543000121", probe_smtp=False)
+
     def test_health_center_flags_gaps_for_watchlist(self):
         async def fake_verifier(numbers, max_batch=10):
             return {}

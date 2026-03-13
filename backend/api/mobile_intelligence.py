@@ -1327,6 +1327,21 @@ class MobileIntelligenceService:
                 confidence=float(item.get("confidence") or 0.0),
             )
 
+        if _needs_deep_mobile_probe(candidates) and (
+            not snapshot.get("cached_contacts") or not snapshot.get("company_profiles")
+        ):
+            try:
+                from api.contact_intelligence import contact_intelligence_service
+
+                await contact_intelligence_service.resolve_company_intelligence(cnpj_clean, probe_smtp=False)
+                snapshot = self._load_company_snapshot(cnpj_clean)
+            except Exception as exc:
+                logger.info(
+                    "Contact Intelligence bootstrap falhou para %s durante mobile waterfall: %s",
+                    cnpj_clean,
+                    exc,
+                )
+
         if _needs_deep_mobile_probe(candidates):
             for site_candidate in (_collect_site_candidates(snapshot) + _collect_profile_candidates(snapshot))[:4]:
                 site_data = await _probe_site_contacts(site_candidate)
