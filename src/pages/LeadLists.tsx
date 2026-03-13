@@ -40,6 +40,7 @@ import {
   getLeadRefreshStates,
   followCompany,
   getCompanySignals,
+  getCompanyDataHealth,
   getCompanyWatchlist,
   getLeadListItems,
   getLeadLists,
@@ -52,6 +53,7 @@ import {
   salvarResultadoManual,
   unfollowCompany,
   type CompanySignal,
+  type CompanyDataHealth,
   type LeadRefreshJob,
   type LeadRefreshJobTarget,
   type LeadRefreshState,
@@ -79,6 +81,7 @@ const LeadLists = () => {
   const [suppressions, setSuppressions] = useState<LeadSuppression[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearchSummary[]>([]);
   const [watchlist, setWatchlist] = useState<WatchCompany[]>([]);
+  const [companyDataHealth, setCompanyDataHealth] = useState<CompanyDataHealth | null>(null);
   const [signals, setSignals] = useState<CompanySignal[]>([]);
   const [refreshJobs, setRefreshJobs] = useState<LeadRefreshJob[]>([]);
   const [selectedRefreshJobId, setSelectedRefreshJobId] = useState("");
@@ -128,6 +131,7 @@ const LeadLists = () => {
   const reloadSuppressions = async () => setSuppressions(await getLeadSuppressions());
   const reloadSavedSearches = async () => setSavedSearches(await getSavedSearches());
   const reloadWatchlist = async () => setWatchlist(await getCompanyWatchlist());
+  const reloadCompanyDataHealth = async () => setCompanyDataHealth(await getCompanyDataHealth(8));
   const reloadSignals = async () => setSignals(await getCompanySignals({ limit: 30 }));
   const reloadRefreshJobs = async () => {
     const jobs = await getLeadRefreshJobs(20);
@@ -148,6 +152,7 @@ const LeadLists = () => {
           nextSuppressions,
           nextSavedSearches,
           nextWatchlist,
+          nextCompanyDataHealth,
           nextSignals,
           nextRefreshJobs,
           nextRefreshStates,
@@ -156,6 +161,7 @@ const LeadLists = () => {
           getLeadSuppressions(),
           getSavedSearches(),
           getCompanyWatchlist(),
+          getCompanyDataHealth(8),
           getCompanySignals({ limit: 30 }),
           getLeadRefreshJobs(20),
           getLeadRefreshStates({ dueOnly: true, limit: 20 }),
@@ -164,6 +170,7 @@ const LeadLists = () => {
         setSuppressions(nextSuppressions);
         setSavedSearches(nextSavedSearches);
         setWatchlist(nextWatchlist);
+        setCompanyDataHealth(nextCompanyDataHealth);
         setSignals(nextSignals);
         setRefreshJobs(nextRefreshJobs);
         setRefreshStates(nextRefreshStates);
@@ -225,6 +232,7 @@ const LeadLists = () => {
             reloadRefreshJobs(),
             reloadRefreshStates(),
             reloadWatchlist(),
+            reloadCompanyDataHealth(),
             reloadSignals(),
             selectedRefreshJobId
               ? getLeadRefreshJobTargets(selectedRefreshJobId, 80).then(setRefreshJobTargets)
@@ -361,7 +369,7 @@ const LeadLists = () => {
       });
       setManualWatchCnpj("");
       setManualWatchReason("");
-      await Promise.all([reloadWatchlist(), reloadSignals()]);
+      await Promise.all([reloadWatchlist(), reloadCompanyDataHealth(), reloadSignals()]);
       toast.success(
         result.signals.length > 0
           ? `${result.signals.length} sinal(is) registrado(s).`
@@ -378,7 +386,7 @@ const LeadLists = () => {
     try {
       setRefreshingWatchCnpj(cnpj);
       const result = await refreshWatchedCompany(cnpj);
-      await Promise.all([reloadWatchlist(), reloadSignals()]);
+      await Promise.all([reloadWatchlist(), reloadCompanyDataHealth(), reloadSignals()]);
       toast.success(
         result.signals.length > 0
           ? `${result.signals.length} novo(s) sinal(is) capturado(s).`
@@ -394,7 +402,7 @@ const LeadLists = () => {
   const handleUnfollowCompany = async (cnpj: string) => {
     try {
       await unfollowCompany(cnpj);
-      await Promise.all([reloadWatchlist(), reloadSignals()]);
+      await Promise.all([reloadWatchlist(), reloadCompanyDataHealth(), reloadSignals()]);
       toast.success("Empresa removida da watchlist.");
     } catch (err: any) {
       toast.error(err?.message || "Nao foi possivel remover a empresa da watchlist.");
@@ -495,6 +503,128 @@ const LeadLists = () => {
           Criar lista
         </Button>
       </div>
+
+      <Card className="border-zinc-800 bg-zinc-950/60">
+        <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Radar className="h-4 w-4 text-cyan-300" />
+              Data Health Center
+            </CardTitle>
+            <CardDescription>
+              Leitura Apollo-style da watchlist para detectar gaps de mobile e WhatsApp acionavel antes do outreach.
+            </CardDescription>
+          </div>
+          <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+            Watchlist {companyDataHealth?.summary.watchlist_total ?? 0}
+          </Badge>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            {[
+              {
+                label: "Sem mobile",
+                value: companyDataHealth?.summary.without_mobile ?? 0,
+                tone: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+                icon: Phone,
+              },
+              {
+                label: "Sem WhatsApp validado",
+                value: companyDataHealth?.summary.without_verified_whatsapp ?? 0,
+                tone: "border-rose-500/30 bg-rose-500/10 text-rose-300",
+                icon: MessageCircleOff,
+              },
+              {
+                label: "Sem mobile decisor",
+                value: companyDataHealth?.summary.without_decision_maker_mobile ?? 0,
+                tone: "border-sky-500/30 bg-sky-500/10 text-sky-300",
+                icon: BookmarkPlus,
+              },
+              {
+                label: "Snapshots stale",
+                value: companyDataHealth?.summary.stale_records ?? 0,
+                tone: "border-violet-500/30 bg-violet-500/10 text-violet-300",
+                icon: Clock3,
+              },
+              {
+                label: "Cobertura ativa",
+                value: Math.max(
+                  0,
+                  (companyDataHealth?.summary.watchlist_total ?? 0) -
+                    (companyDataHealth?.summary.without_mobile ?? 0),
+                ),
+                tone: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+                icon: Radar,
+              },
+            ].map((item) => (
+              <div key={item.label} className={`rounded-xl border p-4 ${item.tone}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em]">{item.label}</p>
+                    <p className="mt-2 text-2xl font-semibold">{item.value}</p>
+                  </div>
+                  <item.icon className="mt-0.5 h-4 w-4" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {!companyDataHealth || companyDataHealth.items.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+              Nenhum gap relevante identificado na watchlist ainda.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Top gaps</p>
+              {companyDataHealth.items.slice(0, 6).map((item) => (
+                <div key={item.cnpj} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-zinc-100">
+                        {item.nome_fantasia || item.razao_social || item.cnpj}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {item.cnpj} . {[item.cidade, item.uf].filter(Boolean).join(" / ") || "Sem localizacao"}
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={
+                        item.gap_score >= 4
+                          ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
+                          : item.gap_score >= 2
+                            ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                            : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
+                      }
+                    >
+                      Gap score {item.gap_score}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                      Mobiles {item.mobile_candidates}
+                    </Badge>
+                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                      WhatsApps validados {item.verified_whatsapp_candidates}
+                    </Badge>
+                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                      Mobiles decisor {item.decision_maker_mobile_candidates}
+                    </Badge>
+                    {item.stale && (
+                      <Badge variant="outline" className="border-violet-500/30 bg-violet-500/10 text-violet-300">
+                        Snapshot stale
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="mt-3 text-xs text-zinc-500">
+                    Ultimo snapshot: {formatDate(item.generated_at)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.35fr]">
         <Card className="border-zinc-800 bg-zinc-950/60">

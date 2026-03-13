@@ -31,16 +31,19 @@ import { Separator } from "@/components/ui/separator";
 import {
   addToPipeline,
   buscarEmpresasParecidasPorCnpj,
+  buscarMobileWaterfallPorCnpj,
   buscarStatusContactIntelligencePorCnpj,
   buscarSinaisExternosPorCnpj,
   buscarEmpresaPorCnpj,
   enfileirarContactIntelligencePorCnpj,
   enriquecerEmpresaPorCnpj,
   normalizeCnpj,
+  resolverMobileWaterfallPorCnpj,
   salvarResultadoEnriquecimentoCnpj,
   type ContactIntelligenceResult,
   type Empresa,
   type ExternalSignal,
+  type MobileWaterfallResult,
   type SimilarCompany,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -149,6 +152,23 @@ function signalDomain(signal: ExternalSignal): string | null {
   return typeof domain === "string" && domain ? domain : null;
 }
 
+function phoneTypeLabel(value?: string | null): string {
+  switch (value) {
+    case "whatsapp_verified":
+      return "WhatsApp validado";
+    case "decision_maker_whatsapp_likely":
+      return "WhatsApp do decisor";
+    case "decision_maker_mobile":
+      return "Mobile do decisor";
+    case "company_whatsapp_likely":
+      return "WhatsApp da empresa";
+    case "company_mobile":
+      return "Mobile da empresa";
+    default:
+      return "Telefone";
+  }
+}
+
 const scoreCards = (empresa: Empresa) => [
   {
     label: "Confiabilidade",
@@ -173,11 +193,13 @@ const EnriquecerCnpj = () => {
   const [cnpjInput, setCnpjInput] = useState("");
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [contactIntel, setContactIntel] = useState<ContactIntelligenceResult | null>(null);
+  const [mobileWaterfall, setMobileWaterfall] = useState<MobileWaterfallResult | null>(null);
   const [similarCompanies, setSimilarCompanies] = useState<SimilarCompany[]>([]);
   const [externalSignals, setExternalSignals] = useState<ExternalSignal[]>([]);
   const [isFetching, setIsFetching] = useState(false);
   const [isEnriching, setIsEnriching] = useState(false);
   const [isResolvingContacts, setIsResolvingContacts] = useState(false);
+  const [isResolvingMobile, setIsResolvingMobile] = useState(false);
   const [isLoadingSimilar, setIsLoadingSimilar] = useState(false);
   const [isLoadingSignals, setIsLoadingSignals] = useState(false);
   const [isSavingResult, setIsSavingResult] = useState(false);
@@ -200,9 +222,11 @@ const EnriquecerCnpj = () => {
     if (cnpjDigits === empresaCnpj) return;
     setEmpresa(null);
     setContactIntel(null);
+    setMobileWaterfall(null);
     setSimilarCompanies([]);
     setExternalSignals([]);
     setIsResolvingContacts(false);
+    setIsResolvingMobile(false);
   }, [cnpjDigits, empresa, empresaCnpj]);
 
   useEffect(() => {
@@ -267,7 +291,9 @@ const EnriquecerCnpj = () => {
     try {
       setIsFetching(true);
       setIsResolvingContacts(false);
+      setIsResolvingMobile(false);
       setContactIntel(null);
+      setMobileWaterfall(null);
       setSimilarCompanies([]);
       setExternalSignals([]);
       const encontrada = await buscarEmpresaPorCnpj(normalized);
@@ -291,6 +317,7 @@ const EnriquecerCnpj = () => {
       setIsResolvingContacts(false);
       setEmpresa(null);
       setContactIntel(null);
+      setMobileWaterfall(null);
       setSimilarCompanies([]);
       setExternalSignals([]);
       toast.error(err?.message || "Nao foi possivel buscar a empresa.");
@@ -353,6 +380,26 @@ const EnriquecerCnpj = () => {
     void loadExternalSignals(empresaCnpj);
   }, [cnpjDigits, empresa, empresaCnpj]);
 
+  useEffect(() => {
+    if (!empresa || empresaCnpj.length !== 14 || empresaCnpj !== cnpjDigits) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await buscarMobileWaterfallPorCnpj(empresaCnpj);
+        if (!cancelled) {
+          setMobileWaterfall(response.mobileWaterfall);
+        }
+      } catch {
+        if (!cancelled) {
+          setMobileWaterfall(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cnpjDigits, empresa, empresaCnpj]);
+
   const handleBuscar = async () => {
     await pesquisarCnpj(cnpjDigits);
   };
@@ -369,6 +416,7 @@ const EnriquecerCnpj = () => {
       const { empresa: enriquecida } = await enriquecerEmpresaPorCnpj(cnpjDigits, empresa);
       setEmpresa(enriquecida);
       setContactIntel(null);
+      setMobileWaterfall(null);
       void loadSimilarCompanies(cnpjDigits);
       void loadExternalSignals(cnpjDigits);
       toast.success("Enriquecimento concluido.");
@@ -416,6 +464,26 @@ const EnriquecerCnpj = () => {
       toast.error(err?.message || "Nao foi possivel enviar para o pipeline.");
     } finally {
       setIsSendingPipeline(false);
+    }
+  };
+
+  const handleResolverMobile = async (refresh = true) => {
+    if (cnpjDigits.length !== 14) {
+      toast.error("Informe um CNPJ valido com 14 digitos.");
+      return;
+    }
+    try {
+      setIsResolvingMobile(true);
+      const payload = await resolverMobileWaterfallPorCnpj(cnpjDigits, {
+        refresh,
+        verifyWhatsapp: true,
+      });
+      setMobileWaterfall(payload);
+      toast.success("Mobile waterfall atualizado com verificacao de WhatsApp.");
+    } catch (err: any) {
+      toast.error(err?.message || "Nao foi possivel resolver os mobiles e WhatsApps.");
+    } finally {
+      setIsResolvingMobile(false);
     }
   };
 
@@ -1077,6 +1145,134 @@ const EnriquecerCnpj = () => {
                 </Button>
               </CardContent>
             </Card>
+          )}
+
+          {mobileWaterfall ? (
+            <Card className="border-zinc-800 bg-zinc-950/60">
+              <CardHeader>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Phone className="h-4 w-4 text-emerald-300" />
+                      Mobile Waterfall
+                    </CardTitle>
+                    <CardDescription>
+                      Camada Apollo-style para priorizar mobiles e WhatsApps acionaveis por empresa.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"
+                    onClick={() => void handleResolverMobile(true)}
+                    disabled={isResolvingMobile}
+                  >
+                    {isResolvingMobile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    Revalidar mobiles
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Mobiles</p>
+                    <p className="mt-2 text-sm font-medium text-zinc-100">{mobileWaterfall.summary.mobile_candidates ?? 0}</p>
+                  </div>
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">WhatsApps validados</p>
+                    <p className="mt-2 text-sm font-medium text-zinc-100">
+                      {mobileWaterfall.summary.verified_whatsapp_candidates ?? 0}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Mobiles de decisor</p>
+                    <p className="mt-2 text-sm font-medium text-zinc-100">
+                      {mobileWaterfall.summary.decision_maker_mobile_candidates ?? 0}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Primario</p>
+                    <p className="mt-2 break-all text-sm font-medium text-zinc-100">
+                      {mobileWaterfall.summary.primary_phone || "Nao definido"}
+                    </p>
+                  </div>
+                </div>
+
+                {(mobileWaterfall.candidates ?? []).length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-400">
+                    Nenhum mobile foi priorizado ainda para este CNPJ.
+                  </div>
+                ) : (
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    {mobileWaterfall.candidates.slice(0, 6).map((candidate) => (
+                      <div key={`${candidate.normalized_phone}-${candidate.contact_name || "company"}`} className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-zinc-100">{candidate.normalized_phone}</p>
+                            <p className="mt-1 text-xs text-zinc-500">
+                              {candidate.contact_name || empresa?.razao_social || "Empresa"}
+                              {candidate.contact_role ? ` · ${candidate.contact_role}` : ""}
+                            </p>
+                          </div>
+                          {candidate.is_primary && (
+                            <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
+                              Primario
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                            {phoneTypeLabel(candidate.phone_type)}
+                          </Badge>
+                          {candidate.verified_whatsapp && (
+                            <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
+                              <BadgeCheck className="mr-1 h-3 w-3" />
+                              WhatsApp validado
+                            </Badge>
+                          )}
+                          {!candidate.verified_whatsapp && candidate.likely_whatsapp && (
+                            <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300">
+                              WhatsApp provavel
+                            </Badge>
+                          )}
+                          {candidate.contact_level === "decision_maker" && (
+                            <Badge variant="outline" className="border-violet-500/30 bg-violet-500/10 text-violet-300">
+                              Decisor
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="mt-3 text-xs text-zinc-400">
+                          <span>Fonte: {candidate.source_label || "Nao informada"}</span>
+                          {candidate.validation_source && <span> · Validacao: {candidate.validation_source}</span>}
+                          {candidate.score_total != null && <span> · Score {formatPercent(candidate.score_total)}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            empresa && (
+              <Card className="border-dashed border-zinc-700 bg-zinc-950/40">
+                <CardContent className="flex flex-col gap-3 p-6 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-zinc-100">Apollo-style mobile waterfall ainda nao resolvido para este CNPJ.</p>
+                    <p className="mt-1 text-sm text-zinc-500">
+                      O Hermes ja tem telefones e socios. Falta priorizar mobile, validar WhatsApp e destacar o melhor canal.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"
+                    onClick={() => void handleResolverMobile(true)}
+                    disabled={isResolvingMobile}
+                  >
+                    {isResolvingMobile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Phone className="mr-2 h-4 w-4" />}
+                    Resolver mobiles e WhatsApp
+                  </Button>
+                </CardContent>
+              </Card>
+            )
           )}
         </>
       )}

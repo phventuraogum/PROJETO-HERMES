@@ -15,6 +15,7 @@ from api.contact_intelligence_queue import (
     queue_contact_intelligence,
 )
 from api.lead_registry import lead_registry_service
+from api.mobile_intelligence import mobile_intelligence_service
 from api.validation_service import validar_cnpj, verificar_cnpj_receita, calcular_score_confiabilidade
 from api.quality_service import QualityService, calcular_score_priorizacao
 from api.enrichment_service import enrichment_service
@@ -40,6 +41,11 @@ class ContactIntelligenceBatchRequest(BaseModel):
 
 class ContactIntelligenceStatusBatchRequest(BaseModel):
     cnpjs: List[str]
+
+
+class MobileWaterfallRequest(BaseModel):
+    refresh: bool = False
+    verify_whatsapp: bool = True
 
 
 def _get_table_columns(conn: Any, table_name: str) -> set[str]:
@@ -119,6 +125,50 @@ def _contact_intelligence_status_payload(cnpj: str) -> Dict[str, Any]:
         "finished_at": status.get("finished_at"),
         "intelligence": None if refresh_in_progress else intelligence,
     }
+
+
+@router.get("/{cnpj}/mobile-waterfall")
+async def buscar_mobile_waterfall(
+    cnpj: str = Path(..., description="CNPJ da empresa"),
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    cnpj_valido, cnpj_limpo = validar_cnpj(cnpj)
+    if not cnpj_valido or not cnpj_limpo:
+        raise HTTPException(status_code=400, detail="CNPJ invalido")
+
+    payload = mobile_intelligence_service.get_cached_mobile_waterfall(cnpj_limpo)
+    return {
+        "success": True,
+        "cached": bool(payload),
+        "mobile_waterfall": payload,
+    }
+
+
+@router.post("/{cnpj}/mobile-waterfall")
+async def resolver_mobile_waterfall(
+    cnpj: str = Path(..., description="CNPJ da empresa"),
+    body: MobileWaterfallRequest = Body(default_factory=MobileWaterfallRequest),
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    cnpj_valido, cnpj_limpo = validar_cnpj(cnpj)
+    if not cnpj_valido or not cnpj_limpo:
+        raise HTTPException(status_code=400, detail="CNPJ invalido")
+
+    try:
+        payload = await mobile_intelligence_service.resolve_company_mobile_waterfall(
+            cnpj_limpo,
+            refresh=body.refresh,
+            verify_whatsapp=body.verify_whatsapp,
+        )
+        return {
+            "success": True,
+            "cached": False,
+            "mobile_waterfall": payload,
+        }
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.get("/{cnpj}")

@@ -9,6 +9,7 @@ from api.company_intelligence_extras import company_intelligence_extras_service
 from api.db_pool import get_connection
 from api.lead_refresh_queue import queue_lead_refresh_job
 from api.lead_registry import build_watch_snapshot, lead_registry_service
+from api.mobile_intelligence import mobile_intelligence_service
 from middleware.auth import require_auth
 
 router = APIRouter(tags=["Lead Registry"])
@@ -537,6 +538,15 @@ async def list_company_signals(
     _user: dict = Depends(require_auth),
 ) -> List[Dict[str, Any]]:
     return lead_registry_service.list_company_signals(_org_id(request), cnpj=cnpj, limit=limit)
+
+
+@router.get("/company-data-health")
+async def get_company_data_health(
+    request: Request,
+    limit: int = 20,
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    return mobile_intelligence_service.get_health_center(_org_id(request), limit=limit)
 
 
 @router.get("/lead-refresh-jobs")

@@ -602,6 +602,54 @@ function mapContactIntelligence(raw: Record<string, unknown> | null | undefined)
   };
 }
 
+function mapMobileWaterfall(raw: Record<string, unknown> | null | undefined): MobileWaterfallResult | null {
+  if (!raw) return null;
+  const company = asRecord(raw.company) ?? {};
+  const summary = asRecord(raw.summary) ?? {};
+  return {
+    cnpj: asNullableString(raw.cnpj) ?? "",
+    company: {
+      cnpj: asNullableString(company.cnpj),
+      razao_social: asNullableString(company.razao_social),
+      nome_fantasia: asNullableString(company.nome_fantasia),
+      cidade: asNullableString(company.cidade),
+      uf: asNullableString(company.uf),
+      site: asNullableString(company.site),
+    },
+    summary: {
+      company_name: asNullableString(summary.company_name),
+      mobile_candidates: asNullableNumber(summary.mobile_candidates),
+      phone_candidates: asNullableNumber(summary.phone_candidates),
+      verified_whatsapp_candidates: asNullableNumber(summary.verified_whatsapp_candidates),
+      likely_whatsapp_candidates: asNullableNumber(summary.likely_whatsapp_candidates),
+      decision_maker_mobile_candidates: asNullableNumber(summary.decision_maker_mobile_candidates),
+      primary_phone: asNullableString(summary.primary_phone),
+      primary_phone_type: asNullableString(summary.primary_phone_type),
+      generated_at: asNullableString(summary.generated_at),
+    },
+    generated_at: asNullableString(raw.generated_at),
+    candidates: asArray<Record<string, unknown>>(raw.candidates).map((candidate) => ({
+      contact_name: asNullableString(candidate.contact_name),
+      contact_role: asNullableString(candidate.contact_role),
+      contact_level: asNullableString(candidate.contact_level) ?? "company",
+      phone: asNullableString(candidate.phone) ?? "",
+      normalized_phone: asNullableString(candidate.normalized_phone) ?? "",
+      source_label: asNullableString(candidate.source_label),
+      source_url: asNullableString(candidate.source_url),
+      phone_type: asNullableString(candidate.phone_type),
+      kind: asNullableString(candidate.kind),
+      score_total: asNullableNumber(candidate.score_total),
+      confidence: asNullableNumber(candidate.confidence),
+      likely_whatsapp: typeof candidate.likely_whatsapp === "boolean" ? candidate.likely_whatsapp : Boolean(candidate.likely_whatsapp),
+      verified_whatsapp: typeof candidate.verified_whatsapp === "boolean" ? candidate.verified_whatsapp : Boolean(candidate.verified_whatsapp),
+      validation_status: asNullableString(candidate.validation_status),
+      validation_source: asNullableString(candidate.validation_source),
+      is_primary: typeof candidate.is_primary === "boolean" ? candidate.is_primary : Boolean(candidate.is_primary),
+      generated_at: asNullableString(candidate.generated_at),
+    })).filter((candidate) => candidate.phone && candidate.normalized_phone),
+  };
+}
+
 export function normalizeCnpj(cnpj: string): string {
   return normalizeCnpjValue(cnpj);
 }
@@ -697,6 +745,78 @@ export type ContactIntelligenceResult = {
   generated_at?: string | null;
 };
 
+export type MobileWaterfallCandidate = {
+  contact_name?: string | null;
+  contact_role?: string | null;
+  contact_level: string;
+  phone: string;
+  normalized_phone: string;
+  source_label?: string | null;
+  source_url?: string | null;
+  phone_type?: string | null;
+  kind?: string | null;
+  score_total?: number | null;
+  confidence?: number | null;
+  likely_whatsapp: boolean;
+  verified_whatsapp: boolean;
+  validation_status?: string | null;
+  validation_source?: string | null;
+  is_primary: boolean;
+  generated_at?: string | null;
+};
+
+export type MobileWaterfallSummary = {
+  company_name?: string | null;
+  mobile_candidates?: number | null;
+  phone_candidates?: number | null;
+  verified_whatsapp_candidates?: number | null;
+  likely_whatsapp_candidates?: number | null;
+  decision_maker_mobile_candidates?: number | null;
+  primary_phone?: string | null;
+  primary_phone_type?: string | null;
+  generated_at?: string | null;
+};
+
+export type MobileWaterfallResult = {
+  cnpj: string;
+  company?: {
+    cnpj?: string | null;
+    razao_social?: string | null;
+    nome_fantasia?: string | null;
+    cidade?: string | null;
+    uf?: string | null;
+    site?: string | null;
+  } | null;
+  summary: MobileWaterfallSummary;
+  generated_at?: string | null;
+  candidates: MobileWaterfallCandidate[];
+};
+
+export type CompanyDataHealthItem = {
+  cnpj: string;
+  razao_social?: string | null;
+  nome_fantasia?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  mobile_candidates: number;
+  verified_whatsapp_candidates: number;
+  decision_maker_mobile_candidates: number;
+  stale: boolean;
+  generated_at?: string | null;
+  gap_score: number;
+};
+
+export type CompanyDataHealth = {
+  summary: {
+    watchlist_total: number;
+    without_mobile: number;
+    without_verified_whatsapp: number;
+    without_decision_maker_mobile: number;
+    stale_records: number;
+  };
+  items: CompanyDataHealthItem[];
+};
+
 export type SimilarCompany = {
   cnpj: string;
   razao_social: string;
@@ -739,6 +859,12 @@ type ContactIntelligenceResponse = {
   success: boolean;
   cached: boolean;
   intelligence?: Record<string, unknown> | null;
+};
+
+type MobileWaterfallResponse = {
+  success: boolean;
+  cached: boolean;
+  mobile_waterfall?: Record<string, unknown> | null;
 };
 
 type ContactIntelligenceStatusResponse = {
@@ -982,6 +1108,40 @@ export async function enfileirarContactIntelligencePorCnpj(
     },
   );
   return mapContactIntelligenceStatus(data);
+}
+
+export async function buscarMobileWaterfallPorCnpj(
+  cnpj: string,
+): Promise<{ cached: boolean; mobileWaterfall: MobileWaterfallResult | null }> {
+  const data = await hermesFetch<MobileWaterfallResponse>(
+    appendFreshQuery(`/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/mobile-waterfall`),
+    { cache: "no-store" },
+  );
+  return {
+    cached: !!data.cached,
+    mobileWaterfall: mapMobileWaterfall(asRecord(data.mobile_waterfall)),
+  };
+}
+
+export async function resolverMobileWaterfallPorCnpj(
+  cnpj: string,
+  opts?: { refresh?: boolean; verifyWhatsapp?: boolean },
+): Promise<MobileWaterfallResult> {
+  const data = await hermesFetch<MobileWaterfallResponse>(
+    `/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/mobile-waterfall`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        refresh: opts?.refresh ?? false,
+        verify_whatsapp: opts?.verifyWhatsapp ?? true,
+      }),
+    },
+  );
+  const mobileWaterfall = mapMobileWaterfall(asRecord(data.mobile_waterfall));
+  if (!mobileWaterfall) {
+    throw new Error("Nao foi possivel resolver o mobile waterfall.");
+  }
+  return mobileWaterfall;
 }
 
 export async function resolverContactIntelligenceBatchPorCnpj(
@@ -2693,6 +2853,35 @@ export async function getLeadRefreshStates(opts?: {
   const suffix = params.toString() ? `?${params.toString()}` : "";
   const rows = await hermesFetch<Record<string, unknown>[]>(`/lead-refresh-states${suffix}`);
   return rows.map(mapLeadRefreshState);
+}
+
+export async function getCompanyDataHealth(limit = 20): Promise<CompanyDataHealth> {
+  const raw = await hermesFetch<Record<string, unknown>>(
+    `/company-data-health?limit=${Math.max(1, Math.min(limit, 50))}`,
+  );
+  const summary = asRecord(raw.summary) ?? {};
+  return {
+    summary: {
+      watchlist_total: asNullableNumber(summary.watchlist_total) ?? 0,
+      without_mobile: asNullableNumber(summary.without_mobile) ?? 0,
+      without_verified_whatsapp: asNullableNumber(summary.without_verified_whatsapp) ?? 0,
+      without_decision_maker_mobile: asNullableNumber(summary.without_decision_maker_mobile) ?? 0,
+      stale_records: asNullableNumber(summary.stale_records) ?? 0,
+    },
+    items: asArray<Record<string, unknown>>(raw.items).map((item) => ({
+      cnpj: asNullableString(item.cnpj) ?? "",
+      razao_social: asNullableString(item.razao_social),
+      nome_fantasia: asNullableString(item.nome_fantasia),
+      cidade: asNullableString(item.cidade),
+      uf: asNullableString(item.uf),
+      mobile_candidates: asNullableNumber(item.mobile_candidates) ?? 0,
+      verified_whatsapp_candidates: asNullableNumber(item.verified_whatsapp_candidates) ?? 0,
+      decision_maker_mobile_candidates: asNullableNumber(item.decision_maker_mobile_candidates) ?? 0,
+      stale: typeof item.stale === "boolean" ? item.stale : Boolean(item.stale),
+      generated_at: asNullableString(item.generated_at),
+      gap_score: asNullableNumber(item.gap_score) ?? 0,
+    })).filter((item) => item.cnpj),
+  };
 }
 
 export async function createLeadRefreshJob(body: {
