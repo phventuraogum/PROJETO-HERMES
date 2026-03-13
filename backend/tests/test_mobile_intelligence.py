@@ -61,9 +61,12 @@ class MobileIntelligenceTests(unittest.TestCase):
                     uf VARCHAR,
                     site VARCHAR,
                     telefone_receita VARCHAR,
+                    telefone_final VARCHAR,
                     telefone_enriquecido VARCHAR,
                     whatsapp_publico VARCHAR,
                     whatsapp_enriquecido VARCHAR,
+                    whatsapp_final VARCHAR,
+                    outras_informacoes VARCHAR,
                     telefones_captados VARCHAR,
                     whatsapps_captados VARCHAR,
                     socios_estruturado VARCHAR
@@ -73,7 +76,7 @@ class MobileIntelligenceTests(unittest.TestCase):
             conn.execute("DELETE FROM prospect_base")
             conn.executemany(
                 """
-                INSERT INTO prospect_base VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO prospect_base VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -84,7 +87,10 @@ class MobileIntelligenceTests(unittest.TestCase):
                         "MG",
                         "https://deodenergia.com",
                         "3232560690",
+                        "3230256069",
                         "32988445566",
+                        None,
+                        None,
                         None,
                         None,
                         json.dumps(
@@ -120,6 +126,27 @@ class MobileIntelligenceTests(unittest.TestCase):
                         None,
                         None,
                         None,
+                        None,
+                        None,
+                        None,
+                        json.dumps([]),
+                        json.dumps([]),
+                        json.dumps([]),
+                    ),
+                    (
+                        "02387241000160",
+                        "RUMO S.A",
+                        "RUMO",
+                        "CURITIBA",
+                        "PR",
+                        "https://ri.rumolog.com/en/",
+                        "4134238000",
+                        "(41) 3423-8000",
+                        None,
+                        None,
+                        None,
+                        None,
+                        "Fale com nosso chatbot no WhatsApp (14) 92003-0379 ou com o gerente comercial no celular 11999887766.",
                         json.dumps([]),
                         json.dumps([]),
                         json.dumps([]),
@@ -186,6 +213,35 @@ class MobileIntelligenceTests(unittest.TestCase):
         self.assertIsNotNone(cached)
         assert cached is not None
         self.assertEqual(cached["summary"]["verified_whatsapp_candidates"], 1)
+
+    def test_mobile_waterfall_uses_final_phone_and_contextual_other_info(self):
+        async def fake_verifier(numbers, max_batch=10):
+            return {
+                "5514920030379": {
+                    "valido": True,
+                    "numero_limpo": "5514920030379",
+                    "score": 1.0,
+                    "metodo": "evolution_api",
+                }
+            }
+
+        with patch("api.mobile_intelligence.verificar_whatsapp_lote", fake_verifier):
+            payload = asyncio.run(
+                self.service.resolve_company_mobile_waterfall(
+                    "02387241000160",
+                    refresh=True,
+                    verify_whatsapp=True,
+                )
+            )
+
+        candidates = {item["normalized_phone"]: item for item in payload["candidates"]}
+        self.assertIn("554134238000", candidates)
+        self.assertIn("5514920030379", candidates)
+        self.assertIn("5511999887766", candidates)
+        self.assertEqual(payload["summary"]["verified_whatsapp_candidates"], 1)
+        self.assertGreaterEqual(payload["summary"]["mobile_candidates"], 2)
+        self.assertTrue(candidates["5514920030379"]["verified_whatsapp"])
+        self.assertEqual(candidates["5514920030379"]["phone_type"], "whatsapp_verified")
 
     def test_health_center_flags_gaps_for_watchlist(self):
         async def fake_verifier(numbers, max_batch=10):

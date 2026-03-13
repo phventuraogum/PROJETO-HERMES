@@ -1,18 +1,69 @@
 from __future__ import annotations
 
 import ast
+import html
 import json
 import logging
 import re
+from urllib.parse import unquote
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from api.db_pool import get_connection
 from api.lead_registry import lead_registry_service
-from api.validation_service import normalizar_whatsapp_br, verificar_whatsapp_lote
+from api.validation_service import (
+    is_ddd_valido,
+    normalizar_whatsapp_br,
+    verificar_whatsapp_lote,
+)
 
 logger = logging.getLogger(__name__)
+
+WHATSAPP_LINK_PATTERN = re.compile(
+    r"(?i)(?:wa\.me/|api\.whatsapp\.com/(?:send|message)/?\?phone=|whatsapp\.com/send\?phone=)(\+?\d{10,15})"
+)
+KEYED_PHONE_PATTERN = re.compile(
+    r"(?i)(whatsapp|whats|zap|chatbot|telefone|celular|mobile|contato|atendimento|comercial|vendas)[^0-9]{0,24}(\+?\d[\d\s().-]{8,18}\d)"
+)
+FORMATTED_PHONE_PATTERN = re.compile(
+    r"(?<!\d)(?:\+?55[\s.-]?)?(?:\(?\d{2}\)?[\s.-]?)?(?:9?\d{4})[\s.-]?\d{4}(?!\d)"
+)
+WHATSAPP_CONTEXT_TERMS = {
+    "whatsapp",
+    "whats",
+    "zap",
+    "chatbot",
+    "fale conosco",
+    "converse",
+    "atendimento",
+    "sac",
+}
+COMMERCIAL_CONTEXT_TERMS = {
+    "contato",
+    "telefone",
+    "ligue",
+    "comercial",
+    "vendas",
+    "suporte",
+    "central",
+    "fale",
+    "delivery",
+}
+DECISION_MAKER_TERMS = {
+    "socio",
+    "sócio",
+    "fundador",
+    "diretor",
+    "gerente",
+    "ceo",
+    "cfo",
+    "coo",
+    "proprietario",
+    "proprietário",
+    "responsavel",
+    "responsável",
+}
 
 
 def _utcnow_iso() -> str:
@@ -67,6 +118,111 @@ def _coerce_jsonish(value: Any, default: Any) -> Any:
     return default
 
 
+def _has_valid_brazilian_ddd(phone: Optional[str]) -> bool:
+    digits = "".join(ch for ch in str(phone or "") if ch.isdigit())
+    if digits.startswith("55"):
+        digits = digits[2:]
+    if len(digits) not in {10, 11}:
+        return False
+    return is_ddd_valido(digits[:2])
+
+
+def _decode_loose_text(value: Any) -> str:
+    raw = str(value or "")
+    if not raw:
+        return ""
+    text = raw
+    for _ in range(3):
+        decoded = unquote(text)
+        if decoded == text:
+            break
+        text = decoded
+    return html.unescape(text)
+
+
+def _text_context_window(text: str, start: int, end: int, radius: int = 80) -> str:
+    return text[max(0, start - radius): min(len(text), end + radius)].lower()
+
+
+def _match_contains_phone_formatting(value: str) -> bool:
+    return any(token in value for token in ("(", ")", "-", ".", " ", "+"))
+
+
+def _extract_contextual_phones(raw_text: Any) -> List[Dict[str, Any]]:
+    text = _decode_loose_text(raw_text)
+    if not text:
+        return []
+
+    results: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def register(
+        raw_phone: Any,
+        *,
+        source_label: str,
+        kind: str,
+        contact_level: str = "company",
+        confidence: float = 0.72,
+    ) -> None:
+        normalized_phone = _normalize_phone(raw_phone)
+        if not normalized_phone or normalized_phone in seen:
+            return
+        if not _has_valid_brazilian_ddd(normalized_phone):
+            return
+        seen.add(normalized_phone)
+        results.append(
+            {
+                "phone": raw_phone,
+                "source_label": source_label,
+                "kind": kind,
+                "contact_level": contact_level,
+                "confidence": confidence,
+            }
+        )
+
+    for match in WHATSAPP_LINK_PATTERN.finditer(text):
+        register(
+            match.group(1),
+            source_label="Outras informacoes (link WhatsApp)",
+            kind="whatsapp",
+            confidence=0.88,
+        )
+
+    for match in KEYED_PHONE_PATTERN.finditer(text):
+        keyword = str(match.group(1) or "").lower()
+        raw_phone = match.group(2)
+        context = _text_context_window(text, match.start(), match.end())
+        kind = "whatsapp" if keyword in WHATSAPP_CONTEXT_TERMS else "phone"
+        contact_level = "decision_maker" if any(term in context for term in DECISION_MAKER_TERMS) else "company"
+        confidence = 0.82 if kind == "whatsapp" else 0.74
+        register(
+            raw_phone,
+            source_label=f"Outras informacoes ({keyword})",
+            kind=kind,
+            contact_level=contact_level,
+            confidence=confidence,
+        )
+
+    for match in FORMATTED_PHONE_PATTERN.finditer(text):
+        raw_phone = match.group(0)
+        if not _match_contains_phone_formatting(raw_phone):
+            continue
+        context = _text_context_window(text, match.start(), match.end())
+        has_whatsapp_context = any(term in context for term in WHATSAPP_CONTEXT_TERMS)
+        has_commercial_context = any(term in context for term in COMMERCIAL_CONTEXT_TERMS)
+        if not has_whatsapp_context and not has_commercial_context:
+            continue
+        register(
+            raw_phone,
+            source_label="Outras informacoes (contexto comercial)",
+            kind="whatsapp" if has_whatsapp_context else "phone",
+            contact_level="decision_maker" if any(term in context for term in DECISION_MAKER_TERMS) else "company",
+            confidence=0.78 if has_whatsapp_context else 0.68,
+        )
+
+    return results
+
+
 def _score_source(source_label: str) -> float:
     source = str(source_label or "").lower()
     score = 0.56
@@ -82,6 +238,12 @@ def _score_source(source_label: str) -> float:
         score += 0.08
     if "socio" in source:
         score += 0.12
+    if "final" in source:
+        score += 0.08
+    if "outras informacoes" in source or "contexto comercial" in source:
+        score += 0.08
+    if "chatbot" in source or "comercial" in source or "vendas" in source:
+        score += 0.06
     return min(score, 0.98)
 
 
@@ -181,9 +343,12 @@ class MobileIntelligenceService:
                     {self._select_expr(columns, ['uf'], 'uf')},
                     {self._select_expr(columns, ['site'], 'site')},
                     {self._select_expr(columns, ['telefone_padrao', 'telefone_receita', 'telefone1'], 'telefone_base')},
+                    {self._select_expr(columns, ['telefone_final'], 'telefone_final')},
                     {self._select_expr(columns, ['telefone_enriquecido'], 'telefone_enriquecido')},
                     {self._select_expr(columns, ['whatsapp_publico'], 'whatsapp_publico')},
                     {self._select_expr(columns, ['whatsapp_enriquecido'], 'whatsapp_enriquecido')},
+                    {self._select_expr(columns, ['whatsapp_final'], 'whatsapp_final')},
+                    {self._select_expr(columns, ['outras_informacoes'], 'outras_informacoes')},
                     {self._select_expr(columns, ['telefones_captados'], 'telefones_captados')},
                     {self._select_expr(columns, ['whatsapps_captados'], 'whatsapps_captados')},
                     {self._select_expr(columns, ['socios_estruturado'], 'socios_estruturado')}
@@ -203,12 +368,15 @@ class MobileIntelligenceService:
             "uf": str(row[4]) if row[4] else None,
             "site": str(row[5]) if row[5] else None,
             "telefone_base": str(row[6]) if row[6] else None,
-            "telefone_enriquecido": str(row[7]) if row[7] else None,
-            "whatsapp_publico": str(row[8]) if row[8] else None,
-            "whatsapp_enriquecido": str(row[9]) if row[9] else None,
-            "telefones_captados": _coerce_jsonish(row[10], []),
-            "whatsapps_captados": _coerce_jsonish(row[11], []),
-            "socios_estruturado": _coerce_jsonish(row[12], []),
+            "telefone_final": str(row[7]) if row[7] else None,
+            "telefone_enriquecido": str(row[8]) if row[8] else None,
+            "whatsapp_publico": str(row[9]) if row[9] else None,
+            "whatsapp_enriquecido": str(row[10]) if row[10] else None,
+            "whatsapp_final": str(row[11]) if row[11] else None,
+            "outras_informacoes": str(row[12]) if row[12] else None,
+            "telefones_captados": _coerce_jsonish(row[13], []),
+            "whatsapps_captados": _coerce_jsonish(row[14], []),
+            "socios_estruturado": _coerce_jsonish(row[15], []),
         }
 
     def get_cached_mobile_waterfall(self, cnpj: str) -> Optional[Dict[str, Any]]:
@@ -365,8 +533,10 @@ class MobileIntelligenceService:
             if current is None or (entry["score_total"] or 0) > (current.get("score_total") or 0):
                 candidates[entry["normalized_phone"]] = entry
 
+        add_candidate(snapshot.get("whatsapp_final"), "WhatsApp final", kind="whatsapp", validado=False)
         add_candidate(snapshot.get("whatsapp_enriquecido"), "WhatsApp enriquecido", kind="whatsapp", validado=False)
         add_candidate(snapshot.get("whatsapp_publico"), "WhatsApp publico", kind="whatsapp", validado=False)
+        add_candidate(snapshot.get("telefone_final"), "Telefone final", kind="phone")
         add_candidate(snapshot.get("telefone_enriquecido"), "Telefone enriquecido", kind="phone")
         add_candidate(snapshot.get("telefone_base"), "Telefone base", kind="phone")
 
@@ -414,6 +584,15 @@ class MobileIntelligenceService:
                 contact_role=partner_role,
                 contact_level="decision_maker",
                 kind="phone",
+            )
+
+        for item in _extract_contextual_phones(snapshot.get("outras_informacoes")):
+            add_candidate(
+                item.get("phone"),
+                str(item.get("source_label") or "Outras informacoes"),
+                contact_level=str(item.get("contact_level") or "company"),
+                kind=str(item.get("kind") or "phone"),
+                confidence=float(item.get("confidence") or 0.0),
             )
 
         ordered = sorted(candidates.values(), key=lambda item: item.get("score_total") or 0, reverse=True)
