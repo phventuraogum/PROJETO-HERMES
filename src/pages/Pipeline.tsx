@@ -406,7 +406,7 @@ const Pipeline = () => {
         <p className="text-lg font-display text-foreground">Pipeline vazio</p>
         <p className="text-sm text-muted-foreground max-w-xs">Adicione empresas da tela de Resultados para começar.</p>
       </div>
-      <Button onClick={() => navigate("/results")} className="gap-2 text-white" style={{ background: "var(--pinn-orange)" }} shadow-surface-sm">
+      <Button onClick={() => navigate("/results")} className="gap-2 text-white shadow-surface-sm" style={{ background: "var(--pinn-orange)" }}>
         <Plus className="h-4 w-4" /> Ir para Resultados
       </Button>
     </div>

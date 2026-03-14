@@ -116,9 +116,9 @@ function Section({
       {(!collapsible || open) && (
         <CardContent className={cn("px-5 pb-5", collapsible && "border-t border-border pt-4")}>
           {children}
-        </div>
+        </CardContent>
       )}
-    </div>
+    </Card>
   );
 }
 
