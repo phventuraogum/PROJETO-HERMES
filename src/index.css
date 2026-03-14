@@ -1,0 +1,392 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  HERMES — Design System v3 · Pinn Identity
+  Tipografia: Inter (400–900)
+  Paleta: Laranja #F97316 · Preto #1A1A1A · Off-white #F5F5F3
+*/
+
+@layer base {
+  :root {
+    /* ── Superfícies ── */
+    --background: 40 10% 96%;
+    --foreground: 0 0% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    /* ── Brand: Laranja Pinn ── */
+    --primary: 25 95% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    /* ── Secundária: Preto Pinn ── */
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* ── Muted ── */
+    --muted: 40 8% 93%;
+    --muted-foreground: 0 0% 42%;
+
+    /* ── Accent: Laranja pastel ── */
+    --accent: 27 100% 95%;
+    --accent-foreground: 21 90% 40%;
+
+    /* ── Status ── */
+    --success: 152 57% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 32 94% 46%;
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* ── Estrutura ── */
+    --border: 40 8% 88%;
+    --input: 40 8% 88%;
+    --ring: 25 95% 53%;
+
+    --radius: 0.625rem;
+
+    /* ── Sidebar ── */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 38%;
+    --sidebar-primary: 25 95% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 25 95% 53%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 40 8% 90%;
+    --sidebar-ring: 25 95% 53%;
+
+    /* ── Sombras ── */
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.04);
+
+    /* ── Gradientes ── */
+    --gradient-primary: linear-gradient(135deg, hsl(25 95% 53%), hsl(20 90% 45%));
+    --gradient-surface: linear-gradient(180deg, hsl(0 0% 100%), hsl(40 10% 97%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(40 8% 98%));
+    --glow-primary: 0 0 0 3px hsl(25 95% 53% / 0.15);
+    --glow-secondary: 0 0 0 3px hsl(0 0% 10% / 0.10);
+
+    /* ── Pinn brand extras ── */
+    --pinn-orange: #F97316;
+    --pinn-orange-light: #FEF0E6;
+    --pinn-orange-border: #FDBA74;
+    --pinn-orange-dark: #C2410C;
+    --pinn-black: #1A1A1A;
+    --pinn-black2: #2C2C2C;
+    --pinn-bg: #F5F5F3;
+  }
+
+  .dark {
+    --background: 0 0% 8%;
+    --foreground: 0 0% 94%;
+
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 94%;
+
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 94%;
+
+    --primary: 25 95% 58%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 55%;
+
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 90%;
+
+    --success: 152 57% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 32 94% 50%;
+    --warning-foreground: 0 0% 10%;
+
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 25 95% 58%;
+
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 62%;
+    --sidebar-primary: 25 95% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 25 95% 58%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 25 95% 58%;
+
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.20);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.26), 0 1px 2px -1px rgb(0 0 0 / 0.18);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.28), 0 2px 4px -2px rgb(0 0 0 / 0.20);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.32), 0 4px 6px -4px rgb(0 0 0 / 0.22);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.36), 0 8px 10px -6px rgb(0 0 0 / 0.24);
+
+    --gradient-primary: linear-gradient(135deg, hsl(25 95% 58%), hsl(20 90% 50%));
+    --gradient-surface: linear-gradient(180deg, hsl(0 0% 11%), hsl(0 0% 10%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 11%), hsl(0 0% 10%));
+    --glow-primary: 0 0 0 3px hsl(25 95% 58% / 0.20);
+    --glow-secondary: 0 0 0 3px hsl(0 0% 100% / 0.08);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background-color: var(--pinn-bg);
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Headings — Inter bold/black como Pinn */
+  h1 {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+  }
+  h2 {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+  h3 {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  h4, h5, h6 {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 600;
+  }
+
+  /* Scrollbar refinada */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring) / 0.6);
+    outline-offset: 2px;
+  }
+}
+
+/* ── Utilitários ──────────────────────────────────────────────────────────── */
+@layer utilities {
+
+  /* Tipografia Pinn */
+  .font-black-pinn {
+    font-weight: 900;
+    letter-spacing: -0.04em;
+  }
+
+  /* Sombras */
+  .shadow-surface-xs { box-shadow: var(--shadow-xs); }
+  .shadow-surface-sm { box-shadow: var(--shadow-sm); }
+  .shadow-surface-md { box-shadow: var(--shadow-md); }
+  .shadow-surface-lg { box-shadow: var(--shadow-lg); }
+  .shadow-surface-xl { box-shadow: var(--shadow-xl); }
+
+  /* Gradientes */
+  .gradient-primary { background: var(--gradient-primary); }
+  .gradient-surface { background: var(--gradient-surface); }
+  .gradient-card    { background: var(--gradient-card); }
+  .glow-primary     { box-shadow: var(--glow-primary); }
+  .glow-secondary   { box-shadow: var(--glow-secondary); }
+
+  /* Card padrão */
+  .card-surface {
+    @apply bg-card border border-border rounded-xl;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* KPI / stat card — hover lift */
+  .stat-card {
+    @apply bg-card border border-border rounded-xl p-5;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s, transform 0.15s;
+  }
+  .stat-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+
+  /* Pipeline card */
+  .pipeline-card {
+    @apply bg-white border border-border rounded-xl p-3.5 cursor-grab active:cursor-grabbing select-none;
+    box-shadow: var(--shadow-xs);
+    transition: box-shadow 0.15s, border-color 0.15s, transform 0.15s;
+  }
+  .pipeline-card:hover {
+    border-color: var(--pinn-orange-border);
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.1), var(--shadow-sm);
+    transform: translateY(-1px);
+  }
+
+  /* Score badges */
+  .score-badge-high   { @apply bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md px-2 py-0.5 text-xs font-bold; }
+  .score-badge-mid    { @apply bg-blue-50 text-blue-700 border border-blue-200 rounded-md px-2 py-0.5 text-xs font-bold; }
+  .score-badge-low    { @apply bg-amber-50 text-amber-700 border border-amber-200 rounded-md px-2 py-0.5 text-xs font-bold; }
+  .score-badge-danger { @apply bg-red-50 text-red-700 border border-red-200 rounded-md px-2 py-0.5 text-xs font-bold; }
+
+  /* Pinn orange badge */
+  .badge-pinn {
+    background: var(--pinn-orange-light);
+    color: var(--pinn-orange-dark);
+    border: 1px solid var(--pinn-orange-border);
+    @apply rounded-full px-2.5 py-0.5 text-xs font-bold;
+  }
+
+  /* Pinn black badge */
+  .badge-pinn-dark {
+    background: var(--pinn-black);
+    color: white;
+    @apply rounded-full px-2.5 py-0.5 text-xs font-bold;
+  }
+
+  /* Botão CTA Pinn */
+  .btn-pinn {
+    background: var(--pinn-orange);
+    color: white;
+    @apply rounded-lg px-4 py-2 text-sm font-bold border-0 cursor-pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-pinn:hover { opacity: 0.9; }
+
+  /* Botão dark Pinn */
+  .btn-pinn-dark {
+    background: var(--pinn-black);
+    color: white;
+    @apply rounded-lg px-4 py-2 text-sm font-bold border-0 cursor-pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-pinn-dark:hover { opacity: 0.85; }
+
+  /* Nav item ativo — sólido laranja */
+  .nav-item-active {
+    background: var(--pinn-orange) !important;
+    color: white !important;
+    font-weight: 600;
+  }
+
+  /* Seção dark Pinn — para cards de destaque */
+  .pinn-dark-section {
+    background: var(--pinn-black);
+    @apply rounded-xl p-5;
+  }
+
+  /* Credits widget */
+  .credits-widget {
+    background: var(--pinn-orange-light);
+    border: 1px solid var(--pinn-orange-border);
+    @apply mx-3 my-2.5 rounded-xl px-3 py-2 flex items-center justify-between;
+  }
+
+  /* Animations */
+  .animate-in-fade  { animation: fadeSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  .animate-in-slide { animation: fadeSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────────────── */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes pulse-orange {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+
+.animate-marquee    { animation: marquee 30s linear infinite; }
+.animate-pulse-pinn { animation: pulse-orange 2.5s ease-in-out infinite; }
+
+/* ── Skeleton ─────────────────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--muted) / 0.5) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: 0.375rem;
+}
+
+/* ── Overrides de componentes shadcn para identidade Pinn ─────────────────── */
+
+/* Botão primário */
+.btn-primary-pinn,
+button[data-variant="default"] {
+  background: var(--pinn-orange) !important;
+  color: white !important;
+  font-weight: 700 !important;
+  border-radius: 0.5rem !important;
+}
+
+/* Progress bar laranja */
+.progress-pinn {
+  height: 5px;
+  background: hsl(var(--muted));
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progress-pinn-fill {
+  height: 100%;
+  background: var(--pinn-orange);
+  border-radius: 99px;
+  transition: width 0.5s ease;
+}
+
+/* Tooltip / popover refinado */
+.pinn-tooltip {
+  background: var(--pinn-black);
+  color: white;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+}

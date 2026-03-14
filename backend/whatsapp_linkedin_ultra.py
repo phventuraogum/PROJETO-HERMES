@@ -1,0 +1,531 @@
+"""
+Módulo ULTRA-FOCADO em WhatsApp e LinkedIn
+Estratégias de última geração para captura 100% assertiva
+
+v2.0 — Melhorias:
+  - Bug fix: validar_whatsapp_brasileiro() corrigido para 11 dígitos locais
+  - Google Maps / Knowledge Panel mining
+  - Linktree / link-in-bio delegado ao enrichment_instagram
+  - Proxycurl integrado para leads HOT (score >= 70)
+"""
+import os
+import re
+import asyncio
+import httpx
+from typing import Any, Dict, Optional, List
+from bs4 import BeautifulSoup
+
+# =================================================================
+# WHATSAPP ULTRA-DISCOVERY (6 CAMADAS)
+# =================================================================
+
+_WHATS_PATTERNS = [
+    re.compile(r'wa\.me/(\d{10,13})'),
+    re.compile(r'api\.whatsapp\.com/send\?phone=(\d{10,13})'),
+    re.compile(r'whatsapp://send\?phone=(\d{10,13})'),
+]
+_WHATS_NUM_PATTERN = re.compile(r'(?:\+?55\s?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4})|(?:\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4})')
+_WHATS_CONTEXT_PATTERNS = [
+    re.compile(r'(?:whats(?:app)?|zap)[^\\n\\r]{0,40}((?:\+?55\s?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4})|(?:\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4}))', re.IGNORECASE),
+    re.compile(r'((?:\+?55\s?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4})|(?:\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4}))[^\\n\\r]{0,40}(?:whats(?:app)?|zap)', re.IGNORECASE),
+]
+_CONTACT_PATHS = ["", "/contato", "/fale-conosco", "/contact", "/sobre", "/quem-somos"]
+
+
+async def extrair_whatsapp_widget(url: str) -> Optional[str]:
+    """
+    Camada 1: Escaneia o código-fonte do site procurando por widgets de WhatsApp.
+    Detecta: wa.me, api.whatsapp.com, click-to-chat, floating buttons.
+    Visita homepage + páginas de contato comuns.
+    """
+    if not url:
+        return None
+    base_url = url.strip().rstrip("/")
+    if not base_url.startswith("http"):
+        base_url = "https://" + base_url
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True, verify=False) as client:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+            for path in _CONTACT_PATHS:
+                target = base_url + path
+                try:
+                    resp = await client.get(target, headers=headers)
+                    if resp.status_code != 200:
+                        continue
+                except Exception:
+                    continue
+
+                html = resp.text
+
+                for pattern in _WHATS_PATTERNS:
+                    m = pattern.search(html)
+                    if m:
+                        normalizado = _normalizar_whatsapp_candidato(m.group(1))
+                        if normalizado:
+                            return normalizado
+
+                for pattern in _WHATS_CONTEXT_PATTERNS:
+                    match = pattern.search(html)
+                    if not match:
+                        continue
+                    normalizado = _normalizar_whatsapp_candidato(match.group(1))
+                    if normalizado:
+                        return normalizado
+
+    except Exception:
+        pass
+
+    return None
+
+
+def _extrair_whatsapp_de_texto(texto: str) -> Optional[str]:
+    """Extrai número de WhatsApp de um texto (snippet, bio, etc)."""
+    wa_match = re.search(r'wa\.me/(\d{10,13})', texto)
+    if wa_match:
+        return _normalizar_whatsapp_candidato(wa_match.group(1))
+
+    num_match = re.search(r'(?:\+?55\s?)?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4}', texto)
+    if num_match:
+        return _normalizar_whatsapp_candidato(num_match.group())
+    return None
+
+
+async def buscar_whatsapp_redes_sociais(empresa_nome: str) -> Dict[str, str]:
+    """
+    Camada 2: Busca WhatsApp Business nas redes sociais (Instagram, Facebook).
+    """
+    from core_scraper import buscar_google
+
+    dados = {"whats_instagram": "", "whats_facebook": ""}
+
+    query_ig = f'site:instagram.com "{empresa_nome}" whatsapp'
+    res_ig = await buscar_google(query_ig, num_results=2)
+    for r in res_ig:
+        snippet = r.get("descricao", "") + " " + r.get("titulo", "")
+        found = _extrair_whatsapp_de_texto(snippet)
+        if found:
+            dados["whats_instagram"] = found
+            break
+
+    query_fb = f'site:facebook.com "{empresa_nome}" whatsapp'
+    res_fb = await buscar_google(query_fb, num_results=2)
+    for r in res_fb:
+        snippet = r.get("descricao", "") + " " + r.get("titulo", "")
+        found = _extrair_whatsapp_de_texto(snippet)
+        if found:
+            dados["whats_facebook"] = found
+            break
+
+    return dados
+
+
+async def buscar_whatsapp_direto(empresa_nome: str, cidade: str = "") -> Optional[str]:
+    """
+    Camada 3: Busca direta específica por "empresa + whatsapp + número".
+    Duas queries: uma focada em WhatsApp, outra em celular/contato.
+    """
+    from core_scraper import buscar_google
+
+    queries = [
+        f'"{empresa_nome}" {cidade} whatsapp contato',
+        f'"{empresa_nome}" {cidade} celular telefone',
+    ]
+
+    for query in queries:
+        resultados = await buscar_google(query, num_results=5)
+
+        for r in resultados:
+            snippet = (r.get("descricao", "") + " " + r.get("titulo", ""))
+
+            wa_match = re.search(r'wa\.me/(\d{10,13})', snippet)
+            if wa_match:
+                normalizado = _normalizar_whatsapp_candidato(wa_match.group(1))
+                if normalizado:
+                    return normalizado
+
+            num_match = re.search(r'(?:\+?55\s?)?\(?\d{2}\)?\s?9\d{4}[-.\s]?\d{4}', snippet)
+            if num_match:
+                normalizado = _normalizar_whatsapp_candidato(num_match.group())
+                if normalizado:
+                    return normalizado
+
+    return None
+
+
+try:
+    from api.validation_service import normalizar_whatsapp_br as _norm_central
+except ImportError:
+    _norm_central = None
+
+
+def _normalizar_whatsapp_candidato(numero: str) -> Optional[str]:
+    if _norm_central:
+        return _norm_central(numero)
+
+    if not numero:
+        return None
+    num_limpo = re.sub(r"[^\d]", "", str(numero))
+    if len(num_limpo) == 11 and num_limpo[2] == "9":
+        return "55" + num_limpo
+    if len(num_limpo) == 13 and num_limpo.startswith("55") and num_limpo[4] == "9":
+        return num_limpo
+    return None
+
+
+def validar_whatsapp_brasileiro(numero: str) -> bool:
+    """
+    Valida se um número é um celular brasileiro válido.
+    Usa validação centralizada com checagem de DDD quando disponível.
+    """
+    return _normalizar_whatsapp_candidato(numero) is not None
+
+
+def _resultado_menciona_empresa(titulo: str, descricao: str, empresa_nome: str) -> bool:
+    stop = {"de", "da", "do", "das", "dos", "e", "a", "o", "em", "com", "para", "ltda", "sa"}
+    texto = f"{titulo} {descricao}".lower()
+    tokens = [token for token in re.findall(r"[a-z0-9]+", empresa_nome.lower()) if len(token) > 2 and token not in stop]
+    if not tokens:
+        return False
+    return sum(1 for token in tokens if token in texto) >= min(2, len(tokens))
+
+
+# =================================================================
+# GOOGLE MAPS / KNOWLEDGE PANEL MINING
+# =================================================================
+
+async def buscar_google_maps(empresa_nome: str, cidade: str = "", cnpj: str = "") -> Dict:
+    """
+    Estratégia NOVA: extrai telefone/WhatsApp do Knowledge Panel do Google Maps.
+    Empresas com presença local têm telefone/WhatsApp no snippet do Maps.
+    """
+    from core_scraper import buscar_google
+
+    dados: Dict = {"telefone_maps": None, "whatsapp_maps": None}
+
+    # Query 1: Maps direto
+    query1 = f'"{empresa_nome}" {cidade} site:maps.google.com OR "maps.google.com"'
+    res1 = await buscar_google(query1, num_results=3)
+
+    for r in res1:
+        snippet = r.get("descricao", "")
+
+        # WhatsApp
+        wa = re.search(r"wa\.me/(\d{12,13})", snippet)
+        if wa:
+            dados["whatsapp_maps"] = wa.group(1)
+
+        # Telefone
+        tel = re.search(r"\(?\d{2}\)?\s?\d{4,5}-?\d{4}", snippet)
+        if tel:
+            dados["telefone_maps"] = tel.group()
+
+        if dados["whatsapp_maps"]:
+            break
+
+    # Query 2: Knowledge Panel com CNPJ (retorna painel de conhecimento)
+    if not dados["whatsapp_maps"] and cnpj:
+        cnpj8 = re.sub(r"[^\d]", "", cnpj)[:8]
+        query2 = f'"{empresa_nome}" {cnpj8} telefone whatsapp celular'
+        res2 = await buscar_google(query2, num_results=5)
+        for r in res2:
+            snippet = r.get("descricao", "")
+            wa2 = re.search(r"55\s?\(?\d{2}\)?\s?9\d{4}[-\s]?\d{4}", snippet)
+            if wa2:
+                num = re.sub(r"[^\d]", "", wa2.group())
+                if validar_whatsapp_brasileiro(num):
+                    dados["whatsapp_maps"] = num
+                    break
+            # Também captura número local sem 55
+            wa3 = re.search(r"\(?\d{2}\)?\s?9\d{4}[-\s]?\d{4}", snippet)
+            if wa3:
+                num = re.sub(r"[^\d]", "", wa3.group())
+                if len(num) == 11 and num[2] == "9":
+                    dados["whatsapp_maps"] = "55" + num
+                    break
+
+    return dados
+
+
+# =================================================================
+# LINKEDIN ULTRA-DISCOVERY (5 CAMADAS)
+# =================================================================
+
+async def buscar_linkedin_multiplas_fontes(nome_socio: str, empresa_nome: str, cidade: str = "") -> Dict[str, Any]:
+    """
+    Camada EXTRA: Busca LinkedIn em múltiplas fontes além do Google.
+    Retorna link + confiança + fonte de descoberta.
+    """
+    from core_scraper import (
+        _normalizar_url_linkedin,
+        _slug_linkedin_confere_nome,
+        buscar_google,
+        buscar_linkedin_socio_ultra,
+    )
+    
+    # Limpa nome
+    nome_limpo = re.sub(r'\(.*?\)', '', nome_socio).strip()
+    nome_limpo = re.sub(r'\b(SOCIO|ADMINISTRADOR|DIRETOR)\b', '', nome_limpo, flags=re.IGNORECASE).strip()
+    
+    candidato_core = await buscar_linkedin_socio_ultra(nome_limpo, empresa_nome, cidade)
+    if candidato_core:
+        return {
+            "link": candidato_core["link"],
+            "confianca": "MUITO_ALTA" if candidato_core["confianca"] == "ALTA" else candidato_core["confianca"],
+            "fonte": "Core Scraper",
+            "metodo": candidato_core["metodo"],
+        }
+
+    candidatos = []
+    
+    # === FONTE 1: LinkedIn Direto (site:linkedin.com) ===
+    query1 = f'site:linkedin.com/in "{nome_limpo}" "{empresa_nome}"'
+    res1 = await buscar_google(query1, num_results=3)
+    for r in res1:
+        if "linkedin.com/in/" in r["link"] and _slug_linkedin_confere_nome(r["link"], nome_limpo):
+            candidatos.append({
+                "link": _normalizar_url_linkedin(r["link"]),
+                "confianca": "MUITO_ALTA",
+                "fonte": "LinkedIn Direto",
+                "metodo": "Nome+Empresa"
+            })
+            return candidatos[0]  # Retorna imediatamente se acha no LinkedIn direto
+    
+    # === FONTE 2: Apollo.io / RocketReach (snippets mencionam LinkedIn) ===
+    query2 = f'"{nome_limpo}" "{empresa_nome}" linkedin profile'
+    res2 = await buscar_google(query2, num_results=5)
+    for r in res2:
+        snippet = r.get("descricao", "").lower()
+        # Extrai link do LinkedIn do snippet
+        linkedin_match = re.search(r'linkedin\.com/in/[\w-]+', snippet)
+        if linkedin_match and _slug_linkedin_confere_nome(linkedin_match.group(), nome_limpo):
+            candidatos.append({
+                "link": _normalizar_url_linkedin(f"https://{linkedin_match.group()}"),
+                "confianca": "ALTA",
+                "fonte": "Apollo/RocketReach",
+                "metodo": "Profile Indexer"
+            })
+            return candidatos[0]
+    
+    # === FONTE 3: Google Scholar / Patents (executivos tech) ===
+    if not candidatos:
+        query3 = f'site:scholar.google.com OR site:patents.google.com "{nome_limpo}" linkedin'
+        res3 = await buscar_google(query3, num_results=2)
+        for r in res3:
+            snippet = r.get("descricao", "")
+            linkedin_match = re.search(r'linkedin\.com/in/([\w-]+)', snippet)
+            if linkedin_match and _slug_linkedin_confere_nome(linkedin_match.group(1), nome_limpo):
+                candidatos.append({
+                    "link": _normalizar_url_linkedin(f"https://linkedin.com/in/{linkedin_match.group(1)}"),
+                    "confianca": "MEDIA",
+                    "fonte": "Google Scholar/Patents",
+                    "metodo": "Academic/IP"
+                })
+    
+    # === FONTE 4: Crunchbase (startups e investidores) ===
+    if not candidatos:
+        query4 = f'site:crunchbase.com "{nome_limpo}" linkedin'
+        res4 = await buscar_google(query4, num_results=2)
+        for r in res4:
+            snippet = r.get("descricao", "")
+            linkedin_match = re.search(r'linkedin\.com/in/([\w-]+)', snippet)
+            if linkedin_match and _slug_linkedin_confere_nome(linkedin_match.group(1), nome_limpo):
+                candidatos.append({
+                    "link": _normalizar_url_linkedin(f"https://linkedin.com/in/{linkedin_match.group(1)}"),
+                    "confianca": "MEDIA",
+                    "fonte": "Crunchbase",
+                    "metodo": "Startup Database"
+                })
+    
+    # === FONTE 5: Nome + Cidade (fallback geográfico) ===
+    if not candidatos and cidade:
+        query5 = f'site:linkedin.com/in "{nome_limpo}" {cidade}'
+        res5 = await buscar_google(query5, num_results=3)
+        for r in res5:
+            if (
+                "linkedin.com/in/" in r["link"]
+                and _slug_linkedin_confere_nome(r["link"], nome_limpo)
+                and _resultado_menciona_empresa(r.get("titulo", ""), r.get("descricao", ""), empresa_nome)
+            ):
+                candidatos.append({
+                    "link": _normalizar_url_linkedin(r["link"]),
+                    "confianca": "BAIXA",
+                    "fonte": "LinkedIn Geo",
+                    "metodo": "Nome+Cidade"
+                })
+    
+    return candidatos[0] if candidatos else None
+
+
+async def enriquecer_linkedin_proxycurl(linkedin_url: str) -> Dict:
+    """
+    Proxycurl: extrai email pessoal/profissional e telefone do perfil LinkedIn.
+    Custo: ~$0.01/perfil. Usar APENAS para leads HOT (score >= 70).
+    Chave: PROXYCURL_API_KEY no .env
+    """
+    key = os.getenv("PROXYCURL_API_KEY", "")
+    if not key or not linkedin_url:
+        return {}
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(
+                "https://nubela.co/proxycurl/api/v2/linkedin",
+                params={
+                    "url": linkedin_url,
+                    "personal_email": "include",
+                    "personal_contact_number": "include",
+                    "twitter_profile_id": "include",
+                },
+                headers={"Authorization": f"Bearer {key}"},
+            )
+            if resp.status_code == 200:
+                d = resp.json()
+                return {
+                    "nome_completo": d.get("full_name"),
+                    "cargo_atual": d.get("occupation"),
+                    "email_linkedin": (d.get("personal_emails") or [None])[0],
+                    "telefone_linkedin": (d.get("personal_numbers") or [None])[0],
+                    "localizacao_linkedin": d.get("city"),
+                    "seguidores_linkedin": d.get("follower_count"),
+                    "twitter": d.get("twitter_profile_id"),
+                    "empresa_atual": ((d.get("experiences") or [{}])[0]).get("company"),
+                }
+    except Exception:
+        pass
+    return {}
+
+
+async def descobrir_whatsapp_linkedin_completo(
+    empresa_nome: str,
+    site: Optional[str],
+    cidade: str,
+    socios: List[str],
+    cnpj: str = "",
+    score_icp: float = 0.0,
+) -> Dict:
+    """
+    Coordenador MASTER v2.0 de descoberta de WhatsApp e LinkedIn.
+    Executa todas as camadas em paralelo para máxima assertividade.
+
+    Novidades v2.0:
+      - Google Maps / Knowledge Panel mining
+      - Instagram / Linktree mining (via enrichment_instagram)
+      - Proxycurl para leads HOT (score_icp >= 70)
+    """
+
+    # === WHATSAPP: 5 buscas simultâneas ===
+    tasks_whats_coros = []
+
+    if site:
+        tasks_whats_coros.append(("widget_site", extrair_whatsapp_widget(site)))
+
+    tasks_whats_coros.append(("redes_sociais", buscar_whatsapp_redes_sociais(empresa_nome)))
+    tasks_whats_coros.append(("busca_direta", buscar_whatsapp_direto(empresa_nome, cidade)))
+    tasks_whats_coros.append(("google_maps", buscar_google_maps(empresa_nome, cidade, cnpj)))
+
+    # Instagram / Linktree (módulo dedicado)
+    try:
+        from enrichment_instagram import mining_instagram_linkinbio
+        tasks_whats_coros.append(("instagram_lb", mining_instagram_linkinbio(empresa_nome, site)))
+    except ImportError:
+        pass
+
+    nomes_tasks = [t[0] for t in tasks_whats_coros]
+    coros = [t[1] for t in tasks_whats_coros]
+    whats_results = await asyncio.gather(*coros, return_exceptions=True)
+
+    # Consolida WhatsApp — prioriza fontes mais confiáveis
+    whatsapp_final = None
+    whatsapp_fonte = ""
+    instagram_url = None
+    email_instagram = None
+    whatsapp_linkinbio = None
+    email_linkinbio = None
+    telegram = None
+
+    for nome, result in zip(nomes_tasks, whats_results):
+        if isinstance(result, Exception):
+            continue
+
+        if nome == "redes_sociais" and isinstance(result, dict):
+            if result.get("whats_instagram") and not whatsapp_final:
+                whatsapp_final = result["whats_instagram"]
+                whatsapp_fonte = "Instagram Bio"
+            if result.get("whats_facebook") and not whatsapp_final:
+                whatsapp_final = result["whats_facebook"]
+                whatsapp_fonte = "Facebook Page"
+
+        elif nome == "google_maps" and isinstance(result, dict):
+            if result.get("whatsapp_maps") and not whatsapp_final:
+                num = result["whatsapp_maps"]
+                if validar_whatsapp_brasileiro(num):
+                    whatsapp_final = num
+                    whatsapp_fonte = "Google Maps"
+            if not whatsapp_final and result.get("telefone_maps"):
+                tel_raw = re.sub(r"[^\d]", "", result["telefone_maps"])
+                if len(tel_raw) == 11 and tel_raw[2] == "9":
+                    whatsapp_final = "55" + tel_raw
+                    whatsapp_fonte = "Google Maps (celular)"
+                elif len(tel_raw) == 13 and tel_raw.startswith("55") and tel_raw[4] == "9":
+                    whatsapp_final = tel_raw
+                    whatsapp_fonte = "Google Maps (celular)"
+
+        elif nome == "instagram_lb" and isinstance(result, dict):
+            instagram_url = instagram_url or result.get("instagram_url")
+            email_instagram = email_instagram or result.get("email_instagram")
+            whatsapp_linkinbio = result.get("whatsapp_linkinbio")
+            email_linkinbio = email_linkinbio or result.get("email_linkinbio")
+            telegram = telegram or result.get("telegram")
+            if not whatsapp_final:
+                wa_ig = result.get("whatsapp_instagram")
+                wa_lb = result.get("whatsapp_linkinbio")
+                wa_use = wa_ig or wa_lb
+                if wa_use and validar_whatsapp_brasileiro(wa_use):
+                    whatsapp_final = wa_use
+                    whatsapp_fonte = "Instagram" if wa_ig else "Linktree"
+
+        elif isinstance(result, str) and validar_whatsapp_brasileiro(result) and not whatsapp_final:
+            whatsapp_final = result
+            whatsapp_fonte = "Widget Site" if nome == "widget_site" else "Busca Direta"
+
+    # === LINKEDIN: Busca multi-fonte para cada sócio ===
+    linkedin_socios = []
+
+    for socio in (socios or [])[:2]:
+        linkedin_data = await buscar_linkedin_multiplas_fontes(socio, empresa_nome, cidade)
+        if linkedin_data:
+            entrada = {
+                "nome": socio,
+                "linkedin": linkedin_data["link"],
+                "confianca": linkedin_data["confianca"],
+                "fonte": linkedin_data["fonte"],
+                "metodo": linkedin_data["metodo"],
+            }
+
+            # Proxycurl para leads HOT
+            if score_icp >= 70:
+                proxycurl = await enriquecer_linkedin_proxycurl(linkedin_data["link"])
+                if proxycurl:
+                    entrada.update(proxycurl)
+
+            linkedin_socios.append(entrada)
+
+    return {
+        "whatsapp": {
+            "numero": whatsapp_final,
+            "fonte": whatsapp_fonte,
+            "validado": validar_whatsapp_brasileiro(whatsapp_final) if whatsapp_final else False,
+        },
+        "linkedin_socios": linkedin_socios,
+        "instagram": {
+            "url": instagram_url,
+            "email": email_instagram,
+        },
+        "linkinbio": {
+            "whatsapp": whatsapp_linkinbio,
+            "email": email_linkinbio,
+            "telegram": telegram,
+        },
+    }

@@ -1,0 +1,53 @@
+global:
+  scrape_interval: 15s          # coleta a cada 15s
+  evaluation_interval: 15s      # avalia regras a cada 15s
+  scrape_timeout: 10s
+
+# ── Regras de alertas ────────────────────────────────────────────────────────
+rule_files:
+  - "/etc/prometheus/rules/*.yml"
+
+# ── Alertmanager (descomente para ativar) ────────────────────────────────────
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ["alertmanager:9093"]
+
+# ── Jobs de coleta ───────────────────────────────────────────────────────────
+scrape_configs:
+
+  # Prometheus se auto-monitora
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          instance: "prometheus"
+
+  # ── VPS: CPU, RAM, disco, rede (Node Exporter) ──────────────────────────
+  # IPs estáticos — evita falhas de DNS cross-compose no Docker
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["172.22.0.11:9100"]
+        labels:
+          instance: "hermes-vps"
+
+  # ── Containers Docker (cAdvisor) ────────────────────────────────────────
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["172.22.0.12:8080"]
+        labels:
+          instance: "hermes-vps"
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: "container_(tasks_state|memory_failures_total)"
+        action: drop
+
+  # ── Hermes API (FastAPI /metrics) ───────────────────────────────────────
+  - job_name: "hermes-api"
+    static_configs:
+      - targets: ["172.21.0.10:8000"]
+        labels:
+          app: "hermes"
+          service: "api"
+    metrics_path: "/metrics"
+    scrape_interval: 10s

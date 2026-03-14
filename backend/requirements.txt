@@ -1,0 +1,23 @@
+fastapi
+uvicorn[standard]
+requests
+duckdb
+pandas
+httpx
+beautifulsoup4
+ddgs
+python-multipart
+pydantic
+pydantic-settings
+redis>=5.0.0
+rq>=1.16.0
+openai
+dnspython
+python-dotenv
+lxml
+scrapling[all]
+# Auth & Security
+PyJWT>=2.8.0
+cryptography>=41.0.0
+# Supabase
+supabase>=2.3.0
