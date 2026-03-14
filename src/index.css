@@ -144,6 +144,11 @@
     --gradient-card: linear-gradient(180deg, hsl(0 0% 11%), hsl(0 0% 10%));
     --glow-primary: 0 0 0 3px hsl(25 95% 58% / 0.20);
     --glow-secondary: 0 0 0 3px hsl(0 0% 100% / 0.08);
+
+    --pinn-orange-light: rgb(249 115 22 / 0.12);
+    --pinn-orange-border: rgb(249 115 22 / 0.30);
+    --pinn-orange-dark: #ffd2b0;
+    --pinn-bg: hsl(0 0% 9%);
   }
 }
 
@@ -161,7 +166,8 @@
 
   body {
     @apply bg-background text-foreground;
-    background-color: var(--pinn-bg);
+    background: var(--gradient-surface);
+    background-attachment: fixed;
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 
@@ -226,6 +232,13 @@
   .glow-primary     { box-shadow: var(--glow-primary); }
   .glow-secondary   { box-shadow: var(--glow-secondary); }
 
+  .app-shell {
+    background:
+      radial-gradient(circle at top right, hsl(var(--primary) / 0.08), transparent 28%),
+      radial-gradient(circle at top left, hsl(var(--foreground) / 0.04), transparent 22%),
+      hsl(var(--background));
+  }
+
   /* Card padrão */
   .card-surface {
     @apply bg-card border border-border rounded-xl;
@@ -245,7 +258,7 @@
 
   /* Pipeline card */
   .pipeline-card {
-    @apply bg-white border border-border rounded-xl p-3.5 cursor-grab active:cursor-grabbing select-none;
+    @apply bg-card border border-border rounded-xl p-3.5 cursor-grab active:cursor-grabbing select-none;
     box-shadow: var(--shadow-xs);
     transition: box-shadow 0.15s, border-color 0.15s, transform 0.15s;
   }
@@ -312,6 +325,21 @@
     background: var(--pinn-orange-light);
     border: 1px solid var(--pinn-orange-border);
     @apply mx-3 my-2.5 rounded-xl px-3 py-2 flex items-center justify-between;
+  }
+
+  .surface-panel {
+    @apply rounded-2xl border border-border bg-card;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .interactive-surface {
+    @apply border border-border bg-card text-foreground;
+    box-shadow: var(--shadow-xs);
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  }
+  .interactive-surface:hover {
+    @apply bg-accent text-accent-foreground;
+    box-shadow: var(--shadow-sm);
   }
 
   /* Animations */

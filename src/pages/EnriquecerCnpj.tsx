@@ -650,7 +650,8 @@ const EnriquecerCnpj = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button
-                  className="w-full justify-between bg-white text-muted-foreground hover:bg-muted"
+                  variant="outline"
+                  className="w-full justify-between border-border bg-card text-foreground shadow-surface-xs hover:bg-accent hover:text-accent-foreground"
                   onClick={() => void handleAbrirResultados()}
                   disabled={isSavingResult}
                 >

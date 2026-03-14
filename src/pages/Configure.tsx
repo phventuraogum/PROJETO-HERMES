@@ -709,7 +709,7 @@ const Configure = () => {
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "Empresas",   value: preview.total.toString(),                                                    cls: "text-white" },
+              { label: "Empresas",   value: preview.total.toString(),                                                    cls: "text-foreground" },
               { label: "Com e-mail", value: `${preview.comEmail} (${preview.total ? Math.round(preview.comEmail/preview.total*100) : 0}%)`, cls: "text-sky-600" },
               { label: "WhatsApp",   value: `${preview.comWA} (${preview.total ? Math.round(preview.comWA/preview.total*100) : 0}%)`,    cls: "text-emerald-600" },
               { label: "Score médio",value: `${preview.scoreM.toFixed(1)} pts`,                                          cls: preview.scoreM >= 60 ? "text-emerald-600" : preview.scoreM >= 40 ? "text-amber-400" : "text-red-600" },

@@ -216,7 +216,7 @@ function Comparacao({ a, b }: { a: BuscaSalva; b: BuscaSalva }) {
               ].map(row => (
                 <tr key={row.label} className="border-b border-border/60 hover:bg-muted/20">
                   <td className="px-4 py-2 text-muted-foreground">{row.label}</td>
-                  <td className="px-4 py-2 text-right text-white font-medium">{row.fmt(row.va)}</td>
+                  <td className="px-4 py-2 text-right text-foreground font-medium">{row.fmt(row.va)}</td>
                   <td className="px-4 py-2 text-right text-sky-300 font-medium">{row.fmt(row.vb)}</td>
                   <td className="px-4 py-2 text-right">
                     <div className="flex justify-end">

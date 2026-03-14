@@ -427,7 +427,7 @@ const Pipeline = () => {
         </div>
         <div className="flex gap-2">
           {leadsParaSDR > 0 && (
-            <Button size="sm" className="gap-1.5 text-white shadow-surface-sm" style={{ background: "var(--pinn-black)" }}
+            <Button size="sm" className="gap-1.5 shadow-surface-sm"
               disabled={sdrLoading} onClick={handleEnviarTodosSDR}>
               {sdrLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
               Enviar {leadsParaSDR} ao SDR

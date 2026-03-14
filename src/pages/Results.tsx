@@ -462,7 +462,7 @@ function DetalheEmpresa({
             {initials(company.nome_fantasia || company.razao_social)}
           </div>
           <div>
-            <p className="font-semibold text-white leading-tight">{company.nome_fantasia || company.razao_social}</p>
+            <p className="font-semibold text-foreground leading-tight">{company.nome_fantasia || company.razao_social}</p>
             <p className="text-xs text-muted-foreground">{company.razao_social}</p>
             <p className="font-mono text-[11px] text-muted-foreground/70 mt-0.5">{company.cnpj}</p>
           </div>
@@ -574,7 +574,7 @@ function DetalheEmpresa({
             </div>
             <div className="flex items-center gap-1.5">
               <a href={c.href(c.value!)} target="_blank" rel="noreferrer"
-                className="font-medium text-foreground hover:text-white hover:underline break-all">
+                className="font-medium text-foreground hover:text-primary hover:underline break-all">
                 {c.value}
               </a>
               <CopyBtn text={c.value!} />
@@ -589,7 +589,7 @@ function DetalheEmpresa({
               <div key={item.valor} className="flex items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2">
                   <Mail className="h-3.5 w-3.5 text-sky-600" />
-                  <a href={`mailto:${item.valor}`} className="font-medium text-foreground hover:text-white hover:underline break-all">
+                  <a href={`mailto:${item.valor}`} className="font-medium text-foreground hover:text-primary hover:underline break-all">
                     {item.valor}
                   </a>
                 </div>
@@ -609,7 +609,7 @@ function DetalheEmpresa({
                 <div className="flex items-center gap-2">
                   <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
                   <a href={`https://wa.me/${item.valor.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
-                    className="font-medium text-foreground hover:text-white hover:underline break-all">
+                    className="font-medium text-foreground hover:text-primary hover:underline break-all">
                     {item.valor}
                   </a>
                 </div>
@@ -628,7 +628,7 @@ function DetalheEmpresa({
               <div key={item.valor} className="flex items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2">
                   <Phone className="h-3.5 w-3.5 text-foreground/80" />
-                  <a href={`tel:${item.valor}`} className="font-medium text-foreground hover:text-white hover:underline break-all">
+                  <a href={`tel:${item.valor}`} className="font-medium text-foreground hover:text-primary hover:underline break-all">
                     {item.valor}
                   </a>
                 </div>
@@ -957,7 +957,7 @@ function EmpresaCard({
           {initials(emp.nome_fantasia || emp.razao_social)}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm text-white leading-tight truncate">
+          <p className="font-semibold text-sm text-foreground leading-tight truncate">
             {emp.nome_fantasia || emp.razao_social}
           </p>
           <p className="text-[11px] text-muted-foreground/70 truncate">{emp.razao_social}</p>
@@ -1628,7 +1628,7 @@ const ResultsPage = () => {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { icon: Building2,  label: "Total",       value: stats.t,                         fmt: (v: number) => v.toString(),              color: "text-white" },
+            { icon: Building2,  label: "Total",       value: stats.t,                         fmt: (v: number) => v.toString(),              color: "text-foreground" },
             { icon: Mail,       label: "Com e-mail",  value: stats.comEmail,                   fmt: (v: number) => `${v} (${Math.round(v/stats.t*100)}%)`, color: "text-sky-600" },
             { icon: MessageCircle, label: "WhatsApp", value: stats.comWa,                      fmt: (v: number) => `${v} (${Math.round(v/stats.t*100)}%)`, color: "text-emerald-600" },
             { icon: TrendingUp, label: "Score médio", value: stats.scoreAvg,                   fmt: (v: number) => v.toFixed(1),              color: "text-amber-600" },

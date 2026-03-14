@@ -115,7 +115,7 @@ export default function ComprarCreditos() {
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex justify-center p-4 rounded-xl bg-white">
+              <div className="flex justify-center rounded-xl bg-card p-4">
                 <img
                   src={`data:image/png;base64,${result.pix_qr_code}`}
                   alt="QR Code PIX"

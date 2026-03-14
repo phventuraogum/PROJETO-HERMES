@@ -8,12 +8,12 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   return (
-    <div className="min-h-screen flex w-full bg-background">
+    <div className="app-shell min-h-screen flex w-full text-foreground">
       <Sidebar />
       <div className="flex flex-col flex-1 min-w-0">
         <Header />
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="max-w-[1400px] mx-auto">
+        <main className="flex-1 overflow-auto">
+          <div className="mx-auto w-full max-w-[1480px] px-4 py-6 sm:px-6 lg:px-8">
             {children}
           </div>
         </main>

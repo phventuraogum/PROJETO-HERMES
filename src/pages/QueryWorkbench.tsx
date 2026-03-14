@@ -652,7 +652,8 @@ const QueryWorkbench = () => {
                   </div>
                   <Button
                     type="button"
-                    className="w-full justify-between bg-white text-muted-foreground hover:bg-muted"
+                    variant="outline"
+                    className="w-full justify-between border-border bg-card text-foreground shadow-surface-xs hover:bg-accent hover:text-accent-foreground"
                     onClick={() => navigate("/results")}
                   >
                     <span className="inline-flex items-center gap-2">
@@ -762,7 +763,8 @@ const QueryWorkbench = () => {
                     </Button>
                     <Button
                       type="button"
-                      className="bg-white text-muted-foreground hover:bg-muted"
+                      variant="outline"
+                      className="border-border bg-card text-foreground shadow-surface-xs hover:bg-accent hover:text-accent-foreground"
                       onClick={() => void handleRunSavedSearch(search)}
                       disabled={runningSavedSearchId === search.id}
                     >

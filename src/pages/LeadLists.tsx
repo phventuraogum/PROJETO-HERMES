@@ -1039,7 +1039,8 @@ const LeadLists = () => {
                   </div>
                   <Button
                     type="button"
-                    className="mt-4 w-full bg-white text-muted-foreground hover:bg-muted"
+                    variant="outline"
+                    className="mt-4 w-full border-border bg-card text-foreground shadow-surface-xs hover:bg-accent hover:text-accent-foreground"
                     onClick={() => void handleRunSavedSearch(search)}
                     disabled={runningSavedSearchId === search.id}
                   >
