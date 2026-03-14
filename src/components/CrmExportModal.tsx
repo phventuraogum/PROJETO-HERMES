@@ -83,11 +83,11 @@ export function CrmExportModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-md bg-zinc-950 border-zinc-800">
+      <DialogContent className="max-w-md bg-card border-border">
         <DialogHeader>
           <DialogTitle className="text-base">Enviar lead para CRM</DialogTitle>
           {empresa && (
-            <p className="text-xs text-zinc-500 truncate">
+            <p className="text-xs text-muted-foreground/70 truncate">
               {empresa.nome_fantasia || empresa.razao_social}
             </p>
           )}
@@ -97,7 +97,7 @@ export function CrmExportModal({
           <div className="space-y-2">
             <Label className="text-xs">CRM</Label>
             <Select value={provider} onValueChange={(v: any) => { setProvider(v); setApiKey(savedKeys[v] || ""); }}>
-              <SelectTrigger className="border-zinc-700 bg-zinc-900/60">
+              <SelectTrigger className="border-border bg-muted/30">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -120,17 +120,17 @@ export function CrmExportModal({
               value={apiKey}
               onChange={e => setApiKey(e.target.value)}
               placeholder={currentSaved ? "•••••••• (salvo)" : "Cole aqui"}
-              className="border-zinc-700 bg-zinc-900/60"
+              className="border-border bg-muted/30"
             />
           </div>
 
-          <label className="flex items-center gap-2 text-xs text-zinc-400">
-            <input type="checkbox" checked={saveKey} onChange={e => setSaveKey(e.target.checked)} className="rounded border-zinc-600" />
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input type="checkbox" checked={saveKey} onChange={e => setSaveKey(e.target.checked)} className="rounded border-border" />
             Salvar chave para próximas exportações
           </label>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={onClose} className="border-zinc-700">
+            <Button variant="outline" size="sm" onClick={onClose} className="border-border">
               Cancelar
             </Button>
             <Button size="sm" onClick={handleExport} disabled={loading} className="gap-1.5">

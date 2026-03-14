@@ -191,7 +191,7 @@ function SpotlightCard({ children, className }: { children: React.ReactNode; cla
       onMouseMove={onMove}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
-      className={cn("relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.015] transition-all duration-300", className)}
+      className={cn("relative overflow-hidden rounded-2xl border border-border/60 bg-card transition-all duration-200 shadow-surface-sm hover:shadow-surface-md", className)}
     >
       <div
         className="pointer-events-none absolute -inset-px transition-opacity duration-500"
@@ -215,7 +215,7 @@ function Marquee({ items }: { items: string[] }) {
     <div className="overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_20%,black_80%,transparent)]">
       <div className="flex gap-8 animate-[marquee_30s_linear_infinite] w-max">
         {doubled.map((name, i) => (
-          <div key={i} className="flex items-center gap-2.5 rounded-full border border-white/[0.06] bg-white/[0.02] px-5 py-2.5 text-sm text-muted-foreground/70 shrink-0 whitespace-nowrap">
+          <div key={i} className="flex items-center gap-2.5 rounded-full border border-border bg-muted/50 px-5 py-2.5 text-sm text-muted-foreground shrink-0 whitespace-nowrap">
             <Network className="h-4 w-4 text-primary/50" />
             {name}
           </div>
@@ -240,23 +240,23 @@ function ProductDemo() {
   return (
     <div className="relative">
       <div className="absolute -inset-4 rounded-3xl bg-gradient-to-b from-primary/15 via-secondary/8 to-transparent blur-2xl opacity-60" />
-      <div className="relative rounded-2xl border border-white/[0.08] bg-[hsl(220,18%,7%)] overflow-hidden shadow-[0_40px_100px_-30px_rgba(0,0,0,.9)]">
+      <div className="relative rounded-2xl border border-border bg-muted/40 overflow-hidden shadow-[0_40px_100px_-30px_rgba(0,0,0,.9)]">
         {/* Window chrome */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.05] bg-white/[0.01]">
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/70 bg-background">
           <div className="flex items-center gap-1.5">
             <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
             <div className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
             <div className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
           </div>
-          <div className="flex items-center gap-1 rounded-md bg-white/[0.04] px-3 py-1">
+          <div className="flex items-center gap-1 rounded-md bg-muted/60 px-3 py-1">
             <Lock className="h-2.5 w-2.5 text-emerald-400/60" />
-            <span className="text-[10px] text-muted-foreground/40 font-mono">hermes.app</span>
+            <span className="text-[10px] text-muted-foreground/70 font-mono">hermes.app</span>
           </div>
           <div className="w-16" />
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-white/[0.04]">
+        <div className="flex border-b border-border/50">
           {tabs.map((t, i) => (
             <button
               key={i}
@@ -265,7 +265,7 @@ function ProductDemo() {
                 "flex items-center gap-2 px-5 py-2.5 text-xs font-medium transition-all border-b-2 -mb-px",
                 activeTab === i
                   ? "border-primary text-primary bg-primary/[0.04]"
-                  : "border-transparent text-muted-foreground/50 hover:text-muted-foreground/80"
+                  : "border-transparent text-muted-foreground hover:text-muted-foreground/80"
               )}
             >
               <t.icon className="h-3.5 w-3.5" /> {t.label}
@@ -294,9 +294,9 @@ function DemoProspeccao() {
           { l: "Score médio", v: "7.4", c: "text-amber-400" },
           { l: "Enriquecidas", v: "2.219", c: "text-secondary" },
         ].map((s, i) => (
-          <div key={i} className="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3 text-center">
+          <div key={i} className="rounded-lg border border-border/70 bg-muted/30 p-3 text-center">
             <p className={cn("text-lg md:text-xl font-bold", s.c)}>{s.v}</p>
-            <p className="text-[9px] text-muted-foreground/50 mt-0.5 uppercase tracking-wider">{s.l}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5 uppercase tracking-wider">{s.l}</p>
           </div>
         ))}
       </div>
@@ -307,15 +307,15 @@ function DemoProspeccao() {
           { n: "EMPRESA GAMA LTDA", s: 8.1, c: "Curitiba - PR", seg: "Indústria", cap: "R$ 1,8M" },
           { n: "EMPRESA DELTA LTDA", s: 7.6, c: "Florianópolis - SC", seg: "Logística", cap: "R$ 890K" },
         ].map((r, i) => (
-          <div key={i} className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.01] px-4 py-2.5 text-sm hover:bg-white/[0.03] transition-colors">
+          <div key={i} className="flex items-center justify-between rounded-lg border border-border/50 bg-background px-4 py-2.5 text-sm hover:bg-muted/50 transition-colors">
             <div className="flex items-center gap-3 min-w-0">
               <div className={cn("h-8 w-8 rounded-md flex items-center justify-center text-[11px] font-bold shrink-0", r.s >= 8.5 ? "bg-emerald-500/15 text-emerald-400" : "bg-primary/10 text-primary")}>{r.s}</div>
               <div className="min-w-0">
-                <p className="font-medium text-foreground/90 text-[13px] truncate">{r.n}</p>
-                <p className="text-[10px] text-muted-foreground/40">{r.c} · {r.seg} · {r.cap}</p>
+                <p className="font-medium text-foreground text-[13px] truncate">{r.n}</p>
+                <p className="text-[10px] text-muted-foreground/70">{r.c} · {r.seg} · {r.cap}</p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 text-muted-foreground/30 shrink-0 ml-3">
+            <div className="flex items-center gap-1.5 text-muted-foreground/55 shrink-0 ml-3">
               <Mail className="h-3 w-3" /><Phone className="h-3 w-3" /><Linkedin className="h-3 w-3" />
             </div>
           </div>
@@ -335,19 +335,19 @@ function DemoDashboard() {
           { l: "Taxa WhatsApp", v: "41%", c: "text-emerald-400" },
           { l: "Com LinkedIn", v: "28%", c: "text-secondary" },
         ].map((s, i) => (
-          <div key={i} className="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3 text-center">
+          <div key={i} className="rounded-lg border border-border/70 bg-muted/30 p-3 text-center">
             <p className={cn("text-lg font-bold", s.c)}>{s.v}</p>
-            <p className="text-[9px] text-muted-foreground/50 mt-0.5 uppercase tracking-wider">{s.l}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5 uppercase tracking-wider">{s.l}</p>
           </div>
         ))}
       </div>
-      <div className="rounded-lg border border-white/[0.05] bg-white/[0.02] p-4">
-        <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-3">Empresas por segmento</p>
+      <div className="rounded-lg border border-border/70 bg-muted/30 p-4">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-3">Empresas por segmento</p>
         <div className="flex items-end gap-2 h-24">
           {bars.map((h, i) => (
             <div key={i} className="flex-1 flex flex-col items-center gap-1">
               <div className="w-full rounded-sm bg-gradient-to-t from-primary/60 to-primary/20 transition-all duration-1000" style={{ height: `${h}%` }} />
-              <span className="text-[8px] text-muted-foreground/30">{["Tec", "Sau", "Ind", "Log", "Srv", "Var", "Out"][i]}</span>
+              <span className="text-[8px] text-muted-foreground/55">{["Tec", "Sau", "Ind", "Log", "Srv", "Var", "Out"][i]}</span>
             </div>
           ))}
         </div>
@@ -367,13 +367,13 @@ function DemoPipeline() {
       {cols.map((col, i) => (
         <div key={i} className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-muted-foreground/70">{col.title}</span>
+            <span className="text-[11px] font-medium text-muted-foreground">{col.title}</span>
             <Badge className={cn("text-[9px] px-1.5 py-0 border-0", col.color)}>{col.count}</Badge>
           </div>
           {Array.from({ length: Math.min(col.count, 3) }).map((_, j) => (
-            <div key={j} className="rounded-md border border-white/[0.04] bg-white/[0.02] p-2.5">
-              <div className="h-2 w-3/4 rounded bg-white/[0.06] mb-1.5" />
-              <div className="h-1.5 w-1/2 rounded bg-white/[0.03]" />
+            <div key={j} className="rounded-md border border-border/50 bg-muted/30 p-2.5">
+              <div className="h-2 w-3/4 rounded bg-muted mb-1.5" />
+              <div className="h-1.5 w-1/2 rounded bg-muted/50" />
             </div>
           ))}
         </div>
@@ -409,7 +409,7 @@ export default function Landing() {
       `}</style>
 
       {/* ── NAV ────────────────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 border-b border-white/[0.05] bg-background/60 backdrop-blur-2xl">
+      <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="container mx-auto flex h-14 items-center justify-between px-6 max-w-7xl">
           <div className="flex items-center gap-2.5">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 ring-1 ring-white/[0.08]">
@@ -417,14 +417,14 @@ export default function Landing() {
             </div>
             <span className="text-sm font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">HERMES</span>
           </div>
-          <div className="hidden md:flex items-center gap-8 text-[13px] text-muted-foreground/70">
+          <div className="hidden md:flex items-center gap-8 text-[13px] text-muted-foreground">
             <a href="#features" className="hover:text-foreground transition-colors">Recursos</a>
             <button onClick={scrollToPricing} className="hover:text-foreground transition-colors">Preços</button>
             <a href="#compare" className="hover:text-foreground transition-colors">Comparativo</a>
             <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/login")} className="text-muted-foreground/70 hover:text-foreground text-[13px] h-8">Entrar</Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/login")} className="text-muted-foreground hover:text-foreground text-[13px] h-8">Entrar</Button>
             <Button size="sm" onClick={() => handleSelectPlan("free")} className="bg-primary text-primary-foreground hover:bg-primary/90 gap-1 text-[13px] h-8 px-3.5 shadow-[0_0_15px_-3px_hsl(189_94%_55%/0.3)]">
               Começar grátis <ArrowRight className="h-3 w-3" />
             </Button>
@@ -444,9 +444,9 @@ export default function Landing() {
 
         <div className="container relative mx-auto px-6 max-w-5xl text-center">
           <FadeIn>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] px-4 py-1.5 mb-8">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/30 px-4 py-1.5 mb-8">
               <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-muted-foreground/70">Plataforma de inteligência B2B</span>
+              <span className="text-xs text-muted-foreground">Plataforma de inteligência B2B</span>
             </div>
           </FadeIn>
 
@@ -472,11 +472,11 @@ export default function Landing() {
               <Button size="lg" onClick={() => handleSelectPlan("free")} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-7 text-sm font-medium shadow-[0_0_30px_-6px_hsl(189_94%_55%/0.5)] hover:shadow-[0_0_40px_-4px_hsl(189_94%_55%/0.6)] transition-all">
                 Começar grátis <ArrowRight className="h-3.5 w-3.5" />
               </Button>
-              <Button size="lg" variant="ghost" onClick={scrollToPricing} className="gap-2 text-muted-foreground/70 hover:text-foreground h-11 px-7 text-sm">
+              <Button size="lg" variant="ghost" onClick={scrollToPricing} className="gap-2 text-muted-foreground hover:text-foreground h-11 px-7 text-sm">
                 Ver planos <ArrowDown className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <p className="mt-3 text-[11px] text-muted-foreground/40">Sem cartão. Setup em 30 segundos.</p>
+            <p className="mt-3 text-[11px] text-muted-foreground/70">Sem cartão. Setup em 30 segundos.</p>
           </FadeIn>
         </div>
 
@@ -489,7 +489,7 @@ export default function Landing() {
       </section>
 
       {/* ── STATS ──────────────────────────────────────────────────────── */}
-      <section className="py-16 border-t border-white/[0.03]">
+      <section className="py-16 border-t border-border/30">
         <div className="container mx-auto px-6 max-w-4xl">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             <StatCounter end={56} suffix="M+" label="CNPJs na base" />
@@ -501,7 +501,7 @@ export default function Landing() {
       </section>
 
       {/* ── HOW IT WORKS (workflow) ────────────────────────────────────── */}
-      <section className="py-24 border-t border-white/[0.03]">
+      <section className="py-24 border-t border-border/30">
         <div className="container mx-auto px-6 max-w-5xl">
           <FadeIn className="text-center mb-16">
             <p className="text-[11px] font-semibold text-primary uppercase tracking-[0.2em] mb-3">Como funciona</p>
@@ -517,9 +517,9 @@ export default function Landing() {
                   <div className={cn("inline-flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br mb-4", s.color)}>
                     <s.icon className="h-5 w-5 text-white" />
                   </div>
-                  <div className="text-[10px] font-bold text-muted-foreground/30 uppercase tracking-widest mb-2">{s.num}</div>
+                  <div className="text-[10px] font-bold text-muted-foreground/55 uppercase tracking-widest mb-2">{s.num}</div>
                   <h3 className="text-base font-semibold mb-2">{s.title}</h3>
-                  <p className="text-sm text-muted-foreground/70 leading-relaxed">{s.desc}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
                 </SpotlightCard>
               </FadeIn>
             ))}
@@ -528,7 +528,7 @@ export default function Landing() {
       </section>
 
       {/* ── FEATURES GRID ──────────────────────────────────────────────── */}
-      <section id="features" className="py-24 border-t border-white/[0.03]">
+      <section id="features" className="py-24 border-t border-border/30">
         <div className="container mx-auto px-6 max-w-6xl">
           <FadeIn className="text-center mb-16">
             <p className="text-[11px] font-semibold text-primary uppercase tracking-[0.2em] mb-3">Recursos</p>
@@ -548,7 +548,7 @@ export default function Landing() {
                     </div>
                     <div>
                       <h3 className="text-[13px] font-semibold mb-1">{f.title}</h3>
-                      <p className="text-[12px] text-muted-foreground/60 leading-relaxed">{f.desc}</p>
+                      <p className="text-[12px] text-muted-foreground leading-relaxed">{f.desc}</p>
                     </div>
                   </div>
                 </SpotlightCard>
@@ -559,7 +559,7 @@ export default function Landing() {
       </section>
 
       {/* ── PERSONAS ───────────────────────────────────────────────────── */}
-      <section className="py-24 border-t border-white/[0.03]">
+      <section className="py-24 border-t border-border/30">
         <div className="container mx-auto px-6 max-w-4xl">
           <FadeIn className="text-center mb-16">
             <p className="text-[11px] font-semibold text-primary uppercase tracking-[0.2em] mb-3">Para quem</p>
@@ -573,7 +573,7 @@ export default function Landing() {
                     <p.icon className="h-5 w-5 text-primary" />
                   </div>
                   <h3 className="text-[15px] font-semibold mb-2">{p.role}</h3>
-                  <p className="text-[13px] text-muted-foreground/60 leading-relaxed">{p.desc}</p>
+                  <p className="text-[13px] text-muted-foreground leading-relaxed">{p.desc}</p>
                 </SpotlightCard>
               </FadeIn>
             ))}
@@ -582,7 +582,7 @@ export default function Landing() {
       </section>
 
       {/* ── TESTIMONIALS ───────────────────────────────────────────────── */}
-      <section className="py-24 border-t border-white/[0.03]">
+      <section className="py-24 border-t border-border/30">
         <div className="container mx-auto px-6 max-w-5xl">
           <FadeIn className="text-center mb-16">
             <p className="text-[11px] font-semibold text-primary uppercase tracking-[0.2em] mb-3">Depoimentos</p>
@@ -595,12 +595,12 @@ export default function Landing() {
                   <div className="flex gap-1 mb-3">
                     {Array.from({ length: 5 }).map((_, j) => <Star key={j} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />)}
                   </div>
-                  <p className="text-[13px] text-muted-foreground/70 leading-relaxed mb-4 italic">"{t.text}"</p>
-                  <div className="flex items-center gap-3 pt-3 border-t border-white/[0.04]">
+                  <p className="text-[13px] text-muted-foreground leading-relaxed mb-4 italic">"{t.text}"</p>
+                  <div className="flex items-center gap-3 pt-3 border-t border-border/50">
                     <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/30 to-secondary/30 flex items-center justify-center text-[11px] font-bold text-primary">{t.name[0]}</div>
                     <div>
                       <p className="text-xs font-medium">{t.name}</p>
-                      <p className="text-[10px] text-muted-foreground/40">{t.role}</p>
+                      <p className="text-[10px] text-muted-foreground/70">{t.role}</p>
                     </div>
                   </div>
                 </SpotlightCard>
@@ -611,7 +611,7 @@ export default function Landing() {
       </section>
 
       {/* ── PRICING ────────────────────────────────────────────────────── */}
-      <section ref={pricingRef} className="py-24 border-t border-white/[0.03] relative overflow-hidden">
+      <section ref={pricingRef} className="py-24 border-t border-border/30 relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[600px] w-[600px] rounded-full bg-primary/[0.04] blur-[150px]" />
         </div>
@@ -622,11 +622,11 @@ export default function Landing() {
               Simples. Transparente.{" "}
               <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Melhor custo-benefício.</span>
             </h2>
-            <p className="mt-2 text-sm text-muted-foreground/60">Sem fidelidade. Cancele quando quiser.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Sem fidelidade. Cancele quando quiser.</p>
 
-            <div className="mt-6 inline-flex items-center gap-0 rounded-full border border-white/[0.06] bg-white/[0.02] p-0.5">
-              <button onClick={() => setAnnual(false)} className={cn("rounded-full px-5 py-1.5 text-sm font-medium transition-all", !annual ? "bg-white/[0.08] text-foreground shadow-sm" : "text-muted-foreground/60")}>Mensal</button>
-              <button onClick={() => setAnnual(true)} className={cn("rounded-full px-5 py-1.5 text-sm font-medium transition-all flex items-center gap-1.5", annual ? "bg-white/[0.08] text-foreground shadow-sm" : "text-muted-foreground/60")}>
+            <div className="mt-6 inline-flex items-center gap-0 rounded-full border border-border bg-muted/30 p-0.5">
+              <button onClick={() => setAnnual(false)} className={cn("rounded-full px-5 py-1.5 text-sm font-medium transition-all", !annual ? "bg-white/[0.08] text-foreground shadow-sm" : "text-muted-foreground")}>Mensal</button>
+              <button onClick={() => setAnnual(true)} className={cn("rounded-full px-5 py-1.5 text-sm font-medium transition-all flex items-center gap-1.5", annual ? "bg-white/[0.08] text-foreground shadow-sm" : "text-muted-foreground")}>
                 Anual <span className="text-[10px] text-emerald-400 font-bold">-20%</span>
               </button>
             </div>
@@ -641,16 +641,16 @@ export default function Landing() {
                     "relative rounded-2xl border p-5 flex flex-col h-full transition-all",
                     plan.highlight
                       ? "border-primary/30 bg-primary/[0.03] ring-1 ring-primary/10 shadow-[0_0_60px_-15px_hsl(189_94%_55%/0.2)]"
-                      : "border-white/[0.06] bg-white/[0.015] hover:border-white/[0.1]"
+                      : "border-border bg-card hover:border-primary/20 hover:shadow-surface-sm"
                   )}>
                     {plan.highlight && <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground border-0 shadow-lg text-[10px] px-2.5 py-0.5">Popular</Badge>}
                     <div className="mb-5">
                       <h3 className="text-sm font-semibold text-muted-foreground/80">{plan.label}</h3>
                       <div className="mt-2 flex items-baseline gap-0.5">
                         <span className="text-3xl font-bold tracking-tight">R$ {price}</span>
-                        {price > 0 && <span className="text-xs text-muted-foreground/40">/mês</span>}
+                        {price > 0 && <span className="text-xs text-muted-foreground/70">/mês</span>}
                       </div>
-                      {annual && plan.price > 0 && <p className="text-[11px] text-muted-foreground/30 mt-0.5 line-through">R$ {plan.price}/mês</p>}
+                      {annual && plan.price > 0 && <p className="text-[11px] text-muted-foreground/55 mt-0.5 line-through">R$ {plan.price}/mês</p>}
                     </div>
                     <ul className="space-y-2 text-[13px] flex-1 mb-5">
                       <PlanRow ok label={`${plan.searches.toLocaleString("pt-BR")} buscas/mês`} />
@@ -662,7 +662,7 @@ export default function Landing() {
                     </ul>
                     <Button onClick={() => handleSelectPlan(plan.name)} className={cn(
                       "w-full gap-1.5 h-9 text-[13px]",
-                      plan.highlight ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_-3px_hsl(189_94%_55%/0.35)]" : "bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.06]"
+                      plan.highlight ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_-3px_hsl(189_94%_55%/0.35)]" : "bg-muted/60 hover:bg-muted border border-border"
                     )}>
                       {price > 0 ? "Assinar" : "Começar grátis"} <ArrowRight className="h-3 w-3" />
                     </Button>
@@ -675,34 +675,34 @@ export default function Landing() {
       </section>
 
       {/* ── COMPARISON ─────────────────────────────────────────────────── */}
-      <section id="compare" className="py-24 border-t border-white/[0.03]">
+      <section id="compare" className="py-24 border-t border-border/30">
         <div className="container mx-auto px-6 max-w-3xl">
           <FadeIn className="text-center mb-12">
             <p className="text-[11px] font-semibold text-primary uppercase tracking-[0.2em] mb-3">Comparativo</p>
             <h2 className="text-3xl font-bold">Por que escolher o Hermes?</h2>
           </FadeIn>
           <FadeIn>
-            <div className="rounded-2xl border border-white/[0.06] overflow-hidden">
+            <div className="rounded-2xl border border-border overflow-hidden shadow-surface-sm">
               <table className="w-full text-[13px]">
                 <thead>
-                  <tr className="border-b border-white/[0.06] bg-white/[0.02]">
-                    <th className="text-left py-3 px-4 font-medium text-muted-foreground/60 text-xs">Plataforma</th>
-                    <th className="text-center py-3 px-2 font-medium text-muted-foreground/60 text-xs">Preço</th>
-                    <th className="text-center py-3 px-2 font-medium text-muted-foreground/60 text-xs">CRM</th>
-                    <th className="text-center py-3 px-2 font-medium text-muted-foreground/60 text-xs">IA</th>
-                    <th className="text-center py-3 px-2 font-medium text-muted-foreground/60 text-xs">Pipeline</th>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground text-xs">Plataforma</th>
+                    <th className="text-center py-3 px-2 font-medium text-muted-foreground text-xs">Preço</th>
+                    <th className="text-center py-3 px-2 font-medium text-muted-foreground text-xs">CRM</th>
+                    <th className="text-center py-3 px-2 font-medium text-muted-foreground text-xs">IA</th>
+                    <th className="text-center py-3 px-2 font-medium text-muted-foreground text-xs">Pipeline</th>
                   </tr>
                 </thead>
                 <tbody>
                   {COMPARISONS.map((c, i) => {
                     const isH = c.name === "Hermes";
                     return (
-                      <tr key={i} className={cn("border-b border-white/[0.03]", isH && "bg-primary/[0.04]")}>
+                      <tr key={i} className={cn("border-b border-border/60", isH && "bg-primary/[0.04]")}>
                         <td className="py-2.5 px-4 font-medium">{isH && <Star className="h-3 w-3 text-primary inline mr-1 -mt-0.5" />}<span className={isH ? "text-primary font-semibold" : ""}>{c.name}</span></td>
-                        <td className="py-2.5 px-2 text-center"><span className={isH ? "text-primary font-semibold" : "text-muted-foreground/60"}>{c.price}</span></td>
-                        <td className="py-2.5 px-2 text-center">{c.crm ? <Check className="h-3.5 w-3.5 text-emerald-400 mx-auto" /> : <X className="h-3.5 w-3.5 text-muted-foreground/20 mx-auto" />}</td>
-                        <td className="py-2.5 px-2 text-center">{c.ia ? <Check className="h-3.5 w-3.5 text-emerald-400 mx-auto" /> : <X className="h-3.5 w-3.5 text-muted-foreground/20 mx-auto" />}</td>
-                        <td className="py-2.5 px-2 text-center">{c.pipeline ? <Check className="h-3.5 w-3.5 text-emerald-400 mx-auto" /> : <X className="h-3.5 w-3.5 text-muted-foreground/20 mx-auto" />}</td>
+                        <td className="py-2.5 px-2 text-center"><span className={isH ? "text-primary font-semibold" : "text-muted-foreground"}>{c.price}</span></td>
+                        <td className="py-2.5 px-2 text-center">{c.crm ? <Check className="h-3.5 w-3.5 text-emerald-400 mx-auto" /> : <X className="h-3.5 w-3.5 text-muted-foreground/40 mx-auto" />}</td>
+                        <td className="py-2.5 px-2 text-center">{c.ia ? <Check className="h-3.5 w-3.5 text-emerald-400 mx-auto" /> : <X className="h-3.5 w-3.5 text-muted-foreground/40 mx-auto" />}</td>
+                        <td className="py-2.5 px-2 text-center">{c.pipeline ? <Check className="h-3.5 w-3.5 text-emerald-400 mx-auto" /> : <X className="h-3.5 w-3.5 text-muted-foreground/40 mx-auto" />}</td>
                       </tr>
                     );
                   })}
@@ -714,7 +714,7 @@ export default function Landing() {
       </section>
 
       {/* ── INTEGRATIONS MARQUEE ───────────────────────────────────────── */}
-      <section className="py-16 border-t border-white/[0.03]">
+      <section className="py-16 border-t border-border/30">
         <div className="container mx-auto px-6 max-w-5xl text-center">
           <FadeIn>
             <p className="text-[11px] font-semibold text-primary uppercase tracking-[0.2em] mb-6">Integrações</p>
@@ -724,7 +724,7 @@ export default function Landing() {
       </section>
 
       {/* ── FAQ ────────────────────────────────────────────────────────── */}
-      <section id="faq" className="py-24 border-t border-white/[0.03]">
+      <section id="faq" className="py-24 border-t border-border/30">
         <div className="container mx-auto px-6 max-w-2xl">
           <FadeIn className="text-center mb-12">
             <p className="text-[11px] font-semibold text-primary uppercase tracking-[0.2em] mb-3">FAQ</p>
@@ -741,32 +741,32 @@ export default function Landing() {
       </section>
 
       {/* ── CTA FINAL ──────────────────────────────────────────────────── */}
-      <section className="py-28 border-t border-white/[0.03] relative overflow-hidden">
+      <section className="py-28 border-t border-border/30 relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-primary/[0.06] blur-[140px] animate-glow-pulse" />
         </div>
         <div className="container relative mx-auto px-6 text-center max-w-xl">
           <FadeIn>
             <h2 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">Pronto para prospectar de verdade?</h2>
-            <p className="text-muted-foreground/70 mb-8 text-[15px]">Sua próxima venda começa com o lead certo.</p>
+            <p className="text-muted-foreground mb-8 text-[15px]">Sua próxima venda começa com o lead certo.</p>
             <Button size="lg" onClick={() => handleSelectPlan("free")} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-8 text-sm font-medium shadow-[0_0_40px_-8px_hsl(189_94%_55%/0.5)]">
               Criar conta grátis <ArrowRight className="h-4 w-4" />
             </Button>
-            <p className="mt-3 text-[11px] text-muted-foreground/35">Setup em 30s. Sem cartão. Sem compromisso.</p>
+            <p className="mt-3 text-[11px] text-muted-foreground/60">Setup em 30s. Sem cartão. Sem compromisso.</p>
           </FadeIn>
         </div>
       </section>
 
       {/* ── FOOTER ─────────────────────────────────────────────────────── */}
-      <footer className="border-t border-white/[0.03] py-6">
+      <footer className="border-t border-border/30 py-6">
         <div className="container mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-3 max-w-6xl">
-          <div className="flex items-center gap-2 text-[12px] text-muted-foreground/40">
+          <div className="flex items-center gap-2 text-[12px] text-muted-foreground/70">
             <Target className="h-3.5 w-3.5 text-primary/30" />&copy; 2026 Projeto Hermes
           </div>
-          <div className="flex gap-6 text-[11px] text-muted-foreground/30">
-            <span className="hover:text-muted-foreground/60 cursor-pointer transition-colors">Termos</span>
-            <span className="hover:text-muted-foreground/60 cursor-pointer transition-colors">Privacidade</span>
-            <span className="hover:text-muted-foreground/60 cursor-pointer transition-colors">Contato</span>
+          <div className="flex gap-6 text-[11px] text-muted-foreground/55">
+            <span className="hover:text-muted-foreground cursor-pointer transition-colors">Termos</span>
+            <span className="hover:text-muted-foreground cursor-pointer transition-colors">Privacidade</span>
+            <span className="hover:text-muted-foreground cursor-pointer transition-colors">Contato</span>
           </div>
         </div>
       </footer>
@@ -791,7 +791,7 @@ function StatCounter({ end, suffix, label }: { end: number; suffix: string; labe
   return (
     <div ref={ref}>
       <p className="text-3xl md:text-4xl font-bold">{count}<span className="text-primary">{suffix}</span></p>
-      <p className="text-[11px] text-muted-foreground/40 mt-0.5">{label}</p>
+      <p className="text-[11px] text-muted-foreground/70 mt-0.5">{label}</p>
     </div>
   );
 }
@@ -799,8 +799,8 @@ function StatCounter({ end, suffix, label }: { end: number; suffix: string; labe
 function PlanRow({ ok, label }: { ok: boolean; label: string }) {
   return (
     <li className="flex items-center gap-2">
-      {ok ? <Check className="h-3.5 w-3.5 text-primary shrink-0" /> : <X className="h-3.5 w-3.5 text-muted-foreground/20 shrink-0" />}
-      <span className={ok ? "text-muted-foreground/70" : "text-muted-foreground/25 line-through"}>{label}</span>
+      {ok ? <Check className="h-3.5 w-3.5 text-primary shrink-0" /> : <X className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />}
+      <span className={ok ? "text-muted-foreground" : "text-muted-foreground/50 line-through"}>{label}</span>
     </li>
   );
 }
@@ -808,13 +808,13 @@ function PlanRow({ ok, label }: { ok: boolean; label: string }) {
 function FaqItem({ question, answer }: { question: string; answer: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-xl border border-white/[0.05] bg-white/[0.015] overflow-hidden">
-      <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-between p-4 text-left text-[13px] font-medium hover:bg-white/[0.02] transition-colors">
+    <div className="rounded-xl border border-border bg-card overflow-hidden shadow-surface-xs">
+      <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-between p-4 text-left text-[13px] font-medium hover:bg-muted/30 transition-colors">
         <span>{question}</span>
-        <ChevronDown className={cn("h-4 w-4 text-muted-foreground/40 transition-transform shrink-0 ml-4", open && "rotate-180")} />
+        <ChevronDown className={cn("h-4 w-4 text-muted-foreground/70 transition-transform shrink-0 ml-4", open && "rotate-180")} />
       </button>
       <div className={cn("overflow-hidden transition-all duration-300", open ? "max-h-40 opacity-100" : "max-h-0 opacity-0")}>
-        <p className="px-4 pb-4 text-[13px] text-muted-foreground/60 leading-relaxed">{answer}</p>
+        <p className="px-4 pb-4 text-[13px] text-muted-foreground leading-relaxed">{answer}</p>
       </div>
     </div>
   );
@@ -861,13 +861,13 @@ function SignupModal({ planName, onClose, onSuccess }: { planName: string; onClo
     <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
       <div className="relative w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
-        <div className="rounded-2xl border border-white/[0.08] bg-[hsl(220,18%,8%)]/95 backdrop-blur-xl p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,.95)]">
-          <button onClick={onClose} className="absolute top-3.5 right-3.5 text-muted-foreground/40 hover:text-foreground transition-colors"><X className="h-4 w-4" /></button>
+        <div className="rounded-2xl border border-border bg-background/95 backdrop-blur-xl p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,.95)]">
+          <button onClick={onClose} className="absolute top-3.5 right-3.5 text-muted-foreground/70 hover:text-foreground transition-colors"><X className="h-4 w-4" /></button>
           <div className="mb-5 flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 ring-1 ring-white/[0.08]"><Zap className="h-4 w-4 text-primary" /></div>
             <div>
               <p className="text-sm font-semibold">{isPaid ? `Assinar ${plan.label}` : "Criar conta grátis"}</p>
-              {isPaid && <p className="text-[11px] text-muted-foreground/50">R$ {plan.price}/mês</p>}
+              {isPaid && <p className="text-[11px] text-muted-foreground">R$ {plan.price}/mês</p>}
             </div>
           </div>
           <form onSubmit={submit} className="space-y-3">
@@ -876,9 +876,9 @@ function SignupModal({ planName, onClose, onSuccess }: { planName: string; onClo
             <div className="space-y-1.5">
               <Label className="text-foreground/70 text-[11px]">Senha *</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40" />
-                <Input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Min. 6 caracteres" className="pl-9 pr-9 h-9 bg-white/[0.03] border-white/[0.07] text-sm" required />
-                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground transition-colors">{showPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</button>
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70" />
+                <Input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Min. 6 caracteres" className="pl-9 pr-9 h-9 bg-muted/50 border-white/[0.07] text-sm" required />
+                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground transition-colors">{showPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</button>
               </div>
             </div>
             <FormField label="Empresa" icon={Building2} value={orgName} onChange={setOrgName} placeholder="Opcional" />
@@ -886,11 +886,11 @@ function SignupModal({ planName, onClose, onSuccess }: { planName: string; onClo
               <>
                 <div className="space-y-1.5">
                   <Label className="text-foreground/70 text-[11px]">CPF ou CNPJ *</Label>
-                  <Input value={cpfCnpj} onChange={handleCpf} placeholder="000.000.000-00" className="h-9 bg-white/[0.03] border-white/[0.07] font-mono text-sm" maxLength={18} required />
+                  <Input value={cpfCnpj} onChange={handleCpf} placeholder="000.000.000-00" className="h-9 bg-muted/50 border-white/[0.07] font-mono text-sm" maxLength={18} required />
                 </div>
                 <div className="flex gap-2">
                   {(["PIX", "BOLETO"] as const).map(bt => (
-                    <Button key={bt} type="button" size="sm" onClick={() => setBillingType(bt)} className={cn("gap-1 flex-1 h-8 text-xs", billingType === bt ? (bt === "PIX" ? "bg-emerald-600 text-white" : "bg-amber-600 text-white") : "bg-white/[0.03] text-muted-foreground/60 border border-white/[0.06]")}>
+                    <Button key={bt} type="button" size="sm" onClick={() => setBillingType(bt)} className={cn("gap-1 flex-1 h-8 text-xs", billingType === bt ? (bt === "PIX" ? "bg-emerald-600 text-white" : "bg-amber-600 text-white") : "bg-muted/50 text-muted-foreground border border-border")}>
                       {bt === "PIX" ? <QrCode className="h-3 w-3" /> : <CreditCard className="h-3 w-3" />} {bt}
                     </Button>
                   ))}
@@ -900,7 +900,7 @@ function SignupModal({ planName, onClose, onSuccess }: { planName: string; onClo
             <Button type="submit" disabled={loading} className="w-full h-10 mt-1 bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_-3px_hsl(189_94%_55%/0.35)] text-sm">
               {loading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Criando...</> : <>{isPaid ? "Criar conta e assinar" : "Criar conta grátis"}<ArrowRight className="h-3.5 w-3.5 ml-1.5" /></>}
             </Button>
-            <p className="text-center text-[11px] text-muted-foreground/40">Já tem conta? <button type="button" onClick={() => { onClose(); window.location.href = "/login"; }} className="text-primary hover:underline">Entrar</button></p>
+            <p className="text-center text-[11px] text-muted-foreground/70">Já tem conta? <button type="button" onClick={() => { onClose(); window.location.href = "/login"; }} className="text-primary hover:underline">Entrar</button></p>
           </form>
         </div>
       </div>
@@ -913,8 +913,8 @@ function FormField({ label, icon: Icon, value, onChange, placeholder, type = "te
     <div className="space-y-1.5">
       <Label className="text-foreground/70 text-[11px]">{label}</Label>
       <div className="relative">
-        <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40" />
-        <Input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="pl-9 h-9 bg-white/[0.03] border-white/[0.07] text-sm" required={required} />
+        <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70" />
+        <Input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="pl-9 h-9 bg-muted/50 border-white/[0.07] text-sm" required={required} />
       </div>
     </div>
   );

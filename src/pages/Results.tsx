@@ -131,7 +131,7 @@ const SEG_COLORS: Record<string, string> = {
 };
 
 function avatarColor(seg?: string | null) {
-  return SEG_COLORS[seg ?? ""] ?? "bg-zinc-600";
+  return SEG_COLORS[seg ?? ""] ?? "bg-muted-foreground/40";
 }
 
 function initials(name: string) {
@@ -139,27 +139,27 @@ function initials(name: string) {
 }
 
 function scoreColor(s?: number | null) {
-  if (!s) return "bg-zinc-700";
+  if (!s) return "bg-muted-foreground/50";
   if (s >= 80) return "bg-emerald-500";
   if (s >= 50) return "bg-amber-500";
   return "bg-rose-500";
 }
 function scoreTextColor(s?: number | null) {
-  if (!s) return "text-zinc-400";
-  if (s >= 80) return "text-emerald-400";
-  if (s >= 50) return "text-amber-400";
-  return "text-rose-400";
+  if (!s) return "text-muted-foreground";
+  if (s >= 80) return "text-emerald-600";
+  if (s >= 50) return "text-amber-600";
+  return "text-red-600";
 }
 
 function getPorteBadge(p?: string | null) {
   const base = "border text-[10px] font-medium";
   const map: Record<string, string> = {
     ME:          "border-blue-500/40 bg-blue-500/10 text-blue-300",
-    EPP:         "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
+    EPP:         "border-emerald-500/40 bg-emerald-500/10 text-emerald-700",
     "Médio/Grande":"border-amber-500/40 bg-amber-500/10 text-amber-300",
     Grande:      "border-purple-500/40 bg-purple-500/10 text-purple-300",
   };
-  return `${base} ${map[p ?? ""] ?? "border-zinc-600 text-zinc-400"}`;
+  return `${base} ${map[p ?? ""] ?? "border-border text-muted-foreground"}`;
 }
 
 function extractLinks(raw?: string | null): string[] {
@@ -256,16 +256,16 @@ function formatIntelPattern(pattern?: string | null) {
 function intelStatusTone(status?: string | null) {
   switch (status) {
     case "verified":
-      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700";
     case "deliverable":
     case "mx_only":
-      return "border-sky-500/30 bg-sky-500/10 text-sky-300";
+      return "border-sky-500/30 bg-sky-500/10 text-sky-700";
     case "risky":
       return "border-amber-500/30 bg-amber-500/10 text-amber-300";
     case "invalid":
       return "border-rose-500/30 bg-rose-500/10 text-rose-300";
     default:
-      return "border-zinc-700 bg-zinc-900 text-zinc-300";
+      return "border-border bg-muted/30 text-foreground/80";
   }
 }
 
@@ -324,7 +324,7 @@ function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
-      className="text-zinc-500 hover:text-zinc-200 transition-colors"
+      className="text-muted-foreground/70 hover:text-foreground transition-colors"
       title={`Copiar: ${text}`}
       onClick={e => {
         e.stopPropagation();
@@ -333,7 +333,7 @@ function CopyBtn({ text }: { text: string }) {
         setTimeout(() => setCopied(false), 1500);
       }}
     >
-      {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+      {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
     </button>
   );
 }
@@ -343,7 +343,7 @@ function ScoreBar({ score }: { score?: number | null }) {
   const s = score ?? 0;
   return (
     <div className="flex items-center gap-1.5">
-      <div className="h-1.5 w-16 rounded-full bg-zinc-800 overflow-hidden">
+      <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
         <div
           className={cn("h-full rounded-full transition-all", scoreColor(s))}
           style={{ width: `${Math.min(100, s)}%` }}
@@ -376,21 +376,21 @@ function ContactRow({ emp }: { emp: Empresa }) {
         <a href={wa.startsWith("http") ? wa : `https://wa.me/${wa.replace(/\D/g, "")}`}
           target="_blank" rel="noreferrer" title={`WhatsApp: ${wa}`}
           onClick={e => e.stopPropagation()}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors">
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors">
           <MessageCircle className="h-3.5 w-3.5" />
         </a>
       )}
       {email && (
         <a href={`mailto:${email}`} title={`E-mail: ${email}`}
           onClick={e => e.stopPropagation()}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-sky-500/40 bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 transition-colors">
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-sky-500/40 bg-sky-500/10 text-sky-600 hover:bg-sky-500/20 transition-colors">
           <Mail className="h-3.5 w-3.5" />
         </a>
       )}
       {tel && (
         <a href={`tel:${tel}`} title={`Telefone: ${tel}`}
           onClick={e => e.stopPropagation()}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:bg-zinc-700 transition-colors">
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors">
           <Phone className="h-3.5 w-3.5" />
         </a>
       )}
@@ -405,7 +405,7 @@ function ContactRow({ emp }: { emp: Empresa }) {
         <a href={emp.site.startsWith("http") ? emp.site : `https://${emp.site}`}
           target="_blank" rel="noreferrer" title={emp.site}
           onClick={e => e.stopPropagation()}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:bg-zinc-700 transition-colors">
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors">
           <Globe className="h-3.5 w-3.5" />
         </a>
       )}
@@ -453,8 +453,8 @@ function DetalheEmpresa({
     <div className="space-y-5 text-sm pb-8">
 
       {/* ── Resumo ── */}
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 space-y-2">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+      <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
           <Building2 className="h-3 w-3" /> Identificação
         </p>
         <div className="flex items-start gap-3">
@@ -463,20 +463,20 @@ function DetalheEmpresa({
           </div>
           <div>
             <p className="font-semibold text-white leading-tight">{company.nome_fantasia || company.razao_social}</p>
-            <p className="text-xs text-zinc-400">{company.razao_social}</p>
-            <p className="font-mono text-[11px] text-zinc-500 mt-0.5">{company.cnpj}</p>
+            <p className="text-xs text-muted-foreground">{company.razao_social}</p>
+            <p className="font-mono text-[11px] text-muted-foreground/70 mt-0.5">{company.cnpj}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5 pt-1">
           {company.porte && <Badge variant="outline" className={getPorteBadge(company.porte)}>{company.porte}</Badge>}
           {company.score_icp != null && (
-            <div className="flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-800/50 px-2 py-0.5">
-              <span className="text-[10px] text-zinc-400">Score ICP</span>
+            <div className="flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5">
+              <span className="text-[10px] text-muted-foreground">Score ICP</span>
               <ScoreBar score={company.score_icp} />
             </div>
           )}
           {company.situacao_cadastral && (
-            <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-300">
+            <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-700">
               {company.situacao_cadastral}
             </Badge>
           )}
@@ -484,46 +484,46 @@ function DetalheEmpresa({
       </section>
 
       {/* ── Dados cadastrais ── */}
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 space-y-2">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+      <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
           <Tag className="h-3 w-3" /> Dados cadastrais
         </p>
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
           {company.cnae_principal && <>
-            <dt className="text-zinc-500">CNAE</dt>
-            <dd className="font-mono">{company.cnae_principal}{company.cnae_descricao && <span className="ml-1 font-sans text-zinc-300">— {company.cnae_descricao}</span>}</dd>
+            <dt className="text-muted-foreground/70">CNAE</dt>
+            <dd className="font-mono">{company.cnae_principal}{company.cnae_descricao && <span className="ml-1 font-sans text-foreground/80">— {company.cnae_descricao}</span>}</dd>
           </>}
           {company.cnaes_secundarios && company.cnaes_secundarios.length > 0 && <>
-            <dt className="text-zinc-500">CNAEs sec.</dt>
-            <dd className="text-zinc-300 leading-relaxed">
+            <dt className="text-muted-foreground/70">CNAEs sec.</dt>
+            <dd className="text-foreground/80 leading-relaxed">
               {company.cnaes_secundarios.slice(0, 4).map(c => c.descricao || c.cnae).join(" · ")}
               {company.cnaes_secundarios.length > 4 && ` +${company.cnaes_secundarios.length - 4}`}
             </dd>
           </>}
           {company.capital_social != null && <>
-            <dt className="text-zinc-500">Capital</dt>
+            <dt className="text-muted-foreground/70">Capital</dt>
             <dd className="font-medium">
               {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(company.capital_social)}
             </dd>
           </>}
           {company.natureza_juridica && <>
-            <dt className="text-zinc-500">Natureza Jur.</dt>
+            <dt className="text-muted-foreground/70">Natureza Jur.</dt>
             <dd>{company.natureza_juridica}</dd>
           </>}
           {company.data_abertura && <>
-            <dt className="text-zinc-500">Fundação</dt>
+            <dt className="text-muted-foreground/70">Fundação</dt>
             <dd>{company.data_abertura}</dd>
           </>}
           {company.segmento && <>
-            <dt className="text-zinc-500">Segmento</dt>
-            <dd>{company.segmento}{company.subsegmento && <span className="ml-1 text-zinc-400">· {company.subsegmento}</span>}</dd>
+            <dt className="text-muted-foreground/70">Segmento</dt>
+            <dd>{company.segmento}{company.subsegmento && <span className="ml-1 text-muted-foreground">· {company.subsegmento}</span>}</dd>
           </>}
         </dl>
 
         {company.sidra_pib && (
-          <div className="mt-2 rounded-lg border border-zinc-700/50 bg-zinc-800/40 px-3 py-2 text-xs">
-            <p className="text-[10px] uppercase tracking-widest text-zinc-500 mb-0.5">PIB do município (IBGE)</p>
-            <p className="text-zinc-200">
+          <div className="mt-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-xs">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70 mb-0.5">PIB do município (IBGE)</p>
+            <p className="text-foreground">
               R$ {(company.sidra_pib / 1_000_000).toFixed(1)} milhões
               {company.sidra_populacao && ` · ${Math.round(company.sidra_populacao).toLocaleString("pt-BR")} hab.`}
             </p>
@@ -532,13 +532,13 @@ function DetalheEmpresa({
       </section>
 
       {/* ── Localização ── */}
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 space-y-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+      <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-1.5">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
           <MapPin className="h-3 w-3" /> Localização
         </p>
         <p className="font-medium">{company.cidade || "—"}{company.uf && ` / ${company.uf}`}</p>
         {(company.logradouro || company.bairro) && (
-          <p className="text-xs text-zinc-300">
+          <p className="text-xs text-foreground/80">
             {[company.logradouro, company.numero, company.complemento].filter(Boolean).join(", ")}
             {company.bairro && ` · ${company.bairro}`}
             {company.cep && ` · CEP ${company.cep}`}
@@ -547,13 +547,13 @@ function DetalheEmpresa({
       </section>
 
       {/* ── Contatos ── */}
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 space-y-2.5">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+      <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
           <Globe className="h-3 w-3" /> Contatos e presença digital
         </p>
         {company.site && (
           <div className="flex items-center gap-2">
-            <Link2 className="h-3.5 w-3.5 text-zinc-500 flex-shrink-0" />
+            <Link2 className="h-3.5 w-3.5 text-muted-foreground/70 flex-shrink-0" />
             <a href={company.site.startsWith("http") ? company.site : `https://${company.site}`}
               target="_blank" rel="noreferrer"
               className="text-xs text-primary hover:underline break-all">
@@ -562,19 +562,19 @@ function DetalheEmpresa({
           </div>
         )}
         {[
-          { label: "WhatsApp",  icon: MessageCircle, value: whatsCaptados[0]?.valor,                                  href: (v: string) => v.startsWith("http") ? v : `https://wa.me/${v.replace(/\D/g, "")}`, color: "text-emerald-400" },
-          { label: "E-mail",    icon: Mail,          value: emailsCaptados[0]?.valor,                                  href: (v: string) => `mailto:${v}`,                                             color: "text-sky-400" },
-          { label: "Telefone",  icon: Phone,         value: telefonesCaptados[0]?.valor,                               href: (v: string) => `tel:${v}`,                                                color: "text-zinc-300" },
+          { label: "WhatsApp",  icon: MessageCircle, value: whatsCaptados[0]?.valor,                                  href: (v: string) => v.startsWith("http") ? v : `https://wa.me/${v.replace(/\D/g, "")}`, color: "text-emerald-600" },
+          { label: "E-mail",    icon: Mail,          value: emailsCaptados[0]?.valor,                                  href: (v: string) => `mailto:${v}`,                                             color: "text-sky-600" },
+          { label: "Telefone",  icon: Phone,         value: telefonesCaptados[0]?.valor,                               href: (v: string) => `tel:${v}`,                                                color: "text-foreground/80" },
           { label: "LinkedIn",  icon: Linkedin,      value: primaryLinkedin(company),                                  href: (v: string) => v,                                                          color: "text-blue-400" },
         ].filter(c => c.value).map(c => (
           <div key={c.label} className="flex items-center justify-between gap-2 text-xs">
             <div className="flex items-center gap-2">
               <c.icon className={cn("h-3.5 w-3.5", c.color)} />
-              <span className="text-zinc-400">{c.label}</span>
+              <span className="text-muted-foreground">{c.label}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <a href={c.href(c.value!)} target="_blank" rel="noreferrer"
-                className="font-medium text-zinc-200 hover:text-white hover:underline break-all">
+                className="font-medium text-foreground hover:text-white hover:underline break-all">
                 {c.value}
               </a>
               <CopyBtn text={c.value!} />
@@ -583,17 +583,17 @@ function DetalheEmpresa({
         ))}
 
         {emailsCaptados.length > 1 && (
-          <div className="border-t border-zinc-800 pt-2 space-y-1.5">
-            <p className="text-[10px] text-zinc-500">E-mails captados</p>
+          <div className="border-t border-border pt-2 space-y-1.5">
+            <p className="text-[10px] text-muted-foreground/70">E-mails captados</p>
             {emailsCaptados.slice(1).map(item => (
               <div key={item.valor} className="flex items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2">
-                  <Mail className="h-3.5 w-3.5 text-sky-400" />
-                  <a href={`mailto:${item.valor}`} className="font-medium text-zinc-200 hover:text-white hover:underline break-all">
+                  <Mail className="h-3.5 w-3.5 text-sky-600" />
+                  <a href={`mailto:${item.valor}`} className="font-medium text-foreground hover:text-white hover:underline break-all">
                     {item.valor}
                   </a>
                 </div>
-                <Badge variant="outline" className="border-zinc-700 text-[10px] text-zinc-400">
+                <Badge variant="outline" className="border-border text-[10px] text-muted-foreground">
                   {contactSource(item)}
                 </Badge>
               </div>
@@ -602,18 +602,18 @@ function DetalheEmpresa({
         )}
 
         {whatsCaptados.length > 1 && (
-          <div className="border-t border-zinc-800 pt-2 space-y-1.5">
-            <p className="text-[10px] text-zinc-500">WhatsApps captados</p>
+          <div className="border-t border-border pt-2 space-y-1.5">
+            <p className="text-[10px] text-muted-foreground/70">WhatsApps captados</p>
             {whatsCaptados.slice(1).map(item => (
               <div key={item.valor} className="flex items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2">
-                  <MessageCircle className="h-3.5 w-3.5 text-emerald-400" />
+                  <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
                   <a href={`https://wa.me/${item.valor.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
-                    className="font-medium text-zinc-200 hover:text-white hover:underline break-all">
+                    className="font-medium text-foreground hover:text-white hover:underline break-all">
                     {item.valor}
                   </a>
                 </div>
-                <Badge variant="outline" className="border-zinc-700 text-[10px] text-zinc-400">
+                <Badge variant="outline" className="border-border text-[10px] text-muted-foreground">
                   {contactSource(item)}
                 </Badge>
               </div>
@@ -622,17 +622,17 @@ function DetalheEmpresa({
         )}
 
         {telefonesCaptados.length > 1 && (
-          <div className="border-t border-zinc-800 pt-2 space-y-1.5">
-            <p className="text-[10px] text-zinc-500">Telefones captados</p>
+          <div className="border-t border-border pt-2 space-y-1.5">
+            <p className="text-[10px] text-muted-foreground/70">Telefones captados</p>
             {telefonesCaptados.slice(1).map(item => (
               <div key={item.valor} className="flex items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2">
-                  <Phone className="h-3.5 w-3.5 text-zinc-300" />
-                  <a href={`tel:${item.valor}`} className="font-medium text-zinc-200 hover:text-white hover:underline break-all">
+                  <Phone className="h-3.5 w-3.5 text-foreground/80" />
+                  <a href={`tel:${item.valor}`} className="font-medium text-foreground hover:text-white hover:underline break-all">
                     {item.valor}
                   </a>
                 </div>
-                <Badge variant="outline" className="border-zinc-700 text-[10px] text-zinc-400">
+                <Badge variant="outline" className="border-border text-[10px] text-muted-foreground">
                   {contactSource(item)}
                 </Badge>
               </div>
@@ -641,25 +641,25 @@ function DetalheEmpresa({
         )}
 
         {(company.registro_dono || company.registro_email || company.fonte_dados_prioritaria) && (
-          <div className="border-t border-zinc-800 pt-2 space-y-1 text-xs text-zinc-300">
-            {company.registro_dono && <p><span className="text-zinc-500">Registro.br:</span> {company.registro_dono}</p>}
-            {company.registro_email && <p><span className="text-zinc-500">E-mail do registro:</span> {company.registro_email}</p>}
-            {company.fonte_dados_prioritaria && <p><span className="text-zinc-500">Fonte principal:</span> {company.fonte_dados_prioritaria}</p>}
+          <div className="border-t border-border pt-2 space-y-1 text-xs text-foreground/80">
+            {company.registro_dono && <p><span className="text-muted-foreground/70">Registro.br:</span> {company.registro_dono}</p>}
+            {company.registro_email && <p><span className="text-muted-foreground/70">E-mail do registro:</span> {company.registro_email}</p>}
+            {company.fonte_dados_prioritaria && <p><span className="text-muted-foreground/70">Fonte principal:</span> {company.fonte_dados_prioritaria}</p>}
           </div>
         )}
 
         {redesRaw.length > 0 && (
-          <div className="border-t border-zinc-800 pt-2 space-y-1.5">
-            <p className="text-[10px] text-zinc-500 flex items-center gap-1"><Share2 className="h-3 w-3" /> Redes sociais</p>
+          <div className="border-t border-border pt-2 space-y-1.5">
+            <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1"><Share2 className="h-3 w-3" /> Redes sociais</p>
             {redesRaw.map(link => {
               const t = detectSocial(link);
               return (
                 <a key={link} href={link} target="_blank" rel="noreferrer"
                   className="flex items-center gap-2 text-xs text-primary hover:underline break-all">
                   {t === "instagram" && <Instagram className="h-3 w-3 text-pink-400 flex-shrink-0" />}
-                  {t === "linkedin"  && <Linkedin  className="h-3 w-3 text-sky-400 flex-shrink-0" />}
+                  {t === "linkedin"  && <Linkedin  className="h-3 w-3 text-sky-600 flex-shrink-0" />}
                   {t === "facebook"  && <Facebook  className="h-3 w-3 text-blue-400 flex-shrink-0" />}
-                  {t === "other"     && <ExternalLink className="h-3 w-3 text-zinc-500 flex-shrink-0" />}
+                  {t === "other"     && <ExternalLink className="h-3 w-3 text-muted-foreground/70 flex-shrink-0" />}
                   {link}
                 </a>
               );
@@ -668,17 +668,17 @@ function DetalheEmpresa({
         )}
 
         {resumoIA && (
-          <div className="border-t border-zinc-800 pt-2 space-y-1">
-            <p className="text-[10px] text-zinc-500 flex items-center gap-1"><Sparkles className="h-3 w-3" /> Resumo IA</p>
-            <p className="text-xs leading-relaxed text-zinc-300">{resumoIA}</p>
+          <div className="border-t border-border pt-2 space-y-1">
+            <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1"><Sparkles className="h-3 w-3" /> Resumo IA</p>
+            <p className="text-xs leading-relaxed text-foreground/80">{resumoIA}</p>
           </div>
         )}
       </section>
 
       {/* ── Sócios ── */}
       {(company.socios_estruturado?.length || company.socios_resumo || company.redes_sociais_socios?.length) && (
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 space-y-3">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+        <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
             <Users className="h-3 w-3" /> Sócios / Decisores
           </p>
           {company.socios_estruturado && company.socios_estruturado.length > 0 ? (
@@ -691,39 +691,39 @@ function DetalheEmpresa({
                 const email = s.email;
                 const telefone = s.telefone;
                 return (
-                  <div key={i} className="flex items-start justify-between gap-2 rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-2.5">
+                  <div key={i} className="flex items-start justify-between gap-2 rounded-lg border border-border/50 bg-muted/30 p-2.5">
                     <div className="space-y-1">
-                      <p className="text-xs font-medium text-zinc-100">{s.nome}</p>
+                      <p className="text-xs font-medium text-foreground">{s.nome}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {s.qualificacao && (
                           <Badge variant="outline" className="border-violet-500/40 bg-violet-500/10 text-[10px] text-violet-300">
                             {s.qualificacao}
                           </Badge>
                         )}
-                        {s.data_entrada && <span className="text-[10px] text-zinc-500">desde {s.data_entrada}</span>}
-                        {s.cargo_atual && <span className="text-[10px] text-zinc-500">{s.cargo_atual}</span>}
-                        {s.empresa_atual && <span className="text-[10px] text-zinc-500">{s.empresa_atual}</span>}
+                        {s.data_entrada && <span className="text-[10px] text-muted-foreground/70">desde {s.data_entrada}</span>}
+                        {s.cargo_atual && <span className="text-[10px] text-muted-foreground/70">{s.cargo_atual}</span>}
+                        {s.empresa_atual && <span className="text-[10px] text-muted-foreground/70">{s.empresa_atual}</span>}
                       </div>
-                      <div className="space-y-1 text-[11px] text-zinc-300">
+                      <div className="space-y-1 text-[11px] text-foreground/80">
                         {email && <p>E-mail: <a href={`mailto:${email}`} className="hover:underline">{email}</a></p>}
                         {whatsapp && <p>WhatsApp: <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="hover:underline">{whatsapp}</a></p>}
                         {telefone && <p>Telefone: <a href={`tel:${telefone}`} className="hover:underline">{telefone}</a></p>}
                         {s.emails_alternativos && s.emails_alternativos.length > 0 && (
-                          <p className="text-zinc-500">Alternativos: {s.emails_alternativos.join(" · ")}</p>
+                          <p className="text-muted-foreground/70">Alternativos: {s.emails_alternativos.join(" · ")}</p>
                         )}
-                        {s.fonte_contato && <p className="text-zinc-500">Fonte: {s.fonte_contato}</p>}
+                        {s.fonte_contato && <p className="text-muted-foreground/70">Fonte: {s.fonte_contato}</p>}
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
                       {email && (
                         <a href={`mailto:${email}`}
-                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-sky-500/40 bg-sky-500/10 text-sky-400 hover:bg-sky-500/20">
+                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-sky-500/40 bg-sky-500/10 text-sky-600 hover:bg-sky-500/20">
                           <Mail className="h-3.5 w-3.5" />
                         </a>
                       )}
                       {whatsapp && (
                         <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
-                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20">
+                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">
                           <MessageCircle className="h-3.5 w-3.5" />
                         </a>
                       )}
@@ -739,20 +739,20 @@ function DetalheEmpresa({
               })}
             </div>
           ) : company.socios_resumo ? (
-            <div className="text-xs text-zinc-300 space-y-1">
+            <div className="text-xs text-foreground/80 space-y-1">
               {company.socios_resumo.split("\n").map((s, i) => <p key={i}>{s}</p>)}
             </div>
           ) : null}
         </section>
       )}
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 space-y-3">
+      <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
               <ShieldCheck className="h-3 w-3" /> Contact Intelligence
             </p>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-muted-foreground/70">
               Domínio validado, padrão corporativo, caixas gerais e decisores resolvidos.
             </p>
           </div>
@@ -771,9 +771,9 @@ function DetalheEmpresa({
         {contactIntel ? (
           <div className="space-y-3">
             <div className="grid gap-2 sm:grid-cols-2">
-              <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
-                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Domínio</p>
-                <p className="mt-1 break-all text-xs font-medium text-zinc-100">
+              <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Domínio</p>
+                <p className="mt-1 break-all text-xs font-medium text-foreground">
                   {contactIntel.domain_profile.domain || "Não resolvido"}
                 </p>
                 {contactIntel.domain_profile.site_url && (
@@ -787,30 +787,30 @@ function DetalheEmpresa({
                   </a>
                 )}
               </div>
-              <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
-                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Padrão</p>
-                <p className="mt-1 text-xs font-medium text-zinc-100">
+              <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Padrão</p>
+                <p className="mt-1 text-xs font-medium text-foreground">
                   {formatIntelPattern(contactIntel.domain_profile.email_pattern)}
                 </p>
-                <p className="mt-1 text-[11px] text-zinc-500">
+                <p className="mt-1 text-[11px] text-muted-foreground/70">
                   Confiança {formatIntelPercent(contactIntel.domain_profile.pattern_confidence)}
                 </p>
               </div>
-              <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
-                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Emails acionáveis</p>
-                <p className="mt-1 text-xs font-medium text-zinc-100">
+              <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Emails acionáveis</p>
+                <p className="mt-1 text-xs font-medium text-foreground">
                   {contactIntel.summary.deliverable ?? 0}
                 </p>
-                <p className="mt-1 text-[11px] text-zinc-500">
+                <p className="mt-1 text-[11px] text-muted-foreground/70">
                   {contactIntel.summary.verified ?? 0} verificados
                 </p>
               </div>
-              <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
-                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Decisores</p>
-                <p className="mt-1 text-xs font-medium text-zinc-100">
+              <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Decisores</p>
+                <p className="mt-1 text-xs font-medium text-foreground">
                   {contactIntel.summary.decision_makers ?? 0}
                 </p>
-                <p className="mt-1 text-[11px] text-zinc-500">
+                <p className="mt-1 text-[11px] text-muted-foreground/70">
                   {contactIntel.summary.sourced ?? 0} sourced · {contactIntel.summary.guessed ?? 0} guessed
                 </p>
               </div>
@@ -818,10 +818,10 @@ function DetalheEmpresa({
 
             {(contactIntel.domain_profile.generic_inboxes?.length ?? 0) > 0 && (
               <div className="space-y-1.5">
-                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Caixas gerais</p>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Caixas gerais</p>
                 <div className="flex flex-wrap gap-1.5">
                   {(contactIntel.domain_profile.generic_inboxes ?? []).slice(0, 6).map((item) => (
-                    <Badge key={item.email} variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-300">
+                    <Badge key={item.email} variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-700">
                       {item.email}
                     </Badge>
                   ))}
@@ -831,15 +831,15 @@ function DetalheEmpresa({
 
             {(contactIntel.contacts?.length ?? 0) > 0 ? (
               <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-widest text-zinc-500">Decisores resolvidos</p>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Decisores resolvidos</p>
                 {(contactIntel.contacts ?? []).slice(0, 4).map((contact) => {
                   const primary = contact.emails.find((item) => item.is_primary) || contact.emails[0];
                   return (
-                    <div key={`${company.cnpj}-${contact.name}`} className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+                    <div key={`${company.cnpj}-${contact.name}`} className="rounded-lg border border-border/50 bg-muted/30 p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-xs font-medium text-zinc-100">{contact.name}</p>
-                          <p className="mt-1 text-[11px] text-zinc-500">{contact.role || "Decisor potencial"}</p>
+                          <p className="text-xs font-medium text-foreground">{contact.name}</p>
+                          <p className="mt-1 text-[11px] text-muted-foreground/70">{contact.role || "Decisor potencial"}</p>
                         </div>
                         {primary?.verification_status && (
                           <Badge variant="outline" className={cn("capitalize text-[10px]", intelStatusTone(primary.verification_status))}>
@@ -851,12 +851,12 @@ function DetalheEmpresa({
                       {primary ? (
                         <div className="mt-2 space-y-1.5">
                           <div className="flex items-center gap-2">
-                            <Mail className="h-3.5 w-3.5 text-sky-400" />
-                            <a href={`mailto:${primary.email}`} className="break-all text-xs font-medium text-zinc-100 hover:underline">
+                            <Mail className="h-3.5 w-3.5 text-sky-600" />
+                            <a href={`mailto:${primary.email}`} className="break-all text-xs font-medium text-foreground hover:underline">
                               {primary.email}
                             </a>
                           </div>
-                          <div className="flex flex-wrap gap-1.5 text-[11px] text-zinc-500">
+                          <div className="flex flex-wrap gap-1.5 text-[11px] text-muted-foreground/70">
                             <span>Score {formatIntelPercent(primary.score_total)}</span>
                             <span>·</span>
                             <span>{primary.kind === "sourced" ? "Sourced" : "Guessed"}</span>
@@ -880,29 +880,29 @@ function DetalheEmpresa({
                           )}
                         </div>
                       ) : (
-                        <p className="mt-2 text-[11px] text-zinc-500">Sem email resolvido para este contato.</p>
+                        <p className="mt-2 text-[11px] text-muted-foreground/70">Sem email resolvido para este contato.</p>
                       )}
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <div className="rounded-lg border border-dashed border-zinc-700 bg-zinc-900/40 p-3 text-xs text-zinc-400">
+              <div className="rounded-lg border border-dashed border-border bg-muted/20 p-3 text-xs text-muted-foreground">
                 Nenhum decisor resolvido ainda. Rode a resolução para inferir padrão de email e validar contatos.
               </div>
             )}
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-zinc-700 bg-zinc-900/40 p-3 text-xs text-zinc-400">
+          <div className="rounded-lg border border-dashed border-border bg-muted/20 p-3 text-xs text-muted-foreground">
             Este lead ainda não passou pelo módulo Hunter-style. Use o botão acima para carregar do cache ou resolver agora.
           </div>
         )}
       </section>
 
       {/* Enviar para CRM */}
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mb-2">Integração</p>
-        <Button size="sm" variant="outline" className="gap-1.5 border-sky-700 text-sky-400 hover:bg-sky-900/20"
+      <section className="rounded-xl border border-border bg-muted/20 p-4">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Integração</p>
+        <Button size="sm" variant="outline" className="gap-1.5 border-sky-700 text-sky-600 hover:bg-sky-900/20"
           onClick={() => setCrmOpen(true)}>
           <Building2 className="h-3.5 w-3.5" /> Enviar para CRM
         </Button>
@@ -943,12 +943,12 @@ function EmpresaCard({
 
   return (
     <div className={cn(
-      "group relative rounded-xl border bg-zinc-950/80 p-4 transition-all hover:border-zinc-600 hover:shadow-lg hover:shadow-black/30",
-      selected ? "border-primary/60 bg-primary/5" : "border-zinc-800"
+      "group relative rounded-xl border bg-muted/40 p-4 transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-black/30",
+      selected ? "border-primary/60 bg-primary/5" : "border-border"
     )}>
       {/* Checkbox */}
       <div className="absolute left-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-        <Checkbox checked={selected} onCheckedChange={onSelect} className="border-zinc-600" />
+        <Checkbox checked={selected} onCheckedChange={onSelect} className="border-border" />
       </div>
 
       {/* Header */}
@@ -960,7 +960,7 @@ function EmpresaCard({
           <p className="font-semibold text-sm text-white leading-tight truncate">
             {emp.nome_fantasia || emp.razao_social}
           </p>
-          <p className="text-[11px] text-zinc-500 truncate">{emp.razao_social}</p>
+          <p className="text-[11px] text-muted-foreground/70 truncate">{emp.razao_social}</p>
         </div>
         <Sheet>
           <SheetTrigger asChild>
@@ -968,10 +968,10 @@ function EmpresaCard({
               <ExternalLink className="h-3.5 w-3.5" />
             </Button>
           </SheetTrigger>
-          <SheetContent className="w-full max-w-md overflow-y-auto border-l border-zinc-800 bg-zinc-950">
+          <SheetContent className="w-full max-w-md overflow-y-auto border-l border-border bg-background">
             <SheetHeader className="mb-6">
               <SheetTitle className="flex flex-col gap-1">
-                <span className="text-[10px] font-normal uppercase tracking-widest text-zinc-400">Visão detalhada</span>
+                <span className="text-[10px] font-normal uppercase tracking-widest text-muted-foreground">Visão detalhada</span>
                 <span className="text-base font-semibold">{emp.nome_fantasia || emp.razao_social}</span>
               </SheetTitle>
             </SheetHeader>
@@ -988,7 +988,7 @@ function EmpresaCard({
       {/* Badges */}
       <div className="flex flex-wrap gap-1 mb-3">
         {emp.segmento && (
-          <Badge variant="outline" className="border-zinc-700 bg-zinc-800/60 text-[10px] text-zinc-300">
+          <Badge variant="outline" className="border-border bg-muted/50 text-[10px] text-foreground/80">
             {emp.segmento}
           </Badge>
         )}
@@ -997,19 +997,19 @@ function EmpresaCard({
             {emp.porte}
           </Badge>
         )}
-        <Badge variant="outline" className="border-zinc-700 bg-zinc-800/60 text-[10px] text-zinc-400">
+        <Badge variant="outline" className="border-border bg-muted/50 text-[10px] text-muted-foreground">
           <MapPin className="mr-1 h-2.5 w-2.5" />{emp.cidade || "—"}
         </Badge>
       </div>
 
       {/* Métricas */}
       <div className="grid grid-cols-2 gap-2 mb-3">
-        <div className="rounded-lg bg-zinc-900/60 px-2.5 py-1.5">
-          <p className="text-[10px] text-zinc-500">Capital</p>
-          <p className="text-xs font-medium text-zinc-200">{formatBRL(emp.capital_social)}</p>
+        <div className="rounded-lg bg-muted/30 px-2.5 py-1.5">
+          <p className="text-[10px] text-muted-foreground/70">Capital</p>
+          <p className="text-xs font-medium text-foreground">{formatBRL(emp.capital_social)}</p>
         </div>
-        <div className="rounded-lg bg-zinc-900/60 px-2.5 py-1.5">
-          <p className="text-[10px] text-zinc-500">Score ICP</p>
+        <div className="rounded-lg bg-muted/30 px-2.5 py-1.5">
+          <p className="text-[10px] text-muted-foreground/70">Score ICP</p>
           <ScoreBar score={emp.score_icp} />
         </div>
       </div>
@@ -1018,16 +1018,16 @@ function EmpresaCard({
       <ContactRow emp={emp} />
 
       {/* Ações rápidas */}
-      <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-zinc-800/60">
+      <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/60">
         <Button
           size="sm" variant="ghost"
-          className="flex-1 h-6 gap-1 text-[10px] text-zinc-500 hover:text-primary hover:bg-primary/10"
+          className="flex-1 h-6 gap-1 text-[10px] text-muted-foreground/70 hover:text-primary hover:bg-primary/10"
           onClick={handlePipeline}>
           <Target className="h-3 w-3" /> Pipeline + SDR
         </Button>
         <Button
           size="sm" variant="ghost"
-          className="flex-1 h-6 gap-1 text-[10px] text-zinc-500 hover:text-amber-400 hover:bg-amber-400/10"
+          className="flex-1 h-6 gap-1 text-[10px] text-muted-foreground/70 hover:text-amber-600 hover:bg-amber-400/10"
           onClick={e => { e.stopPropagation(); setMensagemOpen(true); }}>
           <Wand2 className="h-3 w-3" /> Abordar
         </Button>
@@ -1629,13 +1629,13 @@ const ResultsPage = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { icon: Building2,  label: "Total",       value: stats.t,                         fmt: (v: number) => v.toString(),              color: "text-white" },
-            { icon: Mail,       label: "Com e-mail",  value: stats.comEmail,                   fmt: (v: number) => `${v} (${Math.round(v/stats.t*100)}%)`, color: "text-sky-400" },
-            { icon: MessageCircle, label: "WhatsApp", value: stats.comWa,                      fmt: (v: number) => `${v} (${Math.round(v/stats.t*100)}%)`, color: "text-emerald-400" },
-            { icon: TrendingUp, label: "Score médio", value: stats.scoreAvg,                   fmt: (v: number) => v.toFixed(1),              color: "text-amber-400" },
+            { icon: Mail,       label: "Com e-mail",  value: stats.comEmail,                   fmt: (v: number) => `${v} (${Math.round(v/stats.t*100)}%)`, color: "text-sky-600" },
+            { icon: MessageCircle, label: "WhatsApp", value: stats.comWa,                      fmt: (v: number) => `${v} (${Math.round(v/stats.t*100)}%)`, color: "text-emerald-600" },
+            { icon: TrendingUp, label: "Score médio", value: stats.scoreAvg,                   fmt: (v: number) => v.toFixed(1),              color: "text-amber-600" },
           ].map(s => (
-            <Card key={s.label} className="border-zinc-800 bg-zinc-950/60">
+            <Card key={s.label} className="border-border bg-card shadow-surface-sm">
               <CardContent className="p-4 flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-800/80">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
                   <s.icon className={cn("h-4 w-4", s.color)} />
                 </div>
                 <div>
@@ -1656,13 +1656,13 @@ const ResultsPage = () => {
             <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar empresa, CNPJ, cidade, segmento..."
-              className="pl-9 h-9 bg-zinc-900 border-zinc-700"
+              className="pl-9 h-9 bg-muted/30 border-border"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm("")} className="absolute right-3 top-2.5">
-                <X className="h-4 w-4 text-zinc-500 hover:text-zinc-200" />
+                <X className="h-4 w-4 text-muted-foreground/70 hover:text-foreground" />
               </button>
             )}
           </div>
@@ -1670,7 +1670,7 @@ const ResultsPage = () => {
           {/* Sort */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 h-9 border-zinc-700 bg-zinc-900">
+              <Button variant="outline" size="sm" className="gap-1.5 h-9 border-border bg-muted/30">
                 <ArrowUpDown className="h-3.5 w-3.5" />
                 Ordenar
                 <ChevronDown className="h-3 w-3 text-muted-foreground" />
@@ -1692,17 +1692,17 @@ const ResultsPage = () => {
           </DropdownMenu>
 
           {/* View toggle */}
-          <div className="flex rounded-lg border border-zinc-700 overflow-hidden">
+          <div className="flex rounded-lg border border-border overflow-hidden">
             <button
               onClick={() => setViewMode("cards")}
               className={cn("flex h-9 w-9 items-center justify-center transition-colors",
-                viewMode === "cards" ? "bg-primary/20 text-primary" : "bg-zinc-900 text-zinc-500 hover:text-zinc-300")}>
+                viewMode === "cards" ? "bg-primary/20 text-primary" : "bg-muted/30 text-muted-foreground/70 hover:text-foreground/80")}>
               <LayoutGrid className="h-4 w-4" />
             </button>
             <button
               onClick={() => setViewMode("table")}
               className={cn("flex h-9 w-9 items-center justify-center transition-colors",
-                viewMode === "table" ? "bg-primary/20 text-primary" : "bg-zinc-900 text-zinc-500 hover:text-zinc-300")}>
+                viewMode === "table" ? "bg-primary/20 text-primary" : "bg-muted/30 text-muted-foreground/70 hover:text-foreground/80")}>
               <List className="h-4 w-4" />
             </button>
           </div>
@@ -1710,7 +1710,7 @@ const ResultsPage = () => {
           {/* Export */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 h-9 border-zinc-700 bg-zinc-900">
+              <Button variant="outline" size="sm" className="gap-1.5 h-9 border-border bg-muted/30">
                 <Download className="h-3.5 w-3.5" />
                 Exportar
                 <ChevronDown className="h-3 w-3 text-muted-foreground" />
@@ -1787,7 +1787,7 @@ const ResultsPage = () => {
 
         {/* Filter chips */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-zinc-500">Filtrar:</span>
+          <span className="text-[11px] text-muted-foreground/70">Filtrar:</span>
           {([
             { id: "com_email",    label: "Com e-mail",  icon: Mail },
             { id: "com_whatsapp", label: "Com WhatsApp",icon: MessageCircle },
@@ -1799,7 +1799,7 @@ const ResultsPage = () => {
               <button key={chip.id} onClick={() => toggleChip(chip.id)}
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-all",
-                  on ? "border-primary/60 bg-primary/15 text-primary" : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-600"
+                  on ? "border-primary/60 bg-primary/15 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-primary/30"
                 )}>
                 <chip.icon className="h-2.5 w-2.5" />
                 {chip.label}
@@ -1808,7 +1808,7 @@ const ResultsPage = () => {
           })}
 
           {/* Contadores direita */}
-          <div className="ml-auto flex items-center gap-2 text-xs text-zinc-500">
+          <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground/70">
             {selected.size > 0 && (
               <span className="flex items-center gap-1 text-primary font-medium">
                 <CheckSquare2 className="h-3.5 w-3.5" />
@@ -1830,7 +1830,7 @@ const ResultsPage = () => {
         </div>
       ) : filtered.length === 0 ? (
         <div className="py-16 text-center space-y-2">
-          <Search className="h-8 w-8 text-zinc-700 mx-auto" />
+          <Search className="h-8 w-8 text-muted-foreground/40 mx-auto" />
           <p className="text-sm text-muted-foreground">Nenhuma empresa encontrada com os filtros atuais.</p>
           {(searchTerm || activeChips.length > 0) && (
             <Button variant="ghost" size="sm" onClick={() => { setSearchTerm(""); setActiveChips([]); }}>
@@ -1845,9 +1845,9 @@ const ResultsPage = () => {
           {/* Selecionar todos */}
           <div className="flex items-center gap-2 pb-1">
             <button onClick={toggleSelectAll}
-              className="flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors">
+              className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70 hover:text-foreground/80 transition-colors">
               <Checkbox checked={selected.size === filtered.length && filtered.length > 0}
-                onCheckedChange={toggleSelectAll} className="h-3.5 w-3.5 border-zinc-600" />
+                onCheckedChange={toggleSelectAll} className="h-3.5 w-3.5 border-border" />
               {selected.size === filtered.length && filtered.length > 0 ? "Desmarcar todos" : "Selecionar todos"}
             </button>
           </div>
@@ -1869,13 +1869,13 @@ const ResultsPage = () => {
       ) : (
 
         /* ─── TABLE ─────────────────────────────────────────────────────── */
-        <Card className="border-zinc-800">
-          <CardHeader className="py-3 px-4 border-b border-zinc-800">
+        <Card className="border-border">
+          <CardHeader className="py-3 px-4 border-b border-border">
             <div className="flex items-center gap-3">
               <Checkbox
                 checked={selected.size === filtered.length && filtered.length > 0}
                 onCheckedChange={toggleSelectAll}
-                className="border-zinc-600"
+                className="border-border"
               />
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 {filtered.length} empresas
@@ -1910,7 +1910,7 @@ const ResultsPage = () => {
                         <Checkbox
                           checked={selected.has(emp.cnpj)}
                           onCheckedChange={checked => toggleSelect(emp.cnpj, !!checked)}
-                          className="border-zinc-600"
+                          className="border-border"
                         />
                       </TableCell>
                       <TableCell>
@@ -1920,7 +1920,7 @@ const ResultsPage = () => {
                           </div>
                           <div>
                             <p className="text-sm font-medium leading-tight">{emp.nome_fantasia || emp.razao_social}</p>
-                            <p className="font-mono text-[10px] text-zinc-500">{emp.cnpj}</p>
+                            <p className="font-mono text-[10px] text-muted-foreground/70">{emp.cnpj}</p>
                           </div>
                         </div>
                       </TableCell>
@@ -1951,10 +1951,10 @@ const ResultsPage = () => {
                               <ExternalLink className="h-3.5 w-3.5" />
                             </Button>
                           </SheetTrigger>
-                          <SheetContent className="w-full max-w-md overflow-y-auto border-l border-zinc-800 bg-zinc-950">
+                          <SheetContent className="w-full max-w-md overflow-y-auto border-l border-border bg-background">
                             <SheetHeader className="mb-6">
                               <SheetTitle className="flex flex-col gap-1">
-                                <span className="text-[10px] font-normal uppercase tracking-widest text-zinc-400">Visão detalhada</span>
+                                <span className="text-[10px] font-normal uppercase tracking-widest text-muted-foreground">Visão detalhada</span>
                                 <span className="text-base font-semibold">{emp.nome_fantasia || emp.razao_social}</span>
                               </SheetTitle>
                             </SheetHeader>
@@ -1977,7 +1977,7 @@ const ResultsPage = () => {
       )}
 
       <Dialog open={saveListOpen} onOpenChange={setSaveListOpen}>
-        <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100">
+        <DialogContent className="border-border bg-background text-foreground">
           <DialogHeader>
             <DialogTitle>Salvar selecao em lista</DialogTitle>
             <DialogDescription>
@@ -1987,9 +1987,9 @@ const ResultsPage = () => {
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <p className="text-xs text-zinc-500">Destino</p>
+              <p className="text-xs text-muted-foreground/70">Destino</p>
               <Select value={saveListTarget} onValueChange={setSaveListTarget}>
-                <SelectTrigger className="border-zinc-700 bg-zinc-900">
+                <SelectTrigger className="border-border bg-muted/30">
                   <SelectValue placeholder="Escolha uma lista" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2009,18 +2009,18 @@ const ResultsPage = () => {
                   value={newListName}
                   onChange={(event) => setNewListName(event.target.value)}
                   placeholder="Nome da nova lista"
-                  className="border-zinc-700 bg-zinc-900"
+                  className="border-border bg-muted/30"
                 />
                 <Textarea
                   value={newListDescription}
                   onChange={(event) => setNewListDescription(event.target.value)}
                   placeholder="Descricao opcional"
-                  className="min-h-[88px] border-zinc-700 bg-zinc-900"
+                  className="min-h-[88px] border-border bg-muted/30"
                 />
               </>
             )}
 
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 text-xs text-zinc-400">
+            <div className="rounded-xl border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
               {selected.size} lead(s) selecionados serao salvos.
             </div>
           </div>
@@ -2029,14 +2029,14 @@ const ResultsPage = () => {
             <Button
               type="button"
               variant="outline"
-              className="border-zinc-700 bg-zinc-900"
+              className="border-border bg-muted/30"
               onClick={() => setSaveListOpen(false)}
             >
               Cancelar
             </Button>
             <Button
               type="button"
-              className="bg-cyan-500 text-zinc-950 hover:bg-cyan-400"
+              className="bg-cyan-500 text-muted-foreground hover:bg-cyan-400"
               onClick={() => void salvarSelecionadasEmLista()}
               disabled={savingListSelection}
             >
@@ -2048,7 +2048,7 @@ const ResultsPage = () => {
       </Dialog>
 
       <Dialog open={suppressSelectionOpen} onOpenChange={setSuppressSelectionOpen}>
-        <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100">
+        <DialogContent className="border-border bg-background text-foreground">
           <DialogHeader>
             <DialogTitle>Suprimir selecao</DialogTitle>
             <DialogDescription>
@@ -2061,7 +2061,7 @@ const ResultsPage = () => {
               value={suppressionReason}
               onChange={(event) => setSuppressionReason(event.target.value)}
               placeholder="Motivo da supressao"
-              className="min-h-[96px] border-zinc-700 bg-zinc-900"
+              className="min-h-[96px] border-border bg-muted/30"
             />
             <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-100">
               {selected.size} lead(s) selecionados serao removidos da tela e bloqueados nas proximas prospeccoes.
@@ -2072,14 +2072,14 @@ const ResultsPage = () => {
             <Button
               type="button"
               variant="outline"
-              className="border-zinc-700 bg-zinc-900"
+              className="border-border bg-muted/30"
               onClick={() => setSuppressSelectionOpen(false)}
             >
               Cancelar
             </Button>
             <Button
               type="button"
-              className="bg-amber-500 text-zinc-950 hover:bg-amber-400"
+              className="bg-amber-500 text-muted-foreground hover:bg-amber-400"
               onClick={() => void suprimirSelecionadas()}
               disabled={savingSuppressionSelection}
             >

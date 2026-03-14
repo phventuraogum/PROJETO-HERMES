@@ -333,7 +333,7 @@ const QueryWorkbench = () => {
             <TerminalSquare className="h-5 w-5 text-amber-300" />
           </div>
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">Workbench de Query</h2>
+            <h2 className="text-2xl font-display tracking-tight">Workbench de Query</h2>
             <p className="text-sm text-muted-foreground">
               Monte a query do Hermes de forma tecnica, veja o payload exato e rode a prospeccao com progresso em tempo real.
             </p>
@@ -341,7 +341,7 @@ const QueryWorkbench = () => {
         </div>
       </div>
 
-      <Card className="border-zinc-800 bg-zinc-950/60">
+      <Card className="border-border bg-card shadow-surface-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Sparkles className="h-4 w-4 text-cyan-300" />
@@ -356,12 +356,12 @@ const QueryWorkbench = () => {
             value={aiPrompt}
             onChange={(event) => setAiPrompt(event.target.value)}
             placeholder="Ex.: administradoras de condominios em MG com whatsapp valido, capital acima de 500 mil, 80 leads"
-            className="min-h-[104px] border-zinc-700 bg-zinc-900"
+            className="min-h-[104px] border-border bg-muted/20"
           />
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
-              className="bg-cyan-500 text-zinc-950 hover:bg-cyan-400"
+              className="bg-cyan-500 text-muted-foreground hover:bg-cyan-400"
               onClick={() => void handleTranslateQuery()}
               disabled={translatingPrompt}
             >
@@ -371,7 +371,7 @@ const QueryWorkbench = () => {
             <Button
               type="button"
               variant="outline"
-              className="border-zinc-700 bg-zinc-900"
+              className="border-border bg-muted/20"
               onClick={() => setAiPrompt("administradoras de condominios em MG com whatsapp valido, capital acima de 500 mil, 80 leads")}
             >
               Exemplo B2B
@@ -379,13 +379,13 @@ const QueryWorkbench = () => {
           </div>
 
           {translationResult && (
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 space-y-3">
+            <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-3">
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
                   {translationResult.source === "hybrid" ? "IA + heuristica" : "Heuristica"}
                 </Badge>
                 {translationResult.highlights.map((item) => (
-                  <Badge key={item} variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                  <Badge key={item} variant="outline" className="border-border bg-muted/20 text-foreground/80">
                     {item}
                   </Badge>
                 ))}
@@ -403,7 +403,7 @@ const QueryWorkbench = () => {
       </Card>
 
       <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        <Card className="border-zinc-800 bg-zinc-950/60">
+        <Card className="border-border bg-card shadow-surface-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Filter className="h-4 w-4 text-amber-300" />
@@ -420,7 +420,7 @@ const QueryWorkbench = () => {
                   key={preset.label}
                   type="button"
                   variant="outline"
-                  className="border-zinc-700 bg-zinc-900"
+                  className="border-border bg-muted/20"
                   onClick={() => applyPreset(preset)}
                 >
                   {preset.label}
@@ -435,7 +435,7 @@ const QueryWorkbench = () => {
                   id="termo"
                   value={termoBase}
                   onChange={(e) => setTermoBase(e.target.value)}
-                  className="border-zinc-700 bg-zinc-900"
+                  className="border-border bg-muted/20"
                   placeholder="clinicas, hospitais, supermercados..."
                 />
               </div>
@@ -445,7 +445,7 @@ const QueryWorkbench = () => {
                   id="limite"
                   value={limiteEmpresas}
                   onChange={(e) => setLimiteEmpresas(e.target.value.replace(/\D/g, ""))}
-                  className="border-zinc-700 bg-zinc-900"
+                  className="border-border bg-muted/20"
                   placeholder="50"
                 />
               </div>
@@ -455,7 +455,7 @@ const QueryWorkbench = () => {
                   id="cidades"
                   value={cidadesInput}
                   onChange={(e) => setCidadesInput(e.target.value)}
-                  className="min-h-24 border-zinc-700 bg-zinc-900"
+                  className="min-h-24 border-border bg-muted/20"
                   placeholder="Belo Horizonte, Contagem"
                 />
               </div>
@@ -465,7 +465,7 @@ const QueryWorkbench = () => {
                   id="ufs"
                   value={ufsInput}
                   onChange={(e) => setUfsInput(e.target.value)}
-                  className="min-h-24 border-zinc-700 bg-zinc-900"
+                  className="min-h-24 border-border bg-muted/20"
                   placeholder="MG, SP"
                 />
               </div>
@@ -475,7 +475,7 @@ const QueryWorkbench = () => {
                   id="segmentos"
                   value={segmentosInput}
                   onChange={(e) => setSegmentosInput(e.target.value)}
-                  className="min-h-24 border-zinc-700 bg-zinc-900"
+                  className="min-h-24 border-border bg-muted/20"
                   placeholder="Clinicas, Hospitais, Industria"
                 />
               </div>
@@ -485,7 +485,7 @@ const QueryWorkbench = () => {
                   id="portes"
                   value={portesInput}
                   onChange={(e) => setPortesInput(e.target.value)}
-                  className="min-h-24 border-zinc-700 bg-zinc-900"
+                  className="min-h-24 border-border bg-muted/20"
                   placeholder="ME, EPP, Medio/Grande"
                 />
               </div>
@@ -495,7 +495,7 @@ const QueryWorkbench = () => {
                   id="cnaes"
                   value={cnaesInput}
                   onChange={(e) => setCnaesInput(e.target.value)}
-                  className="min-h-24 border-zinc-700 bg-zinc-900"
+                  className="min-h-24 border-border bg-muted/20"
                   placeholder="8640201, 8610101"
                 />
               </div>
@@ -506,7 +506,7 @@ const QueryWorkbench = () => {
                     id="capitalMin"
                     value={capitalMinimo}
                     onChange={(e) => setCapitalMinimo(e.target.value.replace(/[^\d]/g, ""))}
-                    className="border-zinc-700 bg-zinc-900"
+                    className="border-border bg-muted/20"
                     placeholder="0"
                   />
                 </div>
@@ -516,7 +516,7 @@ const QueryWorkbench = () => {
                     id="capitalMax"
                     value={capitalMaximo}
                     onChange={(e) => setCapitalMaximo(e.target.value.replace(/[^\d]/g, ""))}
-                    className="border-zinc-700 bg-zinc-900"
+                    className="border-border bg-muted/20"
                     placeholder="2000000"
                   />
                 </div>
@@ -524,24 +524,24 @@ const QueryWorkbench = () => {
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-              <label className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
+              <label className="flex items-center justify-between rounded-2xl border border-border bg-muted/30 px-4 py-3">
                 <div>
                   <p className="text-sm font-medium">Enriquecimento web</p>
-                  <p className="text-xs text-zinc-500">Liga busca externa e enriquecimento.</p>
+                  <p className="text-xs text-muted-foreground/70">Liga busca externa e enriquecimento.</p>
                 </div>
                 <Switch checked={enriquecimentoWeb} onCheckedChange={setEnriquecimentoWeb} />
               </label>
-              <label className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
+              <label className="flex items-center justify-between rounded-2xl border border-border bg-muted/30 px-4 py-3">
                 <div>
                   <p className="text-sm font-medium">Exigir contato</p>
-                  <p className="text-xs text-zinc-500">Filtra para leads acionaveis.</p>
+                  <p className="text-xs text-muted-foreground/70">Filtra para leads acionaveis.</p>
                 </div>
                 <Switch checked={exigirContato} onCheckedChange={setExigirContato} />
               </label>
-              <label className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
+              <label className="flex items-center justify-between rounded-2xl border border-border bg-muted/30 px-4 py-3">
                 <div>
                   <p className="text-sm font-medium">Priorizar contato</p>
-                  <p className="text-xs text-zinc-500">Ordena quem ja tem canal acionavel.</p>
+                  <p className="text-xs text-muted-foreground/70">Ordena quem ja tem canal acionavel.</p>
                 </div>
                 <Switch checked={priorizarContato} onCheckedChange={setPriorizarContato} />
               </label>
@@ -549,7 +549,7 @@ const QueryWorkbench = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-zinc-800 bg-zinc-950/60">
+        <Card className="border-border bg-card shadow-surface-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <FileJson className="h-4 w-4 text-cyan-300" />
@@ -561,18 +561,18 @@ const QueryWorkbench = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="border-zinc-700 text-zinc-300">
+              <Badge variant="outline" className="border-border text-foreground/80">
                 {payload.cidades?.length ?? 0} cidade(s)
               </Badge>
-              <Badge variant="outline" className="border-zinc-700 text-zinc-300">
+              <Badge variant="outline" className="border-border text-foreground/80">
                 {payload.segmentos.length} segmento(s)
               </Badge>
-              <Badge variant="outline" className="border-zinc-700 text-zinc-300">
+              <Badge variant="outline" className="border-border text-foreground/80">
                 {payload.cnaes?.length ?? 0} CNAE(s)
               </Badge>
             </div>
 
-            <pre className="max-h-[28rem] overflow-auto rounded-2xl border border-zinc-800 bg-zinc-900/80 p-4 text-xs leading-6 text-zinc-300">
+            <pre className="max-h-[28rem] overflow-auto rounded-2xl border border-border bg-muted/20/80 p-4 text-xs leading-6 text-foreground/80">
               {JSON.stringify(payload, null, 2)}
             </pre>
 
@@ -580,7 +580,7 @@ const QueryWorkbench = () => {
               <Button
                 type="button"
                 variant="outline"
-                className="border-zinc-700 bg-zinc-900"
+                className="border-border bg-muted/20"
                 onClick={() => void handleCopy()}
               >
                 <Copy className="mr-2 h-4 w-4" />
@@ -589,7 +589,7 @@ const QueryWorkbench = () => {
               <div className="grid gap-3">
                 <Button
                   type="button"
-                  className="bg-amber-500 text-zinc-950 hover:bg-amber-400"
+                  className="bg-amber-500 text-muted-foreground hover:bg-amber-400"
                   onClick={() => void handleRun()}
                   disabled={isRunning}
                 >
@@ -600,7 +600,7 @@ const QueryWorkbench = () => {
                   <Button
                     type="button"
                     variant="outline"
-                    className="border-zinc-700 bg-zinc-900"
+                    className="border-border bg-muted/20"
                     onClick={() => openSaveDialog("search")}
                   >
                     <BookmarkPlus className="mr-2 h-4 w-4" />
@@ -619,11 +619,11 @@ const QueryWorkbench = () => {
               </div>
             </div>
 
-            <div className="space-y-3 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+            <div className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium">Execucao</p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-muted-foreground/70">
                     {progress?.detail || "Pronto para disparar a prospeccao."}
                   </p>
                 </div>
@@ -633,26 +633,26 @@ const QueryWorkbench = () => {
               {ultimoResultado && (
                 <div className="space-y-3">
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Empresas</p>
-                      <p className="mt-2 text-lg font-semibold text-zinc-100">{ultimoResultado.total_empresas}</p>
+                    <div className="rounded-xl border border-border bg-card/70 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Empresas</p>
+                      <p className="mt-2 text-lg font-semibold text-foreground">{ultimoResultado.total_empresas}</p>
                     </div>
-                    <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Enriquecidas</p>
-                      <p className="mt-2 text-lg font-semibold text-zinc-100">
+                    <div className="rounded-xl border border-border bg-card/70 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Enriquecidas</p>
+                      <p className="mt-2 text-lg font-semibold text-foreground">
                         {ultimoResultado.enriquecimento_web.total_com_enriquecimento}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Taxa</p>
-                      <p className="mt-2 text-lg font-semibold text-zinc-100">
+                    <div className="rounded-xl border border-border bg-card/70 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Taxa</p>
+                      <p className="mt-2 text-lg font-semibold text-foreground">
                         {Math.round(ultimoResultado.enriquecimento_web.porcentagem_enriquecida)}%
                       </p>
                     </div>
                   </div>
                   <Button
                     type="button"
-                    className="w-full justify-between bg-white text-zinc-950 hover:bg-zinc-200"
+                    className="w-full justify-between bg-white text-muted-foreground hover:bg-muted"
                     onClick={() => navigate("/results")}
                   >
                     <span className="inline-flex items-center gap-2">
@@ -668,7 +668,7 @@ const QueryWorkbench = () => {
         </Card>
       </div>
 
-      <Card className="border-zinc-800 bg-zinc-950/60">
+      <Card className="border-border bg-card shadow-surface-sm">
         <CardHeader>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -683,7 +683,7 @@ const QueryWorkbench = () => {
             <Button
               type="button"
               variant="outline"
-              className="border-zinc-700 bg-zinc-900"
+              className="border-border bg-muted/20"
               onClick={() => void reloadSavedSearches()}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
@@ -693,12 +693,12 @@ const QueryWorkbench = () => {
         </CardHeader>
         <CardContent className="space-y-3">
           {loadingSavedSearches ? (
-            <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm text-zinc-400">
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Carregando buscas salvas...
             </div>
           ) : savedSearches.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+            <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
               Nenhuma busca salva ainda. Monte uma query acima e salve como busca ou lista dinamica.
             </div>
           ) : (
@@ -706,12 +706,12 @@ const QueryWorkbench = () => {
               {savedSearches.map((search) => (
                 <div
                   key={search.id}
-                  className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4"
+                  className="rounded-2xl border border-border bg-muted/20/50 p-4"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-zinc-100">{search.name}</p>
+                        <p className="text-sm font-semibold text-foreground">{search.name}</p>
                         <Badge
                           variant="outline"
                           className={
@@ -723,7 +723,7 @@ const QueryWorkbench = () => {
                           {search.kind === "dynamic" ? "dinamica" : "salva"}
                         </Badge>
                       </div>
-                      <p className="text-xs text-zinc-500">
+                      <p className="text-xs text-muted-foreground/70">
                         {search.description || "Sem descricao"} . Ultima execucao: {formatDate(search.last_run_at)}
                       </p>
                     </div>
@@ -731,20 +731,20 @@ const QueryWorkbench = () => {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="text-zinc-500 hover:text-rose-300"
+                      className="text-muted-foreground/70 hover:text-rose-300"
                       onClick={() => void handleDeleteSavedSearch(search.id)}
                     >
                       Excluir
                     </Button>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                       {(search.config.ufs ?? []).length || (search.config.uf ? 1 : 0)} UF(s)
                     </Badge>
-                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                       {(search.config.cnaes ?? []).length} CNAE(s)
                     </Badge>
-                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                       limite {search.config.limite_empresas}
                     </Badge>
                   </div>
@@ -752,7 +752,7 @@ const QueryWorkbench = () => {
                     <Button
                       type="button"
                       variant="outline"
-                      className="border-zinc-700 bg-zinc-900"
+                      className="border-border bg-muted/20"
                       onClick={() => {
                         hydrateForm(search.config);
                         toast.success("Busca carregada no Workbench.");
@@ -762,7 +762,7 @@ const QueryWorkbench = () => {
                     </Button>
                     <Button
                       type="button"
-                      className="bg-white text-zinc-950 hover:bg-zinc-200"
+                      className="bg-white text-muted-foreground hover:bg-muted"
                       onClick={() => void handleRunSavedSearch(search)}
                       disabled={runningSavedSearchId === search.id}
                     >
@@ -782,7 +782,7 @@ const QueryWorkbench = () => {
       </Card>
 
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-        <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100">
+        <DialogContent className="border-border bg-card text-foreground">
           <DialogHeader>
             <DialogTitle>
               {saveKind === "dynamic" ? "Salvar lista dinamica" : "Salvar busca"}
@@ -798,7 +798,7 @@ const QueryWorkbench = () => {
                 id="save-name"
                 value={saveName}
                 onChange={(event) => setSaveName(event.target.value)}
-                className="border-zinc-700 bg-zinc-900"
+                className="border-border bg-muted/20"
                 placeholder="Administradoras MG com contato"
               />
             </div>
@@ -808,7 +808,7 @@ const QueryWorkbench = () => {
                 id="save-description"
                 value={saveDescription}
                 onChange={(event) => setSaveDescription(event.target.value)}
-                className="min-h-24 border-zinc-700 bg-zinc-900"
+                className="min-h-24 border-border bg-muted/20"
                 placeholder="Filtro pronto para campanhas e reruns."
               />
             </div>
@@ -817,14 +817,14 @@ const QueryWorkbench = () => {
             <Button
               type="button"
               variant="outline"
-              className="border-zinc-700 bg-zinc-900"
+              className="border-border bg-muted/20"
               onClick={() => setSaveDialogOpen(false)}
             >
               Cancelar
             </Button>
             <Button
               type="button"
-              className="bg-amber-500 text-zinc-950 hover:bg-amber-400"
+              className="bg-amber-500 text-muted-foreground hover:bg-amber-400"
               onClick={() => void handleSaveSearch()}
               disabled={savingSearch}
             >

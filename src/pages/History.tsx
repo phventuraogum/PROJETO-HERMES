@@ -52,10 +52,10 @@ function Delta({ a, b, suffix = "", higher = "up" }: {
 }) {
   const diff = a - b;
   const up   = higher === "up" ? diff >= 0 : diff <= 0;
-  if (Math.abs(diff) < 0.01) return <Minus className="h-3 w-3 text-zinc-600" />;
+  if (Math.abs(diff) < 0.01) return <Minus className="h-3 w-3 text-muted-foreground/50" />;
   return (
     <span className={cn("flex items-center gap-0.5 text-[10px] font-medium",
-      up ? "text-emerald-400" : "text-rose-400")}>
+      up ? "text-emerald-600" : "text-red-600")}>
       {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
       {diff > 0 ? "+" : ""}{diff.toFixed(1)}{suffix}
     </span>
@@ -87,7 +87,7 @@ function BuscaCard({ busca, selecionada, onSelecionar, onRenomear, onDeletar }: 
         "rounded-xl border p-3 cursor-pointer transition-all duration-150",
         selecionada
           ? "border-primary/60 bg-primary/5"
-          : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-700 hover:bg-zinc-800/40"
+          : "border-border bg-muted/20 hover:border-border hover:bg-muted/30"
       )}>
       {/* Nome */}
       <div className="flex items-start justify-between gap-2 mb-2">
@@ -97,14 +97,14 @@ function BuscaCard({ busca, selecionada, onSelecionar, onRenomear, onDeletar }: 
               value={nome}
               onChange={e => setNome(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") salvarNome(); if (e.key === "Escape") setEditando(false); }}
-              className="h-6 text-xs border-zinc-700 bg-zinc-800"
+              className="h-6 text-xs border-border bg-muted"
               autoFocus
             />
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={salvarNome}>
-              <Check className="h-3 w-3 text-emerald-400" />
+              <Check className="h-3 w-3 text-emerald-600" />
             </Button>
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditando(false)}>
-              <X className="h-3 w-3 text-zinc-500" />
+              <X className="h-3 w-3 text-muted-foreground/70" />
             </Button>
           </div>
         ) : (
@@ -113,14 +113,14 @@ function BuscaCard({ busca, selecionada, onSelecionar, onRenomear, onDeletar }: 
               <p className="text-sm font-medium truncate">
                 {busca.nome || `#${busca.id.slice(-4)} · ${fmtData(busca.timestamp)}`}
               </p>
-              <div className="flex items-center gap-1 text-[10px] text-zinc-500 mt-0.5">
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 mt-0.5">
                 <Calendar className="h-2.5 w-2.5" />
                 {fmtData(busca.timestamp)}
               </div>
             </div>
             <div className="flex items-center gap-0.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
               <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditando(true)}>
-                <Pencil className="h-2.5 w-2.5 text-zinc-500" />
+                <Pencil className="h-2.5 w-2.5 text-muted-foreground/70" />
               </Button>
               <Button variant="ghost" size="icon" className="h-5 w-5" onClick={onDeletar}>
                 <Trash2 className="h-2.5 w-2.5 text-rose-500" />
@@ -132,17 +132,17 @@ function BuscaCard({ busca, selecionada, onSelecionar, onRenomear, onDeletar }: 
 
       {/* Config resumida */}
       <div className="flex items-center gap-1 flex-wrap mb-2">
-        <Badge variant="outline" className="text-[9px] border-zinc-700 text-zinc-400 py-0 px-1.5">
+        <Badge variant="outline" className="text-[9px] border-border text-muted-foreground py-0 px-1.5">
           <MapPin className="h-2 w-2 mr-0.5 inline" />
           {busca.config.cidade}/{busca.config.uf}
         </Badge>
         {busca.config.segmentos?.slice(0, 2).map(s => (
-          <Badge key={s} variant="outline" className="text-[9px] border-zinc-700 text-zinc-500 py-0 px-1.5">
+          <Badge key={s} variant="outline" className="text-[9px] border-border text-muted-foreground/70 py-0 px-1.5">
             {s}
           </Badge>
         ))}
         {(busca.config.segmentos?.length ?? 0) > 2 && (
-          <Badge variant="outline" className="text-[9px] border-zinc-700 text-zinc-600 py-0 px-1.5">
+          <Badge variant="outline" className="text-[9px] border-border text-muted-foreground/50 py-0 px-1.5">
             +{(busca.config.segmentos?.length ?? 0) - 2}
           </Badge>
         )}
@@ -156,9 +156,9 @@ function BuscaCard({ busca, selecionada, onSelecionar, onRenomear, onDeletar }: 
           { label: "E-mail", value: `${m.taxa_email.toFixed(0)}%` },
           { label: "WA",     value: `${m.taxa_whatsapp.toFixed(0)}%` },
         ].map(x => (
-          <div key={x.label} className="rounded bg-zinc-800/50 py-1">
+          <div key={x.label} className="rounded bg-muted/50 py-1">
             <p className="text-xs font-semibold">{x.value}</p>
-            <p className="text-[9px] text-zinc-600">{x.label}</p>
+            <p className="text-[9px] text-muted-foreground/50">{x.label}</p>
           </div>
         ))}
       </div>
@@ -189,20 +189,20 @@ function Comparacao({ a, b }: { a: BuscaSalva; b: BuscaSalva }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Zap className="h-4 w-4 text-amber-400" />
+        <Zap className="h-4 w-4 text-amber-600" />
         <h2 className="text-sm font-semibold">Comparação lado a lado</h2>
       </div>
 
       {/* Tabela de métricas */}
-      <Card className="border-zinc-800 bg-zinc-950/60">
+      <Card className="border-border bg-card shadow-surface-sm">
         <CardContent className="p-0">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-zinc-800">
-                <th className="text-left px-4 py-2.5 text-zinc-500">Métrica</th>
+              <tr className="border-b border-border">
+                <th className="text-left px-4 py-2.5 text-muted-foreground/70">Métrica</th>
                 <th className="text-right px-4 py-2.5 text-primary">{nomeA}</th>
-                <th className="text-right px-4 py-2.5 text-sky-400">{nomeB}</th>
-                <th className="text-right px-4 py-2.5 text-zinc-500">Δ</th>
+                <th className="text-right px-4 py-2.5 text-sky-600">{nomeB}</th>
+                <th className="text-right px-4 py-2.5 text-muted-foreground/70">Δ</th>
               </tr>
             </thead>
             <tbody>
@@ -214,8 +214,8 @@ function Comparacao({ a, b }: { a: BuscaSalva; b: BuscaSalva }) {
                 { label: "Capital médio",      va: a.metricas.capital_medio,   vb: b.metricas.capital_medio,   fmt: (v: number) => fmtBRL(v), suffix: "" },
                 { label: "Enriquecidas",       va: a.metricas.enriquecidas,    vb: b.metricas.enriquecidas,    fmt: (v: number) => fmt(v), suffix: "" },
               ].map(row => (
-                <tr key={row.label} className="border-b border-zinc-800/60 hover:bg-zinc-800/20">
-                  <td className="px-4 py-2 text-zinc-400">{row.label}</td>
+                <tr key={row.label} className="border-b border-border/60 hover:bg-muted/20">
+                  <td className="px-4 py-2 text-muted-foreground">{row.label}</td>
                   <td className="px-4 py-2 text-right text-white font-medium">{row.fmt(row.va)}</td>
                   <td className="px-4 py-2 text-right text-sky-300 font-medium">{row.fmt(row.vb)}</td>
                   <td className="px-4 py-2 text-right">
@@ -232,9 +232,9 @@ function Comparacao({ a, b }: { a: BuscaSalva; b: BuscaSalva }) {
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="border-zinc-800 bg-zinc-950/60">
+        <Card className="border-border bg-card shadow-surface-sm">
           <CardHeader className="pb-1 pt-3 px-4">
-            <CardTitle className="text-xs text-zinc-500 uppercase tracking-widest">Barras comparativas</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground/70 uppercase tracking-widest">Barras comparativas</CardTitle>
           </CardHeader>
           <CardContent className="px-2 pb-3">
             <ResponsiveContainer width="100%" height={200}>
@@ -251,9 +251,9 @@ function Comparacao({ a, b }: { a: BuscaSalva; b: BuscaSalva }) {
           </CardContent>
         </Card>
 
-        <Card className="border-zinc-800 bg-zinc-950/60">
+        <Card className="border-border bg-card shadow-surface-sm">
           <CardHeader className="pb-1 pt-3 px-4">
-            <CardTitle className="text-xs text-zinc-500 uppercase tracking-widest">Radar de qualidade</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground/70 uppercase tracking-widest">Radar de qualidade</CardTitle>
           </CardHeader>
           <CardContent className="px-2 pb-3">
             <ResponsiveContainer width="100%" height={200}>
@@ -320,8 +320,8 @@ const History = () => {
   if (buscas.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-5">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900">
-          <HistoryIcon className="h-8 w-8 text-zinc-500" />
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-muted/20">
+          <HistoryIcon className="h-8 w-8 text-muted-foreground/70" />
         </div>
         <div className="text-center space-y-1">
           <p className="text-lg font-semibold">Histórico vazio</p>
@@ -340,7 +340,7 @@ const History = () => {
     <div className="space-y-5">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold">Histórico de Prospecções</h1>
+        <h1 className="text-2xl font-display">Histórico de Prospecções</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
           {buscas.length} busca{buscas.length !== 1 ? "s" : ""} salva{buscas.length !== 1 ? "s" : ""} ·{" "}
           Selecione 2 para comparar lado a lado
@@ -377,7 +377,7 @@ const History = () => {
           ) : buscaA ? (
             <DetalheSimples busca={buscaA} />
           ) : (
-            <div className="flex items-center justify-center h-40 rounded-xl border border-dashed border-zinc-800 text-sm text-zinc-600">
+            <div className="flex items-center justify-center h-40 rounded-xl border border-dashed border-border text-sm text-muted-foreground/50">
               Selecione uma busca para ver detalhes
             </div>
           )}
@@ -386,7 +386,7 @@ const History = () => {
 
       {/* Confirm delete */}
       <AlertDialog open={!!confirmDel} onOpenChange={v => !v && setConfirmDel(null)}>
-        <AlertDialogContent className="bg-zinc-950 border-zinc-800">
+        <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
             <AlertDialogTitle>Apagar busca?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -422,16 +422,16 @@ function DetalheSimples({ busca }: { busca: BuscaSalva }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Building2 className="h-4 w-4 text-zinc-400" />
+        <Building2 className="h-4 w-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold">
           {busca.nome || fmtData(busca.timestamp)}
         </h2>
       </div>
 
       {/* Filtros usados */}
-      <Card className="border-zinc-800 bg-zinc-950/60">
+      <Card className="border-border bg-card shadow-surface-sm">
         <CardHeader className="pb-1 pt-3 px-4">
-          <CardTitle className="text-xs text-zinc-500 uppercase tracking-widest">Filtros da busca</CardTitle>
+          <CardTitle className="text-xs text-muted-foreground/70 uppercase tracking-widest">Filtros da busca</CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-3 space-y-1.5 text-xs">
           {[
@@ -444,8 +444,8 @@ function DetalheSimples({ busca }: { busca: BuscaSalva }) {
             ["Limite", busca.config.limite_empresas.toString()],
           ].map(([k, v]) => (
             <div key={k} className="flex gap-2">
-              <span className="text-zinc-500 min-w-[100px]">{k}</span>
-              <span className="text-zinc-300">{v}</span>
+              <span className="text-muted-foreground/70 min-w-[100px]">{k}</span>
+              <span className="text-foreground/80">{v}</span>
             </div>
           ))}
         </CardContent>
@@ -454,9 +454,9 @@ function DetalheSimples({ busca }: { busca: BuscaSalva }) {
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-2">
         {kpis.map(k => (
-          <div key={k.label} className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-center">
+          <div key={k.label} className="rounded-lg border border-border bg-muted/20 p-3 text-center">
             <p className="text-lg font-bold">{k.value}</p>
-            <p className="text-[10px] text-zinc-500">{k.label}</p>
+            <p className="text-[10px] text-muted-foreground/70">{k.label}</p>
           </div>
         ))}
       </div>

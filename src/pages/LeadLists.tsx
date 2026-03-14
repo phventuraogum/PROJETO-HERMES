@@ -489,14 +489,14 @@ const LeadLists = () => {
     <div className="space-y-6 p-1">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight">Listas, buscas e signals</h2>
+          <h2 className="text-2xl font-display tracking-tight">Listas, buscas e signals</h2>
           <p className="text-sm text-muted-foreground">
             Organize listas estaticas, rode buscas salvas, acompanhe empresas e bloqueie contatos improdutivos.
           </p>
         </div>
         <Button
           type="button"
-          className="h-10 gap-2 bg-cyan-500 text-zinc-950 hover:bg-cyan-400"
+          className="h-10 gap-2 bg-cyan-500 text-muted-foreground hover:bg-cyan-400"
           onClick={() => setCreateDialogOpen(true)}
         >
           <FolderPlus className="h-4 w-4" />
@@ -504,7 +504,7 @@ const LeadLists = () => {
         </Button>
       </div>
 
-      <Card className="border-zinc-800 bg-zinc-950/60">
+      <Card className="border-border bg-card shadow-surface-sm">
         <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -515,7 +515,7 @@ const LeadLists = () => {
               Leitura Apollo-style da watchlist para detectar gaps de mobile e WhatsApp acionavel antes do outreach.
             </CardDescription>
           </div>
-          <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+          <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
             Watchlist {companyDataHealth?.summary.watchlist_total ?? 0}
           </Badge>
         </CardHeader>
@@ -561,7 +561,7 @@ const LeadLists = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.18em]">{item.label}</p>
-                    <p className="mt-2 text-2xl font-semibold">{item.value}</p>
+                    <p className="mt-2 text-2xl font-display">{item.value}</p>
                   </div>
                   <item.icon className="mt-0.5 h-4 w-4" />
                 </div>
@@ -570,20 +570,20 @@ const LeadLists = () => {
           </div>
 
           {!companyDataHealth || companyDataHealth.items.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+            <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
               Nenhum gap relevante identificado na watchlist ainda.
             </div>
           ) : (
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Top gaps</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Top gaps</p>
               {companyDataHealth.items.slice(0, 6).map((item) => (
-                <div key={item.cnpj} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                <div key={item.cnpj} className="rounded-xl border border-border bg-muted/20/50 p-4">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="space-y-1">
-                      <p className="text-sm font-semibold text-zinc-100">
+                      <p className="text-sm font-semibold text-foreground">
                         {item.nome_fantasia || item.razao_social || item.cnpj}
                       </p>
-                      <p className="text-xs text-zinc-500">
+                      <p className="text-xs text-muted-foreground/70">
                         {item.cnpj} . {[item.cidade, item.uf].filter(Boolean).join(" / ") || "Sem localizacao"}
                       </p>
                     </div>
@@ -601,13 +601,13 @@ const LeadLists = () => {
                     </Badge>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                       Mobiles {item.mobile_candidates}
                     </Badge>
-                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                       WhatsApps validados {item.verified_whatsapp_candidates}
                     </Badge>
-                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                       Mobiles decisor {item.decision_maker_mobile_candidates}
                     </Badge>
                     {item.stale && (
@@ -616,7 +616,7 @@ const LeadLists = () => {
                       </Badge>
                     )}
                   </div>
-                  <p className="mt-3 text-xs text-zinc-500">
+                  <p className="mt-3 text-xs text-muted-foreground/70">
                     Ultimo snapshot: {formatDate(item.generated_at)}
                   </p>
                 </div>
@@ -627,7 +627,7 @@ const LeadLists = () => {
       </Card>
 
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.35fr]">
-        <Card className="border-zinc-800 bg-zinc-950/60">
+        <Card className="border-border bg-card shadow-surface-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <RefreshCw className="h-4 w-4 text-cyan-300" />
@@ -641,7 +641,7 @@ const LeadLists = () => {
             <div className="grid gap-3 md:grid-cols-2">
               <Button
                 type="button"
-                className="justify-start gap-2 bg-cyan-500 text-zinc-950 hover:bg-cyan-400"
+                className="justify-start gap-2 bg-cyan-500 text-muted-foreground hover:bg-cyan-400"
                 onClick={() => void handleQueueWatchlistRefresh()}
                 disabled={queueingRefreshKey === "watchlist" || watchlist.length === 0}
               >
@@ -655,7 +655,7 @@ const LeadLists = () => {
               <Button
                 type="button"
                 variant="outline"
-                className="justify-start gap-2 border-zinc-700 bg-zinc-900"
+                className="justify-start gap-2 border-border bg-muted/20"
                 onClick={() => void handleQueueSelectedListRefresh()}
                 disabled={queueingRefreshKey === `list:${selectedList?.id || ""}` || !selectedList}
               >
@@ -669,32 +669,32 @@ const LeadLists = () => {
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Jobs ativos</p>
-                <p className="mt-2 text-2xl font-semibold text-zinc-100">{activeRefreshJobs.length}</p>
-                <p className="mt-1 text-xs text-zinc-500">Executando no worker</p>
+              <div className="rounded-xl border border-border bg-muted/20/50 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Jobs ativos</p>
+                <p className="mt-2 text-2xl font-display text-foreground">{activeRefreshJobs.length}</p>
+                <p className="mt-1 text-xs text-muted-foreground/70">Executando no worker</p>
               </div>
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Pendentes</p>
-                <p className="mt-2 text-2xl font-semibold text-zinc-100">{refreshStates.length}</p>
-                <p className="mt-1 text-xs text-zinc-500">CNPJs com refresh vencido</p>
+              <div className="rounded-xl border border-border bg-muted/20/50 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Pendentes</p>
+                <p className="mt-2 text-2xl font-display text-foreground">{refreshStates.length}</p>
+                <p className="mt-1 text-xs text-muted-foreground/70">CNPJs com refresh vencido</p>
               </div>
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Lista ativa</p>
-                <p className="mt-2 text-lg font-semibold text-zinc-100">{selectedList?.name || "Nenhuma"}</p>
-                <p className="mt-1 text-xs text-zinc-500">{selectedList?.item_count || 0} lead(s)</p>
+              <div className="rounded-xl border border-border bg-muted/20/50 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Lista ativa</p>
+                <p className="mt-2 text-lg font-semibold text-foreground">{selectedList?.name || "Nenhuma"}</p>
+                <p className="mt-1 text-xs text-muted-foreground/70">{selectedList?.item_count || 0} lead(s)</p>
               </div>
             </div>
 
             {refreshStates.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Fila natural de reverificacao</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Fila natural de reverificacao</p>
                 {refreshStates.slice(0, 5).map((entry) => (
-                  <div key={entry.id} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
+                  <div key={entry.id} className="rounded-xl border border-border bg-muted/20/50 p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-1">
-                        <p className="text-sm font-semibold text-zinc-100">{entry.cnpj}</p>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-sm font-semibold text-foreground">{entry.cnpj}</p>
+                        <p className="text-xs text-muted-foreground/70">
                           Proximo refresh: {formatDate(entry.next_refresh_at)} . Ultimo refresh: {formatDate(entry.last_refresh_at)}
                         </p>
                       </div>
@@ -718,7 +718,7 @@ const LeadLists = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-zinc-800 bg-zinc-950/60">
+        <Card className="border-border bg-card shadow-surface-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Clock3 className="h-4 w-4 text-emerald-300" />
@@ -730,12 +730,12 @@ const LeadLists = () => {
           </CardHeader>
           <CardContent className="space-y-3">
             {loading ? (
-              <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm text-zinc-400">
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Carregando jobs de refresh...
               </div>
             ) : refreshJobs.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
                 Nenhum job de refresh em lote ainda.
               </div>
             ) : (
@@ -749,13 +749,13 @@ const LeadLists = () => {
                       className={`w-full rounded-xl border p-4 text-left transition-colors ${
                         selectedRefreshJobId === job.id
                           ? "border-emerald-500/40 bg-emerald-500/10"
-                          : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700"
+                          : "border-border bg-muted/20/50 hover:border-border"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
-                          <p className="text-sm font-semibold text-zinc-100">{job.name}</p>
-                          <p className="text-xs text-zinc-500">
+                          <p className="text-sm font-semibold text-foreground">{job.name}</p>
+                          <p className="text-xs text-muted-foreground/70">
                             {job.source_label || job.source_kind} . {job.processed_targets}/{job.total_targets} alvo(s)
                           </p>
                         </div>
@@ -779,15 +779,15 @@ const LeadLists = () => {
                 </div>
 
                 {selectedRefreshJob && (
-                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                  <div className="rounded-xl border border-border bg-muted/20/50 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-1">
-                        <p className="text-sm font-semibold text-zinc-100">{selectedRefreshJob.name}</p>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-sm font-semibold text-foreground">{selectedRefreshJob.name}</p>
+                        <p className="text-xs text-muted-foreground/70">
                           {selectedRefreshJob.source_label || selectedRefreshJob.source_kind} . Atualizado {formatDate(selectedRefreshJob.updated_at)}
                         </p>
                       </div>
-                      <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                      <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                         SMTP {selectedRefreshJob.options.probe_smtp ? "on" : "off"}
                       </Badge>
                     </div>
@@ -795,27 +795,27 @@ const LeadLists = () => {
                       <p className="mt-3 text-xs text-rose-300">{selectedRefreshJob.error}</p>
                     )}
                     <div className="mt-4 space-y-2">
-                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Alvos recentes</p>
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Alvos recentes</p>
                       {loadingRefreshTargets ? (
-                        <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950/70 p-3 text-sm text-zinc-400">
+                        <div className="flex items-center gap-2 rounded-xl border border-border bg-card/70 p-3 text-sm text-muted-foreground">
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Carregando alvos...
                         </div>
                       ) : refreshJobTargets.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-950/60 p-3 text-sm text-zinc-500">
+                        <div className="rounded-xl border border-dashed border-border bg-card p-3 text-sm text-muted-foreground/70">
                           Nenhum alvo carregado para este job.
                         </div>
                       ) : (
                         refreshJobTargets.slice(0, 8).map((target) => (
-                          <div key={target.id} className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
+                          <div key={target.id} className="rounded-xl border border-border bg-card/70 p-3">
                             <div className="flex items-start justify-between gap-3">
                               <div className="space-y-1">
-                                <p className="text-sm font-semibold text-zinc-100">{target.cnpj}</p>
-                                <p className="text-xs text-zinc-500">
+                                <p className="text-sm font-semibold text-foreground">{target.cnpj}</p>
+                                <p className="text-xs text-muted-foreground/70">
                                   {target.stage || "queued"} . {formatDate(target.updated_at)}
                                 </p>
                               </div>
-                              <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                              <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                                 {target.status}
                               </Badge>
                             </div>
@@ -833,7 +833,7 @@ const LeadLists = () => {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.35fr]">
-        <Card className="border-zinc-800 bg-zinc-950/60">
+        <Card className="border-border bg-card shadow-surface-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Archive className="h-4 w-4 text-cyan-300" />
@@ -845,12 +845,12 @@ const LeadLists = () => {
           </CardHeader>
           <CardContent className="space-y-3">
             {loading ? (
-              <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm text-zinc-400">
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Carregando listas...
               </div>
             ) : lists.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
                 Nenhuma lista criada ainda. Salve leads de Results para comecar.
               </div>
             ) : (
@@ -862,19 +862,19 @@ const LeadLists = () => {
                   className={`w-full rounded-xl border p-4 text-left transition-colors ${
                     selectedListId === list.id
                       ? "border-cyan-500/40 bg-cyan-500/10"
-                      : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700"
+                      : "border-border bg-muted/20/50 hover:border-border"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
-                      <p className="text-sm font-semibold text-zinc-100">{list.name}</p>
-                      <p className="text-xs text-zinc-500">{list.description || "Sem descricao"}</p>
+                      <p className="text-sm font-semibold text-foreground">{list.name}</p>
+                      <p className="text-xs text-muted-foreground/70">{list.description || "Sem descricao"}</p>
                     </div>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-zinc-500 hover:text-rose-300"
+                      className="h-7 w-7 text-muted-foreground/70 hover:text-rose-300"
                       onClick={(event) => {
                         event.stopPropagation();
                         void handleDeleteList(list.id);
@@ -883,8 +883,8 @@ const LeadLists = () => {
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                  <div className="mt-3 flex items-center gap-2 text-xs text-zinc-500">
-                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                  <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground/70">
+                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                       {list.item_count} leads
                     </Badge>
                     <span>Atualizada em {formatDate(list.updated_at)}</span>
@@ -895,7 +895,7 @@ const LeadLists = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-zinc-800 bg-zinc-950/60">
+        <Card className="border-border bg-card shadow-surface-sm">
           <CardHeader>
             <CardTitle className="text-lg">{selectedList ? selectedList.name : "Itens da lista"}</CardTitle>
             <CardDescription>
@@ -904,16 +904,16 @@ const LeadLists = () => {
           </CardHeader>
           <CardContent className="space-y-3">
             {!selectedListId ? (
-              <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
                 Selecione uma lista para visualizar os leads armazenados.
               </div>
             ) : loadingItems ? (
-              <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm text-zinc-400">
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Carregando leads da lista...
               </div>
             ) : items.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
                 Esta lista ainda esta vazia.
               </div>
             ) : (
@@ -923,11 +923,11 @@ const LeadLists = () => {
                 const telefone = emp.telefone_final || emp.telefone_padrao || emp.telefone_enriquecido;
                 const email = emp.email_final || emp.email_enriquecido || emp.email;
                 return (
-                  <div key={`${item.id}-${item.cnpj}`} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                  <div key={`${item.id}-${item.cnpj}`} className="rounded-xl border border-border bg-muted/20/50 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-1">
-                        <p className="text-sm font-semibold text-zinc-100">{emp.nome_fantasia || emp.razao_social}</p>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-sm font-semibold text-foreground">{emp.nome_fantasia || emp.razao_social}</p>
+                        <p className="text-xs text-muted-foreground/70">
                           {emp.cnpj} . {emp.cidade || "-"} / {emp.uf || "-"}
                         </p>
                       </div>
@@ -935,7 +935,7 @@ const LeadLists = () => {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-zinc-500 hover:text-rose-300"
+                        className="h-7 w-7 text-muted-foreground/70 hover:text-rose-300"
                         onClick={() => void handleRemoveItem(item.cnpj)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -949,7 +949,7 @@ const LeadLists = () => {
                         </Badge>
                       )}
                       {telefone && (
-                        <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                        <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                           <Phone className="mr-1 h-3 w-3" />
                           {telefone}
                         </Badge>
@@ -974,7 +974,7 @@ const LeadLists = () => {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-        <Card className="border-zinc-800 bg-zinc-950/60">
+        <Card className="border-border bg-card shadow-surface-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <BookmarkPlus className="h-4 w-4 text-cyan-300" />
@@ -986,21 +986,21 @@ const LeadLists = () => {
           </CardHeader>
           <CardContent className="space-y-3">
             {loading ? (
-              <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm text-zinc-400">
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Carregando buscas salvas...
               </div>
             ) : savedSearches.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
                 Nenhuma busca salva ainda. Use o Workbench para criar buscas e listas dinamicas.
               </div>
             ) : (
               savedSearches.map((search) => (
-                <div key={search.id} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                <div key={search.id} className="rounded-xl border border-border bg-muted/20/50 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-zinc-100">{search.name}</p>
+                        <p className="text-sm font-semibold text-foreground">{search.name}</p>
                         <Badge
                           variant="outline"
                           className={
@@ -1012,7 +1012,7 @@ const LeadLists = () => {
                           {search.kind === "dynamic" ? "dinamica" : "salva"}
                         </Badge>
                       </div>
-                      <p className="text-xs text-zinc-500">
+                      <p className="text-xs text-muted-foreground/70">
                         {search.description || "Sem descricao"} . Ultima execucao: {formatDate(search.last_run_at)}
                       </p>
                     </div>
@@ -1020,26 +1020,26 @@ const LeadLists = () => {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-zinc-500 hover:text-rose-300"
+                      className="h-7 w-7 text-muted-foreground/70 hover:text-rose-300"
                       onClick={() => void handleDeleteSavedSearch(search.id)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                       {(search.config.ufs ?? []).length || (search.config.uf ? 1 : 0)} UF(s)
                     </Badge>
-                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                       {(search.config.cnaes ?? []).length} CNAE(s)
                     </Badge>
-                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                       limite {search.config.limite_empresas}
                     </Badge>
                   </div>
                   <Button
                     type="button"
-                    className="mt-4 w-full bg-white text-zinc-950 hover:bg-zinc-200"
+                    className="mt-4 w-full bg-white text-muted-foreground hover:bg-muted"
                     onClick={() => void handleRunSavedSearch(search)}
                     disabled={runningSavedSearchId === search.id}
                   >
@@ -1049,7 +1049,7 @@ const LeadLists = () => {
                   <Button
                     type="button"
                     variant="outline"
-                    className="mt-2 w-full border-zinc-700 bg-zinc-900"
+                    className="mt-2 w-full border-border bg-muted/20"
                     onClick={() => void handleQueueSavedSearchRefresh(search)}
                     disabled={queueingRefreshKey === `search:${search.id}`}
                   >
@@ -1066,7 +1066,7 @@ const LeadLists = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-zinc-800 bg-zinc-950/60">
+        <Card className="border-border bg-card shadow-surface-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Radar className="h-4 w-4 text-emerald-300" />
@@ -1081,17 +1081,17 @@ const LeadLists = () => {
               value={manualWatchCnpj}
               onChange={(event) => setManualWatchCnpj(event.target.value)}
               placeholder="CNPJ para acompanhar"
-              className="border-zinc-700 bg-zinc-900"
+              className="border-border bg-muted/20"
             />
             <Textarea
               value={manualWatchReason}
               onChange={(event) => setManualWatchReason(event.target.value)}
               placeholder="Motivo do acompanhamento"
-              className="min-h-[84px] border-zinc-700 bg-zinc-900"
+              className="min-h-[84px] border-border bg-muted/20"
             />
             <Button
               type="button"
-              className="w-full gap-2 bg-emerald-500 text-zinc-950 hover:bg-emerald-400"
+              className="w-full gap-2 bg-emerald-500 text-muted-foreground hover:bg-emerald-400"
               onClick={() => void handleFollowCompany()}
               disabled={savingWatch}
             >
@@ -1099,23 +1099,23 @@ const LeadLists = () => {
               Seguir empresa
             </Button>
             {loading ? (
-              <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm text-zinc-400">
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Carregando watchlist...
               </div>
             ) : watchlist.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
                 Nenhuma empresa acompanhada ainda.
               </div>
             ) : (
               watchlist.map((entry) => (
-                <div key={entry.id} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                <div key={entry.id} className="rounded-xl border border-border bg-muted/20/50 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
-                      <p className="text-sm font-semibold text-zinc-100">
+                      <p className="text-sm font-semibold text-foreground">
                         {entry.nome_fantasia || entry.razao_social || entry.cnpj}
                       </p>
-                      <p className="text-xs text-zinc-500">
+                      <p className="text-xs text-muted-foreground/70">
                         {entry.cnpj} . {entry.cidade || "-"} / {entry.uf || "-"}
                       </p>
                     </div>
@@ -1123,14 +1123,14 @@ const LeadLists = () => {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-zinc-500 hover:text-rose-300"
+                      className="h-7 w-7 text-muted-foreground/70 hover:text-rose-300"
                       onClick={() => void handleUnfollowCompany(entry.cnpj)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                       {entry.signal_count} signal(s)
                     </Badge>
                     <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
@@ -1144,19 +1144,19 @@ const LeadLists = () => {
                       className={
                         entry.snapshot.has_whatsapp_validated
                           ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                          : "border-zinc-700 bg-zinc-900 text-zinc-300"
+                          : "border-border bg-muted/20 text-foreground/80"
                       }
                     >
                       WA valido: {entry.snapshot.validated_whatsapp_candidates ?? 0}
                     </Badge>
                   </div>
-                  <p className="mt-3 text-xs text-zinc-500">
+                  <p className="mt-3 text-xs text-muted-foreground/70">
                     Padrao: {entry.snapshot.email_pattern || "nao resolvido"} . Ultimo refresh: {formatDate(entry.last_refresh_at)}
                   </p>
                   <Button
                     type="button"
                     variant="outline"
-                    className="mt-4 w-full border-zinc-700 bg-zinc-900"
+                    className="mt-4 w-full border-border bg-muted/20"
                     onClick={() => void handleRefreshWatch(entry.cnpj)}
                     disabled={refreshingWatchCnpj === entry.cnpj}
                   >
@@ -1175,7 +1175,7 @@ const LeadLists = () => {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.4fr]">
-        <Card className="border-zinc-800 bg-zinc-950/60">
+        <Card className="border-border bg-card shadow-surface-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <ShieldBan className="h-4 w-4 text-amber-300" />
@@ -1190,29 +1190,29 @@ const LeadLists = () => {
               value={manualCnpj}
               onChange={(event) => setManualCnpj(event.target.value)}
               placeholder="CNPJs separados por virgula"
-              className="border-zinc-700 bg-zinc-900"
+              className="border-border bg-muted/20"
             />
             <Input
               value={manualEmail}
               onChange={(event) => setManualEmail(event.target.value)}
               placeholder="E-mails separados por virgula"
-              className="border-zinc-700 bg-zinc-900"
+              className="border-border bg-muted/20"
             />
             <Input
               value={manualDomain}
               onChange={(event) => setManualDomain(event.target.value)}
               placeholder="Dominios separados por virgula"
-              className="border-zinc-700 bg-zinc-900"
+              className="border-border bg-muted/20"
             />
             <Textarea
               value={manualReason}
               onChange={(event) => setManualReason(event.target.value)}
               placeholder="Motivo da supressao"
-              className="min-h-[96px] border-zinc-700 bg-zinc-900"
+              className="min-h-[96px] border-border bg-muted/20"
             />
             <Button
               type="button"
-              className="w-full gap-2 bg-amber-500 text-zinc-950 hover:bg-amber-400"
+              className="w-full gap-2 bg-amber-500 text-muted-foreground hover:bg-amber-400"
               onClick={() => void handleManualSuppression()}
               disabled={savingSuppression}
             >
@@ -1222,7 +1222,7 @@ const LeadLists = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-zinc-800 bg-zinc-950/60">
+        <Card className="border-border bg-card shadow-surface-sm">
           <CardHeader>
             <CardTitle className="text-lg">Signals recentes</CardTitle>
             <CardDescription>
@@ -1231,30 +1231,30 @@ const LeadLists = () => {
           </CardHeader>
           <CardContent className="space-y-3">
             {loading ? (
-              <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm text-zinc-400">
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Carregando sinais...
               </div>
             ) : signals.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
                 Nenhum sinal registrado ainda.
               </div>
             ) : (
               signals.map((signal) => (
-                <div key={signal.id} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                <div key={signal.id} className="rounded-xl border border-border bg-muted/20/50 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
-                      <p className="text-sm font-semibold text-zinc-100">{signal.title}</p>
-                      <p className="text-xs text-zinc-500">
+                      <p className="text-sm font-semibold text-foreground">{signal.title}</p>
+                      <p className="text-xs text-muted-foreground/70">
                         {signal.cnpj} . {formatDate(signal.created_at)}
                       </p>
                     </div>
-                    <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                       {signal.signal_type}
                     </Badge>
                   </div>
                   {signal.payload && Object.keys(signal.payload).length > 0 && (
-                    <pre className="mt-3 overflow-auto rounded-xl border border-zinc-800 bg-zinc-950/70 p-3 text-[11px] leading-5 text-zinc-400">
+                    <pre className="mt-3 overflow-auto rounded-xl border border-border bg-card/70 p-3 text-[11px] leading-5 text-muted-foreground">
                       {JSON.stringify(signal.payload, null, 2)}
                     </pre>
                   )}
@@ -1265,7 +1265,7 @@ const LeadLists = () => {
         </Card>
       </div>
 
-      <Card className="border-zinc-800 bg-zinc-950/60">
+      <Card className="border-border bg-card shadow-surface-sm">
         <CardHeader>
           <CardTitle className="text-lg">Registro de supressao</CardTitle>
           <CardDescription>
@@ -1274,26 +1274,26 @@ const LeadLists = () => {
         </CardHeader>
         <CardContent className="space-y-3">
           {loading ? (
-            <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm text-zinc-400">
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Carregando supressoes...
             </div>
           ) : suppressions.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+            <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
               Nenhuma supressao cadastrada.
             </div>
           ) : (
             suppressions.map((entry) => (
-              <div key={entry.id} className="flex items-start justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+              <div key={entry.id} className="flex items-start justify-between gap-3 rounded-xl border border-border bg-muted/20/50 p-4">
                 <div className="space-y-1">
-                  <p className="text-sm font-semibold text-zinc-100">
+                  <p className="text-sm font-semibold text-foreground">
                     {entry.cnpj || entry.email || entry.domain || "Registro"}
                   </p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-muted-foreground/70">
                     {entry.reason || "Sem motivo informado"} . {formatDate(entry.updated_at || entry.created_at)}
                   </p>
                   <div className="flex flex-wrap gap-2 text-xs">
-                    {entry.cnpj && <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">CNPJ</Badge>}
+                    {entry.cnpj && <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">CNPJ</Badge>}
                     {entry.email && <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300">E-mail</Badge>}
                     {entry.domain && <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300">Dominio</Badge>}
                   </div>
@@ -1302,7 +1302,7 @@ const LeadLists = () => {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-zinc-500 hover:text-rose-300"
+                  className="h-7 w-7 text-muted-foreground/70 hover:text-rose-300"
                   onClick={() => void handleRemoveSuppression(entry.id)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -1314,7 +1314,7 @@ const LeadLists = () => {
       </Card>
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100">
+        <DialogContent className="border-border bg-card text-foreground">
           <DialogHeader>
             <DialogTitle>Criar nova lista</DialogTitle>
             <DialogDescription>
@@ -1326,27 +1326,27 @@ const LeadLists = () => {
               value={createName}
               onChange={(event) => setCreateName(event.target.value)}
               placeholder="Ex.: Imobiliarias SP - rodada 1"
-              className="border-zinc-700 bg-zinc-900"
+              className="border-border bg-muted/20"
             />
             <Textarea
               value={createDescription}
               onChange={(event) => setCreateDescription(event.target.value)}
               placeholder="Descricao opcional"
-              className="min-h-[96px] border-zinc-700 bg-zinc-900"
+              className="min-h-[96px] border-border bg-muted/20"
             />
           </div>
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
-              className="border-zinc-700 bg-zinc-900"
+              className="border-border bg-muted/20"
               onClick={() => setCreateDialogOpen(false)}
             >
               Cancelar
             </Button>
             <Button
               type="button"
-              className="bg-cyan-500 text-zinc-950 hover:bg-cyan-400"
+              className="bg-cyan-500 text-muted-foreground hover:bg-cyan-400"
               onClick={() => void handleCreateList()}
               disabled={creating}
             >

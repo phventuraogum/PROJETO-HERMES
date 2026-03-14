@@ -46,7 +46,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
-      <Sonner />
+      <Sonner theme="light" richColors />
 
       <Suspense fallback={<RouteFallback />}>
         <Routes>

@@ -43,7 +43,7 @@ function LeftPanel() {
     <div className="flex flex-col h-full p-8 lg:p-10 xl:p-12 overflow-y-auto">
       {/* Logo */}
       <Link to="/" className="inline-flex items-center gap-2.5 mb-10 group shrink-0">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] ring-1 ring-white/[0.08] group-hover:ring-primary/30 transition-all">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted ring-1 ring-white/[0.08] group-hover:ring-primary/30 transition-all">
           <Target className="h-4 w-4 text-primary" />
         </div>
         <span className="text-sm font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">HERMES</span>
@@ -58,7 +58,7 @@ function LeftPanel() {
           </span>{" "}
           mais completa do Brasil.
         </h2>
-        <p className="text-[13px] text-muted-foreground/50 leading-relaxed">
+        <p className="text-[13px] text-muted-foreground leading-relaxed">
           Encontre leads qualificados, enriqueca com IA e feche negocios — tudo em um lugar.
         </p>
       </div>
@@ -66,32 +66,32 @@ function LeftPanel() {
       {/* Stat cards grid */}
       <div className="grid grid-cols-2 gap-2.5 mb-8 shrink-0">
         {STATS.map((s, i) => (
-          <div key={i} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 hover:border-white/[0.1] transition-colors group">
+          <div key={i} className="rounded-xl border border-border bg-muted/40 p-3.5 hover:border-border transition-colors group">
             <div className="flex items-center gap-2 mb-2">
               <s.icon className={cn("h-3.5 w-3.5", s.color, "opacity-70 group-hover:opacity-100 transition-opacity")} />
-              <span className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground/40 font-medium">{s.label}</span>
+              <span className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground/70 font-medium">{s.label}</span>
             </div>
             <p className={cn("text-2xl font-bold tracking-tight", s.color)}>{s.value}</p>
-            <p className="text-[10px] text-muted-foreground/30 mt-0.5">{s.sub}</p>
+            <p className="text-[10px] text-muted-foreground/55 mt-0.5">{s.sub}</p>
           </div>
         ))}
       </div>
 
       {/* Capabilities */}
       <div className="space-y-2.5 flex-1">
-        <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground/35 font-semibold mb-3">O que voce pode fazer</p>
+        <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground/60 font-semibold mb-3">O que voce pode fazer</p>
         {CAPABILITIES.map((c, i) => (
           <div key={i} className="flex items-start gap-2.5 group">
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/[0.05] ring-1 ring-primary/[0.08] shrink-0 mt-0.5 group-hover:ring-primary/20 transition-all">
               <c.icon className="h-3 w-3 text-primary/60 group-hover:text-primary transition-colors" />
             </div>
-            <span className="text-[12px] text-muted-foreground/50 leading-relaxed group-hover:text-muted-foreground/80 transition-colors">{c.text}</span>
+            <span className="text-[12px] text-muted-foreground leading-relaxed group-hover:text-muted-foreground/80 transition-colors">{c.text}</span>
           </div>
         ))}
       </div>
 
       {/* Social proof */}
-      <div className="mt-8 pt-6 border-t border-white/[0.04] shrink-0">
+      <div className="mt-8 pt-6 border-t border-border/60 shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex -space-x-2">
             {["M", "J", "R", "A"].map((l, i) => (
@@ -104,7 +104,7 @@ function LeftPanel() {
                 <CheckCircle2 key={i} className="h-3 w-3 text-emerald-400/70" />
               ))}
             </div>
-            <p className="text-[10px] text-muted-foreground/35 mt-0.5">Usado por times de vendas em todo o Brasil</p>
+            <p className="text-[10px] text-muted-foreground/60 mt-0.5">Usado por times de vendas em todo o Brasil</p>
           </div>
         </div>
       </div>
@@ -168,13 +168,13 @@ const Login = () => {
       <Toaster position="top-right" richColors />
 
       {/* ── LEFT: Credibility panel ────────────────────────────────────── */}
-      <div className="hidden lg:flex lg:w-[50%] xl:w-[55%] relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-[48%] xl:w-[52%] relative overflow-hidden bg-muted/30">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -top-40 left-1/3 h-[600px] w-[600px] rounded-full bg-primary/[0.06] blur-[140px]" />
           <div className="absolute bottom-20 right-0 h-[350px] w-[350px] rounded-full bg-secondary/[0.04] blur-[120px]" />
-          <div className="absolute inset-0 opacity-[0.03] [background-image:linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] [background-size:48px_48px]" />
+          <div className="absolute inset-0 opacity-5 [background-image:linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] [background-size:48px_48px]" />
         </div>
-        <div className="relative w-full border-r border-white/[0.04]">
+        <div className="relative w-full border-r border-border/60">
           <LeftPanel />
         </div>
       </div>
@@ -207,7 +207,7 @@ const Login = () => {
               </div>
             </div>
             <h1 className="text-xl font-semibold tracking-tight">Bem-vindo de volta</h1>
-            <p className="mt-1.5 text-[13px] text-muted-foreground/50">Entre para acessar sua prospeccao.</p>
+            <p className="mt-1.5 text-[13px] text-muted-foreground">Entre para acessar sua prospeccao.</p>
           </div>
 
           {/* Error */}
@@ -221,9 +221,9 @@ const Login = () => {
           {/* Form */}
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-foreground/70 text-[12px] font-medium">Email</Label>
+              <Label htmlFor="email" className="text-foreground/80 text-[12px] font-medium">Email</Label>
               <div className="relative group">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/25 group-focus-within:text-primary/60 transition-colors" />
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50 group-focus-within:text-primary/60 transition-colors" />
                 <Input
                   ref={emailRef}
                   id="email"
@@ -232,8 +232,8 @@ const Login = () => {
                   value={email}
                   onChange={e => { setEmail(e.target.value); setError(null); }}
                   className={cn(
-                    "pl-11 h-11 bg-white/[0.02] border-white/[0.07] text-sm transition-all",
-                    "focus:border-primary/40 focus:ring-2 focus:ring-primary/10 focus:bg-white/[0.03]",
+                    "pl-11 h-11 bg-muted/40 border-border text-sm transition-all",
+                    "focus:border-primary/40 focus:ring-2 focus:ring-primary/10 focus:bg-muted/60",
                     error && "border-red-500/30"
                   )}
                   required
@@ -244,11 +244,11 @@ const Login = () => {
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-foreground/70 text-[12px] font-medium">Senha</Label>
+                <Label htmlFor="password" className="text-foreground/80 text-[12px] font-medium">Senha</Label>
                 <button type="button" className="text-[11px] text-primary/60 hover:text-primary transition-colors">Esqueceu?</button>
               </div>
               <div className="relative group">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/25 group-focus-within:text-primary/60 transition-colors" />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50 group-focus-within:text-primary/60 transition-colors" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -256,8 +256,8 @@ const Login = () => {
                   value={password}
                   onChange={e => { setPassword(e.target.value); setError(null); }}
                   className={cn(
-                    "pl-11 pr-11 h-11 bg-white/[0.02] border-white/[0.07] text-sm transition-all",
-                    "focus:border-primary/40 focus:ring-2 focus:ring-primary/10 focus:bg-white/[0.03]",
+                    "pl-11 pr-11 h-11 bg-muted/40 border-border text-sm transition-all",
+                    "focus:border-primary/40 focus:ring-2 focus:ring-primary/10 focus:bg-muted/60",
                     error && "border-red-500/30"
                   )}
                   required
@@ -266,7 +266,7 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/25 hover:text-foreground/60 transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground/60 transition-colors"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -279,9 +279,9 @@ const Login = () => {
                 type="checkbox"
                 id="remember"
                 defaultChecked
-                className="h-3.5 w-3.5 rounded border-white/[0.1] bg-white/[0.03] accent-[hsl(var(--primary))] cursor-pointer"
+                className="h-3.5 w-3.5 rounded border-border bg-muted/60 accent-[hsl(var(--primary))] cursor-pointer"
               />
-              <label htmlFor="remember" className="text-[11px] text-muted-foreground/40 cursor-pointer">Manter conectado</label>
+              <label htmlFor="remember" className="text-[11px] text-muted-foreground/70 cursor-pointer">Manter conectado</label>
             </div>
 
             <Button
@@ -299,8 +299,8 @@ const Login = () => {
 
           {/* Divider */}
           <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/[0.04]" /></div>
-            <div className="relative flex justify-center"><span className="bg-background px-3 text-[11px] text-muted-foreground/25">ou</span></div>
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/60" /></div>
+            <div className="relative flex justify-center"><span className="bg-background px-3 text-[11px] text-muted-foreground/50">ou</span></div>
           </div>
 
           {/* Sign up */}
@@ -310,7 +310,7 @@ const Login = () => {
           </p>
 
           {/* Footer */}
-          <div className="mt-10 flex items-center justify-between text-[10px] text-muted-foreground/20">
+          <div className="mt-10 flex items-center justify-between text-[10px] text-muted-foreground/40">
             <div className="flex items-center gap-1.5">
               <Shield className="h-3 w-3" />
               <span>Conexao segura</span>

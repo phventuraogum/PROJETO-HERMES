@@ -97,14 +97,14 @@ export default function ComprarCreditos() {
     return (
       <div className="max-w-lg mx-auto space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold">Pagamento gerado</h1>
+          <h1 className="text-2xl font-display">Pagamento gerado</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {result.credits} créditos · R$ {result.value.toFixed(2).replace(".", ",")}
           </p>
         </div>
 
         {result.pix_qr_code && result.pix_copy_paste ? (
-          <Card className="border-zinc-800 bg-zinc-950/60">
+          <Card className="border-border bg-card shadow-surface-sm">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <QrCode className="h-4 w-4 text-emerald-500" />
@@ -126,19 +126,19 @@ export default function ComprarCreditos() {
                 <Input
                   readOnly
                   value={result.pix_copy_paste}
-                  className="font-mono text-xs bg-zinc-900 border-zinc-700"
+                  className="font-mono text-xs bg-muted/20 border-border"
                 />
-                <Button variant="outline" size="icon" onClick={copyPix} className="border-zinc-700 shrink-0">
-                  {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                <Button variant="outline" size="icon" onClick={copyPix} className="border-border shrink-0">
+                  {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
                 </Button>
               </div>
-              <p className="text-[10px] text-zinc-500">
+              <p className="text-[10px] text-muted-foreground/70">
                 Após o pagamento, os créditos serão adicionados em até alguns minutos.
               </p>
             </CardContent>
           </Card>
         ) : result.bank_slip_url ? (
-          <Card className="border-zinc-800 bg-zinc-950/60">
+          <Card className="border-border bg-card shadow-surface-sm">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <CreditCard className="h-4 w-4 text-amber-500" />
@@ -156,13 +156,13 @@ export default function ComprarCreditos() {
                 </a>
               </Button>
               {result.invoice_url && (
-                <Button variant="outline" asChild className="w-full gap-2 border-zinc-700">
+                <Button variant="outline" asChild className="w-full gap-2 border-border">
                   <a href={result.invoice_url} target="_blank" rel="noreferrer">
                     Ver fatura no Asaas
                   </a>
                 </Button>
               )}
-              <p className="text-[10px] text-zinc-500">
+              <p className="text-[10px] text-muted-foreground/70">
                 Vencimento: {new Date(result.due_date).toLocaleDateString("pt-BR")}. Créditos creditados após confirmação do pagamento.
               </p>
             </CardContent>
@@ -183,7 +183,7 @@ export default function ComprarCreditos() {
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
+          <h1 className="text-2xl font-display flex items-center gap-2">
             <Coins className="h-7 w-7 text-amber-500" />
             Comprar créditos
           </h1>
@@ -192,10 +192,10 @@ export default function ComprarCreditos() {
           </p>
         </div>
         {saldo !== null && (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-2 text-center">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Saldo atual</p>
-            <p className="text-xl font-bold text-amber-400">{saldo}</p>
-            <p className="text-[10px] text-zinc-500">créditos</p>
+          <div className="rounded-xl border border-border bg-muted/20 px-4 py-2 text-center">
+            <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wider">Saldo atual</p>
+            <p className="text-xl font-bold text-amber-600">{saldo}</p>
+            <p className="text-[10px] text-muted-foreground/70">créditos</p>
           </div>
         )}
       </div>
@@ -205,7 +205,7 @@ export default function ComprarCreditos() {
           <Card
             key={pkg.id}
             className={cn(
-              "cursor-pointer transition-all border-zinc-800 bg-zinc-950/60 hover:border-amber-600/50",
+              "cursor-pointer transition-all border-border bg-card shadow-surface-sm hover:border-amber-600/50",
               selected?.id === pkg.id && "border-amber-500 ring-1 ring-amber-500/30"
             )}
             onClick={() => setSelected(pkg)}
@@ -214,7 +214,7 @@ export default function ComprarCreditos() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">{pkg.label}</CardTitle>
                 {pkg.badge && (
-                  <Badge variant="secondary" className="text-[10px] bg-amber-500/20 text-amber-400 border-0">
+                  <Badge variant="secondary" className="text-[10px] bg-amber-500/20 text-amber-600 border-0">
                     {pkg.badge}
                   </Badge>
                 )}
@@ -233,7 +233,7 @@ export default function ComprarCreditos() {
       </div>
 
       {selected && (
-        <Card className="border-zinc-800 bg-zinc-950/60">
+        <Card className="border-border bg-card shadow-surface-sm">
           <CardHeader>
             <CardTitle className="text-base">Dados para cobrança</CardTitle>
             <p className="text-xs text-muted-foreground">
@@ -248,7 +248,7 @@ export default function ComprarCreditos() {
                   value={form.name}
                   onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Nome ou razão social"
-                  className="border-zinc-700 bg-zinc-900/60"
+                  className="border-border bg-muted/30"
                 />
               </div>
               <div className="space-y-2">
@@ -258,7 +258,7 @@ export default function ComprarCreditos() {
                   value={form.email}
                   onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))}
                   placeholder="email@exemplo.com"
-                  className="border-zinc-700 bg-zinc-900/60"
+                  className="border-border bg-muted/30"
                 />
               </div>
             </div>
@@ -268,7 +268,7 @@ export default function ComprarCreditos() {
                 value={form.cpf_cnpj}
                 onChange={handleCpfChange}
                 placeholder="000.000.000-00 ou 00.000.000/0001-00"
-                className="border-zinc-700 bg-zinc-900/60 font-mono"
+                className="border-border bg-muted/30 font-mono"
                 maxLength={18}
               />
             </div>
@@ -281,7 +281,7 @@ export default function ComprarCreditos() {
                   "gap-2",
                   billingType === "PIX"
                     ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                    : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                    : "bg-muted hover:bg-muted text-foreground/80"
                 )}
               >
                 <QrCode className="h-4 w-4" />
@@ -293,7 +293,7 @@ export default function ComprarCreditos() {
                 variant={billingType === "BOLETO" ? "default" : "outline"}
                 className={cn(
                   "gap-2",
-                  billingType === "BOLETO" ? "bg-amber-600 hover:bg-amber-700" : "border-zinc-700"
+                  billingType === "BOLETO" ? "bg-amber-600 hover:bg-amber-700" : "border-border"
                 )}
               >
                 <CreditCard className="h-4 w-4" />

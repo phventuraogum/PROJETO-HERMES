@@ -99,7 +99,7 @@ function statusTone(status?: string | null): string {
     case "invalid":
       return "border-rose-500/30 bg-rose-500/10 text-rose-300";
     default:
-      return "border-zinc-700 bg-zinc-900 text-zinc-300";
+      return "border-border bg-muted/20 text-foreground/80";
   }
 }
 
@@ -118,7 +118,7 @@ function signalTone(signalType?: string | null): string {
     case "news_signal":
       return "border-violet-500/30 bg-violet-500/10 text-violet-300";
     default:
-      return "border-zinc-700 bg-zinc-900 text-zinc-300";
+      return "border-border bg-muted/20 text-foreground/80";
   }
 }
 
@@ -523,7 +523,7 @@ const EnriquecerCnpj = () => {
             <Search className="h-5 w-5 text-cyan-300" />
           </div>
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">Enriquecer por CNPJ</h2>
+            <h2 className="text-2xl font-display tracking-tight">Enriquecer por CNPJ</h2>
             <p className="text-sm text-muted-foreground">
               Consulte uma empresa especifica e rode o enriquecimento completo sem passar pelo fluxo de ICP.
             </p>
@@ -531,7 +531,7 @@ const EnriquecerCnpj = () => {
         </div>
       </div>
 
-      <Card className="border-zinc-800 bg-zinc-950/60">
+      <Card className="border-border bg-card shadow-surface-sm">
         <CardHeader className="space-y-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Sparkles className="h-4 w-4 text-cyan-300" />
@@ -548,7 +548,7 @@ const EnriquecerCnpj = () => {
                 value={formatCnpj(cnpjInput)}
                 onChange={(e) => setCnpjInput(normalizeCnpj(e.target.value))}
                 placeholder="00.000.000/0000-00"
-                className="h-11 border-zinc-700 bg-zinc-900 text-base"
+                className="h-11 border-border bg-muted/20 text-base"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
@@ -560,7 +560,7 @@ const EnriquecerCnpj = () => {
             <Button
               type="button"
               variant="outline"
-              className="h-11 border-zinc-700 bg-zinc-900"
+              className="h-11 border-border bg-muted/20"
               onClick={() => void handleBuscar()}
               disabled={isFetching || isEnriching}
             >
@@ -569,7 +569,7 @@ const EnriquecerCnpj = () => {
             </Button>
             <Button
               type="button"
-              className="h-11 bg-cyan-500 text-zinc-950 hover:bg-cyan-400"
+              className="h-11 bg-cyan-500 text-muted-foreground hover:bg-cyan-400"
               onClick={() => void handleEnriquecer()}
               disabled={isFetching || isEnriching}
             >
@@ -579,13 +579,13 @@ const EnriquecerCnpj = () => {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline" className="border-zinc-700 text-zinc-300">
+            <Badge variant="outline" className="border-border text-foreground/80">
               Busca direta por CNPJ
             </Badge>
-            <Badge variant="outline" className="border-zinc-700 text-zinc-300">
+            <Badge variant="outline" className="border-border text-foreground/80">
               Resultado unitario
             </Badge>
-            <Badge variant="outline" className="border-zinc-700 text-zinc-300">
+            <Badge variant="outline" className="border-border text-foreground/80">
               Compatível com Results e Pipeline
             </Badge>
           </div>
@@ -595,7 +595,7 @@ const EnriquecerCnpj = () => {
       {empresa && (
         <>
           <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-            <Card className="border-zinc-800 bg-zinc-950/60">
+            <Card className="border-border bg-card shadow-surface-sm">
               <CardHeader className="space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-1">
@@ -616,21 +616,21 @@ const EnriquecerCnpj = () => {
                   </div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Situacao</p>
-                    <p className="mt-2 text-sm font-medium text-zinc-100">{empresa.situacao_cadastral || "Nao informada"}</p>
+                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Situacao</p>
+                    <p className="mt-2 text-sm font-medium text-foreground">{empresa.situacao_cadastral || "Nao informada"}</p>
                   </div>
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Capital social</p>
-                    <p className="mt-2 text-sm font-medium text-zinc-100">{formatCapital(empresa.capital_social)}</p>
+                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Capital social</p>
+                    <p className="mt-2 text-sm font-medium text-foreground">{formatCapital(empresa.capital_social)}</p>
                   </div>
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">CNAE principal</p>
-                    <p className="mt-2 text-sm font-medium text-zinc-100">{empresa.cnae_principal || "Nao informado"}</p>
+                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">CNAE principal</p>
+                    <p className="mt-2 text-sm font-medium text-foreground">{empresa.cnae_principal || "Nao informado"}</p>
                   </div>
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Atualizacao</p>
-                    <p className="mt-2 text-sm font-medium text-zinc-100">
+                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Atualizacao</p>
+                    <p className="mt-2 text-sm font-medium text-foreground">
                       {empresa.enriquecimento_data ? new Date(empresa.enriquecimento_data).toLocaleString("pt-BR") : "Em tempo real"}
                     </p>
                   </div>
@@ -638,7 +638,7 @@ const EnriquecerCnpj = () => {
               </CardHeader>
             </Card>
 
-            <Card className="border-zinc-800 bg-zinc-950/60">
+            <Card className="border-border bg-card shadow-surface-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Target className="h-4 w-4 text-amber-300" />
@@ -650,7 +650,7 @@ const EnriquecerCnpj = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button
-                  className="w-full justify-between bg-white text-zinc-950 hover:bg-zinc-200"
+                  className="w-full justify-between bg-white text-muted-foreground hover:bg-muted"
                   onClick={() => void handleAbrirResultados()}
                   disabled={isSavingResult}
                 >
@@ -662,7 +662,7 @@ const EnriquecerCnpj = () => {
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full justify-between border-zinc-700 bg-zinc-900"
+                  className="w-full justify-between border-border bg-muted/20"
                   onClick={() => void handleAdicionarPipeline()}
                   disabled={isSendingPipeline}
                 >
@@ -706,34 +706,34 @@ const EnriquecerCnpj = () => {
                 label: "Site",
                 value: empresa.site || "Nao encontrado",
                 icon: Globe,
-                tone: empresa.site ? "text-cyan-300" : "text-zinc-500",
+                tone: empresa.site ? "text-cyan-300" : "text-muted-foreground/70",
               },
               {
                 label: "Email final",
                 value: empresa.email_final || empresa.email || "Nao encontrado",
                 icon: Mail,
-                tone: empresa.email_final || empresa.email ? "text-sky-300" : "text-zinc-500",
+                tone: empresa.email_final || empresa.email ? "text-sky-300" : "text-muted-foreground/70",
               },
               {
                 label: "Telefone final",
                 value: empresa.telefone_final || empresa.telefone_padrao || "Nao encontrado",
                 icon: Phone,
-                tone: empresa.telefone_final || empresa.telefone_padrao ? "text-zinc-100" : "text-zinc-500",
+                tone: empresa.telefone_final || empresa.telefone_padrao ? "text-foreground" : "text-muted-foreground/70",
               },
               {
                 label: "WhatsApp final",
                 value: empresa.whatsapp_final || empresa.whatsapp_publico || "Nao encontrado",
                 icon: Building2,
-                tone: empresa.whatsapp_final || empresa.whatsapp_publico ? "text-emerald-300" : "text-zinc-500",
+                tone: empresa.whatsapp_final || empresa.whatsapp_publico ? "text-emerald-300" : "text-muted-foreground/70",
               },
             ].map((item) => (
-              <Card key={item.label} className="border-zinc-800 bg-zinc-950/60">
+              <Card key={item.label} className="border-border bg-card shadow-surface-sm">
                 <CardContent className="flex h-full items-start gap-3 p-4">
-                  <div className="mt-0.5 rounded-xl border border-zinc-800 bg-zinc-900/80 p-2">
+                  <div className="mt-0.5 rounded-xl border border-border bg-muted/20/80 p-2">
                     <item.icon className={cn("h-4 w-4", item.tone)} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">{item.label}</p>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">{item.label}</p>
                     <p className={cn("mt-2 break-words text-sm font-medium", item.tone)}>{item.value}</p>
                   </div>
                 </CardContent>
@@ -742,7 +742,7 @@ const EnriquecerCnpj = () => {
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
-            <Card className="border-zinc-800 bg-zinc-950/60">
+            <Card className="border-border bg-card shadow-surface-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Brain className="h-4 w-4 text-violet-300" />
@@ -775,15 +775,15 @@ const EnriquecerCnpj = () => {
                     </Badge>
                   )}
                 </div>
-                <Separator className="bg-zinc-800" />
-                <p className="text-sm leading-7 text-zinc-300">
+                <Separator className="bg-muted" />
+                <p className="text-sm leading-7 text-foreground/80">
                   {empresa.resumo_ia_empresa ||
                     "Sem resumo de IA ainda. Rode o enriquecimento para puxar o maximo de contexto comercial disponivel para esse CNPJ."}
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="border-zinc-800 bg-zinc-950/60">
+            <Card className="border-border bg-card shadow-surface-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Scores</CardTitle>
                 <CardDescription>
@@ -804,7 +804,7 @@ const EnriquecerCnpj = () => {
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[1.05fr_1fr]">
-            <Card className="border-zinc-800 bg-zinc-950/60">
+            <Card className="border-border bg-card shadow-surface-sm">
               <CardHeader className="flex flex-row items-start justify-between gap-3">
                 <div className="space-y-1">
                   <CardTitle className="flex items-center gap-2 text-lg">
@@ -818,7 +818,7 @@ const EnriquecerCnpj = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  className="border-zinc-700 bg-zinc-900"
+                  className="border-border bg-muted/20"
                   onClick={() => void loadSimilarCompanies(empresa.cnpj, true)}
                   disabled={isLoadingSimilar}
                 >
@@ -828,21 +828,21 @@ const EnriquecerCnpj = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 {isLoadingSimilar && similarCompanies.length === 0 ? (
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm text-zinc-400">
+                  <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
                     Carregando empresas parecidas...
                   </div>
                 ) : similarCompanies.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+                  <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
                     Nenhuma empresa parecida encontrada para este recorte ainda.
                   </div>
                 ) : (
                   similarCompanies.map((item) => (
-                    <div key={item.cnpj} className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
+                    <div key={item.cnpj} className="rounded-2xl border border-border bg-muted/20/70 p-4">
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                         <div className="space-y-2">
                           <div>
-                            <p className="text-sm font-semibold text-zinc-100">{item.razao_social}</p>
-                            <p className="mt-1 text-xs text-zinc-500">
+                            <p className="text-sm font-semibold text-foreground">{item.razao_social}</p>
+                            <p className="mt-1 text-xs text-muted-foreground/70">
                               {formatCnpj(item.cnpj)}
                               {" · "}
                               {[item.cidade, item.uf].filter(Boolean).join(" / ") || "Localizacao nao informada"}
@@ -872,7 +872,7 @@ const EnriquecerCnpj = () => {
                         <Button
                           type="button"
                           variant="outline"
-                          className="border-zinc-700 bg-zinc-950"
+                          className="border-border bg-card"
                           onClick={() => void handleCarregarSimilar(item.cnpj)}
                           disabled={isFetching || isEnriching}
                         >
@@ -886,7 +886,7 @@ const EnriquecerCnpj = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-zinc-800 bg-zinc-950/60">
+            <Card className="border-border bg-card shadow-surface-sm">
               <CardHeader className="flex flex-row items-start justify-between gap-3">
                 <div className="space-y-1">
                   <CardTitle className="flex items-center gap-2 text-lg">
@@ -900,7 +900,7 @@ const EnriquecerCnpj = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  className="border-zinc-700 bg-zinc-900"
+                  className="border-border bg-muted/20"
                   onClick={() => void loadExternalSignals(empresa.cnpj, true)}
                   disabled={isLoadingSignals}
                 >
@@ -910,16 +910,16 @@ const EnriquecerCnpj = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 {isLoadingSignals && externalSignals.length === 0 ? (
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm text-zinc-400">
+                  <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
                     Capturando sinais externos...
                   </div>
                 ) : externalSignals.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+                  <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
                     Nenhum sinal externo relevante apareceu para este CNPJ ate agora.
                   </div>
                 ) : (
                   externalSignals.slice(0, 8).map((signal, index) => (
-                    <div key={`${signal.signal_type}-${signal.title}-${index}`} className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
+                    <div key={`${signal.signal_type}-${signal.title}-${index}`} className="rounded-2xl border border-border bg-muted/20/70 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-2">
                           <Badge variant="outline" className={signalTone(signal.signal_type)}>
@@ -929,13 +929,13 @@ const EnriquecerCnpj = () => {
                             {signal.signal_type === "news_signal" && <Newspaper className="mr-1 h-3 w-3" />}
                             {signalLabel(signal.signal_type)}
                           </Badge>
-                          <p className="text-sm font-medium text-zinc-100">{signal.title}</p>
+                          <p className="text-sm font-medium text-foreground">{signal.title}</p>
                           {signalSnippet(signal) && (
-                            <p className="text-sm leading-6 text-zinc-400">{signalSnippet(signal)}</p>
+                            <p className="text-sm leading-6 text-muted-foreground">{signalSnippet(signal)}</p>
                           )}
                         </div>
                       </div>
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground/70">
                         {signalDomain(signal) && <span>{signalDomain(signal)}</span>}
                         {signal.created_at && (
                           <>
@@ -964,7 +964,7 @@ const EnriquecerCnpj = () => {
 
           {contactIntel ? (
             <div className="grid gap-4 xl:grid-cols-[1.15fr_1fr]">
-              <Card className="border-zinc-800 bg-zinc-950/60">
+              <Card className="border-border bg-card shadow-surface-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <ShieldCheck className="h-4 w-4 text-violet-300" />
@@ -976,36 +976,36 @@ const EnriquecerCnpj = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Dominio</p>
-                      <p className="mt-2 break-all text-sm font-medium text-zinc-100">
+                    <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Dominio</p>
+                      <p className="mt-2 break-all text-sm font-medium text-foreground">
                         {contactIntel.domain_profile.domain || "Nao resolvido"}
                       </p>
                     </div>
-                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Padrao</p>
-                      <p className="mt-2 text-sm font-medium text-zinc-100">
+                    <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Padrao</p>
+                      <p className="mt-2 text-sm font-medium text-foreground">
                         {formatPattern(contactIntel.domain_profile.email_pattern)}
                       </p>
-                      <p className="mt-1 text-xs text-zinc-500">
+                      <p className="mt-1 text-xs text-muted-foreground/70">
                         {formatPercent(contactIntel.domain_profile.pattern_confidence)}
                       </p>
                     </div>
-                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Emails acionaveis</p>
-                      <p className="mt-2 text-sm font-medium text-zinc-100">
+                    <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Emails acionaveis</p>
+                      <p className="mt-2 text-sm font-medium text-foreground">
                         {contactIntel.summary.deliverable ?? 0}
                       </p>
-                      <p className="mt-1 text-xs text-zinc-500">
+                      <p className="mt-1 text-xs text-muted-foreground/70">
                         {contactIntel.summary.verified ?? 0} verificados
                       </p>
                     </div>
-                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Decisores</p>
-                      <p className="mt-2 text-sm font-medium text-zinc-100">
+                    <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Decisores</p>
+                      <p className="mt-2 text-sm font-medium text-foreground">
                         {contactIntel.summary.decision_makers ?? 0}
                       </p>
-                      <p className="mt-1 text-xs text-zinc-500">
+                      <p className="mt-1 text-xs text-muted-foreground/70">
                         {contactIntel.summary.guessed ?? 0} guessed / {contactIntel.summary.sourced ?? 0} sourced
                       </p>
                     </div>
@@ -1013,7 +1013,7 @@ const EnriquecerCnpj = () => {
 
                   <div className="flex flex-wrap gap-2">
                     {(contactIntel.domain_profile.company_profiles ?? []).map((profile) => (
-                      <Badge key={`${profile.type}-${profile.url}`} variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                      <Badge key={`${profile.type}-${profile.url}`} variant="outline" className="border-border bg-muted/20 text-foreground/80">
                         <Link2 className="mr-1 h-3 w-3" />
                         {profile.type}: {profile.url.replace(/^https?:\/\//, "")}
                       </Badge>
@@ -1027,9 +1027,9 @@ const EnriquecerCnpj = () => {
 
                   {(contactIntel.domain_profile.generic_inboxes ?? []).length > 0 && (
                     <>
-                      <Separator className="bg-zinc-800" />
+                      <Separator className="bg-muted" />
                       <div className="space-y-2">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Caixas gerais encontradas</p>
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Caixas gerais encontradas</p>
                         <div className="flex flex-wrap gap-2">
                           {(contactIntel.domain_profile.generic_inboxes ?? []).map((item) => (
                             <Badge key={item.email} variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
@@ -1043,7 +1043,7 @@ const EnriquecerCnpj = () => {
                 </CardContent>
               </Card>
 
-              <Card className="border-zinc-800 bg-zinc-950/60">
+              <Card className="border-border bg-card shadow-surface-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Users className="h-4 w-4 text-cyan-300" />
@@ -1055,18 +1055,18 @@ const EnriquecerCnpj = () => {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {(contactIntel.contacts ?? []).length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-400">
+                    <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
                       Nenhum decisor foi resolvido ainda. Rode novamente apos enriquecer o site da empresa.
                     </div>
                   ) : (
                     (contactIntel.contacts ?? []).slice(0, 6).map((contact) => {
                       const primary = contact.emails.find((item) => item.is_primary) || contact.emails[0];
                       return (
-                        <div key={contact.name} className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
+                        <div key={contact.name} className="rounded-2xl border border-border bg-muted/20/70 p-4">
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="text-sm font-semibold text-zinc-100">{contact.name}</p>
-                              <p className="mt-1 text-xs text-zinc-500">
+                              <p className="text-sm font-semibold text-foreground">{contact.name}</p>
+                              <p className="mt-1 text-xs text-muted-foreground/70">
                                 {contact.role || "Socio / decisor potencial"}
                               </p>
                             </div>
@@ -1081,9 +1081,9 @@ const EnriquecerCnpj = () => {
                             <div className="mt-3 space-y-2">
                               <div className="flex items-center gap-2 text-sm">
                                 <Mail className="h-4 w-4 text-sky-300" />
-                                <span className="break-all font-medium text-zinc-100">{primary.email}</span>
+                                <span className="break-all font-medium text-foreground">{primary.email}</span>
                               </div>
-                              <div className="flex flex-wrap gap-2 text-xs text-zinc-400">
+                              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                                 <span>Score {formatPercent(primary.score_total)}</span>
                                 <span>·</span>
                                 <span>{primary.kind === "sourced" ? "Sourced" : "Guessed"}</span>
@@ -1108,7 +1108,7 @@ const EnriquecerCnpj = () => {
                               {contact.emails.length > 1 && (
                                 <div className="flex flex-wrap gap-2 pt-1">
                                   {contact.emails.slice(1, 4).map((email) => (
-                                    <Badge key={email.email} variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                                    <Badge key={email.email} variant="outline" className="border-border bg-muted/20 text-foreground/80">
                                       {email.email}
                                     </Badge>
                                   ))}
@@ -1116,7 +1116,7 @@ const EnriquecerCnpj = () => {
                               )}
                             </div>
                           ) : (
-                            <p className="mt-3 text-sm text-zinc-400">Sem email resolvido para esse contato.</p>
+                            <p className="mt-3 text-sm text-muted-foreground">Sem email resolvido para esse contato.</p>
                           )}
                         </div>
                       );
@@ -1126,11 +1126,11 @@ const EnriquecerCnpj = () => {
               </Card>
             </div>
           ) : (
-            <Card className="border-dashed border-zinc-700 bg-zinc-950/40">
+            <Card className="border-dashed border-border bg-card/40">
               <CardContent className="flex flex-col gap-3 p-6 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-zinc-100">Modulo Hunter-style ainda nao resolvido para este CNPJ.</p>
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <p className="text-sm font-medium text-foreground">Modulo Hunter-style ainda nao resolvido para este CNPJ.</p>
+                  <p className="mt-1 text-sm text-muted-foreground/70">
                     O Hermes ja tem a empresa carregada. Falta resolver dominio, pattern corporativo e decisores por email.
                   </p>
                 </div>
@@ -1148,7 +1148,7 @@ const EnriquecerCnpj = () => {
           )}
 
           {mobileWaterfall ? (
-            <Card className="border-zinc-800 bg-zinc-950/60">
+            <Card className="border-border bg-card shadow-surface-sm">
               <CardHeader>
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div>
@@ -1173,42 +1173,42 @@ const EnriquecerCnpj = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Mobiles</p>
-                    <p className="mt-2 text-sm font-medium text-zinc-100">{mobileWaterfall.summary.mobile_candidates ?? 0}</p>
+                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Mobiles</p>
+                    <p className="mt-2 text-sm font-medium text-foreground">{mobileWaterfall.summary.mobile_candidates ?? 0}</p>
                   </div>
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">WhatsApps validados</p>
-                    <p className="mt-2 text-sm font-medium text-zinc-100">
+                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">WhatsApps validados</p>
+                    <p className="mt-2 text-sm font-medium text-foreground">
                       {mobileWaterfall.summary.verified_whatsapp_candidates ?? 0}
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Mobiles de decisor</p>
-                    <p className="mt-2 text-sm font-medium text-zinc-100">
+                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Mobiles de decisor</p>
+                    <p className="mt-2 text-sm font-medium text-foreground">
                       {mobileWaterfall.summary.decision_maker_mobile_candidates ?? 0}
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Primario</p>
-                    <p className="mt-2 break-all text-sm font-medium text-zinc-100">
+                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Primario</p>
+                    <p className="mt-2 break-all text-sm font-medium text-foreground">
                       {mobileWaterfall.summary.primary_phone || "Nao definido"}
                     </p>
                   </div>
                 </div>
 
                 {(mobileWaterfall.candidates ?? []).length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40 p-4 text-sm text-zinc-400">
+                  <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
                     Nenhum mobile foi priorizado ainda para este CNPJ.
                   </div>
                 ) : (
                   <div className="grid gap-3 lg:grid-cols-2">
                     {mobileWaterfall.candidates.slice(0, 6).map((candidate) => (
-                      <div key={`${candidate.normalized_phone}-${candidate.contact_name || "company"}`} className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
+                      <div key={`${candidate.normalized_phone}-${candidate.contact_name || "company"}`} className="rounded-2xl border border-border bg-muted/20/70 p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="text-sm font-semibold text-zinc-100">{candidate.normalized_phone}</p>
-                            <p className="mt-1 text-xs text-zinc-500">
+                            <p className="text-sm font-semibold text-foreground">{candidate.normalized_phone}</p>
+                            <p className="mt-1 text-xs text-muted-foreground/70">
                               {candidate.contact_name || empresa?.razao_social || "Empresa"}
                               {candidate.contact_role ? ` · ${candidate.contact_role}` : ""}
                             </p>
@@ -1220,7 +1220,7 @@ const EnriquecerCnpj = () => {
                           )}
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2">
-                          <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                          <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
                             {phoneTypeLabel(candidate.phone_type)}
                           </Badge>
                           {candidate.verified_whatsapp && (
@@ -1240,7 +1240,7 @@ const EnriquecerCnpj = () => {
                             </Badge>
                           )}
                         </div>
-                        <div className="mt-3 text-xs text-zinc-400">
+                        <div className="mt-3 text-xs text-muted-foreground">
                           <span>Fonte: {candidate.source_label || "Nao informada"}</span>
                           {candidate.validation_source && <span> · Validacao: {candidate.validation_source}</span>}
                           {candidate.score_total != null && <span> · Score {formatPercent(candidate.score_total)}</span>}
@@ -1253,11 +1253,11 @@ const EnriquecerCnpj = () => {
             </Card>
           ) : (
             empresa && (
-              <Card className="border-dashed border-zinc-700 bg-zinc-950/40">
+              <Card className="border-dashed border-border bg-card/40">
                 <CardContent className="flex flex-col gap-3 p-6 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <p className="text-sm font-medium text-zinc-100">Apollo-style mobile waterfall ainda nao resolvido para este CNPJ.</p>
-                    <p className="mt-1 text-sm text-zinc-500">
+                    <p className="text-sm font-medium text-foreground">Apollo-style mobile waterfall ainda nao resolvido para este CNPJ.</p>
+                    <p className="mt-1 text-sm text-muted-foreground/70">
                       O Hermes ja tem telefones e socios. Falta priorizar mobile, validar WhatsApp e destacar o melhor canal.
                     </p>
                   </div>

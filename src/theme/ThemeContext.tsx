@@ -25,7 +25,7 @@ function getInitialTheme(): ThemeMode {
   }
 
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  return stored === "light" ? "light" : "dark";
+  return stored === "dark" ? "dark" : "light"; // light é o padrão novo
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

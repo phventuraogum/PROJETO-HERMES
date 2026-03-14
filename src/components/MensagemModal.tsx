@@ -72,13 +72,13 @@ export function MensagemModal({
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-xl bg-zinc-950 border-zinc-800">
+      <DialogContent className="max-w-xl bg-card border-border">
         <DialogHeader>
           <DialogTitle className="text-base flex items-center gap-2">
             <Wand2 className="h-4 w-4 text-amber-400" />
             Gerar mensagem de abordagem
           </DialogTitle>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-muted-foreground/70">
             {empresa.nome_fantasia || empresa.razao_social} · {empresa.cidade} / {empresa.uf}
           </p>
         </DialogHeader>
@@ -93,7 +93,7 @@ export function MensagemModal({
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
                 canal === c.id
                   ? `${c.border} ${c.bg} ${c.color}`
-                  : "border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
+                  : "border-border text-muted-foreground/70 hover:border-border hover:text-foreground/80"
               )}>
               <c.icon className="h-3.5 w-3.5" />
               {c.label}
@@ -103,12 +103,12 @@ export function MensagemModal({
 
         {/* Produto / serviço */}
         <div className="space-y-1">
-          <label className="text-xs text-zinc-400">Produto/serviço (opcional)</label>
+          <label className="text-xs text-muted-foreground">Produto/serviço (opcional)</label>
           <Input
             value={produto}
             onChange={e => setProduto(e.target.value)}
             placeholder="ex: consultoria fiscal, software ERP, logística..."
-            className="text-sm border-zinc-800 bg-zinc-900/60 placeholder-zinc-600"
+            className="text-sm border-border bg-muted/30 placeholder-zinc-600"
           />
         </div>
 
@@ -130,25 +130,25 @@ export function MensagemModal({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <canalAtual.icon className={cn("h-3.5 w-3.5", canalAtual.color)} />
-                <span className="text-xs font-medium text-zinc-300">{canalAtual.label}</span>
+                <span className="text-xs font-medium text-foreground/80">{canalAtual.label}</span>
                 <Badge variant="outline"
                   className={cn("text-[9px] border py-0 px-1.5",
-                    iaUsada ? "border-amber-700/60 text-amber-400" : "border-zinc-700 text-zinc-500")}>
+                    iaUsada ? "border-amber-700/60 text-amber-400" : "border-border text-muted-foreground/70")}>
                   {iaUsada ? "✦ IA" : "template"}
                 </Badge>
               </div>
               <Button
                 size="sm" variant="ghost"
-                className={cn("h-6 gap-1 text-[11px]", copiado ? "text-emerald-400" : "text-zinc-400")}
+                className={cn("h-6 gap-1 text-[11px]", copiado ? "text-emerald-400" : "text-muted-foreground")}
                 onClick={copiar}>
                 {copiado ? <><Check className="h-3 w-3" /> Copiado!</> : <><Copy className="h-3 w-3" /> Copiar</>}
               </Button>
             </div>
 
             {assunto && (
-              <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2">
-                <span className="text-[10px] text-zinc-500 block mb-0.5">Assunto</span>
-                <p className="text-sm text-zinc-200">{assunto}</p>
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                <span className="text-[10px] text-muted-foreground/70 block mb-0.5">Assunto</span>
+                <p className="text-sm text-foreground">{assunto}</p>
               </div>
             )}
 
@@ -156,10 +156,10 @@ export function MensagemModal({
               value={corpo}
               onChange={e => setCorpo(e.target.value)}
               rows={8}
-              className="w-full resize-none rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2.5 text-sm text-zinc-200 focus:outline-none focus:border-zinc-600"
+              className="w-full resize-none rounded-lg border border-border bg-muted/20 px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-border"
             />
 
-            <p className="text-[10px] text-zinc-600">
+            <p className="text-[10px] text-muted-foreground/50">
               Personalize antes de enviar. Substitua os [colchetes] pelos dados reais.
             </p>
           </div>

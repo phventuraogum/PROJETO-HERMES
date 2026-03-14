@@ -38,14 +38,14 @@ const PORTES: { id: Porte; label: string; desc: string }[] = [
 ];
 
 const SEGMENTOS = [
-  { id: "Hospitais",     label: "Hospitais",    icon: Heart,        color: "border-rose-500/50 bg-rose-500/10 text-rose-300" },
-  { id: "Clínicas",      label: "Clínicas",     icon: Stethoscope,  color: "border-pink-500/50 bg-pink-500/10 text-pink-300" },
-  { id: "Laboratórios",  label: "Laboratórios", icon: FlaskConical, color: "border-violet-500/50 bg-violet-500/10 text-violet-300" },
-  { id: "Farmácias",     label: "Farmácias",    icon: Pill,         color: "border-sky-500/50 bg-sky-500/10 text-sky-300" },
-  { id: "Supermercados", label: "Supermercados",icon: ShoppingCart, color: "border-amber-500/50 bg-amber-500/10 text-amber-300" },
-  { id: "Logística",     label: "Logística",    icon: Truck,        color: "border-orange-500/50 bg-orange-500/10 text-orange-300" },
-  { id: "Indústria",     label: "Indústria",    icon: Factory,      color: "border-blue-500/50 bg-blue-500/10 text-blue-300" },
-  { id: "Serviços",      label: "Serviços",     icon: Wrench,       color: "border-emerald-500/50 bg-emerald-500/10 text-emerald-300" },
+  { id: "Hospitais",     label: "Hospitais",    icon: Heart,        color: "border-rose-500/40 bg-rose-50 text-rose-700" },
+  { id: "Clínicas",      label: "Clínicas",     icon: Stethoscope,  color: "border-pink-500/40 bg-pink-50 text-pink-700" },
+  { id: "Laboratórios",  label: "Laboratórios", icon: FlaskConical, color: "border-violet-500/40 bg-violet-50 text-violet-700" },
+  { id: "Farmácias",     label: "Farmácias",    icon: Pill,         color: "border-sky-500/40 bg-sky-50 text-sky-700" },
+  { id: "Supermercados", label: "Supermercados",icon: ShoppingCart, color: "border-amber-500/40 bg-amber-50 text-amber-700" },
+  { id: "Logística",     label: "Logística",    icon: Truck,        color: "border-orange-500/40 bg-orange-50 text-orange-700" },
+  { id: "Indústria",     label: "Indústria",    icon: Factory,      color: "border-blue-500/40 bg-blue-50 text-blue-700" },
+  { id: "Serviços",      label: "Serviços",     icon: Wrench,       color: "border-emerald-500/40 bg-emerald-50 text-emerald-700" },
 ] as const;
 
 type BuscaRecente = {
@@ -88,11 +88,11 @@ function Section({
 }) {
   const collapsible = typeof open === "boolean";
   return (
-    <Card className="border-zinc-800 bg-zinc-950/60">
+    <Card className="border-border bg-card shadow-surface-sm">
       {collapsible ? (
         <button
           type="button"
-          className="w-full flex items-center justify-between px-5 py-4 text-left"
+          className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition-colors"
           onClick={onToggle}
         >
           <div className="flex items-center gap-2">
@@ -105,20 +105,20 @@ function Section({
             : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
         </button>
       ) : (
-        <CardHeader className="px-5 pt-4 pb-3">
-          <CardTitle className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        <div className="px-5 pt-4 pb-3 border-b border-border">
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             <Icon className="w-3.5 h-3.5" />
             {title}
             {hint && <span className="text-[10px] font-normal normal-case tracking-normal text-muted-foreground/50">{hint}</span>}
-          </CardTitle>
-        </CardHeader>
+          </p>
+        </div>
       )}
       {(!collapsible || open) && (
-        <CardContent className={cn("px-5 pb-5", collapsible && "border-t border-zinc-800 pt-4")}>
+        <CardContent className={cn("px-5 pb-5", collapsible && "border-t border-border pt-4")}>
           {children}
-        </CardContent>
+        </div>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -251,15 +251,15 @@ const Configure = () => {
   // ── Resumo das tags ────────────────────────────────────────────────────────
   const tags = useMemo(() => {
     const t: { label: string; cls: string }[] = [];
-    if (cidades.length > 0) t.push({ label: cidades.join(", "), cls: "border-sky-500/40 bg-sky-500/10 text-sky-300" });
-    if (ufs.length > 0) t.push({ label: ufs.join(", "), cls: "border-sky-500/40 bg-sky-500/10 text-sky-300" });
-    portesSelecionados.forEach(p => t.push({ label: p, cls: "border-violet-500/40 bg-violet-500/10 text-violet-300" }));
-    segmentosSelecionados.forEach(s => t.push({ label: s, cls: "border-primary/40 bg-primary/10 text-primary" }));
-    if (capitalMinimo > 0 || capitalMaximo) t.push({ label: `${formatBRL(capitalMinimo)} → ${capitalMaximo ? formatBRL(capitalMaximo) : "sem limite"}`, cls: "border-amber-500/40 bg-amber-500/10 text-amber-300" });
-    if (cnaes.length) t.push({ label: `${cnaes.length} CNAE(s)`, cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" });
-    if (exigirContatoAcionavel) t.push({ label: "só com contato", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" });
-    if (priorizarComContato) t.push({ label: "prioriza contato", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" });
-    if (enriquecimentoWeb) t.push({ label: "enriquecimento web", cls: "border-sky-400/40 bg-sky-400/10 text-sky-300" });
+    if (cidades.length > 0) t.push({ label: cidades.join(", "), cls: "border-sky-200 bg-sky-50 text-sky-700" });
+    if (ufs.length > 0) t.push({ label: ufs.join(", "), cls: "border-sky-200 bg-sky-50 text-sky-700" });
+    portesSelecionados.forEach(p => t.push({ label: p, cls: "border-violet-200 bg-violet-50 text-violet-700" }));
+    segmentosSelecionados.forEach(s => t.push({ label: s, cls: "border-primary/20 bg-primary/5 text-primary" }));
+    if (capitalMinimo > 0 || capitalMaximo) t.push({ label: `${formatBRL(capitalMinimo)} → ${capitalMaximo ? formatBRL(capitalMaximo) : "sem limite"}`, cls: "border-amber-200 bg-amber-50 text-amber-700" });
+    if (cnaes.length) t.push({ label: `${cnaes.length} CNAE(s)`, cls: "border-emerald-200 bg-emerald-50 text-emerald-700" });
+    if (exigirContatoAcionavel) t.push({ label: "só com contato", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" });
+    if (priorizarComContato) t.push({ label: "prioriza contato", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" });
+    if (enriquecimentoWeb) t.push({ label: "enriquecimento web", cls: "border-sky-200 bg-sky-50 text-sky-600" });
     return t;
   }, [cidades, ufs, portesSelecionados, segmentosSelecionados, capitalMinimo, capitalMaximo, cnaes, exigirContatoAcionavel, priorizarComContato, enriquecimentoWeb]);
 
@@ -362,7 +362,7 @@ const Configure = () => {
       {/* ── Cabeçalho ──────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
+          <h1 className="text-2xl font-display text-foreground">
             <Target className="w-6 h-6 text-primary" />
             Configurar Prospecção
           </h1>
@@ -384,13 +384,13 @@ const Configure = () => {
           </p>
           <div className="flex flex-wrap gap-2">
             {recentes.map((r, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 text-xs">
+              <div key={i} className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs">
                 <div className="space-y-0.5">
-                  <p className="font-medium text-zinc-200">
+                  <p className="font-medium text-foreground">
                     {r.cidade} / {r.uf}
-                    {r.segmentos.length > 0 && <span className="ml-2 text-zinc-400">· {r.segmentos.join(", ")}</span>}
+                    {r.segmentos.length > 0 && <span className="ml-2 text-muted-foreground">· {r.segmentos.join(", ")}</span>}
                   </p>
-                  <p className="text-zinc-500">
+                  <p className="text-muted-foreground/70">
                     {r.total} empresas ·{" "}
                     {new Date(r.ts).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                   </p>
@@ -414,7 +414,7 @@ const Configure = () => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {PRESETS.map(p => (
             <button key={p.label} type="button" onClick={() => applyPreset(p)}
-              className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 text-sm font-medium text-zinc-300 transition-all hover:border-primary/60 hover:bg-primary/10 hover:text-primary">
+              className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm font-medium text-foreground/80 transition-all hover:border-primary/60 hover:bg-primary/10 hover:text-primary">
               <p.icon className="w-4 h-4 flex-shrink-0" />
               {p.label}
             </button>
@@ -429,11 +429,11 @@ const Configure = () => {
             <Label htmlFor="termo" className="text-xs">Palavra-chave <span className="text-muted-foreground">(opcional)</span></Label>
             <Input id="termo" placeholder="HOSPITAL, ATACADISTA, FARMÁCIA..."
               value={termoBase} onChange={e => setTermoBase(e.target.value.toUpperCase())}
-              className="h-9 bg-zinc-900 border-zinc-700" />
+              className="h-9 bg-background border-border focus:border-primary/40" />
             <p className="text-[10px] text-muted-foreground">Filtro livre na razão social / nome fantasia.</p>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="cidade" className="text-xs">Cidades <span className="text-zinc-500">(vazio = estado inteiro · digite e Enter)</span></Label>
+            <Label htmlFor="cidade" className="text-xs">Cidades <span className="text-muted-foreground/70">(vazio = estado inteiro · digite e Enter)</span></Label>
             <div className="relative">
               <MapPin className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground" />
               <Input id="cidade" placeholder="BH, CONTAGEM, BETIM..."
@@ -447,25 +447,25 @@ const Configure = () => {
                     setCidadeInput("");
                   }
                 }}
-                className="h-9 pl-8 bg-zinc-900 border-zinc-700" />
+                className="h-9 pl-8 bg-background border-border focus:border-primary/40" />
             </div>
             {cidades.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-1">
                 {cidades.map(c => (
                   <Badge key={c} variant="outline"
-                    className="gap-1 text-[11px] border-sky-500/40 bg-sky-500/10 text-sky-300 cursor-pointer hover:border-rose-500/50 hover:bg-rose-500/10 hover:text-rose-300"
+                    className="gap-1 text-[11px] border-sky-200 bg-sky-50 text-sky-700 cursor-pointer hover:border-rose-500/50 hover:bg-rose-500/10 hover:text-red-600"
                     onClick={() => setCidades(prev => prev.filter(x => x !== c))}>
                     {c} <X className="w-2.5 h-2.5" />
                   </Badge>
                 ))}
                 <button type="button" onClick={() => setCidades([])}
-                  className="text-[10px] text-zinc-500 hover:text-rose-400 ml-1">limpar</button>
+                  className="text-[10px] text-muted-foreground/70 hover:text-red-600 ml-1">limpar</button>
               </div>
             )}
             <p className="text-[10px] text-muted-foreground">Vazio = busca em todo(s) o(s) estado(s). Pode adicionar várias cidades.</p>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Estados (UF) <span className="text-rose-400">*</span> <span className="text-zinc-500">· clique para selecionar</span></Label>
+            <Label className="text-xs">Estados (UF) <span className="text-red-600">*</span> <span className="text-muted-foreground/70">· clique para selecionar</span></Label>
             <div className="flex flex-wrap gap-1">
               {UFS.map(s => {
                 const on = ufs.includes(s);
@@ -474,7 +474,7 @@ const Configure = () => {
                     onClick={() => setUfs(prev => on ? prev.filter(x => x !== s) : [...prev, s])}
                     className={cn(
                       "h-7 rounded px-2 text-xs font-medium transition-all border",
-                      on ? "border-primary/60 bg-primary/15 text-primary" : "border-zinc-700 bg-zinc-800/60 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
+                      on ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/50 text-muted-foreground/70 hover:border-border hover:text-foreground/80"
                     )}>
                     {s}
                   </button>
@@ -493,16 +493,16 @@ const Configure = () => {
             <Label htmlFor="capMin" className="text-xs">Mínimo (R$)</Label>
             <Input id="capMin" type="number" value={capitalMinimo}
               onChange={e => setCapitalMinimo(Number(e.target.value || 0))}
-              className="h-9 bg-zinc-900 border-zinc-700" />
-            <p className="text-[10px] text-muted-foreground font-medium text-amber-400/80">{formatBRL(capitalMinimo)}</p>
+              className="h-9 bg-background border-border focus:border-primary/40" />
+            <p className="text-[10px] text-muted-foreground font-medium text-amber-600">{formatBRL(capitalMinimo)}</p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="capMax" className="text-xs">Máximo (R$) <span className="text-muted-foreground">(opcional)</span></Label>
             <Input id="capMax" type="number" placeholder="Sem limite"
               value={capitalMaximo ?? ""}
               onChange={e => setCapitalMaximo(e.target.value === "" ? null : Number(e.target.value))}
-              className="h-9 bg-zinc-900 border-zinc-700" />
-            <p className="text-[10px] text-muted-foreground font-medium text-amber-400/80">
+              className="h-9 bg-background border-border focus:border-primary/40" />
+            <p className="text-[10px] text-muted-foreground font-medium text-amber-600">
               {capitalMaximo ? formatBRL(capitalMaximo) : "Sem limite superior"}
             </p>
           </div>
@@ -518,7 +518,7 @@ const Configure = () => {
               <button key={p.id} type="button" onClick={() => togglePorte(p.id)}
                 className={cn(
                   "flex flex-col items-start gap-0.5 rounded-lg border px-3 py-3 transition-all text-left",
-                  on ? "border-primary/60 bg-primary/10 text-primary" : "border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-600"
+                  on ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-border"
                 )}>
                 <span className="text-sm font-semibold">{p.label}</span>
                 <span className="text-[10px] opacity-70">{p.desc}</span>
@@ -537,7 +537,7 @@ const Configure = () => {
               <button key={seg.id} type="button" onClick={() => toggleSegmento(seg.id)}
                 className={cn(
                   "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
-                  on ? `border ${seg.color}` : "border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-600"
+                  on ? `border ${seg.color}` : "border-border bg-muted/30 text-muted-foreground hover:border-border"
                 )}>
                 <seg.icon className={cn("w-4 h-4 flex-shrink-0", !on && "opacity-40")} />
                 {seg.label}
@@ -563,8 +563,8 @@ const Configure = () => {
             <Input placeholder="Ex.: 8610, 4711, 4772..." value={cnaeInput}
               onChange={e => setCnaeInput(e.target.value)}
               onKeyDown={handleCNAEKey}
-              className="h-9 bg-zinc-900 border-zinc-700 flex-1 font-mono text-sm" />
-            <Button size="sm" variant="outline" onClick={addCNAE} className="h-9 px-3 gap-1 border-zinc-700">
+              className="h-9 bg-background border-border focus:border-primary/40 flex-1 font-mono text-sm" />
+            <Button size="sm" variant="outline" onClick={addCNAE} className="h-9 px-3 gap-1 border-border">
               <Plus className="w-3.5 h-3.5" /> Adicionar
             </Button>
           </div>
@@ -572,13 +572,13 @@ const Configure = () => {
             <div className="flex flex-wrap gap-1.5">
               {cnaes.map(c => (
                 <Badge key={c} variant="outline"
-                  className="gap-1 font-mono text-[11px] border-zinc-700 bg-zinc-800 cursor-pointer hover:border-rose-500/50 hover:bg-rose-500/10 hover:text-rose-300"
+                  className="gap-1 font-mono text-[11px] border-border bg-muted cursor-pointer hover:border-rose-500/50 hover:bg-rose-500/10 hover:text-red-600"
                   onClick={() => setCnaes(prev => prev.filter(x => x !== c))}>
                   {c} <X className="w-2.5 h-2.5" />
                 </Badge>
               ))}
               <button type="button" onClick={() => setCnaes([])}
-                className="text-[10px] text-muted-foreground hover:text-rose-400 transition-colors">
+                className="text-[10px] text-muted-foreground hover:text-red-600 transition-colors">
                 limpar todos
               </button>
             </div>
@@ -589,7 +589,7 @@ const Configure = () => {
           )}
         </div>
 
-        <Separator className="bg-zinc-800 my-4" />
+        <Separator className="bg-muted my-4" />
 
         {/* Subsegmento / nicho */}
         <div className="space-y-1.5 mb-4">
@@ -600,22 +600,22 @@ const Configure = () => {
           <Input id="subseg" placeholder="Ex.: oncologia, diagnóstico por imagem, construção civil pesada..."
             value={subsegmentoAlvo}
             onChange={e => setSubsegmentoAlvo(e.target.value)}
-            className="h-9 bg-zinc-900 border-zinc-700" />
+            className="h-9 bg-background border-border focus:border-primary/40" />
           <p className="text-[10px] text-muted-foreground">
             O Hermes filtra pelo nome, fantasia e descrição derivada do CNAE.
           </p>
         </div>
 
-        <Separator className="bg-zinc-800 my-4" />
+        <Separator className="bg-muted my-4" />
 
         {/* Opções booleanas + limite */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 
           {/* Enriquecimento web */}
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 flex items-center justify-between gap-3">
+          <div className="rounded-lg border border-border bg-muted/20 p-3 flex items-center justify-between gap-3">
             <div className="space-y-0.5">
               <div className="flex items-center gap-1.5 text-xs font-medium">
-                <Globe className="w-3.5 h-3.5 text-sky-400" />
+                <Globe className="w-3.5 h-3.5 text-sky-600" />
                 Enriquecimento web
               </div>
               <p className="text-[10px] text-muted-foreground">
@@ -626,10 +626,10 @@ const Configure = () => {
           </div>
 
           {/* Só com contato */}
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 flex items-center justify-between gap-3">
+          <div className="rounded-lg border border-border bg-muted/20 p-3 flex items-center justify-between gap-3">
             <div className="space-y-0.5">
               <div className="flex items-center gap-1.5 text-xs font-medium">
-                <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                <Phone className="w-3.5 h-3.5 text-emerald-600" />
                 Só com contato
               </div>
               <p className="text-[10px] text-muted-foreground">
@@ -640,10 +640,10 @@ const Configure = () => {
           </div>
 
           {/* Priorizar com contato */}
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 flex items-center justify-between gap-3">
+          <div className="rounded-lg border border-border bg-muted/20 p-3 flex items-center justify-between gap-3">
             <div className="space-y-0.5">
               <div className="flex items-center gap-1.5 text-xs font-medium">
-                <Target className="w-3.5 h-3.5 text-emerald-400" />
+                <Target className="w-3.5 h-3.5 text-emerald-600" />
                 Priorizar quem tem contato
               </div>
               <p className="text-[10px] text-muted-foreground">
@@ -654,25 +654,25 @@ const Configure = () => {
           </div>
 
           {/* Idade da empresa */}
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 space-y-2">
+          <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
             <Label className="text-xs">Idade da empresa (anos)</Label>
             <div className="flex gap-2 items-center">
               <Input type="number" placeholder="Mín" min={0}
                 value={idadeMinima ?? ""}
                 onChange={e => setIdadeMinima(e.target.value === "" ? null : Number(e.target.value))}
-                className="h-7 w-20 bg-zinc-900 border-zinc-700 text-xs px-2" />
-              <span className="text-zinc-500 text-xs">a</span>
+                className="h-7 w-20 bg-background border-border focus:border-primary/40 text-xs px-2" />
+              <span className="text-muted-foreground/70 text-xs">a</span>
               <Input type="number" placeholder="Máx" min={0}
                 value={idadeMaxima ?? ""}
                 onChange={e => setIdadeMaxima(e.target.value === "" ? null : Number(e.target.value))}
-                className="h-7 w-20 bg-zinc-900 border-zinc-700 text-xs px-2" />
-              <span className="text-zinc-500 text-xs">anos</span>
+                className="h-7 w-20 bg-background border-border focus:border-primary/40 text-xs px-2" />
+              <span className="text-muted-foreground/70 text-xs">anos</span>
             </div>
             <p className="text-[10px] text-muted-foreground">Ex.: 2 a 10 = empresas abertas entre 2 e 10 anos atrás.</p>
           </div>
 
           {/* Limite de empresas */}
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 space-y-2">
+          <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
             <Label htmlFor="limite" className="text-xs">
               Limite de empresas
             </Label>
@@ -682,8 +682,8 @@ const Configure = () => {
                   className={cn(
                     "h-7 rounded px-2 text-xs font-medium transition-all border",
                     limiteEmpresas === n
-                      ? "border-primary/60 bg-primary/15 text-primary"
-                      : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-muted/50 text-muted-foreground hover:border-border"
                   )}>
                   {n}
                 </button>
@@ -691,7 +691,7 @@ const Configure = () => {
               <Input id="limite" type="number" min={1} max={2000}
                 value={limiteEmpresas}
                 onChange={e => setLimiteEmpresas(Math.max(1, Number(e.target.value || 1)))}
-                className="h-7 w-20 bg-zinc-900 border-zinc-700 text-xs px-2"
+                className="h-7 w-20 bg-background border-border focus:border-primary/40 text-xs px-2"
               />
             </div>
             <p className="text-[10px] text-muted-foreground">
@@ -703,31 +703,31 @@ const Configure = () => {
 
       {/* ── Preview de qualidade ──────────────────────────────────────────── */}
       {preview && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 space-y-3">
+        <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
             <Info className="w-3 h-3" /> Preview do lote anterior com esses filtros
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { label: "Empresas",   value: preview.total.toString(),                                                    cls: "text-white" },
-              { label: "Com e-mail", value: `${preview.comEmail} (${preview.total ? Math.round(preview.comEmail/preview.total*100) : 0}%)`, cls: "text-sky-400" },
-              { label: "WhatsApp",   value: `${preview.comWA} (${preview.total ? Math.round(preview.comWA/preview.total*100) : 0}%)`,    cls: "text-emerald-400" },
-              { label: "Score médio",value: `${preview.scoreM.toFixed(1)} pts`,                                          cls: preview.scoreM >= 60 ? "text-emerald-400" : preview.scoreM >= 40 ? "text-amber-400" : "text-rose-400" },
+              { label: "Com e-mail", value: `${preview.comEmail} (${preview.total ? Math.round(preview.comEmail/preview.total*100) : 0}%)`, cls: "text-sky-600" },
+              { label: "WhatsApp",   value: `${preview.comWA} (${preview.total ? Math.round(preview.comWA/preview.total*100) : 0}%)`,    cls: "text-emerald-600" },
+              { label: "Score médio",value: `${preview.scoreM.toFixed(1)} pts`,                                          cls: preview.scoreM >= 60 ? "text-emerald-600" : preview.scoreM >= 40 ? "text-amber-400" : "text-red-600" },
             ].map(m => (
-              <div key={m.label} className="rounded-lg bg-zinc-800/50 px-3 py-2 space-y-0.5">
-                <p className="text-[10px] text-zinc-500">{m.label}</p>
+              <div key={m.label} className="rounded-lg bg-muted/40 px-3 py-2 space-y-0.5">
+                <p className="text-[10px] text-muted-foreground/70">{m.label}</p>
                 <p className={cn("text-sm font-bold", m.cls)}>{m.value}</p>
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-zinc-600">
+          <p className="text-[10px] text-muted-foreground/50">
             Baseado no último lote executado. Rode novamente para dados atualizados.
           </p>
         </div>
       )}
 
       {/* ── Resumo + CTA ───────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 space-y-4">
+      <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-4">
 
         {/* Tags do recorte */}
         {tags.length > 0 && (
@@ -755,7 +755,7 @@ const Configure = () => {
               </span>
               <span className="ml-auto text-muted-foreground tabular-nums">{progressPct}%</span>
             </div>
-            <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-primary via-primary to-emerald-400 transition-all duration-500 ease-out"
                 style={{ width: `${progressPct}%` }}
@@ -769,18 +769,18 @@ const Configure = () => {
 
         {/* Resultado */}
         {resultado && !isLoading && (
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
             <div className="flex items-center gap-2 text-sm">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-              <span className="text-emerald-300 font-semibold">{resultado.total_empresas} empresas encontradas</span>
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span className="text-emerald-700 font-semibold">{resultado.total_empresas} empresas encontradas</span>
               {resultado.enriquecimento_web?.total_com_enriquecimento > 0 && (
-                <span className="text-emerald-300/60 text-xs">
+                <span className="text-emerald-600/70 text-xs">
                   · {resultado.enriquecimento_web.total_com_enriquecimento} enriquecidas
                 </span>
               )}
             </div>
             <Button size="sm"
-              className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white border-0"
+              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white border-0"
               onClick={() => navigate("/results", { state: { resultados: resultado.empresas } })}>
               Ver resultados <ArrowRight className="w-3.5 h-3.5" />
             </Button>
