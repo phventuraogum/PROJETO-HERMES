@@ -84,7 +84,7 @@ const Sidebar = () => {
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-black tracking-tight text-foreground" style={{ letterSpacing: "-0.04em" }}>
-              Pinn · Hermes
+              Hermes
             </p>
             <p className="mt-0.5 text-[10px] leading-none text-muted-foreground">Inteligência B2B</p>
           </div>
@@ -196,7 +196,7 @@ const Sidebar = () => {
       <div className="shrink-0 space-y-2 border-t border-sidebar-border px-3 py-3">
         <LogoutButton />
         <p className="text-center text-[10px] font-medium text-muted-foreground/40">
-          Hermes v2 · Powered by Pinn
+          Hermes v2
         </p>
       </div>
     </aside>
