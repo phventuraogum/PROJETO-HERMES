@@ -80,7 +80,7 @@ services:
     logging: *default-logging
     networks:
       hermes-network:
-        ipv4_address: 172.21.0.10   # IP fixo — usado pelo prometheus para scraping
+        ipv4_address: 172.28.0.10   # IP fixo — usado pelo prometheus para scraping
     deploy:
       resources:
         limits:
@@ -219,4 +219,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.21.0.0/24
+        - subnet: 172.28.0.0/24
