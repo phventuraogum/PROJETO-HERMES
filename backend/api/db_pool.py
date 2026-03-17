@@ -53,8 +53,8 @@ def _get_connection(read_only: bool = True) -> duckdb.DuckDBPyConnection:
             config=DUCKDB_CONFIG
         )
         # SET temp_directory só é permitido em conexões read-write
+        temp_dir = DUCKDB_CONFIG.get('temp_directory', '/tmp')
         if not read_only:
-            temp_dir = DUCKDB_CONFIG.get('temp_directory', '/tmp')
             conn.execute(f"SET temp_directory='{temp_dir}'")
         setattr(_thread_local, connection_key, conn)
         logger.debug(f"Nova conexão DuckDB criada (read_only={read_only}, temp={temp_dir})")
