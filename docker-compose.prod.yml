@@ -56,6 +56,7 @@ services:
       - HERMES_AUTH_REQUIRED=true
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - HERMES_DUCKDB_PATH=/data/cnpj.duckdb
+      - HERMES_APP_DB_PATH=/data/app.duckdb
       - ASAAS_SANDBOX=false
       - SEARXNG_URL=http://searxng:8080
       - EVOLUTION_API_URL=${EVOLUTION_API_URL:-}
@@ -99,6 +100,7 @@ services:
     environment:
       - ENVIRONMENT=production
       - HERMES_DUCKDB_PATH=/data/cnpj.duckdb
+      - HERMES_APP_DB_PATH=/data/app.duckdb
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - SEARXNG_URL=http://searxng:8080
     volumes:
