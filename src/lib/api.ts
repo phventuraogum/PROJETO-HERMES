@@ -1539,58 +1539,6 @@ export async function salvarResultadoManual(
 }
 
 // ------------------------
-// ENRIQUECIMENTO POR CNPJ
-// ------------------------
-
-export type EmpresaDetalhada = {
-  cnpj: string;
-  razao_social: string | null;
-  nome_fantasia: string | null;
-  cidade: string | null;
-  uf: string | null;
-  cnae_principal: string | null;
-  situacao_cadastral: string | null;
-  capital_social: number | null;
-  telefone_receita: string | null;
-  email_receita: string | null;
-  site: string | null;
-  email_enriquecido: string | null;
-  telefone_enriquecido: string | null;
-  whatsapp_publico: string | null;
-  whatsapp_enriquecido: string | null;
-  enriquecimento_ia: string | null;
-  enriquecimento_data: string | null;
-  email_final: string | null;
-  telefone_final: string | null;
-  whatsapp_final: string | null;
-  validacao?: Record<string, unknown>;
-  confiabilidade?: Record<string, unknown>;
-  qualidade?: Record<string, unknown>;
-  priorizacao?: Record<string, unknown>;
-};
-
-export async function buscarEmpresaPorCnpj(
-  cnpj: string,
-  opcoes?: { incluirEnriquecimento?: boolean; incluirScores?: boolean }
-): Promise<{ success: boolean; empresa: EmpresaDetalhada }> {
-  const cnpjLimpo = cnpj.replace(/\D/g, "");
-  const params = new URLSearchParams();
-  if (opcoes?.incluirEnriquecimento !== undefined)
-    params.set("incluir_enriquecimento", String(opcoes.incluirEnriquecimento));
-  if (opcoes?.incluirScores !== undefined)
-    params.set("incluir_scores", String(opcoes.incluirScores));
-  const qs = params.toString() ? `?${params.toString()}` : "";
-  return hermesFetch(`/empresas/${cnpjLimpo}${qs}`);
-}
-
-export async function enriquecerEmpresaPorCnpj(
-  cnpj: string
-): Promise<{ success: boolean; cnpj: string; enriquecimento: Record<string, unknown>; message: string }> {
-  const cnpjLimpo = cnpj.replace(/\D/g, "");
-  return hermesFetch(`/empresas/${cnpjLimpo}/enriquecer`, { method: "POST" });
-}
-
-// ------------------------
 // CRÉDITOS
 // ------------------------
 
