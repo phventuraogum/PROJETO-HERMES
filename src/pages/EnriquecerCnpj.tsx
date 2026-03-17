@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { buscarEmpresaPorCnpj, enriquecerEmpresaPorCnpj, EmpresaDetalhada } from "@/lib/api";
+import { buscarEmpresaPorCnpj, enriquecerEmpresaPorCnpj, Empresa } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 function formatCnpj(value: string) {
@@ -62,7 +62,7 @@ export default function EnriquecerCnpj() {
   const [cnpjInput, setCnpjInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [enriching, setEnriching] = useState(false);
-  const [empresa, setEmpresa] = useState<EmpresaDetalhada | null>(null);
+  const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [enrichMsg, setEnrichMsg] = useState<string | null>(null);
 
@@ -78,7 +78,7 @@ export default function EnriquecerCnpj() {
     setEnrichMsg(null);
     try {
       const res = await buscarEmpresaPorCnpj(digits);
-      setEmpresa(res.empresa);
+      setEmpresa(res);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erro ao buscar empresa.";
       setError(msg);
@@ -96,7 +96,7 @@ export default function EnriquecerCnpj() {
       setEnrichMsg(res.message || "Enriquecimento iniciado com sucesso.");
       // Recarrega dados após enriquecimento
       const updated = await buscarEmpresaPorCnpj(empresa.cnpj);
-      setEmpresa(updated.empresa);
+      setEmpresa(updated);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erro ao enriquecer empresa.";
       setEnrichMsg(msg);
@@ -218,7 +218,7 @@ export default function EnriquecerCnpj() {
               </CardHeader>
               <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
                 <InfoRow icon={Mail} label="E-mail (enriquecido)" value={empresa.email_enriquecido} highlight />
-                <InfoRow icon={Mail} label="E-mail (Receita)" value={empresa.email_receita} />
+                <InfoRow icon={Mail} label="E-mail (Receita)" value={empresa.email} />
                 <InfoRow icon={Phone} label="Telefone (enriquecido)" value={empresa.telefone_enriquecido} highlight />
                 <InfoRow icon={Phone} label="Telefone (Receita)" value={empresa.telefone_receita} />
                 <InfoRow icon={MessageCircle} label="WhatsApp (enriquecido)" value={empresa.whatsapp_enriquecido} highlight />
@@ -254,7 +254,7 @@ export default function EnriquecerCnpj() {
             )}
 
             {/* IA */}
-            {empresa.enriquecimento_ia && (
+            {empresa.resumo_ia_empresa && (
               <Card className="bg-zinc-900 border-zinc-800">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base text-zinc-200 flex items-center gap-2">
@@ -264,7 +264,7 @@ export default function EnriquecerCnpj() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
-                    {empresa.enriquecimento_ia}
+                    {empresa.resumo_ia_empresa}
                   </p>
                   {empresa.enriquecimento_data && (
                     <p className="text-xs text-zinc-600 mt-2">
