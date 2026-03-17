@@ -9,7 +9,7 @@ import {
   Lock, Eye, EyeOff, User, Building2, Loader2, QrCode, CreditCard, ChevronRight,
   ChevronDown, Sparkles, Database, Brain, FileSpreadsheet, TrendingUp,
   MousePointerClick, MessageSquare, X, Star, Rocket, Filter, Linkedin, Phone,
-  MapPin, PlayCircle, ArrowDown, Layers, Send, Activity, Network,
+  MapPin, PlayCircle, Layers, Send, Activity, Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -388,12 +388,9 @@ function DemoPipeline() {
 
 export default function Landing() {
   const navigate = useNavigate();
-  const pricingRef = useRef<HTMLDivElement>(null);
   const [showSignup, setShowSignup] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState("free");
-  const [annual, setAnnual] = useState(false);
 
-  const scrollToPricing = () => pricingRef.current?.scrollIntoView({ behavior: "smooth" });
   const handleSelectPlan = (p: string) => { setSelectedPlan(p); setShowSignup(true); };
 
   return (
@@ -419,15 +416,11 @@ export default function Landing() {
           </div>
           <div className="hidden md:flex items-center gap-8 text-[13px] text-muted-foreground">
             <a href="#features" className="hover:text-foreground transition-colors">Recursos</a>
-            <button onClick={scrollToPricing} className="hover:text-foreground transition-colors">Preços</button>
             <a href="#compare" className="hover:text-foreground transition-colors">Comparativo</a>
             <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => navigate("/login")} className="text-muted-foreground hover:text-foreground text-[13px] h-8">Entrar</Button>
-            <Button size="sm" onClick={() => handleSelectPlan("free")} className="bg-primary text-primary-foreground hover:bg-primary/90 gap-1 text-[13px] h-8 px-3.5 shadow-[0_0_15px_-3px_hsl(189_94%_55%/0.3)]">
-              Começar grátis <ArrowRight className="h-3 w-3" />
-            </Button>
           </div>
         </div>
       </nav>
@@ -463,20 +456,16 @@ export default function Landing() {
           <FadeIn delay={200}>
             <p className="mt-6 text-[15px] md:text-base text-muted-foreground/80 max-w-xl mx-auto leading-relaxed">
               56 milhões de CNPJs. Enriquecimento automático. Score ICP inteligente.
-              Exportação para CRM em 1 clique. Tudo a partir de R$ 0.
+              Exportação para CRM em 1 clique.
             </p>
           </FadeIn>
 
           <FadeIn delay={300}>
             <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-              <Button size="lg" onClick={() => handleSelectPlan("free")} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-7 text-sm font-medium shadow-[0_0_30px_-6px_hsl(189_94%_55%/0.5)] hover:shadow-[0_0_40px_-4px_hsl(189_94%_55%/0.6)] transition-all">
-                Começar grátis <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
-              <Button size="lg" variant="ghost" onClick={scrollToPricing} className="gap-2 text-muted-foreground hover:text-foreground h-11 px-7 text-sm">
-                Ver planos <ArrowDown className="h-3.5 w-3.5" />
+              <Button size="lg" onClick={() => navigate("/login")} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-7 text-sm font-medium shadow-[0_0_30px_-6px_hsl(189_94%_55%/0.5)] hover:shadow-[0_0_40px_-4px_hsl(189_94%_55%/0.6)] transition-all">
+                Entrar <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <p className="mt-3 text-[11px] text-muted-foreground/70">Sem cartão. Setup em 30 segundos.</p>
           </FadeIn>
         </div>
 
@@ -610,69 +599,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── PRICING ────────────────────────────────────────────────────── */}
-      <section ref={pricingRef} className="py-24 border-t border-border/30 relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[600px] w-[600px] rounded-full bg-primary/[0.04] blur-[150px]" />
-        </div>
-        <div className="container relative mx-auto px-6 max-w-6xl">
-          <FadeIn className="text-center mb-10">
-            <p className="text-[11px] font-semibold text-primary uppercase tracking-[0.2em] mb-3">Preços</p>
-            <h2 className="text-3xl md:text-4xl font-bold">
-              Simples. Transparente.{" "}
-              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Melhor custo-benefício.</span>
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">Sem fidelidade. Cancele quando quiser.</p>
-
-            <div className="mt-6 inline-flex items-center gap-0 rounded-full border border-border bg-muted/30 p-0.5">
-              <button onClick={() => setAnnual(false)} className={cn("rounded-full px-5 py-1.5 text-sm font-medium transition-all", !annual ? "bg-white/[0.08] text-foreground shadow-sm" : "text-muted-foreground")}>Mensal</button>
-              <button onClick={() => setAnnual(true)} className={cn("rounded-full px-5 py-1.5 text-sm font-medium transition-all flex items-center gap-1.5", annual ? "bg-white/[0.08] text-foreground shadow-sm" : "text-muted-foreground")}>
-                Anual <span className="text-[10px] text-emerald-400 font-bold">-20%</span>
-              </button>
-            </div>
-          </FadeIn>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {PLANS.map((plan, i) => {
-              const price = annual ? plan.priceAnnual : plan.price;
-              return (
-                <FadeIn key={plan.name} delay={i * 80}>
-                  <div className={cn(
-                    "relative rounded-2xl border p-5 flex flex-col h-full transition-all",
-                    plan.highlight
-                      ? "border-primary/30 bg-primary/[0.03] ring-1 ring-primary/10 shadow-[0_0_60px_-15px_hsl(189_94%_55%/0.2)]"
-                      : "border-border bg-card hover:border-primary/20 hover:shadow-surface-sm"
-                  )}>
-                    {plan.highlight && <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground border-0 shadow-lg text-[10px] px-2.5 py-0.5">Popular</Badge>}
-                    <div className="mb-5">
-                      <h3 className="text-sm font-semibold text-muted-foreground/80">{plan.label}</h3>
-                      <div className="mt-2 flex items-baseline gap-0.5">
-                        <span className="text-3xl font-bold tracking-tight">R$ {price}</span>
-                        {price > 0 && <span className="text-xs text-muted-foreground/70">/mês</span>}
-                      </div>
-                      {annual && plan.price > 0 && <p className="text-[11px] text-muted-foreground/55 mt-0.5 line-through">R$ {plan.price}/mês</p>}
-                    </div>
-                    <ul className="space-y-2 text-[13px] flex-1 mb-5">
-                      <PlanRow ok label={`${plan.searches.toLocaleString("pt-BR")} buscas/mês`} />
-                      <PlanRow ok label={`${plan.enrichments.toLocaleString("pt-BR")} enriquecimentos`} />
-                      <PlanRow ok label={`${plan.exports.toLocaleString("pt-BR")} exportações`} />
-                      <PlanRow ok={plan.crm} label="Integração com CRM" />
-                      <PlanRow ok={plan.pipeline} label="Pipeline de leads" />
-                      <PlanRow ok={plan.multiUser} label="Multiusuários" />
-                    </ul>
-                    <Button onClick={() => handleSelectPlan(plan.name)} className={cn(
-                      "w-full gap-1.5 h-9 text-[13px]",
-                      plan.highlight ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_-3px_hsl(189_94%_55%/0.35)]" : "bg-muted/60 hover:bg-muted border border-border"
-                    )}>
-                      {price > 0 ? "Assinar" : "Começar grátis"} <ArrowRight className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </FadeIn>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      {/* PRICING removido */}
 
       {/* ── COMPARISON ─────────────────────────────────────────────────── */}
       <section id="compare" className="py-24 border-t border-border/30">
@@ -749,10 +676,9 @@ export default function Landing() {
           <FadeIn>
             <h2 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">Pronto para prospectar de verdade?</h2>
             <p className="text-muted-foreground mb-8 text-[15px]">Sua próxima venda começa com o lead certo.</p>
-            <Button size="lg" onClick={() => handleSelectPlan("free")} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-8 text-sm font-medium shadow-[0_0_40px_-8px_hsl(189_94%_55%/0.5)]">
-              Criar conta grátis <ArrowRight className="h-4 w-4" />
+            <Button size="lg" onClick={() => navigate("/login")} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-8 text-sm font-medium shadow-[0_0_40px_-8px_hsl(189_94%_55%/0.5)]">
+              Entrar <ArrowRight className="h-4 w-4" />
             </Button>
-            <p className="mt-3 text-[11px] text-muted-foreground/60">Setup em 30s. Sem cartão. Sem compromisso.</p>
           </FadeIn>
         </div>
       </section>
