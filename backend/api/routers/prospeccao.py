@@ -251,3 +251,92 @@ def _formatar_n8n(empresas: List[Dict]) -> List[Dict]:
             "confiabilidade": emp.get("confiabilidade", {}).get("score_total", 0)
         })
     return formatted
+
+
+# ============================================================
+# ASSERTIVA — consulta de lead por CNPJ
+# ============================================================
+
+class AssertivaCNPJRequest(BaseModel):
+    cnpj: str = Field(..., description="CNPJ do lead (com ou sem formatação)")
+    id_finalidade: int = Field(
+        5,
+        description="Finalidade LGPD: 1=Confirmação identidade, 2=Ciclo crédito, 4=Execução contrato, 5=Legítimo interesse",
+    )
+
+
+@router.post(
+    "/assertiva/cnpj",
+    summary="Consultar lead por CNPJ na Assertiva",
+    tags=["Prospecção", "Assertiva"],
+)
+async def prospeccao_assertiva_cnpj(
+    body: AssertivaCNPJRequest,
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    """
+    Recebe um CNPJ e consulta os dados cadastrais na **Assertiva Localize PJ**.
+
+    Retorna razão social, endereço, contatos, CNAEs, sócios e demais informações
+    disponíveis na base da Assertiva para uso em prospecção.
+
+    **Exemplo de uso (n8n / curl):**
+    ```json
+    POST /prospeccao/assertiva/cnpj
+    { "cnpj": "12.345.678/0001-99" }
+    ```
+    """
+    from api.assertiva_service import get_assertiva_service
+
+    try:
+        service = get_assertiva_service()
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+        )
+
+    try:
+        resultado = await service.consultar_cnpj(body.cnpj, id_finalidade=body.id_finalidade)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return {"success": True, "data": resultado}
+
+
+@router.get(
+    "/assertiva/cnpj/{cnpj}",
+    summary="Consultar lead por CNPJ na Assertiva (GET)",
+    tags=["Prospecção", "Assertiva"],
+)
+async def prospeccao_assertiva_cnpj_get(
+    cnpj: str,
+    id_finalidade: int = Query(5, description="Finalidade LGPD (1-5)"),
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    """
+    Versão GET para facilitar testes rápidos e integração com n8n via URL.
+
+    **Exemplo:**
+    ```
+    GET /prospeccao/assertiva/cnpj/12345678000199
+    GET /prospeccao/assertiva/cnpj/12345678000199?id_finalidade=2
+    ```
+    """
+    from api.assertiva_service import get_assertiva_service
+
+    try:
+        service = get_assertiva_service()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+    try:
+        resultado = await service.consultar_cnpj(cnpj, id_finalidade=id_finalidade)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return {"success": True, "data": resultado}
