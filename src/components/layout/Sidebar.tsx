@@ -1,17 +1,14 @@
-import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Settings, FileText, History, Map, Kanban,
-  Building2, Coins, Plus, Sliders, Search, TerminalSquare,
+  Building2, Sliders, Search, TerminalSquare,
   Archive, Scale,
 } from "lucide-react";
-import { toast } from "sonner";
 
 import LogoutButton from "@/auth/LogoutButton";
 import { NavLink } from "@/components/NavLink";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { getCredits, addCredits } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useOrg } from "@/tenancy/OrgContext";
 
@@ -44,7 +41,6 @@ const NAV_GROUPS = [
   {
     label: "Conta",
     items: [
-      { icon: Coins, label: "Créditos", path: "/comprar-creditos" },
       { icon: Sliders, label: "Configurações", path: "/settings" },
     ],
   },
@@ -53,21 +49,6 @@ const NAV_GROUPS = [
 const Sidebar = () => {
   const { orgs, orgId, setOrgId } = useOrg();
   const currentOrg = orgs.find((org) => org.id === orgId);
-  const [credits, setCredits] = useState<number | null>(null);
-
-  useEffect(() => {
-    getCredits().then((result) => setCredits(result.saldo)).catch(() => setCredits(null));
-  }, [orgId]);
-
-  const handleAddCredits = async () => {
-    try {
-      const result = await addCredits(100);
-      setCredits(result.saldo);
-      toast.success("+100 créditos adicionados");
-    } catch {
-      toast.error("Erro ao adicionar créditos.");
-    }
-  };
 
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar/95 backdrop-blur-xl supports-[backdrop-filter]:bg-sidebar/90">
@@ -122,33 +103,6 @@ const Sidebar = () => {
         </div>
       )}
 
-      <div
-        className="mx-3 my-3 flex items-center justify-between rounded-2xl px-3 py-3 shadow-surface-xs"
-        style={{ background: "var(--pinn-orange-light)", border: "1px solid var(--pinn-orange-border)" }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-surface-xs" style={{ background: "var(--pinn-orange)" }}>
-            <Coins className="h-3.5 w-3.5 text-white" />
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase leading-none tracking-[0.18em]" style={{ color: "var(--pinn-orange-dark)" }}>
-              Créditos
-            </p>
-            <p className="mt-1 text-sm font-black tabular-nums" style={{ letterSpacing: "-0.03em", color: "var(--pinn-orange-dark)" }}>
-              {credits !== null ? credits.toLocaleString("pt-BR") : "—"}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={handleAddCredits}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border-0 transition-all hover:scale-[1.04] hover:opacity-90"
-          style={{ background: "var(--pinn-orange)", color: "white" }}
-          title="Adicionar 100 créditos (demo)"
-          type="button"
-        >
-          <Plus className="h-3 w-3" />
-        </button>
-      </div>
 
       <nav className="flex-1 space-y-4 overflow-y-auto px-2 pb-4 pt-1">
         {NAV_GROUPS.map((group) => (
