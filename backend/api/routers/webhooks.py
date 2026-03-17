@@ -8,6 +8,7 @@ import json
 import httpx
 import asyncio
 import ipaddress
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, HTTPException, Header, BackgroundTasks, Depends
@@ -83,16 +84,16 @@ def _dispatch_background(event: str, data: dict):
         payload = {
             "event": event,
             "data": data,
-            "timestamp": "TODO_ISO_FORMAT"
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
-        
-        # Dispara assincronamente (fire and forget)
+
         loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        tasks = [_dispatch_to_url(url, payload) for url in urls]
-        if tasks:
-            loop.run_until_complete(asyncio.gather(*tasks))
-        loop.close()
+        try:
+            tasks = [_dispatch_to_url(url, payload) for url in urls]
+            if tasks:
+                loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+        finally:
+            loop.close()
         
     except Exception as e:
         print(f"[WEBHOOK] Erro no dispatch: {e}")

@@ -162,6 +162,7 @@ services:
       args:
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+        VITE_HERMES_API_BASE_URL: ${VITE_HERMES_API_BASE_URL:-/api}
     container_name: hermes-web
     # Porta 8082 no host → porta 80 interna do nginx
     # EasyPanel/Traefik roteia o domínio externo para esta porta

@@ -16,6 +16,15 @@ ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 
 WORKDIR /app
 
+# Build-time env vars passadas via docker-compose build.args
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ARG VITE_HERMES_API_BASE_URL
+
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+ENV VITE_HERMES_API_BASE_URL=$VITE_HERMES_API_BASE_URL
+
 # Copiar arquivos de dependências primeiro (cache layer)
 COPY package.json package-lock.json ./
 

@@ -87,7 +87,8 @@ async def prospeccao(
     ```
     """
     try:
-        # Executa prospecção
+        filtros_aplicados: Dict[str, Any] = {}
+
         if USE_OTIMIZADA:
             resultado = rodar_prospeccao_otimizada(
                 termo=request.termo,
@@ -98,12 +99,12 @@ async def prospeccao(
                 segmentos=request.segmentos,
                 portes=request.portes,
                 limite=request.limite,
-                enriquecer_background=request.enriquecer_background
+                enriquecer_background=request.enriquecer_background,
             )
             empresas = resultado.get("empresas", [])
+            filtros_aplicados = resultado.get("filtros_aplicados", {})
         else:
-            # Usa função legada
-            from api.main import ProspeccaoConfig
+            from api.main import ProspeccaoConfig, rodar_prospeccao_icp
             config = ProspeccaoConfig(
                 termo_base=request.termo or "",
                 uf=request.uf,
@@ -113,10 +114,9 @@ async def prospeccao(
                 segmentos=request.segmentos or [],
                 portes=request.portes or [],
                 limite_empresas=request.limite,
-                enriquecer_web=request.enriquecer_background
+                enriquecer_web=request.enriquecer_background,
             )
             resultado_legado = rodar_prospeccao_icp(config)
-            # Converte para formato novo
             empresas = []
             for emp in resultado_legado.empresas:
                 empresas.append({
@@ -137,25 +137,24 @@ async def prospeccao(
                     "site": emp.site,
                     "logradouro": emp.logradouro,
                     "numero": emp.numero,
-                    "cep": emp.cep
+                    "cep": emp.cep,
                 })
-        
-        # 7. Formata resposta conforme solicitado
+
         if request.formato == "kommo":
             empresas = _formatar_kommo(empresas)
         elif request.formato == "n8n":
             empresas = _formatar_n8n(empresas)
-        
+
         return ProspeccaoResponse(
             success=True,
             total=len(empresas),
             empresas=empresas,
             metadata={
                 "filtros": request.model_dump(exclude={"formato", "incluir_score", "enriquecer_background"}),
-                "timestamp": resultado.get("filtros_aplicados", {})
-            }
+                "filtros_aplicados": filtros_aplicados,
+            },
         )
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -189,7 +188,7 @@ async def prospeccao_get(
 ):
     """
     Versão GET da prospecção (para n8n e webhooks).
-    
+
     **Exemplo:**
     ```
     GET /prospeccao?termo=hospital&uf=SP&limite=50&formato=n8n
@@ -201,9 +200,10 @@ async def prospeccao_get(
         municipio=municipio,
         capital_minima=capital_minima,
         limite=limite,
-        formato=formato
+        formato=formato,
     )
-    return await prospeccao(request)
+    # Passa _user explicitamente para reutilizar o endpoint POST sem duplicar auth
+    return await prospeccao(request, _user)
 
 
 def _formatar_kommo(empresas: List[Dict]) -> List[Dict]:

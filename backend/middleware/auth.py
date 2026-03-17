@@ -29,17 +29,13 @@ def _validate_jwt_local(token: str, secret: str, issuer: str, audience: str) -> 
     if not PYJWT_AVAILABLE or not secret:
         return None
     try:
-        decode_opts = {"verify_exp": True}
-        if not issuer:
-            decode_opts["verify_iss"] = False
-
         payload = pyjwt.decode(
             token,
             secret,
             algorithms=["HS256"],
             audience=audience,
-            issuer=issuer or None,
-            options=decode_opts,
+            issuer=issuer,
+            options={"verify_exp": True},
         )
         return {
             "id": payload.get("sub"),
@@ -55,22 +51,21 @@ def _validate_jwt_local(token: str, secret: str, issuer: str, audience: str) -> 
         return None
 
 
-def _validate_via_supabase_http(token: str, supabase_url: str, anon_key: str) -> Optional[dict]:
+async def _validate_via_supabase_http(token: str, supabase_url: str, anon_key: str) -> Optional[dict]:
     """
-    Valida token consultando a API do Supabase.
+    Valida token consultando a API do Supabase de forma assíncrona.
     Usado como fallback quando a validação local não é possível.
-    Usa httpx síncrono para não bloquear o event loop quando chamado em contexto sync.
     """
     try:
         import httpx
-        response = httpx.get(
-            f"{supabase_url}/auth/v1/user",
-            headers={
-                "apikey": anon_key,
-                "Authorization": f"Bearer {token}",
-            },
-            timeout=10,
-        )
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.get(
+                f"{supabase_url}/auth/v1/user",
+                headers={
+                    "apikey": anon_key,
+                    "Authorization": f"Bearer {token}",
+                },
+            )
         if response.status_code == 200:
             user_data = response.json()
             return {
@@ -86,60 +81,35 @@ def _validate_via_supabase_http(token: str, supabase_url: str, anon_key: str) ->
         return None
 
 
-async def verify_token_async(token: str) -> Optional[dict]:
+async def verify_token(token: str) -> Optional[dict]:
     """
-    Verifica um token JWT (versão async).
+    Verifica um token JWT de forma assíncrona.
     Tenta validação local primeiro, depois fallback para HTTP.
+    Em modo development, aceita qualquer token não-vazio como usuário dev.
     """
     from config import settings
-    import asyncio
 
+    # Tenta validação local (rápida, sem I/O)
     if settings.SUPABASE_JWT_SECRET and PYJWT_AVAILABLE:
-        issuer = settings.SUPABASE_JWT_ISSUER
-        if not issuer and settings.SUPABASE_URL:
-            issuer = f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1"
         user = _validate_jwt_local(
             token,
             secret=settings.SUPABASE_JWT_SECRET,
-            issuer=issuer,
+            issuer=settings.SUPABASE_JWT_ISSUER,
             audience=settings.SUPABASE_JWT_AUDIENCE,
         )
         if user:
             return user
 
+    # Fallback: valida via HTTP do Supabase (assíncrono)
     if settings.SUPABASE_URL and settings.SUPABASE_ANON_KEY:
-        return await asyncio.to_thread(
-            _validate_via_supabase_http, token, settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY
-        )
-
-    logger.error("Nenhum método de validação configurado (JWT_SECRET e SUPABASE_URL ausentes)")
-    return None
-
-
-def verify_token(token: str) -> Optional[dict]:
-    """
-    Verifica um token JWT (versão sync — para uso em contextos não-async).
-    Tenta validação local primeiro, depois fallback para HTTP.
-    """
-    from config import settings
-
-    # Tenta validação local (rápida)
-    if settings.SUPABASE_JWT_SECRET and PYJWT_AVAILABLE:
-        issuer = settings.SUPABASE_JWT_ISSUER
-        if not issuer and settings.SUPABASE_URL:
-            issuer = f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1"
-        user = _validate_jwt_local(
-            token,
-            secret=settings.SUPABASE_JWT_SECRET,
-            issuer=issuer,
-            audience=settings.SUPABASE_JWT_AUDIENCE,
-        )
+        user = await _validate_via_supabase_http(token, settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
         if user:
             return user
 
-    # Fallback: valida via HTTP do Supabase
-    if settings.SUPABASE_URL and settings.SUPABASE_ANON_KEY:
-        return _validate_via_supabase_http(token, settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+    # Em modo development, aceita qualquer token como sessão dev
+    if settings.is_development and token:
+        logger.debug("Modo development: aceitando token de sessão dev '%s...'", token[:8])
+        return {"id": "dev-user", "email": "dev@local", "role": "authenticated"}
 
     logger.error("Nenhum método de validação configurado (JWT_SECRET e SUPABASE_URL ausentes)")
     return None
@@ -185,7 +155,7 @@ async def require_auth(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user = await verify_token_async(token)
+    user = await verify_token(token)
 
     if not user:
         raise HTTPException(
@@ -197,7 +167,7 @@ async def require_auth(
     return user
 
 
-def optional_auth(
+async def optional_auth(
     authorization: Optional[str] = Header(None, alias="Authorization")
 ) -> Optional[dict]:
     """
@@ -209,7 +179,7 @@ def optional_auth(
     token = authorization.split(" ", 1)[1].strip()
     if not token:
         return None
-    return verify_token(token)
+    return await verify_token(token)
 
 
 def validate_asaas_webhook_token(token: str, expected: str) -> bool:
