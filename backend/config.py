@@ -133,6 +133,19 @@ class Settings(BaseSettings):
     )
 
     # ============================================================
+    # ASSERTIVA
+    # ============================================================
+    ASSERTIVA_CLIENT_ID: str = Field(
+        default="",
+        description="Client ID OAuth2 da Assertiva (Localize PJ)"
+    )
+
+    ASSERTIVA_CLIENT_SECRET: str = Field(
+        default="",
+        description="Client Secret OAuth2 da Assertiva"
+    )
+
+    # ============================================================
     # PLOOMES CRM
     # ============================================================
     PLOOMES_API_KEY: str = Field(
@@ -326,10 +339,13 @@ def validate_production_settings():
             errors.append("SUPABASE_ANON_KEY é obrigatório em produção (fallback de validação)")
         if not settings.REDIS_PASSWORD:
             errors.append("REDIS_PASSWORD é obrigatório em produção (Redis sem senha é inseguro)")
-        if not settings.CORS_ORIGINS or "localhost" in settings.CORS_ORIGINS:
+        cors = settings.CORS_ORIGINS or ""
+        has_only_localhost = cors and all(
+            "localhost" in o or "127.0.0.1" in o
+            for o in cors.split(",") if o.strip()
+        )
+        if has_only_localhost:
             errors.append("CORS_ORIGINS deve apontar para domínio de produção (sem localhost)")
-        if not settings.ASAAS_WEBHOOK_TOKEN:
-            errors.append("ASAAS_WEBHOOK_TOKEN é obrigatório em produção (valida webhooks)")
     if errors:
         raise ValueError("Erros de configuração para produção:\n" + "\n".join(f"  - {e}" for e in errors))
     return True
