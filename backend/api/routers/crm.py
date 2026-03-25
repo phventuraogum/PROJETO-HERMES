@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
+import re
 import requests
 
 from middleware.auth import require_auth
@@ -32,6 +33,7 @@ class CrmExportRequest(BaseModel):
     lead: LeadExportPayload
     funnel_id: Optional[int] = None
     create_deal: bool = True
+    kommo_subdomain: Optional[str] = None
 
 
 # ─── PIPEDRIVE ──────────────────────────────────────────────
@@ -202,6 +204,88 @@ def _export_ploomes(api_key: str, lead: LeadExportPayload, funnel_id: int | None
     }
 
 
+# ─── KOMMO (AmoCRM) ─────────────────────────────────────────
+
+_SUBDOMAIN_RE = re.compile(r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$')
+
+
+def _export_kommo(access_token: str, subdomain: str, lead: LeadExportPayload) -> dict:
+    # Valida subdomínio para evitar injeção de URL
+    if not _SUBDOMAIN_RE.match(subdomain):
+        raise HTTPException(status_code=400, detail="Subdomínio Kommo inválido. Use apenas letras, números e hífens.")
+
+    base = f"https://{subdomain}.kommo.com/api/v4"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+
+    # 1. Criar contato
+    contact_body: dict = {"name": lead.razao_social, "custom_fields_values": []}
+
+    if lead.email:
+        contact_body["custom_fields_values"].append({
+            "field_code": "EMAIL",
+            "values": [{"value": lead.email, "enum_code": "WORK"}],
+        })
+    phone = lead.telefone or lead.whatsapp
+    if phone:
+        contact_body["custom_fields_values"].append({
+            "field_code": "PHONE",
+            "values": [{"value": phone, "enum_code": "WORK"}],
+        })
+
+    cr = requests.post(f"{base}/contacts", headers=headers, json=[contact_body], timeout=15)
+    if cr.status_code >= 300:
+        raise HTTPException(status_code=cr.status_code, detail=f"Kommo Contacts: {cr.text}")
+
+    contact_id = (cr.json().get("_embedded", {}).get("contacts") or [{}])[0].get("id")
+
+    # 2. Criar lead vinculado ao contato
+    lead_body: dict = {"name": lead.nome_fantasia or lead.razao_social}
+    if contact_id:
+        lead_body["_embedded"] = {"contacts": [{"id": contact_id, "is_main": True}]}
+
+    lr = requests.post(f"{base}/leads", headers=headers, json=[lead_body], timeout=15)
+    if lr.status_code >= 300:
+        raise HTTPException(status_code=lr.status_code, detail=f"Kommo Leads: {lr.text}")
+
+    lead_id = (lr.json().get("_embedded", {}).get("leads") or [{}])[0].get("id")
+
+    # 3. Adicionar nota com dados enriquecidos
+    # Endpoint correto da API v4: POST /api/v4/notes com entity_id + entity_type
+    if lead_id:
+        parts = [
+            "Origem: Hermes Prospecção",
+            f"CNPJ: {lead.cnpj or 'N/A'}",
+            f"Segmento: {lead.segmento or 'N/A'}",
+            f"Porte: {lead.porte or 'N/A'}",
+            f"Cidade: {lead.cidade or ''} - {lead.uf or ''}",
+            f"Site: {lead.site or 'N/A'}",
+        ]
+        if lead.capital_social:
+            parts.append(f"Capital Social: R$ {lead.capital_social:,.2f}")
+        requests.post(
+            f"{base}/notes",
+            headers=headers,
+            json=[{
+                "entity_id": lead_id,
+                "entity_type": "leads",
+                "note_type": "common",
+                "params": {"text": "\n".join(parts)},
+            }],
+            timeout=15,
+        )
+
+    return {
+        "success": True,
+        "provider": "kommo",
+        "message": "Lead criado no Kommo",
+        "lead_id": lead_id,
+        "contact_id": contact_id,
+    }
+
+
 # ─── ENDPOINT PRINCIPAL ────────────────────────────────────
 
 @router.post("/export")
@@ -221,6 +305,10 @@ def export_to_crm(payload: CrmExportRequest, _user: dict = Depends(require_auth)
         return _export_rdstation(api_key, lead)
     elif provider == "ploomes":
         return _export_ploomes(api_key, lead, payload.funnel_id, payload.create_deal)
+    elif provider == "kommo":
+        if not payload.kommo_subdomain:
+            raise HTTPException(status_code=400, detail="kommo_subdomain é obrigatório para o Kommo")
+        return _export_kommo(api_key, payload.kommo_subdomain.strip(), lead)
     else:
         raise HTTPException(status_code=400, detail=f"Provider '{provider}' não suportado")
 
@@ -233,22 +321,37 @@ class BatchExportRequest(BaseModel):
     leads: list[LeadExportPayload]
     funnel_id: Optional[int] = None
     create_deal: bool = True
+    kommo_subdomain: Optional[str] = None
 
 
 @router.post("/export/batch")
 def export_batch_to_crm(payload: BatchExportRequest, _user: dict = Depends(require_auth)):
+    provider = payload.provider.lower()
+    api_key = payload.api_key.strip()
+
+    if not api_key:
+        raise HTTPException(status_code=400, detail="API key obrigatória")
+    if provider == "kommo" and not payload.kommo_subdomain:
+        raise HTTPException(status_code=400, detail="kommo_subdomain é obrigatório para o Kommo")
+
     results = []
     for lead in payload.leads:
         try:
-            single = CrmExportRequest(
-                provider=payload.provider,
-                api_key=payload.api_key,
-                lead=lead,
-                funnel_id=payload.funnel_id,
-                create_deal=payload.create_deal,
-            )
-            r = export_to_crm(single)
+            if provider == "pipedrive":
+                r = _export_pipedrive(api_key, lead)
+            elif provider == "hubspot":
+                r = _export_hubspot(api_key, lead)
+            elif provider == "rdstation":
+                r = _export_rdstation(api_key, lead)
+            elif provider == "ploomes":
+                r = _export_ploomes(api_key, lead, payload.funnel_id, payload.create_deal)
+            elif provider == "kommo":
+                r = _export_kommo(api_key, payload.kommo_subdomain.strip(), lead)  # type: ignore[arg-type]
+            else:
+                raise ValueError(f"Provider '{provider}' não suportado")
             results.append({"razao_social": lead.razao_social, **r})
+        except HTTPException as e:
+            results.append({"razao_social": lead.razao_social, "success": False, "detail": e.detail})
         except Exception as e:
             results.append({"razao_social": lead.razao_social, "success": False, "detail": str(e)})
 

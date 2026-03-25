@@ -1633,10 +1633,10 @@ export type LeadExportPayload = {
 };
 
 export async function exportToCrm(
-  provider: "pipedrive" | "hubspot" | "rdstation" | "ploomes",
+  provider: "pipedrive" | "hubspot" | "rdstation" | "ploomes" | "kommo",
   apiKey: string,
   lead: LeadExportPayload,
-  opts?: { funnel_id?: number; create_deal?: boolean }
+  opts?: { funnel_id?: number; create_deal?: boolean; kommo_subdomain?: string }
 ): Promise<{ success: boolean; provider: string; message?: string }> {
   return hermesFetch("/crm/export", {
     method: "POST",
@@ -1646,15 +1646,16 @@ export async function exportToCrm(
       lead,
       funnel_id: opts?.funnel_id ?? null,
       create_deal: opts?.create_deal ?? true,
+      kommo_subdomain: opts?.kommo_subdomain ?? null,
     }),
   });
 }
 
 export async function exportBatchToCrm(
-  provider: "pipedrive" | "hubspot" | "rdstation" | "ploomes",
+  provider: "pipedrive" | "hubspot" | "rdstation" | "ploomes" | "kommo",
   apiKey: string,
   leads: LeadExportPayload[],
-  opts?: { funnel_id?: number; create_deal?: boolean }
+  opts?: { funnel_id?: number; create_deal?: boolean; kommo_subdomain?: string }
 ): Promise<{ total: number; success: number; results: Array<Record<string, unknown>> }> {
   return hermesFetch("/crm/export/batch", {
     method: "POST",
@@ -1664,6 +1665,7 @@ export async function exportBatchToCrm(
       leads,
       funnel_id: opts?.funnel_id ?? null,
       create_deal: opts?.create_deal ?? true,
+      kommo_subdomain: opts?.kommo_subdomain ?? null,
     }),
   });
 }
