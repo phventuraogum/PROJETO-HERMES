@@ -20,7 +20,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { runProspeccaoStream, salvarBuscaHistorico, getStorageKey, getPipeline, type ProspeccaoResultado, type Empresa, type ProspeccaoConfig, type ProgressEvent as HermesProgress } from "@/lib/api";
+import { runProspeccaoStream, salvarBuscaHistorico, getStorageKey, getPipeline, getKommoIntegration, setKommoIntegration, type KommoIntegration, type ProspeccaoResultado, type Empresa, type ProspeccaoConfig, type ProgressEvent as HermesProgress } from "@/lib/api";
+import { useOrg } from "@/tenancy/OrgContext";
 
 // ─── constantes ───────────────────────────────────────────────────────────────
 
@@ -124,9 +125,18 @@ function Section({
 
 // ─── componente principal ────────────────────────────────────────────────────
 const Configure = () => {
+  const { orgId, currentOrg } = useOrg();
   const navigate = useNavigate();
 
   // ── TODOS os estados declarados primeiro ──────────────────────────────────
+  const [kommoOpen, setKommoOpen] = useState(true);
+  const [kommoLoading, setKommoLoading] = useState(false);
+  const [kommoSaving, setKommoSaving] = useState(false);
+  const [kommo, setKommo] = useState<KommoIntegration>({
+    kommo_webhook: null,
+    kommo_pipeline_id: null,
+    kommo_status_id: null,
+  });
   const [termoBase,              setTermoBase]              = useState("");
   const [cidade,                 setCidade]                 = useState("");
   const [cidadeInput,            setCidadeInput]            = useState("");
@@ -173,6 +183,16 @@ const Configure = () => {
       }]);
     } catch { /* ignore */ }
   }, [resultado]);
+
+  // ── Carrega integração Kommo da org ───────────────────────────────────────
+  useEffect(() => {
+    if (!orgId) return;
+    setKommoLoading(true);
+    getKommoIntegration(orgId)
+      .then(setKommo)
+      .catch(() => null)
+      .finally(() => setKommoLoading(false));
+  }, [orgId]);
 
   // ── Preview de qualidade a partir do último lote salvo ───────────────────
   useEffect(() => {
@@ -246,6 +266,21 @@ const Configure = () => {
     setPriorizarComContato(true); setExcluirJaProspectados(true);
     setIdadeMinima(null); setIdadeMaxima(null);
     setSubsegmentoAlvo(""); setCnaes([]); setResultado(null);
+  };
+
+  const saveKommo = async () => {
+    if (!orgId) return;
+    setKommoSaving(true);
+    try {
+      const saved = await setKommoIntegration(orgId, kommo);
+      setKommo(saved);
+      toast.success("Integração Kommo salva.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Erro ao salvar integração Kommo.";
+      toast.error(msg);
+    } finally {
+      setKommoSaving(false);
+    }
   };
 
   // ── Resumo das tags ────────────────────────────────────────────────────────
@@ -344,8 +379,8 @@ const Configure = () => {
         configPayload,
         { total_empresas: data.total_empresas, empresas: data.empresas }
       );
-    } catch (e: any) {
-      const msg = e?.message || "Erro ao rodar prospecção. Verifique o console.";
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Erro ao rodar prospecção. Verifique o console.";
       toast.error(msg);
     } finally {
       setIsLoading(false);
@@ -375,6 +410,60 @@ const Configure = () => {
           <RotateCcw className="w-3.5 h-3.5" /> Limpar
         </Button>
       </div>
+
+      {/* ── Kommo por empresa (via n8n) ─────────────────────────────────────── */}
+      <Section
+        icon={SlidersHorizontal}
+        title="Integração Kommo (por empresa)"
+        hint={currentOrg?.name ? `Org: ${currentOrg.name}` : undefined}
+        open={kommoOpen}
+        onToggle={() => setKommoOpen(v => !v)}
+      >
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="md:col-span-2">
+            <Label>Webhook n8n do Kommo</Label>
+            <Input
+              value={kommo.kommo_webhook ?? ""}
+              onChange={(e) => setKommo(k => ({ ...k, kommo_webhook: e.target.value }))}
+              placeholder="https://n8n.seu-dominio/webhook/kommo"
+              disabled={kommoLoading}
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Cada empresa deve usar o seu próprio workflow no n8n (com as credenciais Kommo dela).
+            </p>
+          </div>
+
+          <div>
+            <Label>Pipeline ID</Label>
+            <Input
+              value={kommo.kommo_pipeline_id ?? ""}
+              onChange={(e) => setKommo(k => ({ ...k, kommo_pipeline_id: e.target.value ? Number(e.target.value) : null }))}
+              placeholder="13230435"
+              disabled={kommoLoading}
+            />
+          </div>
+
+          <div>
+            <Label>Status ID</Label>
+            <Input
+              value={kommo.kommo_status_id ?? ""}
+              onChange={(e) => setKommo(k => ({ ...k, kommo_status_id: e.target.value ? Number(e.target.value) : null }))}
+              placeholder="60307615"
+              disabled={kommoLoading}
+            />
+          </div>
+
+          <div className="md:col-span-3 flex items-center gap-2">
+            <Button onClick={saveKommo} disabled={kommoLoading || kommoSaving}>
+              {kommoSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Salvar integração
+            </Button>
+            <Badge variant="outline" className="border-zinc-800 text-muted-foreground">
+              Usado em: Pipeline → Enviar pro Kommo
+            </Badge>
+          </div>
+        </div>
+      </Section>
 
       {/* ── Última busca ───────────────────────────────────────────────────── */}
       {recentes.length > 0 && (

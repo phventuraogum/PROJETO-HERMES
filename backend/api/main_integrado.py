@@ -161,6 +161,13 @@ except Exception as e:
     logger.warning(f"[WARN] Integrations router nao disponivel: {e}")
 
 try:
+    from api.routers.orgs import router as orgs_router
+    app.include_router(orgs_router)
+    logger.info("[OK] Orgs router carregado")
+except Exception as e:
+    logger.warning(f"[WARN] Orgs router nao disponivel: {e}")
+
+try:
     from api.routers.webhooks import router as webhooks_router
     app.include_router(webhooks_router)
     logger.info("[OK] Webhooks router carregado")

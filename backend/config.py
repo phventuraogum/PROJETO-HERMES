@@ -79,6 +79,11 @@ class Settings(BaseSettings):
         description="Se True, requer autenticação em todos os endpoints. OBRIGATÓRIO True em produção."
     )
 
+    HERMES_MASTER_EMAIL: str = Field(
+        default="",
+        description="Email do usuário master admin (bypass de role por org). Usar apenas em produção."
+    )
+
     SUPABASE_URL: str = Field(
         default="",
         description="URL do projeto Supabase (ex: https://abc.supabase.co)"

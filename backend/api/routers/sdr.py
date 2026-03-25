@@ -17,11 +17,10 @@ import requests
 import logging
 
 from middleware.auth import require_auth
+from api.tenancy.supabase import resolve_tenant, rest_base_url, service_headers, require_configured
 
 logger = logging.getLogger("hermes.sdr")
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 PLOOMES_BASE = "https://api2.ploomes.com"
 
 N8N_API_KEY = os.getenv("N8N_SDR_API_KEY", "")
@@ -29,13 +28,10 @@ N8N_API_KEY = os.getenv("N8N_SDR_API_KEY", "")
 router = APIRouter(prefix="/sdr", tags=["SDR / n8n"])
 
 
-def _svc_headers():
-    return {
-        "apikey": SUPABASE_SERVICE_ROLE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-        "Content-Type": "application/json",
-        "Prefer": "return=representation",
-    }
+def _sb(org_id: str) -> tuple[str, dict[str, str]]:
+    tenant = resolve_tenant(org_id)
+    require_configured(tenant)
+    return rest_base_url(tenant), service_headers(tenant)
 
 
 def _org_id(x_org_id: str | None) -> str:
@@ -100,6 +96,7 @@ def list_sdr_leads(
     Formato otimizado para o n8n processar diretamente.
     """
     org = _org_id(x_org_id)
+    sb_url, headers = _sb(org)
     params: dict = {
         "select": "*",
         "org_id": f"eq.{org}",
@@ -111,8 +108,8 @@ def list_sdr_leads(
         params["status"] = f"eq.{status}"
 
     r = requests.get(
-        f"{SUPABASE_URL}/rest/v1/leads_outbound",
-        headers=_svc_headers(),
+        f"{sb_url}/rest/v1/leads_outbound",
+        headers=headers,
         params=params,
         timeout=15,
     )
@@ -134,11 +131,14 @@ def list_sdr_leads(
 def get_sdr_lead(
     lead_id: str,
     _user: dict = Depends(require_auth),
+    x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
 ):
     """Retorna detalhes de um lead especifico, incluindo historico de atividades."""
+    org = _org_id(x_org_id)
+    sb_url, headers = _sb(org)
     r = requests.get(
-        f"{SUPABASE_URL}/rest/v1/leads_outbound",
-        headers=_svc_headers(),
+        f"{sb_url}/rest/v1/leads_outbound",
+        headers=headers,
         params={"select": "*", "id": f"eq.{lead_id}"},
         timeout=10,
     )
@@ -150,8 +150,8 @@ def get_sdr_lead(
         raise HTTPException(status_code=404, detail="Lead nao encontrado")
 
     activities_r = requests.get(
-        f"{SUPABASE_URL}/rest/v1/sdr_activities",
-        headers=_svc_headers(),
+        f"{sb_url}/rest/v1/sdr_activities",
+        headers=headers,
         params={
             "select": "*",
             "lead_id": f"eq.{lead_id}",
@@ -173,12 +173,15 @@ def update_sdr_lead_status(
     lead_id: str,
     payload: UpdateLeadStatusRequest,
     _user: dict = Depends(require_auth),
+    x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
 ):
     """
     Atualiza o status de um lead no fluxo SDR.
 
     O n8n usa este endpoint apos cada acao (envio de email, resposta, etc).
     """
+    org = _org_id(x_org_id)
+    sb_url, headers_base = _sb(org)
     VALID_STATUSES = {
         "pending", "processing", "email_sent", "whatsapp_sent",
         "contacted", "responded", "meeting_booked",
@@ -215,8 +218,8 @@ def update_sdr_lead_status(
         del update_data["attempts"]
         # Primeiro busca o valor atual
         current = requests.get(
-            f"{SUPABASE_URL}/rest/v1/leads_outbound",
-            headers=_svc_headers(),
+            f"{sb_url}/rest/v1/leads_outbound",
+            headers=headers_base,
             params={"select": "attempts", "id": f"eq.{lead_id}"},
             timeout=10,
         )
@@ -224,10 +227,10 @@ def update_sdr_lead_status(
             update_data["attempts"] = (current.json()[0].get("attempts") or 0) + 1
             update_data["last_attempt_at"] = "now()"
 
-    headers = _svc_headers()
+    headers = dict(headers_base)
     headers["Prefer"] = "return=representation"
     r = requests.patch(
-        f"{SUPABASE_URL}/rest/v1/leads_outbound",
+        f"{sb_url}/rest/v1/leads_outbound",
         headers=headers,
         params={"id": f"eq.{lead_id}"},
         json=update_data,
@@ -267,6 +270,7 @@ def log_sdr_activity(
     email enviado, WhatsApp enviado, resposta recebida, etc.
     """
     org = _org_id(x_org_id)
+    sb_url, headers = _sb(org)
     VALID_TYPES = {
         "email_sent", "whatsapp_sent", "linkedin_sent", "phone_call",
         "lead_responded", "meeting_booked", "status_changed",
@@ -290,8 +294,8 @@ def log_sdr_activity(
     }
 
     r = requests.post(
-        f"{SUPABASE_URL}/rest/v1/sdr_activities",
-        headers=_svc_headers(),
+        f"{sb_url}/rest/v1/sdr_activities",
+        headers=headers,
         json=row,
         timeout=10,
     )
@@ -305,6 +309,8 @@ def log_sdr_activity(
 def _log_activity_internal(lead_id: str, data: dict):
     """Helper interno para logar atividades sem HTTPException."""
     try:
+        org = (data.get("org_id") or "").strip() or "default"
+        sb_url, headers = _sb(org)
         row = {
             "lead_id": lead_id,
             "org_id": data.get("org_id", "default"),
@@ -316,8 +322,8 @@ def _log_activity_internal(lead_id: str, data: dict):
             "metadata": data.get("metadata", {}),
         }
         requests.post(
-            f"{SUPABASE_URL}/rest/v1/sdr_activities",
-            headers=_svc_headers(),
+            f"{sb_url}/rest/v1/sdr_activities",
+            headers=headers,
             json=row,
             timeout=10,
         )

@@ -9,11 +9,11 @@ type OrgCtx = {
   orgId: string | null;
   setOrgId: (id: string) => void;
   loadingOrgs: boolean;
+  currentOrg: Org | null;
 };
 
 const Ctx = createContext<OrgCtx | null>(null);
 const LS_KEY = "hermes.org_id";
-const DEFAULT_ORG: Org = { id: "default", name: "Minha Organizacao", slug: "default", role: "admin" };
 
 export function OrgProvider({ children }: { children: React.ReactNode }) {
   const { accessToken } = useAuth();
@@ -30,7 +30,7 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!accessToken) {
-      setOrgs([DEFAULT_ORG]);
+      setOrgs([defaultOrg]);
       const current = localStorage.getItem(LS_KEY);
       if (!current || !current.trim()) {
         localStorage.setItem(LS_KEY, "default");
@@ -42,15 +42,15 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       setLoadingOrgs(true);
       try {
-        const data = await apiFetch<Org[]>("/admin/orgs", { skipOrgHeader: true });
-        const list = Array.isArray(data) && data.length > 0 ? data : [DEFAULT_ORG];
+        const data = await apiFetch<Org[]>("/orgs", { skipOrgHeader: true });
+        const list = Array.isArray(data) && data.length > 0 ? data : [defaultOrg];
         setOrgs(list);
 
         const saved = localStorage.getItem(LS_KEY);
         const pick = (saved && list.find(o => o.id === saved)?.id) || list[0]?.id || "default";
         setOrgId(pick);
       } catch {
-        setOrgs([DEFAULT_ORG]);
+        setOrgs([defaultOrg]);
         const fallback = localStorage.getItem(LS_KEY) || "default";
         localStorage.setItem(LS_KEY, fallback);
         setOrgIdState(fallback);
@@ -60,7 +60,8 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [accessToken]);
 
-  const value = useMemo(() => ({ orgs, orgId, setOrgId, loadingOrgs }), [orgs, orgId, loadingOrgs]);
+  const currentOrg = useMemo(() => orgs.find(o => o.id === orgId) ?? null, [orgs, orgId]);
+  const value = useMemo(() => ({ orgs, orgId, setOrgId, loadingOrgs, currentOrg }), [orgs, orgId, loadingOrgs, currentOrg]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

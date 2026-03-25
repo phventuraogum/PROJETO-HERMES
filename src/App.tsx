@@ -1,28 +1,23 @@
-import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Route, Routes } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 
 import Layout from "./components/layout/Layout";
+import Login from "./pages/Login";
+import Landing from "./pages/Landing";
+import Dashboard from "./pages/Dashboard";
+import Configure from "./pages/Configure";
+import Results from "./pages/Results";
+import Pipeline from "./pages/Pipeline";
+import History from "./pages/History";
+import Heatmap from "./pages/Heatmap";
+import Settings from "./pages/Settings";
+import ComprarCreditos from "./pages/ComprarCreditos";
+import NotFound from "./pages/NotFound";
 import { RequireAuth } from "./auth/RequireAuth";
-
-const Login = lazy(() => import("./pages/Login"));
-const Landing = lazy(() => import("./pages/Landing"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Configure = lazy(() => import("./pages/Configure"));
-const EnriquecerCnpj = lazy(() => import("./pages/EnriquecerCnpj"));
-const ConsultaFiscal = lazy(() => import("./pages/ConsultaFiscal"));
-const QueryWorkbench = lazy(() => import("./pages/QueryWorkbench"));
-const LeadLists = lazy(() => import("./pages/LeadLists"));
-const Results = lazy(() => import("./pages/Results"));
-const Pipeline = lazy(() => import("./pages/Pipeline"));
-const History = lazy(() => import("./pages/History"));
-const Heatmap = lazy(() => import("./pages/Heatmap"));
-const Settings = lazy(() => import("./pages/Settings"));
-const ComprarCreditos = lazy(() => import("./pages/ComprarCreditos"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+import { RequireRole } from "./auth/RequireRole";
 
 const queryClient = new QueryClient();
 
@@ -34,125 +29,94 @@ function AuthedLayout({ children }: { children: JSX.Element }) {
   );
 }
 
-function RouteFallback() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-      Carregando modulo...
-    </div>
-  );
-}
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
-      <Sonner theme="light" richColors />
+      <Sonner />
 
-      <Suspense fallback={<RouteFallback />}>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
+      <Routes>
+        {/* LANDING PAGE (publica - página inicial) */}
+        <Route path="/" element={<Landing />} />
 
-          <Route
-            path="/app"
-            element={
-              <AuthedLayout>
-                <Configure />
-              </AuthedLayout>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <AuthedLayout>
-                <Dashboard />
-              </AuthedLayout>
-            }
-          />
-          <Route
-            path="/cnpj"
-            element={
-              <AuthedLayout>
-                <EnriquecerCnpj />
-              </AuthedLayout>
-            }
-          />
-          <Route
-            path="/consulta-fiscal"
-            element={
-              <AuthedLayout>
-                <ConsultaFiscal />
-              </AuthedLayout>
-            }
-          />
-          <Route
-            path="/query-workbench"
-            element={
-              <AuthedLayout>
-                <QueryWorkbench />
-              </AuthedLayout>
-            }
-          />
-          <Route
-            path="/lead-lists"
-            element={
-              <AuthedLayout>
-                <LeadLists />
-              </AuthedLayout>
-            }
-          />
-          <Route
-            path="/results"
-            element={
-              <AuthedLayout>
-                <Results />
-              </AuthedLayout>
-            }
-          />
-          <Route
-            path="/pipeline"
-            element={
-              <AuthedLayout>
-                <Pipeline />
-              </AuthedLayout>
-            }
-          />
-          <Route
-            path="/history"
-            element={
-              <AuthedLayout>
-                <History />
-              </AuthedLayout>
-            }
-          />
-          <Route
-            path="/heatmap"
-            element={
-              <AuthedLayout>
+        {/* LOGIN */}
+        <Route path="/login" element={<Login />} />
+
+        {/* ROTAS PROTEGIDAS */}
+        <Route
+          path="/app"
+          element={
+            <AuthedLayout>
+              <Configure />
+            </AuthedLayout>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <AuthedLayout>
+              <Dashboard />
+            </AuthedLayout>
+          }
+        />
+        <Route
+          path="/results"
+          element={
+            <AuthedLayout>
+              <Results />
+            </AuthedLayout>
+          }
+        />
+        <Route
+          path="/pipeline"
+          element={
+            <AuthedLayout>
+              <Pipeline />
+            </AuthedLayout>
+          }
+        />
+        <Route
+          path="/history"
+          element={
+            <AuthedLayout>
+              <History />
+            </AuthedLayout>
+          }
+        />
+        <Route
+          path="/heatmap"
+          element={
+            <AuthedLayout>
+              <RequireRole minRole="admin">
                 <Heatmap />
-              </AuthedLayout>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <AuthedLayout>
+              </RequireRole>
+            </AuthedLayout>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <AuthedLayout>
+              <RequireRole minRole="admin">
                 <Settings />
-              </AuthedLayout>
-            }
-          />
-          <Route
-            path="/comprar-creditos"
-            element={
-              <AuthedLayout>
+              </RequireRole>
+            </AuthedLayout>
+          }
+        />
+        <Route
+          path="/comprar-creditos"
+          element={
+            <AuthedLayout>
+              <RequireRole minRole="admin">
                 <ComprarCreditos />
-              </AuthedLayout>
-            }
-          />
+              </RequireRole>
+            </AuthedLayout>
+          }
+        />
 
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Suspense>
+        {/* FALLBACK */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
     </TooltipProvider>
   </QueryClientProvider>
 );

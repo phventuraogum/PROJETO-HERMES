@@ -492,3 +492,11 @@ $$;
 -- ============================================================
 -- FIM - Todas as tabelas, funcoes, triggers e policies criadas
 -- ============================================================
+
+-- ============================================================
+-- MIGRATIONS INCREMENTAIS (após o "SQL completo")
+-- ============================================================
+-- Observação: o Supabase SQL Editor não suporta `\i` (include).
+-- Rode as migrations abaixo manualmente, em queries separadas:
+-- - scripts/migration_sdr_integration.sql
+-- - scripts/migration_org_integrations.sql
