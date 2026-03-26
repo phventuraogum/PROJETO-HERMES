@@ -22,14 +22,34 @@ def _svc_headers() -> dict[str, str]:
     }
 
 
+def _master_email() -> str:
+    return (getattr(settings, "HERMES_MASTER_EMAIL", "") or "").strip().lower()
+
+
 @router.get("")
 async def list_my_orgs(user: dict = Depends(require_auth)):
     """Lista organizações do usuário autenticado (com role)."""
     user_id = user.get("id")
+    email = (user.get("email") or "").strip().lower()
     if not user_id:
         raise HTTPException(status_code=401, detail="Usuário inválido")
 
     async with httpx.AsyncClient(timeout=10) as c:
+        # Master admin: retorna todas as organizações com role owner
+        if _master_email() and email == _master_email():
+            org_r = await c.get(
+                f"{settings.SUPABASE_URL}/rest/v1/organizations",
+                headers=_svc_headers(),
+                params={"select": "id,name,slug", "order": "created_at.asc"},
+            )
+            if org_r.status_code >= 300:
+                raise HTTPException(status_code=502, detail="Falha ao listar organizações")
+            orgs = org_r.json() if org_r.content else []
+            return [
+                {"id": o["id"], "name": o["name"], "slug": o["slug"], "role": "owner", "is_master": True}
+                for o in orgs if o.get("id")
+            ]
+
         mem_r = await c.get(
             f"{settings.SUPABASE_URL}/rest/v1/org_members",
             headers=_svc_headers(),
@@ -43,7 +63,6 @@ async def list_my_orgs(user: dict = Depends(require_auth)):
             return []
 
         org_ids = [m["org_id"] for m in memberships if m.get("org_id")]
-        # Busca organizações
         org_r = await c.get(
             f"{settings.SUPABASE_URL}/rest/v1/organizations",
             headers=_svc_headers(),
