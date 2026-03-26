@@ -16,6 +16,10 @@ import Heatmap from "./pages/Heatmap";
 import Settings from "./pages/Settings";
 import ComprarCreditos from "./pages/ComprarCreditos";
 import AdminPanel from "./pages/AdminPanel";
+import EnriquecerCnpj from "./pages/EnriquecerCnpj";
+import ConsultaFiscal from "./pages/ConsultaFiscal";
+import QueryWorkbench from "./pages/QueryWorkbench";
+import LeadLists from "./pages/LeadLists";
 import NotFound from "./pages/NotFound";
 import { RequireAuth } from "./auth/RequireAuth";
 import { RequireRole } from "./auth/RequireRole";
@@ -122,6 +126,46 @@ const App = () => (
             <AuthedLayout>
               <RequireMaster>
                 <AdminPanel />
+              </RequireMaster>
+            </AuthedLayout>
+          }
+        />
+        <Route
+          path="/cnpj"
+          element={
+            <AuthedLayout>
+              <RequireMaster>
+                <EnriquecerCnpj />
+              </RequireMaster>
+            </AuthedLayout>
+          }
+        />
+        <Route
+          path="/consulta-fiscal"
+          element={
+            <AuthedLayout>
+              <RequireMaster>
+                <ConsultaFiscal />
+              </RequireMaster>
+            </AuthedLayout>
+          }
+        />
+        <Route
+          path="/query-workbench"
+          element={
+            <AuthedLayout>
+              <RequireMaster>
+                <QueryWorkbench />
+              </RequireMaster>
+            </AuthedLayout>
+          }
+        />
+        <Route
+          path="/lead-lists"
+          element={
+            <AuthedLayout>
+              <RequireMaster>
+                <LeadLists />
               </RequireMaster>
             </AuthedLayout>
           }

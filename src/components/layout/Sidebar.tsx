@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Settings, FileText, History, Map, Kanban, Building2, Coins, Plus, Sliders, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Settings, FileText, History, Map, Kanban, Building2, Coins, Plus, Sliders, ShieldCheck, Search, Scale, TerminalSquare, Archive } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
 import LogoutButton from "@/auth/LogoutButton";
@@ -109,10 +109,31 @@ const Sidebar = () => {
           </>
         )}
         {isMaster && (
-          <NavLink to="/admin" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
-            <ShieldCheck className="h-5 w-5 text-amber-500" />
-            <span className="text-sm">Painel Admin</span>
-          </NavLink>
+          <>
+            <div className="px-4 pt-3 pb-1">
+              <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40">Master</p>
+            </div>
+            <NavLink to="/cnpj" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
+              <Search className="h-5 w-5" />
+              <span className="text-sm">Enriquecer CNPJ</span>
+            </NavLink>
+            <NavLink to="/consulta-fiscal" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
+              <Scale className="h-5 w-5" />
+              <span className="text-sm">Consulta Fiscal</span>
+            </NavLink>
+            <NavLink to="/query-workbench" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
+              <TerminalSquare className="h-5 w-5" />
+              <span className="text-sm">Query Workbench</span>
+            </NavLink>
+            <NavLink to="/lead-lists" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
+              <Archive className="h-5 w-5" />
+              <span className="text-sm">Listas & Signals</span>
+            </NavLink>
+            <NavLink to="/admin" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
+              <ShieldCheck className="h-5 w-5 text-amber-500" />
+              <span className="text-sm">Painel Admin</span>
+            </NavLink>
+          </>
         )}
       </nav>
 
