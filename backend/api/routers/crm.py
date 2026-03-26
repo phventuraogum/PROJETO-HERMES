@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
 from typing import Optional
 import re
 import requests
 
+from config import settings
 from middleware.auth import require_auth
 
 router = APIRouter()
@@ -209,7 +210,13 @@ def _export_ploomes(api_key: str, lead: LeadExportPayload, funnel_id: int | None
 _SUBDOMAIN_RE = re.compile(r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$')
 
 
-def _export_kommo(access_token: str, subdomain: str, lead: LeadExportPayload) -> dict:
+def _export_kommo(
+    access_token: str,
+    subdomain: str,
+    lead: LeadExportPayload,
+    pipeline_id: int | None = None,
+    status_id: int | None = None,
+) -> dict:
     # Valida subdomínio para evitar injeção de URL
     if not _SUBDOMAIN_RE.match(subdomain):
         raise HTTPException(status_code=400, detail="Subdomínio Kommo inválido. Use apenas letras, números e hífens.")
@@ -241,8 +248,12 @@ def _export_kommo(access_token: str, subdomain: str, lead: LeadExportPayload) ->
 
     contact_id = (cr.json().get("_embedded", {}).get("contacts") or [{}])[0].get("id")
 
-    # 2. Criar lead vinculado ao contato
+    # 2. Criar lead vinculado ao contato (com pipeline/status se fornecidos)
     lead_body: dict = {"name": lead.nome_fantasia or lead.razao_social}
+    if pipeline_id:
+        lead_body["pipeline_id"] = pipeline_id
+    if status_id:
+        lead_body["status_id"] = status_id
     if contact_id:
         lead_body["_embedded"] = {"contacts": [{"id": contact_id, "is_main": True}]}
 
@@ -288,8 +299,32 @@ def _export_kommo(access_token: str, subdomain: str, lead: LeadExportPayload) ->
 
 # ─── ENDPOINT PRINCIPAL ────────────────────────────────────
 
+def _get_kommo_pipeline_config(org_id: str) -> tuple[int | None, int | None]:
+    """Busca pipeline_id e status_id da org_integrations para o Kommo."""
+    try:
+        r = requests.get(
+            f"{settings.SUPABASE_URL}/rest/v1/org_integrations",
+            headers={
+                "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+                "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+            },
+            params={"select": "kommo_pipeline_id,kommo_status_id", "org_id": f"eq.{org_id}"},
+            timeout=8,
+        )
+        if r.status_code < 300 and r.json():
+            row = r.json()[0]
+            return row.get("kommo_pipeline_id"), row.get("kommo_status_id")
+    except Exception:
+        pass
+    return None, None
+
+
 @router.post("/export")
-def export_to_crm(payload: CrmExportRequest, _user: dict = Depends(require_auth)):
+def export_to_crm(
+    payload: CrmExportRequest,
+    _user: dict = Depends(require_auth),
+    x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
+):
     provider = payload.provider.lower()
     api_key = payload.api_key.strip()
     lead = payload.lead
@@ -308,7 +343,9 @@ def export_to_crm(payload: CrmExportRequest, _user: dict = Depends(require_auth)
     elif provider == "kommo":
         if not payload.kommo_subdomain:
             raise HTTPException(status_code=400, detail="kommo_subdomain é obrigatório para o Kommo")
-        return _export_kommo(api_key, payload.kommo_subdomain.strip(), lead)
+        org = (x_org_id or "").strip() or "default"
+        pipeline_id, status_id = _get_kommo_pipeline_config(org)
+        return _export_kommo(api_key, payload.kommo_subdomain.strip(), lead, pipeline_id, status_id)
     else:
         raise HTTPException(status_code=400, detail=f"Provider '{provider}' não suportado")
 
