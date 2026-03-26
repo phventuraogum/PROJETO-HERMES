@@ -1,153 +1,323 @@
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Settings, FileText, History, Map, Kanban, Building2, Coins, Plus, Sliders, ShieldCheck, Search, Scale, TerminalSquare, Archive } from "lucide-react";
-import { NavLink } from "@/components/NavLink";
-import { cn } from "@/lib/utils";
-import LogoutButton from "@/auth/LogoutButton";
-import { useOrg } from "@/tenancy/OrgContext";
-import { getCredits, addCredits } from "@/lib/api";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+  Box, Drawer, List, ListItemButton, ListItemIcon, ListItemText,
+  Typography, Divider, Chip, Tooltip, Avatar, Stack, alpha,
+} from "@mui/material";
+import {
+  Dashboard as DashboardIcon,
+  TuneRounded,
+  DescriptionRounded,
+  AccountTreeRounded,
+  HistoryRounded,
+  MapRounded,
+  SettingsRounded,
+  ShieldRounded,
+  SearchRounded,
+  BalanceRounded,
+  TerminalRounded,
+  ArchiveRounded,
+  MonetizationOnRounded,
+  LogoutRounded,
+  BusinessRounded,
+  ExpandMoreRounded,
+} from "@mui/icons-material";
+import {
+  Select, MenuItem, FormControl,
+} from "@mui/material";
+import { useOrg } from "@/tenancy/OrgContext";
+import { getCredits } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
-const menuItems = [
-  { icon: Settings,       label: "Configurar Prospecção", path: "/app" },
-  { icon: LayoutDashboard,label: "Dashboard",             path: "/dashboard" },
-  { icon: FileText,       label: "Resultados",            path: "/results" },
-  { icon: Kanban,         label: "Pipeline",              path: "/pipeline" },
-  { icon: History,        label: "Histórico",             path: "/history" },
+const DRAWER_WIDTH = 248;
+
+const NAV = [
+  {
+    section: "Prospecção",
+    items: [
+      { icon: TuneRounded,      label: "Configurar Busca",   path: "/app" },
+      { icon: DashboardIcon,    label: "Dashboard",          path: "/dashboard" },
+      { icon: DescriptionRounded, label: "Resultados",       path: "/results" },
+      { icon: ArchiveRounded,   label: "Listas & Signals",   path: "/lead-lists", masterOnly: true },
+    ],
+  },
+  {
+    section: "Pipeline",
+    items: [
+      { icon: AccountTreeRounded, label: "Pipeline",         path: "/pipeline" },
+      { icon: HistoryRounded,     label: "Histórico",        path: "/history" },
+    ],
+  },
+  {
+    section: "Análise",
+    items: [
+      { icon: MapRounded,         label: "Mapa de Calor",    path: "/heatmap",   adminOnly: true },
+    ],
+  },
+  {
+    section: "Conta",
+    items: [
+      { icon: SettingsRounded,    label: "Configurações",    path: "/settings",  adminOnly: true },
+      { icon: MonetizationOnRounded, label: "Créditos",      path: "/comprar-creditos", adminOnly: true },
+    ],
+  },
 ];
 
-const Sidebar = () => {
+const MASTER_NAV = [
+  { icon: SearchRounded,    label: "Enriquecer CNPJ",    path: "/cnpj" },
+  { icon: BalanceRounded,   label: "Consulta Fiscal",    path: "/consulta-fiscal" },
+  { icon: TerminalRounded,  label: "Query Workbench",    path: "/query-workbench" },
+  { icon: ShieldRounded,    label: "Painel Admin",       path: "/admin" },
+];
+
+export default function Sidebar() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { orgs, orgId, setOrgId, currentOrg, isMaster } = useOrg();
   const [credits, setCredits] = useState<number | null>(null);
-  const role = currentOrg?.role || "member";
+  const [userEmail, setUserEmail] = useState<string>("");
+
+  const role = currentOrg?.role ?? "member";
   const isAdmin = role === "admin" || role === "owner";
+
+  useEffect(() => {
+    supabase?.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? ""));
+  }, []);
 
   useEffect(() => {
     if (!isAdmin) { setCredits(null); return; }
     getCredits().then(r => setCredits(r.saldo)).catch(() => setCredits(null));
   }, [orgId, isAdmin]);
 
-  const handleAddCredits = async () => {
-    try {
-      const r = await addCredits(100);
-      setCredits(r.saldo);
-      toast.success(`+100 créditos. Saldo: ${r.saldo}`);
-    } catch {
-      toast.error("Erro ao adicionar créditos.");
-    }
+  const isActive = (path: string) => location.pathname === path;
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
   };
 
   return (
-    <aside className="w-64 border-r border-sidebar-border bg-sidebar flex flex-col">
-      {orgs.length > 1 && (
-        <div className="p-3 border-b border-sidebar-border">
-          <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60 mb-1.5">Organização</p>
-          <Select value={orgId ?? "default"} onValueChange={setOrgId}>
-            <SelectTrigger className="h-8 text-xs border-sidebar-border bg-sidebar-accent/30">
-              <Building2 className="h-3 w-3 mr-1.5" />
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              {orgs.map(o => (
-                <SelectItem key={o.id} value={o.id} className="text-xs">{o.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-      {orgs.length === 1 && currentOrg && (
-        <div className="px-3 py-2 border-b border-sidebar-border flex items-center gap-2 text-xs text-sidebar-foreground/70">
-          <Building2 className="h-3.5 w-3.5" />
-          <span className="truncate">{currentOrg.name}</span>
-        </div>
-      )}
-      {/* Créditos (admin only) */}
-      {isAdmin && (
-        <div className="px-3 py-2 border-b border-sidebar-border flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-sidebar-foreground/80">
-            <Coins className="h-3.5 w-3.5 text-amber-500" />
-            <span>{credits !== null ? credits : "—"} créditos</span>
-          </div>
-          <div className="flex items-center gap-0.5">
-            <Button variant="ghost" size="icon" className="h-6 w-6 text-sidebar-foreground/70 hover:text-amber-400" onClick={handleAddCredits} title="Adicionar 100 créditos (demo)">
-              <Plus className="h-3 w-3" />
-            </Button>
-            <NavLink to="/comprar-creditos" className="text-[10px] font-medium text-amber-400 hover:text-amber-300">
-              Comprar
-            </NavLink>
-          </div>
-        </div>
-      )}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {menuItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            end={item.path === "/"}
-            className={cn(
-              "flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            )}
-            activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50"
+    <Drawer
+      variant="permanent"
+      sx={{
+        width: DRAWER_WIDTH,
+        flexShrink: 0,
+        "& .MuiDrawer-paper": {
+          width: DRAWER_WIDTH,
+          boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
+          backgroundColor: "#0F0F0F",
+          borderRight: "1px solid rgba(255,255,255,0.06)",
+        },
+      }}
+    >
+      {/* ── Logo ── */}
+      <Box sx={{ px: 2.5, py: 2, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <Stack direction="row" alignItems="center" gap={1.5}>
+          <Box
+            sx={{
+              width: 32, height: 32, borderRadius: "9px",
+              background: "linear-gradient(135deg, #F97316, #EA580C)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+              boxShadow: "0 2px 8px rgba(249,115,22,0.35)",
+            }}
           >
-            <item.icon className="h-5 w-5" />
-            <span className="text-sm">{item.label}</span>
-          </NavLink>
-        ))}
-        {isAdmin && (
-          <>
-            <NavLink to="/heatmap" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
-              <Map className="h-5 w-5" />
-              <span className="text-sm">Mapa de Calor</span>
-            </NavLink>
-            <NavLink to="/settings" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
-              <Sliders className="h-5 w-5" />
-              <span className="text-sm">Configurações</span>
-            </NavLink>
-          </>
-        )}
+            <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: "0.875rem", letterSpacing: "-0.02em" }}>H</Typography>
+          </Box>
+          <Box>
+            <Typography sx={{ fontWeight: 700, fontSize: "0.9375rem", letterSpacing: "-0.02em", color: "#F0F0F0", lineHeight: 1.2 }}>
+              Hermes
+            </Typography>
+            <Typography sx={{ fontSize: "0.625rem", color: "#555", fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              Pinn Product Builder
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
+
+      {/* ── Org selector ── */}
+      {orgs.length > 1 ? (
+        <Box sx={{ px: 1.5, py: 1.5, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <Typography sx={{ fontSize: "0.625rem", fontWeight: 600, color: "#444", textTransform: "uppercase", letterSpacing: "0.08em", mb: 0.75, px: 0.5 }}>
+            Organização
+          </Typography>
+          <FormControl size="small" fullWidth>
+            <Select
+              value={orgId ?? ""}
+              onChange={e => setOrgId(e.target.value)}
+              displayEmpty
+              sx={{
+                fontSize: "0.8125rem",
+                backgroundColor: "#181818",
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.08)" },
+                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.16)" },
+                "& .MuiSelect-icon": { color: "#555" },
+              }}
+              startAdornment={<BusinessRounded sx={{ fontSize: 14, color: "#555", mr: 0.75 }} />}
+            >
+              {orgs.map(o => (
+                <MenuItem key={o.id} value={o.id} sx={{ fontSize: "0.8125rem" }}>{o.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+      ) : currentOrg && (
+        <Box sx={{ px: 2, py: 1.25, borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 1 }}>
+          <BusinessRounded sx={{ fontSize: 13, color: "#444" }} />
+          <Typography sx={{ fontSize: "0.75rem", color: "#666", fontWeight: 500 }} noWrap>{currentOrg.name}</Typography>
+        </Box>
+      )}
+
+      {/* ── Créditos (admin) ── */}
+      {isAdmin && (
+        <Box
+          onClick={() => navigate("/comprar-creditos")}
+          sx={{
+            px: 2, py: 1.25,
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            cursor: "pointer",
+            "&:hover": { backgroundColor: "rgba(255,255,255,0.02)" },
+          }}
+        >
+          <Stack direction="row" alignItems="center" gap={1}>
+            <MonetizationOnRounded sx={{ fontSize: 13, color: "#F97316" }} />
+            <Typography sx={{ fontSize: "0.75rem", color: "#888", fontWeight: 500 }}>
+              {credits !== null ? credits.toLocaleString("pt-BR") : "—"} créditos
+            </Typography>
+          </Stack>
+          <Chip
+            label="+ Comprar"
+            size="small"
+            sx={{
+              fontSize: "0.625rem", fontWeight: 600, height: 18,
+              backgroundColor: "rgba(249,115,22,0.1)",
+              color: "#F97316",
+              border: "1px solid rgba(249,115,22,0.2)",
+              cursor: "pointer",
+            }}
+          />
+        </Box>
+      )}
+
+      {/* ── Nav ── */}
+      <Box sx={{ flex: 1, overflowY: "auto", py: 1 }}>
+        {NAV.map(group => {
+          const visibleItems = group.items.filter(item => {
+            if (item.masterOnly && !isMaster) return false;
+            if (item.adminOnly && !isAdmin && !isMaster) return false;
+            return true;
+          });
+          if (visibleItems.length === 0) return null;
+          return (
+            <Box key={group.section} sx={{ mb: 0.5 }}>
+              <Typography sx={{
+                fontSize: "0.625rem", fontWeight: 600, color: "#3A3A3A",
+                textTransform: "uppercase", letterSpacing: "0.08em",
+                px: 2.5, py: 0.75, mt: 0.5,
+              }}>
+                {group.section}
+              </Typography>
+              <List dense disablePadding>
+                {visibleItems.map(item => (
+                  <ListItemButton
+                    key={item.path}
+                    selected={isActive(item.path)}
+                    onClick={() => navigate(item.path)}
+                    sx={{
+                      mx: 1, mb: 0.25, borderRadius: "8px",
+                      px: 1.5, py: 0.875,
+                      "&.Mui-selected": {
+                        backgroundColor: "rgba(249,115,22,0.1)",
+                        "& .MuiListItemText-primary": { color: "#F97316", fontWeight: 600 },
+                        "& .MuiListItemIcon-root": { color: "#F97316" },
+                        "&:hover": { backgroundColor: "rgba(249,115,22,0.15)" },
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 32, color: isActive(item.path) ? "#F97316" : "#444" }}>
+                      <item.icon sx={{ fontSize: 17 }} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={item.label}
+                      primaryTypographyProps={{ fontSize: "0.8125rem", fontWeight: 500, color: isActive(item.path) ? "#F97316" : "#A0A0A0" }}
+                    />
+                  </ListItemButton>
+                ))}
+              </List>
+            </Box>
+          );
+        })}
+
+        {/* ── Master section ── */}
         {isMaster && (
-          <>
-            <div className="px-4 pt-3 pb-1">
-              <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40">Master</p>
-            </div>
-            <NavLink to="/cnpj" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
-              <Search className="h-5 w-5" />
-              <span className="text-sm">Enriquecer CNPJ</span>
-            </NavLink>
-            <NavLink to="/consulta-fiscal" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
-              <Scale className="h-5 w-5" />
-              <span className="text-sm">Consulta Fiscal</span>
-            </NavLink>
-            <NavLink to="/query-workbench" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
-              <TerminalSquare className="h-5 w-5" />
-              <span className="text-sm">Query Workbench</span>
-            </NavLink>
-            <NavLink to="/lead-lists" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
-              <Archive className="h-5 w-5" />
-              <span className="text-sm">Listas & Signals</span>
-            </NavLink>
-            <NavLink to="/admin" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
-              <ShieldCheck className="h-5 w-5 text-amber-500" />
-              <span className="text-sm">Painel Admin</span>
-            </NavLink>
-          </>
+          <Box sx={{ mt: 1 }}>
+            <Divider sx={{ mx: 2, mb: 1, borderColor: "rgba(249,115,22,0.15)" }} />
+            <Typography sx={{
+              fontSize: "0.625rem", fontWeight: 600,
+              color: "rgba(249,115,22,0.5)",
+              textTransform: "uppercase", letterSpacing: "0.08em",
+              px: 2.5, py: 0.75,
+            }}>
+              Master
+            </Typography>
+            <List dense disablePadding>
+              {MASTER_NAV.map(item => (
+                <ListItemButton
+                  key={item.path}
+                  selected={isActive(item.path)}
+                  onClick={() => navigate(item.path)}
+                  sx={{
+                    mx: 1, mb: 0.25, borderRadius: "8px",
+                    px: 1.5, py: 0.875,
+                    "&.Mui-selected": {
+                      backgroundColor: "rgba(249,115,22,0.1)",
+                      "& .MuiListItemText-primary": { color: "#F97316", fontWeight: 600 },
+                      "& .MuiListItemIcon-root": { color: "#F97316" },
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 32, color: isActive(item.path) ? "#F97316" : "#444" }}>
+                    <item.icon sx={{ fontSize: 17 }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.label}
+                    primaryTypographyProps={{ fontSize: "0.8125rem", fontWeight: 500, color: isActive(item.path) ? "#F97316" : "#A0A0A0" }}
+                  />
+                </ListItemButton>
+              ))}
+            </List>
+          </Box>
         )}
-      </nav>
+      </Box>
 
-      {/* Rodapé fixo do sidebar */}
-      <div className="p-4 border-t border-sidebar-border space-y-3">
-        <LogoutButton />
-
-        <div className="p-3 rounded-lg bg-sidebar-accent/50 text-xs text-sidebar-foreground/70">
-          <p className="font-medium mb-1">Projeto Hermes v1.0</p>
-          <p>Plataforma de prospecção B2B data-driven</p>
-        </div>
-      </div>
-    </aside>
+      {/* ── Footer ── */}
+      <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.06)", p: 1.5 }}>
+        <Stack direction="row" alignItems="center" gap={1.5} sx={{
+          px: 1, py: 1, borderRadius: "10px",
+          "&:hover": { backgroundColor: "rgba(255,255,255,0.03)" },
+        }}>
+          <Avatar sx={{ width: 30, height: 30, backgroundColor: "rgba(249,115,22,0.15)", color: "#F97316", fontSize: "0.75rem", fontWeight: 700 }}>
+            {(userEmail?.[0] ?? "U").toUpperCase()}
+          </Avatar>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: "#D0D0D0" }} noWrap>
+              {currentOrg?.name ?? "Hermes"}
+            </Typography>
+            <Typography sx={{ fontSize: "0.6875rem", color: "#555" }} noWrap>
+              {userEmail}
+            </Typography>
+          </Box>
+          <Tooltip title="Sair" placement="top">
+            <LogoutRounded
+              onClick={handleLogout}
+              sx={{ fontSize: 15, color: "#444", cursor: "pointer", "&:hover": { color: "#EF4444" }, transition: "color 0.15s" }}
+            />
+          </Tooltip>
+        </Stack>
+      </Box>
+    </Drawer>
   );
-};
-
-export default Sidebar;
+}

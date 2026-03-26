@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
-import Header from "./Header";
+import { Box } from "@mui/material";
 import Sidebar from "./Sidebar";
+import Header from "./Header";
 
 interface LayoutProps {
   children: ReactNode;
@@ -8,17 +9,25 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   return (
-    <div className="app-shell min-h-screen flex w-full text-foreground">
+    <Box sx={{ display: "flex", height: "100vh", backgroundColor: "#0F0F0F", overflow: "hidden" }}>
       <Sidebar />
-      <div className="flex flex-col flex-1 min-w-0">
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
         <Header />
-        <main className="flex-1 overflow-auto">
-          <div className="mx-auto w-full max-w-[1480px] px-4 py-6 sm:px-6 lg:px-8">
+        <Box
+          component="main"
+          sx={{
+            flex: 1,
+            overflowY: "auto",
+            px: { xs: 2, sm: 3, lg: 4 },
+            py: 3,
+          }}
+        >
+          <Box sx={{ maxWidth: 1480, mx: "auto", width: "100%" }}>
             {children}
-          </div>
-        </main>
-      </div>
-    </div>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 };
 
