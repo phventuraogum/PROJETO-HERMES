@@ -15,6 +15,7 @@ import History from "./pages/History";
 import Heatmap from "./pages/Heatmap";
 import Settings from "./pages/Settings";
 import ComprarCreditos from "./pages/ComprarCreditos";
+import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
 import { RequireAuth } from "./auth/RequireAuth";
 import { RequireRole } from "./auth/RequireRole";
@@ -109,6 +110,17 @@ const App = () => (
             <AuthedLayout>
               <RequireRole minRole="admin">
                 <ComprarCreditos />
+              </RequireRole>
+            </AuthedLayout>
+          }
+        />
+
+        <Route
+          path="/admin"
+          element={
+            <AuthedLayout>
+              <RequireRole minRole="owner">
+                <AdminPanel />
               </RequireRole>
             </AuthedLayout>
           }

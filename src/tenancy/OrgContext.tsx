@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import { useAuth } from "@/auth/AuthContext";
 import { apiFetch } from "@/lib/api";
 
-type Org = { id: string; name: string; slug: string; role: string };
+type Org = { id: string; name: string; slug: string; role: string; is_master?: boolean };
 
 type OrgCtx = {
   orgs: Org[];
@@ -10,6 +10,7 @@ type OrgCtx = {
   setOrgId: (id: string) => void;
   loadingOrgs: boolean;
   currentOrg: Org | null;
+  isMaster: boolean;
 };
 
 const Ctx = createContext<OrgCtx | null>(null);
@@ -61,7 +62,8 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
   }, [accessToken]);
 
   const currentOrg = useMemo(() => orgs.find(o => o.id === orgId) ?? null, [orgs, orgId]);
-  const value = useMemo(() => ({ orgs, orgId, setOrgId, loadingOrgs, currentOrg }), [orgs, orgId, loadingOrgs, currentOrg]);
+  const isMaster = useMemo(() => orgs.some(o => o.is_master), [orgs]);
+  const value = useMemo(() => ({ orgs, orgId, setOrgId, loadingOrgs, currentOrg, isMaster }), [orgs, orgId, loadingOrgs, currentOrg, isMaster]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

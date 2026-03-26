@@ -114,6 +114,7 @@ from api.routers import (
     webhooks_router,
     integrations_router,
     sdr_router,
+    admin_router,
 )
 
 # /prospeccao — endpoint modular de prospecção (n8n, Kommo, dashboard)
@@ -126,6 +127,8 @@ app.include_router(webhooks_router)
 app.include_router(integrations_router)
 # /sdr — endpoints para automações n8n/SDR
 app.include_router(sdr_router)
+# /admin — gerenciamento de orgs e tenants (master only)
+app.include_router(admin_router)
 
 # ==========================================================
 # MULTI-TENANT + CRÉDITOS

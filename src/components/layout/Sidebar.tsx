@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Settings, FileText, History, Map, Kanban, Building2, Coins, Plus, Sliders } from "lucide-react";
+import { LayoutDashboard, Settings, FileText, History, Map, Kanban, Building2, Coins, Plus, Sliders, ShieldCheck } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
 import LogoutButton from "@/auth/LogoutButton";
@@ -20,7 +20,7 @@ const menuItems = [
 ];
 
 const Sidebar = () => {
-  const { orgs, orgId, setOrgId, currentOrg } = useOrg();
+  const { orgs, orgId, setOrgId, currentOrg, isMaster } = useOrg();
   const [credits, setCredits] = useState<number | null>(null);
   const role = currentOrg?.role || "member";
   const isAdmin = role === "admin" || role === "owner";
@@ -107,6 +107,12 @@ const Sidebar = () => {
               <span className="text-sm">Configurações</span>
             </NavLink>
           </>
+        )}
+        {isMaster && (
+          <NavLink to="/admin" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
+            <ShieldCheck className="h-5 w-5 text-amber-500" />
+            <span className="text-sm">Painel Admin</span>
+          </NavLink>
         )}
       </nav>
 
