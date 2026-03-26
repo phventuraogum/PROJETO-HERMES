@@ -19,6 +19,7 @@ import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
 import { RequireAuth } from "./auth/RequireAuth";
 import { RequireRole } from "./auth/RequireRole";
+import { RequireMaster } from "./auth/RequireMaster";
 
 const queryClient = new QueryClient();
 
@@ -119,9 +120,9 @@ const App = () => (
           path="/admin"
           element={
             <AuthedLayout>
-              <RequireRole minRole="owner">
+              <RequireMaster>
                 <AdminPanel />
-              </RequireRole>
+              </RequireMaster>
             </AuthedLayout>
           }
         />
