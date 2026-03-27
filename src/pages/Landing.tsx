@@ -757,35 +757,16 @@ export default function Landing() {
             </Typography>
           </FadeIn>
 
-          {/* Hero features: first 2 full-width columns */}
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: 2 }}>
-            {FEATURES_GRID.slice(0, 2).map((f, i) => (
-              <FadeIn key={i} delay={i * 60}>
-                <SpotlightCard sx={{ p: 3.5, height: "100%" }}>
-                  <Box sx={{ width: 40, height: 40, borderRadius: "10px", backgroundColor: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.12)", display: "flex", alignItems: "center", justifyContent: "center", mb: 2.5 }}>
-                    <f.Icon sx={{ fontSize: 18, color: "#F97316" }} />
-                  </Box>
-                  <Typography sx={{ fontSize: "1rem", fontWeight: 700, color: "#E8E8E8", mb: 1 }}>{f.title}</Typography>
-                  <Typography sx={{ fontSize: "0.8125rem", color: "#555", lineHeight: 1.75 }}>{f.desc}</Typography>
-                </SpotlightCard>
-              </FadeIn>
-            ))}
-          </Box>
-
-          {/* Remaining features: 3 col */}
+          {/* 3×3 uniform grid */}
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "repeat(3, 1fr)" }, gap: 2 }}>
-            {FEATURES_GRID.slice(2).map((f, i) => (
-              <FadeIn key={i} delay={(i + 2) * 50}>
-                <SpotlightCard sx={{ p: 2.5, height: "100%" }}>
-                  <Stack direction="row" alignItems="flex-start" gap={2}>
-                    <Box sx={{ width: 32, height: 32, borderRadius: "8px", backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, mt: 0.25 }}>
-                      <f.Icon sx={{ fontSize: 15, color: "#F97316" }} />
-                    </Box>
-                    <Box>
-                      <Typography sx={{ fontSize: "0.8125rem", fontWeight: 600, color: "#D8D8D8", mb: 0.5 }}>{f.title}</Typography>
-                      <Typography sx={{ fontSize: "0.75rem", color: "#555", lineHeight: 1.65 }}>{f.desc}</Typography>
-                    </Box>
-                  </Stack>
+            {FEATURES_GRID.map((f, i) => (
+              <FadeIn key={i} delay={i * 50}>
+                <SpotlightCard sx={{ p: 3, height: "100%", minHeight: 140 }}>
+                  <Box sx={{ width: 36, height: 36, borderRadius: "9px", backgroundColor: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.1)", display: "flex", alignItems: "center", justifyContent: "center", mb: 2 }}>
+                    <f.Icon sx={{ fontSize: 17, color: "#F97316" }} />
+                  </Box>
+                  <Typography sx={{ fontSize: "0.875rem", fontWeight: 700, color: "#E0E0E0", mb: 0.75 }}>{f.title}</Typography>
+                  <Typography sx={{ fontSize: "0.7875rem", color: "#555", lineHeight: 1.7 }}>{f.desc}</Typography>
                 </SpotlightCard>
               </FadeIn>
             ))}
