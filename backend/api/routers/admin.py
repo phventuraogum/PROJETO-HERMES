@@ -108,7 +108,11 @@ class TenantBody(BaseModel):
 
 @router.get("/orgs")
 async def admin_list_orgs(_user: dict = Depends(require_master)):
-    """Lista todas as orgs com status de tenant configurado."""
+    """
+    Lista todas as orgs com status de tenant configurado.
+    Faz merge entre a tabela organizations e org_tenants para garantir
+    que orgs adicionadas diretamente via org_tenants também apareçam.
+    """
     async with httpx.AsyncClient(timeout=10) as c:
         orgs_r = await c.get(
             f"{settings.SUPABASE_URL}/rest/v1/organizations",
@@ -139,21 +143,49 @@ async def admin_list_orgs(_user: dict = Depends(require_master)):
             for m in members_r.json():
                 members_map.setdefault(m["org_id"], []).append(m)
 
+    # Orgs registradas na tabela organizations (por UUID)
     result = []
+    orgs_slugs_seen: set[str] = set()
+
     for org in orgs:
         oid = org["id"]
-        tenant = tenants_map.get(oid, {})
+        slug = org.get("slug") or oid
+        orgs_slugs_seen.add(slug)
+        # Tenta match por UUID e por slug
+        tenant = tenants_map.get(oid) or tenants_map.get(slug) or {}
         result.append({
             "id": oid,
-            "name": org.get("name"),
-            "slug": org.get("slug"),
+            "name": org.get("name") or slug,
+            "slug": slug,
             "created_at": org.get("created_at"),
             "tenant_configured": bool(tenant.get("supabase_url")),
             "supabase_url": tenant.get("supabase_url"),
             "n8n_outbound_webhook": tenant.get("n8n_outbound_webhook"),
             "n8n_kommo_webhook": tenant.get("n8n_kommo_webhook"),
-            "members_count": len(members_map.get(oid, [])),
+            "members_count": len(members_map.get(oid, []) + members_map.get(slug, [])),
         })
+
+    # Tenants em org_tenants que NÃO têm entrada em organizations
+    # (adicionados manualmente ou via env — ex: Quitou)
+    for tenant_slug, tenant in tenants_map.items():
+        if tenant_slug in orgs_slugs_seen:
+            continue
+        # Verifica também se é um UUID que já apareceu
+        already = any(o["id"] == tenant_slug for o in orgs)
+        if already:
+            continue
+        result.append({
+            "id": tenant_slug,          # usa o slug como id simbólico
+            "name": tenant_slug,        # sem nome formal — só o slug disponível
+            "slug": tenant_slug,
+            "created_at": None,
+            "tenant_configured": bool(tenant.get("supabase_url")),
+            "supabase_url": tenant.get("supabase_url"),
+            "n8n_outbound_webhook": tenant.get("n8n_outbound_webhook"),
+            "n8n_kommo_webhook": tenant.get("n8n_kommo_webhook"),
+            "members_count": len(members_map.get(tenant_slug, [])),
+        })
+
     return result
 
 
