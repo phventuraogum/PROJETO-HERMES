@@ -26,6 +26,8 @@ import {
 } from "@mui/material";
 import { useOrg } from "@/tenancy/OrgContext";
 import { supabase } from "@/lib/supabase";
+import { useTheme as useAppTheme } from "@/theme/ThemeContext";
+import { LightModeRounded, DarkModeRounded } from "@mui/icons-material";
 
 const DRAWER_WIDTH = 248;
 
@@ -73,6 +75,7 @@ export default function Sidebar() {
   const { orgs, orgId, setOrgId, currentOrg, isMaster } = useOrg();
   const [userEmail, setUserEmail] = useState<string>("");
 
+  const { toggleTheme, theme: appTheme } = useAppTheme();
   const role = currentOrg?.role ?? "member";
   const isAdmin = role === "admin" || role === "owner";
 
@@ -270,6 +273,14 @@ export default function Sidebar() {
               {userEmail}
             </Typography>
           </Box>
+          <Tooltip title={appTheme === "dark" ? "Modo claro" : "Modo escuro"} placement="top">
+            <Box component="span" onClick={toggleTheme} sx={{ cursor: "pointer", display: "flex", alignItems: "center" }}>
+              {appTheme === "dark"
+                ? <LightModeRounded sx={{ fontSize: 15, color: "#444", "&:hover": { color: "#F97316" }, transition: "color 0.15s" }} />
+                : <DarkModeRounded  sx={{ fontSize: 15, color: "#888", "&:hover": { color: "#F97316" }, transition: "color 0.15s" }} />
+              }
+            </Box>
+          </Tooltip>
           <Tooltip title="Sair" placement="top">
             <LogoutRounded
               onClick={handleLogout}

@@ -3,10 +3,10 @@ import { useNavigate } from "react-router-dom";
 import {
   Box, Stack, Typography, Button, TextField, MenuItem,
   Checkbox, FormControlLabel, IconButton, Chip,
-  CircularProgress,
+  CircularProgress, Tooltip,
 } from "@mui/material";
 import {
-  ArrowForwardRounded, CheckRounded, CloseRounded,
+  ArrowForwardRounded, CloseRounded,
   TuneRounded, AutoAwesomeRounded, SendRounded,
   StorageRounded, FilterListRounded, BarChartRounded,
   TableChartRounded, MessageRounded, AccountTreeRounded,
@@ -15,7 +15,11 @@ import {
   ExpandMoreRounded, VisibilityRounded,
   VisibilityOffRounded, LockRounded, PersonRounded,
   BusinessRounded, HubRounded, EmailRounded,
+  LightModeRounded, DarkModeRounded,
 } from "@mui/icons-material";
+import { useTheme as useAppTheme } from "@/theme/ThemeContext";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
+import HermesLogo from "@/components/HermesLogo";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { toast, Toaster } from "sonner";
 
@@ -111,6 +115,8 @@ function TypingWords({ words }: { words: string[] }) {
 /* ── Spotlight card ────────────────────────────────────────────────────────── */
 
 function SpotlightCard({ children, sx = {} }: { children: React.ReactNode; sx?: object }) {
+  const muiTheme = useMuiTheme();
+  const isLight = muiTheme.palette.mode === "light";
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [inside, setInside] = useState(false);
@@ -126,10 +132,13 @@ function SpotlightCard({ children, sx = {} }: { children: React.ReactNode; sx?: 
       onMouseLeave={() => setInside(false)}
       sx={{
         position: "relative", overflow: "hidden", borderRadius: "14px",
-        border: "1px solid rgba(255,255,255,0.06)",
-        backgroundColor: "#141414",
-        transition: "border-color 0.2s",
-        "&:hover": { borderColor: "rgba(249,115,22,0.15)" },
+        border: `1px solid ${isLight ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.06)"}`,
+        backgroundColor: isLight ? "#FFFFFF" : "#141414",
+        transition: "border-color 0.2s, box-shadow 0.2s",
+        "&:hover": {
+          borderColor: "rgba(249,115,22,0.22)",
+          boxShadow: isLight ? "0 4px 20px rgba(0,0,0,0.07)" : "none",
+        },
         ...sx,
       }}
     >
@@ -138,7 +147,7 @@ function SpotlightCard({ children, sx = {} }: { children: React.ReactNode; sx?: 
           pointerEvents: "none", position: "absolute", inset: -1,
           transition: "opacity 0.5s",
           opacity: inside ? 1 : 0,
-          background: `radial-gradient(600px circle at ${pos.x}px ${pos.y}px, rgba(249,115,22,0.07), transparent 40%)`,
+          background: `radial-gradient(600px circle at ${pos.x}px ${pos.y}px, rgba(249,115,22,${isLight ? "0.05" : "0.07"}), transparent 40%)`,
         }}
       />
       <Box sx={{ position: "relative" }}>{children}</Box>
@@ -149,6 +158,8 @@ function SpotlightCard({ children, sx = {} }: { children: React.ReactNode; sx?: 
 /* ── Marquee ────────────────────────────────────────────────────────────────── */
 
 function Marquee({ items }: { items: string[] }) {
+  const muiTheme = useMuiTheme();
+  const isLight = muiTheme.palette.mode === "light";
   const doubled = [...items, ...items];
   return (
     <Box sx={{ overflow: "hidden", maskImage: "linear-gradient(to right, transparent, black 20%, black 80%, transparent)" }}>
@@ -165,14 +176,14 @@ function Marquee({ items }: { items: string[] }) {
             gap={1}
             sx={{
               borderRadius: "999px",
-              border: "1px solid rgba(255,255,255,0.08)",
-              backgroundColor: "rgba(255,255,255,0.03)",
+              border: `1px solid ${isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)"}`,
+              backgroundColor: isLight ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.03)",
               px: 2.5, py: 1.25,
               whiteSpace: "nowrap", flexShrink: 0,
             }}
           >
             <HubRounded sx={{ fontSize: 14, color: "rgba(249,115,22,0.5)" }} />
-            <Typography sx={{ fontSize: "0.8125rem", color: "#666" }}>{name}</Typography>
+            <Typography sx={{ fontSize: "0.8125rem", color: isLight ? "#666" : "#666" }}>{name}</Typography>
           </Stack>
         ))}
       </Stack>
@@ -351,22 +362,33 @@ function DemoPipeline() {
 /* ── FAQ item ───────────────────────────────────────────────────────────────── */
 
 function FaqItem({ question, answer }: { question: string; answer: string }) {
+  const muiTheme = useMuiTheme();
+  const isLight = muiTheme.palette.mode === "light";
   const [open, setOpen] = useState(false);
   return (
-    <Box sx={{ borderRadius: "10px", border: "1px solid rgba(255,255,255,0.07)", backgroundColor: "#141414", overflow: "hidden" }}>
+    <Box sx={{
+      borderRadius: "10px",
+      border: `1px solid ${isLight ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.07)"}`,
+      backgroundColor: isLight ? "#FFFFFF" : "#141414",
+      overflow: "hidden",
+    }}>
       <Stack
         component="button"
         direction="row"
         alignItems="center"
         justifyContent="space-between"
         onClick={() => setOpen(!open)}
-        sx={{ width: "100%", p: 2, cursor: "pointer", "&:hover": { backgroundColor: "rgba(255,255,255,0.02)" }, transition: "0.15s" }}
+        sx={{
+          width: "100%", p: 2, cursor: "pointer",
+          "&:hover": { backgroundColor: isLight ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.02)" },
+          transition: "0.15s",
+        }}
       >
-        <Typography sx={{ fontSize: "0.8125rem", fontWeight: 500, color: "#D0D0D0", textAlign: "left" }}>{question}</Typography>
-        <ExpandMoreRounded sx={{ fontSize: 18, color: "#555", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.3s", flexShrink: 0, ml: 2 }} />
+        <Typography sx={{ fontSize: "0.8125rem", fontWeight: 500, color: isLight ? "#1A1A1A" : "#D0D0D0", textAlign: "left" }}>{question}</Typography>
+        <ExpandMoreRounded sx={{ fontSize: 18, color: "#888", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.3s", flexShrink: 0, ml: 2 }} />
       </Stack>
       <Box sx={{ maxHeight: open ? 200 : 0, opacity: open ? 1 : 0, overflow: "hidden", transition: "max-height 0.3s ease, opacity 0.3s ease" }}>
-        <Typography sx={{ px: 2, pb: 2, fontSize: "0.8125rem", color: "#666", lineHeight: 1.7 }}>{answer}</Typography>
+        <Typography sx={{ px: 2, pb: 2, fontSize: "0.8125rem", color: isLight ? "#555" : "#666", lineHeight: 1.7 }}>{answer}</Typography>
       </Box>
     </Box>
   );
@@ -426,12 +448,12 @@ const COMPARISONS = [
 ];
 
 const FAQS = [
-  { q: "Preciso de cartão de crédito para começar?",           a: "Não. O plano Grátis não exige cartão. Você recebe 50 buscas por mês sem pagar nada."                                                                                      },
   { q: "De onde vêm os dados?",                                a: "Base pública da Receita Federal (56M+ CNPJs), combinada com enriquecimento web automático e IA para encontrar contatos."                                                   },
-  { q: "Posso cancelar a qualquer momento?",                   a: "Sim. Sem fidelidade, sem multas. Cancele quando quiser."                                                                                                                    },
   { q: "O enriquecimento encontra dados reais?",               a: "Sim. Nosso motor busca sites oficiais, e-mails corporativos, telefones diretos e WhatsApp via scraping inteligente."                                                       },
-  { q: "Qual a diferença em relação a outras plataformas?",    a: "Até 40% mais barato, com IA generativa, resumos automáticos, pipeline integrado e exportação direta para CRM — tudo em uma só plataforma."                               },
-  { q: "Quanto tempo leva para começar?",                      a: "30 segundos. Crie a conta, configure os filtros e rode sua primeira prospecção. Sem onboarding, sem ligação de vendas."                                                    },
+  { q: "Como funciona a integração com CRM?",                  a: "Exportação direta para os principais CRMs do mercado em 1 clique. Suporte a Kommo, Pipedrive, HubSpot, RD Station e outros."                                              },
+  { q: "Qual a diferença em relação a outras plataformas?",    a: "IA generativa nativa, resumos automáticos, pipeline integrado e exportação direta para CRM — tudo em uma só plataforma, sem precisar de ferramentas extras."              },
+  { q: "Quanto tempo leva para começar?",                      a: "Minutos. Configure os filtros do seu ICP e rode a primeira prospecção. Sem onboarding burocrático, sem ligação de vendas obrigatória."                                    },
+  { q: "Posso cancelar a qualquer momento?",                   a: "Sim. Sem fidelidade, sem multas. Cancele quando quiser diretamente pelo painel."                                                                                            },
 ];
 
 const CRM_LOGOS = ["CRM de Vendas", "Automação de Marketing", "Gestão de Pipeline", "Plataforma B2B", "Funil Comercial", "Controle de Leads"];
@@ -439,12 +461,14 @@ const CRM_LOGOS = ["CRM de Vendas", "Automação de Marketing", "Gestão de Pipe
 /* ── Signup Modal ───────────────────────────────────────────────────────────── */
 
 function SignupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (token: string | null) => void }) {
-  const [name, setName]     = useState("");
-  const [email, setEmail]   = useState("");
+  const muiTheme = useMuiTheme();
+  const isLight = muiTheme.palette.mode === "light";
+  const [name, setName]         = useState("");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [orgName, setOrgName]   = useState("");
-  const [showPw, setShowPw] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [showPw, setShowPw]     = useState(false);
+  const [loading, setLoading]   = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -468,74 +492,64 @@ function SignupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     }
   };
 
+  const fieldSx = { "& .MuiOutlinedInput-root": { backgroundColor: isLight ? "#F5F5F5" : "#181818", fontSize: "0.875rem" } };
+
   return (
     <Box sx={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", px: 2 }}>
-      <Box sx={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.8)", backdropFilter: "blur(12px)" }} onClick={onClose} />
-      <Box
-        sx={{
-          position: "relative", width: "100%", maxWidth: 420,
-          borderRadius: "16px", border: "1px solid rgba(255,255,255,0.08)",
-          backgroundColor: "#0F0F0F", p: 3,
-          boxShadow: "0 30px 80px -20px rgba(0,0,0,0.95)",
-        }}
-      >
-        <IconButton onClick={onClose} size="small" sx={{ position: "absolute", top: 12, right: 12, color: "#555", "&:hover": { color: "#A0A0A0" } }}>
+      <Box sx={{ position: "absolute", inset: 0, backgroundColor: isLight ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.8)", backdropFilter: "blur(12px)" }} onClick={onClose} />
+      <Box sx={{
+        position: "relative", width: "100%", maxWidth: 420,
+        borderRadius: "16px",
+        border: `1px solid ${isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)"}`,
+        backgroundColor: isLight ? "#FFFFFF" : "#0F0F0F",
+        p: 3,
+        boxShadow: isLight ? "0 20px 60px rgba(0,0,0,0.15)" : "0 30px 80px -20px rgba(0,0,0,0.95)",
+      }}>
+        <IconButton onClick={onClose} size="small" sx={{ position: "absolute", top: 12, right: 12, color: "#888" }}>
           <CloseRounded sx={{ fontSize: 16 }} />
         </IconButton>
 
         <Stack direction="row" alignItems="center" gap={1.5} mb={3}>
-          <Box sx={{ width: 36, height: 36, borderRadius: "10px", background: "linear-gradient(135deg, #F97316, #EA580C)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: "0.875rem" }}>H</Typography>
-          </Box>
+          <HermesLogo size={36} />
           <Box>
-            <Typography sx={{ fontWeight: 700, fontSize: "0.9375rem", color: "#F0F0F0" }}>Criar conta grátis</Typography>
-            <Typography sx={{ fontSize: "0.6875rem", color: "#666" }}>Sem cartão de crédito</Typography>
+            <Typography sx={{ fontWeight: 700, fontSize: "0.9375rem", color: isLight ? "#0A0A0A" : "#F0F0F0" }}>Criar conta</Typography>
+            <Typography sx={{ fontSize: "0.6875rem", color: "#888" }}>Acesso à plataforma Hermes</Typography>
           </Box>
         </Stack>
 
         <Box component="form" onSubmit={submit}>
           <Stack gap={1.5}>
-            <TextField
-              size="small" label="Nome *" value={name} onChange={e => setName(e.target.value)}
+            <TextField size="small" label="Nome *" value={name} onChange={e => setName(e.target.value)}
               placeholder="Seu nome" required fullWidth
-              InputProps={{ startAdornment: <PersonRounded sx={{ fontSize: 16, color: "#555", mr: 1 }} /> }}
-              sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.875rem" } }}
-            />
-            <TextField
-              size="small" type="email" label="E-mail *" value={email} onChange={e => setEmail(e.target.value)}
+              InputProps={{ startAdornment: <PersonRounded sx={{ fontSize: 16, color: "#888", mr: 1 }} /> }}
+              sx={fieldSx} />
+            <TextField size="small" type="email" label="E-mail *" value={email} onChange={e => setEmail(e.target.value)}
               placeholder="seu@email.com" required fullWidth
-              InputProps={{ startAdornment: <EmailRounded sx={{ fontSize: 16, color: "#555", mr: 1 }} /> }}
-              sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.875rem" } }}
-            />
-            <TextField
-              size="small" type={showPw ? "text" : "password"} label="Senha *" value={password} onChange={e => setPassword(e.target.value)}
-              placeholder="Min. 6 caracteres" required fullWidth
+              InputProps={{ startAdornment: <EmailRounded sx={{ fontSize: 16, color: "#888", mr: 1 }} /> }}
+              sx={fieldSx} />
+            <TextField size="small" type={showPw ? "text" : "password"} label="Senha *" value={password} onChange={e => setPassword(e.target.value)}
+              placeholder="Mínimo 6 caracteres" required fullWidth
               InputProps={{
-                startAdornment: <LockRounded sx={{ fontSize: 16, color: "#555", mr: 1 }} />,
+                startAdornment: <LockRounded sx={{ fontSize: 16, color: "#888", mr: 1 }} />,
                 endAdornment: (
-                  <IconButton size="small" onClick={() => setShowPw(!showPw)} sx={{ color: "#555", "&:hover": { color: "#A0A0A0" } }}>
+                  <IconButton size="small" onClick={() => setShowPw(!showPw)} sx={{ color: "#888" }}>
                     {showPw ? <VisibilityOffRounded sx={{ fontSize: 16 }} /> : <VisibilityRounded sx={{ fontSize: 16 }} />}
                   </IconButton>
                 ),
               }}
-              sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.875rem" } }}
-            />
-            <TextField
-              size="small" label="Empresa" value={orgName} onChange={e => setOrgName(e.target.value)}
+              sx={fieldSx} />
+            <TextField size="small" label="Empresa" value={orgName} onChange={e => setOrgName(e.target.value)}
               placeholder="Opcional" fullWidth
-              InputProps={{ startAdornment: <BusinessRounded sx={{ fontSize: 16, color: "#555", mr: 1 }} /> }}
-              sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.875rem" } }}
-            />
+              InputProps={{ startAdornment: <BusinessRounded sx={{ fontSize: 16, color: "#888", mr: 1 }} /> }}
+              sx={fieldSx} />
 
-            <Button
-              type="submit" variant="contained" fullWidth disabled={loading}
+            <Button type="submit" variant="contained" fullWidth disabled={loading}
               endIcon={loading ? <CircularProgress size={14} color="inherit" /> : <ArrowForwardRounded sx={{ fontSize: 16 }} />}
-              sx={{ fontWeight: 700, fontSize: "0.875rem", textTransform: "none", borderRadius: "10px", py: 1.25, mt: 0.5 }}
-            >
-              {loading ? "Criando..." : "Criar conta grátis"}
+              sx={{ fontWeight: 700, fontSize: "0.875rem", textTransform: "none", borderRadius: "8px", py: 1.25, mt: 0.5 }}>
+              {loading ? "Criando conta..." : "Criar conta"}
             </Button>
 
-            <Typography sx={{ textAlign: "center", fontSize: "0.6875rem", color: "#555" }}>
+            <Typography sx={{ textAlign: "center", fontSize: "0.6875rem", color: "#888" }}>
               Já tem conta?{" "}
               <Box component="button" type="button" onClick={() => { onClose(); window.location.href = "/login"; }}
                 sx={{ color: "#F97316", fontWeight: 600, cursor: "pointer", background: "none", border: "none", p: 0, "&:hover": { textDecoration: "underline" } }}>
@@ -564,14 +578,36 @@ function SectionEyebrow({ label }: { label: string }) {
 }
 
 export default function Landing() {
-  const navigate = useNavigate();
+  const navigate   = useNavigate();
   const [showSignup, setShowSignup] = useState(false);
+  const { toggleTheme, theme: appTheme } = useAppTheme();
+  const muiTheme   = useMuiTheme();
+  const isLight    = muiTheme.palette.mode === "light";
+
+  // ── Color tokens ─────────────────────────────────────────────────────────
+  const lp = {
+    bg:          isLight ? "#F7F7F7"                        : "#0A0A0A",
+    navBg:       isLight ? "rgba(247,247,247,0.97)"         : "rgba(10,10,10,0.96)",
+    navBorder:   isLight ? "rgba(0,0,0,0.06)"               : "rgba(255,255,255,0.04)",
+    text1:       isLight ? "#0A0A0A"                        : "#F4F4F4",
+    text2:       isLight ? "#1A1A1A"                        : "#E0E0E0",
+    text3:       isLight ? "#444444"                        : "#4A4A4A",
+    text4:       isLight ? "#888888"                        : "#3A3A3A",
+    divider:     isLight ? "rgba(0,0,0,0.06)"               : "rgba(255,255,255,0.04)",
+    statBorder:  isLight ? "rgba(0,0,0,0.06)"               : "rgba(255,255,255,0.04)",
+    glowColor:   isLight ? "rgba(249,115,22,0.07)"          : "rgba(249,115,22,0.045)",
+    gridOpacity: isLight ? 0.04                             : 0.022,
+    gridColor:   isLight ? "rgba(0,0,0,0.12)"               : "rgba(255,255,255,0.1)",
+    testimonialQ: isLight ? "rgba(249,115,22,0.12)"         : "rgba(249,115,22,0.15)",
+    avatarBg:    isLight ? "rgba(249,115,22,0.1)"           : "rgba(249,115,22,0.25)",
+    dimText:     isLight ? "#3A3A3A"                        : "#3A3A3A",
+  };
 
   const container = { maxWidth: 1200, mx: "auto", px: { xs: 3, md: 6 } };
-  const divider    = { borderTop: "1px solid rgba(255,255,255,0.04)" };
+  const divider    = { borderTop: `1px solid ${lp.divider}` };
 
   return (
-    <Box sx={{ minHeight: "100vh", backgroundColor: "#0A0A0A", color: "#F0F0F0", overflowX: "hidden" }}>
+    <Box sx={{ minHeight: "100vh", backgroundColor: lp.bg, color: lp.text1, overflowX: "hidden" }}>
       <Toaster position="top-right" richColors />
 
       <style>{`
@@ -584,17 +620,15 @@ export default function Landing() {
       {/* ── NAV ──────────────────────────────────────────────────────────── */}
       <Box component="nav" sx={{
         position: "sticky", top: 0, zIndex: 100,
-        borderBottom: "1px solid rgba(255,255,255,0.04)",
-        backgroundColor: "rgba(10,10,10,0.96)",
+        borderBottom: `1px solid ${lp.navBorder}`,
+        backgroundColor: lp.navBg,
         backdropFilter: "blur(24px)",
       }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ ...container, height: 64 }}>
           {/* Logo */}
           <Stack direction="row" alignItems="center" gap={2}>
-            <Box sx={{ width: 30, height: 30, borderRadius: "8px", background: "linear-gradient(135deg, #F97316, #EA580C)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Typography sx={{ color: "#fff", fontWeight: 900, fontSize: "0.875rem", letterSpacing: "-0.02em" }}>H</Typography>
-            </Box>
-            <Typography sx={{ fontWeight: 900, fontSize: "0.9375rem", letterSpacing: "-0.05em", color: "#F0F0F0" }}>
+            <HermesLogo size={30} />
+            <Typography sx={{ fontWeight: 900, fontSize: "0.9375rem", letterSpacing: "-0.05em", color: lp.text1 }}>
               HERMES
             </Typography>
           </Stack>
@@ -603,19 +637,27 @@ export default function Landing() {
           <Stack direction="row" alignItems="center" gap={5} sx={{ display: { xs: "none", md: "flex" } }}>
             {[["#features", "RECURSOS"], ["#faq", "FAQ"]].map(([href, label]) => (
               <Box key={label} component="a" href={href}
-                sx={{ fontSize: "0.6rem", fontWeight: 700, color: "#4A4A4A", textDecoration: "none", letterSpacing: "0.22em", "&:hover": { color: "#888" }, transition: "color 0.15s" }}>
+                sx={{ fontSize: "0.6rem", fontWeight: 700, color: isLight ? "#888" : "#4A4A4A", textDecoration: "none", letterSpacing: "0.22em", "&:hover": { color: isLight ? "#333" : "#888" }, transition: "color 0.15s" }}>
                 {label}
               </Box>
             ))}
           </Stack>
 
-          {/* CTA */}
-          <Button variant="outlined" size="small" onClick={() => navigate("/login")}
-            sx={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "none", borderRadius: "7px", px: 2.5, py: 0.75,
-              borderColor: "rgba(249,115,22,0.4)", color: "#F97316",
-              "&:hover": { borderColor: "#F97316", backgroundColor: "rgba(249,115,22,0.06)" } }}>
-            Entrar
-          </Button>
+          {/* Right actions */}
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Tooltip title={isLight ? "Modo escuro" : "Modo claro"} placement="bottom">
+              <IconButton size="small" onClick={toggleTheme}
+                sx={{ color: isLight ? "#666" : "#555", "&:hover": { color: isLight ? "#0A0A0A" : "#F0F0F0", backgroundColor: isLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.06)" } }}>
+                {isLight ? <DarkModeRounded sx={{ fontSize: 18 }} /> : <LightModeRounded sx={{ fontSize: 18 }} />}
+              </IconButton>
+            </Tooltip>
+            <Button variant="outlined" size="small" onClick={() => navigate("/login")}
+              sx={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "none", borderRadius: "7px", px: 2.5, py: 0.75,
+                borderColor: "rgba(249,115,22,0.4)", color: "#F97316",
+                "&:hover": { borderColor: "#F97316", backgroundColor: "rgba(249,115,22,0.06)" } }}>
+              Entrar
+            </Button>
+          </Stack>
         </Stack>
       </Box>
 
@@ -623,9 +665,9 @@ export default function Landing() {
       <Box component="section" sx={{ position: "relative", pt: { xs: 12, md: 20 }, pb: { xs: 10, md: 16 }, overflow: "hidden" }}>
         {/* BG */}
         <Box sx={{ pointerEvents: "none", position: "absolute", inset: 0 }}>
-          <Box sx={{ position: "absolute", top: "-15%", right: "0%", width: 800, height: 800, borderRadius: "50%", backgroundColor: "rgba(249,115,22,0.045)", filter: "blur(160px)", animation: "glowPulse 5s ease-in-out infinite" }} />
-          <Box sx={{ position: "absolute", inset: 0, opacity: 0.022, backgroundImage: "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)", backgroundSize: "52px 52px" }} />
-          <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 55%, #0A0A0A)" }} />
+          <Box sx={{ position: "absolute", top: "-15%", right: "0%", width: 800, height: 800, borderRadius: "50%", backgroundColor: lp.glowColor, filter: "blur(160px)", animation: "glowPulse 5s ease-in-out infinite" }} />
+          <Box sx={{ position: "absolute", inset: 0, opacity: lp.gridOpacity, backgroundImage: `linear-gradient(${lp.gridColor} 1px, transparent 1px), linear-gradient(90deg, ${lp.gridColor} 1px, transparent 1px)`, backgroundSize: "52px 52px" }} />
+          <Box sx={{ position: "absolute", inset: 0, background: `linear-gradient(to bottom, transparent 55%, ${lp.bg})` }} />
         </Box>
 
         <Box sx={{ ...container, position: "relative" }}>
@@ -636,7 +678,7 @@ export default function Landing() {
               <FadeIn>
                 <Stack direction="row" alignItems="center" gap={1.5} sx={{ mb: 5 }}>
                   <Box sx={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: "#22C55E", animation: "glowPulse 2s ease-in-out infinite", flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: "0.5875rem", fontWeight: 700, color: "#3A3A3A", textTransform: "uppercase", letterSpacing: "0.24em", fontFamily: "monospace" }}>
+                  <Typography sx={{ fontSize: "0.5875rem", fontWeight: 700, color: lp.text4, textTransform: "uppercase", letterSpacing: "0.24em", fontFamily: "monospace" }}>
                     Plataforma ativa · Inteligência B2B
                   </Typography>
                 </Stack>
@@ -645,7 +687,7 @@ export default function Landing() {
               <FadeIn delay={80}>
                 <Typography component="h1" sx={{
                   fontSize: { xs: "2.5rem", sm: "3.25rem", md: "3.75rem", lg: "4rem" },
-                  fontWeight: 900, lineHeight: 1.03, letterSpacing: "-0.04em", color: "#F4F4F4", mb: 3,
+                  fontWeight: 900, lineHeight: 1.03, letterSpacing: "-0.04em", color: lp.text1, mb: 3,
                 }}>
                   Inteligência<Box component="br" />
                   comercial B2B.<Box component="br" />
@@ -656,26 +698,21 @@ export default function Landing() {
               </FadeIn>
 
               <FadeIn delay={160}>
-                <Typography sx={{ fontSize: { xs: "0.9375rem", md: "1rem" }, color: "#4A4A4A", lineHeight: 1.8, mb: 7, maxWidth: 420 }}>
+                <Typography sx={{ fontSize: { xs: "0.9375rem", md: "1rem" }, color: lp.text3, lineHeight: 1.8, mb: 7, maxWidth: 420 }}>
                   56 milhões de CNPJs. Decisores identificados. Pipeline integrado.
                   Da segmentação ao fechamento — em uma só plataforma.
                 </Typography>
               </FadeIn>
 
               <FadeIn delay={240}>
-                <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "stretch", sm: "center" }} gap={2.5}>
-                  <Button variant="contained" size="large"
-                    endIcon={<ArrowForwardRounded sx={{ fontSize: 16 }} />}
-                    onClick={() => navigate("/login")}
-                    sx={{ fontWeight: 700, fontSize: "0.875rem", textTransform: "none", borderRadius: "8px", px: 4, py: 1.5,
-                      boxShadow: "0 0 36px -8px rgba(249,115,22,0.65)",
-                      "&:hover": { boxShadow: "0 0 48px -4px rgba(249,115,22,0.75)" } }}>
-                    Acessar a plataforma
-                  </Button>
-                  <Typography sx={{ fontSize: "0.6875rem", color: "#333", fontFamily: "monospace" }}>
-                    Sem cartão de crédito
-                  </Typography>
-                </Stack>
+                <Button variant="contained" size="large"
+                  endIcon={<ArrowForwardRounded sx={{ fontSize: 16 }} />}
+                  onClick={() => navigate("/login")}
+                  sx={{ fontWeight: 700, fontSize: "0.875rem", textTransform: "none", borderRadius: "8px", px: 4, py: 1.5,
+                    boxShadow: "0 0 36px -8px rgba(249,115,22,0.65)",
+                    "&:hover": { boxShadow: "0 0 48px -4px rgba(249,115,22,0.75)" } }}>
+                  Acessar a plataforma
+                </Button>
               </FadeIn>
             </Box>
 
@@ -693,7 +730,7 @@ export default function Landing() {
       </Box>
 
       {/* ── STATS ────────────────────────────────────────────────────────── */}
-      <Box component="section" sx={{ ...divider, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+      <Box component="section" sx={{ ...divider, borderBottom: `1px solid ${lp.divider}` }}>
         <Box sx={container}>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" } }}>
             {[
@@ -704,8 +741,8 @@ export default function Landing() {
             ].map((s, i) => (
               <Box key={i} sx={{
                 py: { xs: 6, md: 8 }, px: { xs: 3, md: 5 }, textAlign: "center",
-                borderRight: i < 3 ? "1px solid rgba(255,255,255,0.04)" : "none",
-                borderBottom: { xs: i < 2 ? "1px solid rgba(255,255,255,0.04)" : "none", md: "none" },
+                borderRight: i < 3 ? `1px solid ${lp.statBorder}` : "none",
+                borderBottom: { xs: i < 2 ? `1px solid ${lp.statBorder}` : "none", md: "none" },
               }}>
                 <StatCounter end={s.end} suffix={s.suffix} label={s.label} />
               </Box>
@@ -719,9 +756,9 @@ export default function Landing() {
         <Box sx={container}>
           <FadeIn sx={{ mb: 10 }}>
             <SectionEyebrow label="Como funciona" />
-            <Typography sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.1, maxWidth: 440 }}>
+            <Typography sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.1, maxWidth: 440, color: lp.text1 }}>
               Três etapas.<Box component="br" />
-              <Box component="span" sx={{ color: "#3A3A3A" }}>Um pipeline completo.</Box>
+              <Box component="span" sx={{ color: lp.dimText }}>Um pipeline completo.</Box>
             </Typography>
           </FadeIn>
 
@@ -751,9 +788,9 @@ export default function Landing() {
         <Box sx={container}>
           <FadeIn sx={{ mb: 10 }}>
             <SectionEyebrow label="Capacidades" />
-            <Typography sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.1 }}>
+            <Typography sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.1, color: lp.text1 }}>
               Uma plataforma.<Box component="br" />
-              <Box component="span" sx={{ color: "#3A3A3A" }}>Cobertura total.</Box>
+              <Box component="span" sx={{ color: lp.dimText }}>Cobertura total.</Box>
             </Typography>
           </FadeIn>
 
@@ -779,9 +816,9 @@ export default function Landing() {
         <Box sx={container}>
           <FadeIn sx={{ mb: 10 }}>
             <SectionEyebrow label="Para quem" />
-            <Typography sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.1 }}>
+            <Typography sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.1, color: lp.text1 }}>
               Construído para<Box component="br" />
-              <Box component="span" sx={{ color: "#3A3A3A" }}>quem vive de vendas.</Box>
+              <Box component="span" sx={{ color: lp.dimText }}>quem vive de vendas.</Box>
             </Typography>
           </FadeIn>
 
@@ -806,9 +843,9 @@ export default function Landing() {
         <Box sx={container}>
           <FadeIn sx={{ mb: 10 }}>
             <SectionEyebrow label="Resultados reais" />
-            <Typography sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.1 }}>
+            <Typography sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.1, color: lp.text1 }}>
               Equipes que já<Box component="br" />
-              <Box component="span" sx={{ color: "#3A3A3A" }}>operam com Hermes.</Box>
+              <Box component="span" sx={{ color: lp.dimText }}>operam com Hermes.</Box>
             </Typography>
           </FadeIn>
 
@@ -855,9 +892,9 @@ export default function Landing() {
             {/* Left sticky label */}
             <FadeIn sx={{ position: { md: "sticky" }, top: { md: 96 } }}>
               <SectionEyebrow label="FAQ" />
-              <Typography sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.1 }}>
+              <Typography sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.1, color: lp.text1 }}>
                 Perguntas<Box component="br" />
-                <Box component="span" sx={{ color: "#3A3A3A" }}>frequentes.</Box>
+                <Box component="span" sx={{ color: lp.dimText }}>frequentes.</Box>
               </Typography>
             </FadeIn>
 
@@ -875,15 +912,15 @@ export default function Landing() {
 
       {/* ── CTA FINAL ────────────────────────────────────────────────────── */}
       <Box component="section" sx={{ py: { xs: 16, md: 22 }, ...divider, position: "relative", overflow: "hidden" }}>
-        <Box sx={{ pointerEvents: "none", position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 600, height: 600, borderRadius: "50%", backgroundColor: "rgba(249,115,22,0.04)", filter: "blur(150px)", animation: "glowPulse 5s ease-in-out infinite" }} />
+        <Box sx={{ pointerEvents: "none", position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 600, height: 600, borderRadius: "50%", backgroundColor: lp.glowColor, filter: "blur(150px)", animation: "glowPulse 5s ease-in-out infinite" }} />
         <Box sx={{ ...container, position: "relative", maxWidth: 680, mx: "auto" }}>
           <FadeIn>
             <SectionEyebrow label="Comece agora" />
-            <Typography sx={{ fontSize: { xs: "2rem", md: "3rem" }, fontWeight: 900, letterSpacing: "-0.04em", mb: 3, lineHeight: 1.06 }}>
+            <Typography sx={{ fontSize: { xs: "2rem", md: "3rem" }, fontWeight: 900, letterSpacing: "-0.04em", mb: 3, lineHeight: 1.06, color: lp.text1 }}>
               Seu próximo cliente<Box component="br" />
               está na base agora.
             </Typography>
-            <Typography sx={{ color: "#444", mb: 6, fontSize: "0.9375rem", lineHeight: 1.7, maxWidth: 420 }}>
+            <Typography sx={{ color: lp.text3, mb: 6, fontSize: "0.9375rem", lineHeight: 1.7, maxWidth: 420 }}>
               Configure seu ICP, rode a busca e receba leads qualificados com contato validado — em minutos.
             </Typography>
             <Button variant="contained" size="large"
@@ -899,24 +936,22 @@ export default function Landing() {
       </Box>
 
       {/* ── FOOTER ───────────────────────────────────────────────────────── */}
-      <Box component="footer" sx={{ borderTop: "1px solid rgba(255,255,255,0.04)", py: 5 }}>
+      <Box component="footer" sx={{ borderTop: `1px solid ${lp.divider}`, py: 5 }}>
         <Box sx={container}>
           <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "flex-start", sm: "center" }} justifyContent="space-between" gap={4}>
             {/* Brand */}
             <Stack gap={1}>
               <Stack direction="row" alignItems="center" gap={1.5}>
-                <Box sx={{ width: 22, height: 22, borderRadius: "6px", background: "linear-gradient(135deg, #F97316, #EA580C)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Typography sx={{ color: "#fff", fontWeight: 900, fontSize: "0.625rem" }}>H</Typography>
-                </Box>
-                <Typography sx={{ fontWeight: 900, fontSize: "0.75rem", letterSpacing: "-0.04em", color: "#555" }}>HERMES</Typography>
+                <HermesLogo size={22} />
+                <Typography sx={{ fontWeight: 900, fontSize: "0.75rem", letterSpacing: "-0.04em", color: isLight ? "#888" : "#555" }}>HERMES</Typography>
               </Stack>
-              <Typography sx={{ fontSize: "0.625rem", color: "#333", letterSpacing: "0.04em" }}>© 2026 Projeto Hermes · Todos os direitos reservados</Typography>
+              <Typography sx={{ fontSize: "0.625rem", color: isLight ? "#AAA" : "#333", letterSpacing: "0.04em" }}>© 2026 Projeto Hermes · Todos os direitos reservados</Typography>
             </Stack>
 
             {/* Links */}
             <Stack direction="row" gap={5}>
               {[["Termos", "#"], ["Privacidade", "#"], ["Contato", "#"]].map(([label, href]) => (
-                <Box key={label} component="a" href={href} sx={{ fontSize: "0.6875rem", color: "#333", textDecoration: "none", "&:hover": { color: "#666" }, transition: "color 0.15s" }}>
+                <Box key={label} component="a" href={href} sx={{ fontSize: "0.6875rem", color: isLight ? "#AAA" : "#333", textDecoration: "none", "&:hover": { color: isLight ? "#555" : "#666" }, transition: "color 0.15s" }}>
                   {label}
                 </Box>
               ))}
