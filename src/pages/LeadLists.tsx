@@ -11,7 +11,7 @@ import {
   BookmarkAddRounded,
   AccessTimeRounded,
   CreateNewFolderRounded,
-  MailRounded,
+  EmailRounded,
   SpeakerNotesOffRounded,
   PhoneRounded,
   TrackChangesRounded,
@@ -911,7 +911,7 @@ const LeadLists = () => {
                       <Stack direction="row" flexWrap="wrap" gap={0.75} mt={1.5}>
                         {email && (
                           <Chip
-                            icon={<MailRounded sx={{ fontSize: 12 }} />}
+                            icon={<EmailRounded sx={{ fontSize: 12 }} />}
                             label={email}
                             size="small"
                             sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(56,189,248,0.08)", color: "#38BDF8", border: "1px solid rgba(56,189,248,0.2)" }}

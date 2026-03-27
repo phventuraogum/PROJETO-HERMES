@@ -14,7 +14,7 @@ import {
   TrendingUpRounded, RocketLaunchRounded,
   StarRounded, ExpandMoreRounded, VisibilityRounded,
   VisibilityOffRounded, LockRounded, PersonRounded,
-  BusinessRounded, HubRounded,
+  BusinessRounded, HubRounded, EmailRounded,
 } from "@mui/icons-material";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { toast, Toaster } from "sonner";
@@ -279,7 +279,7 @@ function DemoProspeccao() {
               </Box>
             </Stack>
             <Stack direction="row" gap={0.5} sx={{ color: "#444" }}>
-              <MailRounded sx={{ fontSize: 12 }} />
+              <EmailRounded sx={{ fontSize: 12 }} />
               <MessageRounded sx={{ fontSize: 12 }} />
             </Stack>
           </Stack>
@@ -504,7 +504,7 @@ function SignupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
             <TextField
               size="small" type="email" label="E-mail *" value={email} onChange={e => setEmail(e.target.value)}
               placeholder="seu@email.com" required fullWidth
-              InputProps={{ startAdornment: <MailRounded sx={{ fontSize: 16, color: "#555", mr: 1 }} /> }}
+              InputProps={{ startAdornment: <EmailRounded sx={{ fontSize: 16, color: "#555", mr: 1 }} /> }}
               sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.875rem" } }}
             />
             <TextField

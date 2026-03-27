@@ -7,7 +7,7 @@ import {
 } from "@mui/material";
 import {
   AutoAwesomeRounded, RefreshRounded,
-  MailRounded, MessageRounded, LinkedInIcon,
+  EmailRounded, MessageRounded,
   ContentCopyRounded, CheckRounded,
 } from "@mui/icons-material";
 import {
@@ -120,7 +120,7 @@ export function MensagemModal({
                   }}
                 >
                   {c.id === "whatsapp" && <MessageRounded sx={{ fontSize: 14 }} />}
-                  {c.id === "email"    && <MailRounded    sx={{ fontSize: 14 }} />}
+                  {c.id === "email"    && <EmailRounded    sx={{ fontSize: 14 }} />}
                   {c.id === "linkedin" && <LinkedInSvg size={14} />}
                   {c.label}
                 </Box>
@@ -157,7 +157,7 @@ export function MensagemModal({
               <Stack direction="row" alignItems="center" justifyContent="space-between">
                 <Stack direction="row" alignItems="center" gap={1}>
                   {canalAtual.id === "whatsapp" && <MessageRounded sx={{ fontSize: 14, color: canalAtual.activeColor }} />}
-                  {canalAtual.id === "email"    && <MailRounded    sx={{ fontSize: 14, color: canalAtual.activeColor }} />}
+                  {canalAtual.id === "email"    && <EmailRounded    sx={{ fontSize: 14, color: canalAtual.activeColor }} />}
                   {canalAtual.id === "linkedin" && <Box sx={{ color: canalAtual.activeColor, display: "flex" }}><LinkedInSvg size={14} /></Box>}
                   <Typography sx={{ fontSize: "0.75rem", fontWeight: 500, color: "#D0D0D0" }}>{canalAtual.label}</Typography>
                   <Chip
