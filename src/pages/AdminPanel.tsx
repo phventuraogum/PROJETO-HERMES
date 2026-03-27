@@ -187,7 +187,7 @@ function TabOverview({ orgs, stats }: { orgs: OrgAdmin[]; stats: SystemStats | n
           { label: "Organizações", value: stats?.total_orgs ?? orgs.length, sub: "total cadastradas" },
           { label: "Tenants OK",   value: stats?.configured_tenants ?? orgs.filter(o => o.tenant_configured).length, sub: "com credenciais", accent: true },
           { label: "Sem tenant",   value: stats?.unconfigured_tenants ?? orgs.filter(o => !o.tenant_configured).length, sub: "pendentes" },
-          { label: "Membros",      value: stats?.total_members ?? orgs.reduce((s, o) => s + o.members_count, 0), sub: "vínculos org/usuário" },
+          { label: "Membros",      value: stats?.total_members ?? orgs.reduce((s, o) => s + (Number(o.members_count) || 0), 0), sub: "vínculos org/usuário" },
         ].map(k => (
           <Grid item xs={6} md={3} key={k.label}>
             <KpiCard {...k} />
@@ -240,7 +240,9 @@ function TabOverview({ orgs, stats }: { orgs: OrgAdmin[]; stats: SystemStats | n
                 </Box>
                 <Box component="td" sx={{ py: 1.5, px: 2 }}>
                   <Typography sx={{ fontSize: "0.75rem", color: "#555" }}>
-                    {new Date(org.created_at).toLocaleDateString("pt-BR")}
+                    {org.created_at && !isNaN(new Date(org.created_at).getTime())
+                      ? new Date(org.created_at).toLocaleDateString("pt-BR")
+                      : "—"}
                   </Typography>
                 </Box>
               </Box>

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Box, Drawer, List, ListItemButton, ListItemIcon, ListItemText,
-  Typography, Divider, Chip, Tooltip, Avatar, Stack, alpha,
+  Typography, Divider, Tooltip, Avatar, Stack, alpha,
 } from "@mui/material";
 import {
   Dashboard as DashboardIcon,
@@ -17,7 +17,6 @@ import {
   BalanceRounded,
   TerminalRounded,
   ArchiveRounded,
-  MonetizationOnRounded,
   LogoutRounded,
   BusinessRounded,
   ExpandMoreRounded,
@@ -26,7 +25,6 @@ import {
   Select, MenuItem, FormControl,
 } from "@mui/material";
 import { useOrg } from "@/tenancy/OrgContext";
-import { getCredits } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
 const DRAWER_WIDTH = 248;
@@ -58,7 +56,6 @@ const NAV = [
     section: "Conta",
     items: [
       { icon: SettingsRounded,    label: "Configurações",    path: "/settings",  adminOnly: true },
-      { icon: MonetizationOnRounded, label: "Créditos",      path: "/comprar-creditos", adminOnly: true },
     ],
   },
 ];
@@ -74,7 +71,6 @@ export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { orgs, orgId, setOrgId, currentOrg, isMaster } = useOrg();
-  const [credits, setCredits] = useState<number | null>(null);
   const [userEmail, setUserEmail] = useState<string>("");
 
   const role = currentOrg?.role ?? "member";
@@ -83,11 +79,6 @@ export default function Sidebar() {
   useEffect(() => {
     supabase?.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? ""));
   }, []);
-
-  useEffect(() => {
-    if (!isAdmin) { setCredits(null); return; }
-    getCredits().then(r => setCredits(r.saldo)).catch(() => setCredits(null));
-  }, [orgId, isAdmin]);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -170,37 +161,6 @@ export default function Sidebar() {
         </Box>
       )}
 
-      {/* ── Créditos (admin) ── */}
-      {isAdmin && (
-        <Box
-          onClick={() => navigate("/comprar-creditos")}
-          sx={{
-            px: 2, py: 1.25,
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            cursor: "pointer",
-            "&:hover": { backgroundColor: "rgba(255,255,255,0.02)" },
-          }}
-        >
-          <Stack direction="row" alignItems="center" gap={1}>
-            <MonetizationOnRounded sx={{ fontSize: 13, color: "#F97316" }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#888", fontWeight: 500 }}>
-              {credits !== null ? credits.toLocaleString("pt-BR") : "—"} créditos
-            </Typography>
-          </Stack>
-          <Chip
-            label="+ Comprar"
-            size="small"
-            sx={{
-              fontSize: "0.625rem", fontWeight: 600, height: 18,
-              backgroundColor: "rgba(249,115,22,0.1)",
-              color: "#F97316",
-              border: "1px solid rgba(249,115,22,0.2)",
-              cursor: "pointer",
-            }}
-          />
-        </Box>
-      )}
 
       {/* ── Nav ── */}
       <Box sx={{ flex: 1, overflowY: "auto", py: 1 }}>
