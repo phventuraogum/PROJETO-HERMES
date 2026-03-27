@@ -12,7 +12,7 @@ import {
   TableChartRounded, MessageRounded, AccountTreeRounded,
   MapRounded, TrackChangesRounded, MouseRounded,
   TrendingUpRounded, RocketLaunchRounded,
-  StarRounded, ExpandMoreRounded, VisibilityRounded,
+  ExpandMoreRounded, VisibilityRounded,
   VisibilityOffRounded, LockRounded, PersonRounded,
   BusinessRounded, HubRounded, EmailRounded,
 } from "@mui/icons-material";
@@ -551,160 +551,194 @@ function SignupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
 /* ── Landing page ───────────────────────────────────────────────────────────── */
 
+/* ── Section header helper ── */
+function SectionEyebrow({ label }: { label: string }) {
+  return (
+    <Stack direction="row" alignItems="center" gap={1.5} sx={{ mb: 2 }}>
+      <Box sx={{ width: 24, height: 1, backgroundColor: "#F97316", flexShrink: 0 }} />
+      <Typography sx={{ fontSize: "0.5875rem", fontWeight: 700, color: "#F97316", textTransform: "uppercase", letterSpacing: "0.26em" }}>
+        {label}
+      </Typography>
+    </Stack>
+  );
+}
+
 export default function Landing() {
   const navigate = useNavigate();
   const [showSignup, setShowSignup] = useState(false);
 
-  const sectionBorder = { borderTop: "1px solid rgba(255,255,255,0.05)" };
   const container = { maxWidth: 1200, mx: "auto", px: { xs: 3, md: 6 } };
+  const divider    = { borderTop: "1px solid rgba(255,255,255,0.04)" };
 
   return (
     <Box sx={{ minHeight: "100vh", backgroundColor: "#0A0A0A", color: "#F0F0F0", overflowX: "hidden" }}>
       <Toaster position="top-right" richColors />
 
       <style>{`
-        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes glowPulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.8; } }
-        @keyframes blink { 50% { opacity: 0; } }
+        @keyframes marquee   { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+        @keyframes fadeIn    { from{opacity:0} to{opacity:1} }
+        @keyframes glowPulse { 0%,100%{opacity:0.35} 50%{opacity:0.75} }
+        @keyframes blink     { 50%{opacity:0} }
       `}</style>
 
       {/* ── NAV ──────────────────────────────────────────────────────────── */}
-      <Box
-        component="nav"
-        sx={{
-          position: "sticky", top: 0, zIndex: 100,
-          borderBottom: "1px solid rgba(255,255,255,0.05)",
-          backgroundColor: "rgba(10,10,10,0.92)",
-          backdropFilter: "blur(20px)",
-        }}
-      >
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ ...container, height: 56 }}>
-          <Stack direction="row" alignItems="center" gap={1.5}>
-            <Box sx={{ width: 28, height: 28, borderRadius: "8px", background: "linear-gradient(135deg, #F97316, #EA580C)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: "0.8125rem" }}>H</Typography>
+      <Box component="nav" sx={{
+        position: "sticky", top: 0, zIndex: 100,
+        borderBottom: "1px solid rgba(255,255,255,0.04)",
+        backgroundColor: "rgba(10,10,10,0.96)",
+        backdropFilter: "blur(24px)",
+      }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ ...container, height: 64 }}>
+          {/* Logo */}
+          <Stack direction="row" alignItems="center" gap={2}>
+            <Box sx={{ width: 30, height: 30, borderRadius: "8px", background: "linear-gradient(135deg, #F97316, #EA580C)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Typography sx={{ color: "#fff", fontWeight: 900, fontSize: "0.875rem", letterSpacing: "-0.02em" }}>H</Typography>
             </Box>
-            <Typography sx={{ fontWeight: 800, fontSize: "0.9375rem", letterSpacing: "-0.02em", background: "linear-gradient(90deg, #F97316, #F59E0B)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+            <Typography sx={{ fontWeight: 900, fontSize: "0.9375rem", letterSpacing: "-0.05em", color: "#F0F0F0" }}>
               HERMES
             </Typography>
           </Stack>
-          <Stack direction="row" alignItems="center" gap={4} sx={{ display: { xs: "none", md: "flex" } }}>
-            {["#features:Recursos", "#faq:FAQ"].map(item => {
-              const [href, label] = item.split(":");
-              return (
-                <Box key={label} component="a" href={href} sx={{ fontSize: "0.8125rem", color: "#666", textDecoration: "none", "&:hover": { color: "#A0A0A0" }, transition: "0.15s" }}>
-                  {label}
-                </Box>
-              );
-            })}
+
+          {/* Links */}
+          <Stack direction="row" alignItems="center" gap={5} sx={{ display: { xs: "none", md: "flex" } }}>
+            {[["#features", "RECURSOS"], ["#faq", "FAQ"]].map(([href, label]) => (
+              <Box key={label} component="a" href={href}
+                sx={{ fontSize: "0.6rem", fontWeight: 700, color: "#4A4A4A", textDecoration: "none", letterSpacing: "0.22em", "&:hover": { color: "#888" }, transition: "color 0.15s" }}>
+                {label}
+              </Box>
+            ))}
           </Stack>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => navigate("/login")}
-            sx={{ fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", borderColor: "rgba(255,255,255,0.1)", color: "#888", "&:hover": { borderColor: "rgba(255,255,255,0.2)", color: "#C0C0C0", backgroundColor: "rgba(255,255,255,0.04)" } }}
-          >
+
+          {/* CTA */}
+          <Button variant="outlined" size="small" onClick={() => navigate("/login")}
+            sx={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "none", borderRadius: "7px", px: 2.5, py: 0.75,
+              borderColor: "rgba(249,115,22,0.4)", color: "#F97316",
+              "&:hover": { borderColor: "#F97316", backgroundColor: "rgba(249,115,22,0.06)" } }}>
             Entrar
           </Button>
         </Stack>
       </Box>
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      <Box component="section" sx={{ position: "relative", pt: { xs: 10, md: 16 }, pb: { xs: 8, md: 12 }, overflow: "hidden" }}>
-        {/* Background glows */}
+      <Box component="section" sx={{ position: "relative", pt: { xs: 12, md: 20 }, pb: { xs: 10, md: 16 }, overflow: "hidden" }}>
+        {/* BG */}
         <Box sx={{ pointerEvents: "none", position: "absolute", inset: 0 }}>
-          <Box sx={{ position: "absolute", top: "-20%", left: "50%", transform: "translateX(-50%)", width: 800, height: 800, borderRadius: "50%", backgroundColor: "rgba(249,115,22,0.05)", filter: "blur(160px)", animation: "glowPulse 4s ease-in-out infinite" }} />
-          <Box sx={{ position: "absolute", inset: 0, opacity: 0.03, backgroundImage: "linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
-          <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 70%, #0A0A0A)" }} />
+          <Box sx={{ position: "absolute", top: "-15%", right: "0%", width: 800, height: 800, borderRadius: "50%", backgroundColor: "rgba(249,115,22,0.045)", filter: "blur(160px)", animation: "glowPulse 5s ease-in-out infinite" }} />
+          <Box sx={{ position: "absolute", inset: 0, opacity: 0.022, backgroundImage: "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)", backgroundSize: "52px 52px" }} />
+          <Box sx={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 55%, #0A0A0A)" }} />
         </Box>
 
-        <Box sx={{ ...container, position: "relative", textAlign: "center" }}>
-          <FadeIn>
-            <Stack direction="row" alignItems="center" justifyContent="center" gap={1} sx={{ display: "inline-flex", border: "1px solid rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.03)", borderRadius: "999px", px: 2, py: 0.875, mb: 4 }}>
-              <Box sx={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#22C55E", animation: "glowPulse 2s ease-in-out infinite" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#666" }}>Plataforma de inteligência B2B</Typography>
-            </Stack>
-          </FadeIn>
+        <Box sx={{ ...container, position: "relative" }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "5fr 7fr" }, gap: { xs: 8, lg: 12 }, alignItems: "center" }}>
 
-          <FadeIn delay={100}>
-            <Typography
-              component="h1"
-              sx={{
-                fontSize: { xs: "2.25rem", sm: "3rem", md: "3.5rem", lg: "4rem" },
-                fontWeight: 800,
-                lineHeight: 1.08,
-                letterSpacing: "-0.03em",
-                color: "#F0F0F0",
-                mb: 2,
-              }}
-            >
-              Encontre leads.{" "}
-              <Box component="br" />
-              <TypingWords words={["Enriqueça com IA.", "Feche negócios.", "Escale vendas."]} />
-            </Typography>
-          </FadeIn>
+            {/* ── Left: copy ── */}
+            <Box>
+              <FadeIn>
+                <Stack direction="row" alignItems="center" gap={1.5} sx={{ mb: 5 }}>
+                  <Box sx={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: "#22C55E", animation: "glowPulse 2s ease-in-out infinite", flexShrink: 0 }} />
+                  <Typography sx={{ fontSize: "0.5875rem", fontWeight: 700, color: "#3A3A3A", textTransform: "uppercase", letterSpacing: "0.24em", fontFamily: "monospace" }}>
+                    Plataforma ativa · Inteligência B2B
+                  </Typography>
+                </Stack>
+              </FadeIn>
 
-          <FadeIn delay={200}>
-            <Typography sx={{ fontSize: { xs: "0.9375rem", md: "1rem" }, color: "#666", maxWidth: 520, mx: "auto", lineHeight: 1.7, mb: 4 }}>
-              56 milhões de CNPJs. Enriquecimento automático. Score ICP inteligente.
-              Exportação para CRM em 1 clique.
-            </Typography>
-          </FadeIn>
+              <FadeIn delay={80}>
+                <Typography component="h1" sx={{
+                  fontSize: { xs: "2.5rem", sm: "3.25rem", md: "3.75rem", lg: "4rem" },
+                  fontWeight: 900, lineHeight: 1.03, letterSpacing: "-0.04em", color: "#F4F4F4", mb: 3,
+                }}>
+                  Inteligência<Box component="br" />
+                  comercial B2B.<Box component="br" />
+                  <Box component="span" sx={{ color: "#F97316" }}>
+                    <TypingWords words={["Para times que fecham.", "Para founders que escalam.", "Para SDRs que convertem."]} />
+                  </Box>
+                </Typography>
+              </FadeIn>
 
-          <FadeIn delay={300}>
-            <Stack direction={{ xs: "column", sm: "row" }} justifyContent="center" gap={1.5} mb={{ xs: 8, md: 12 }}>
-              <Button
-                variant="contained"
-                size="large"
-                endIcon={<ArrowForwardRounded />}
-                onClick={() => navigate("/login")}
-                sx={{
-                  fontWeight: 700, fontSize: "0.9375rem", textTransform: "none",
-                  borderRadius: "10px", px: 4, py: 1.375,
-                  boxShadow: "0 0 30px -6px rgba(249,115,22,0.5)",
-                  "&:hover": { boxShadow: "0 0 40px -4px rgba(249,115,22,0.6)" },
-                }}
-              >
-                Entrar
-              </Button>
-            </Stack>
-          </FadeIn>
+              <FadeIn delay={160}>
+                <Typography sx={{ fontSize: { xs: "0.9375rem", md: "1rem" }, color: "#4A4A4A", lineHeight: 1.8, mb: 7, maxWidth: 420 }}>
+                  56 milhões de CNPJs. Decisores identificados. Pipeline integrado.
+                  Da segmentação ao fechamento — em uma só plataforma.
+                </Typography>
+              </FadeIn>
 
-          <FadeIn delay={400}>
-            <Box sx={{ maxWidth: 860, mx: "auto" }}>
-              <ProductDemo />
+              <FadeIn delay={240}>
+                <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "stretch", sm: "center" }} gap={2.5}>
+                  <Button variant="contained" size="large"
+                    endIcon={<ArrowForwardRounded sx={{ fontSize: 16 }} />}
+                    onClick={() => navigate("/login")}
+                    sx={{ fontWeight: 700, fontSize: "0.875rem", textTransform: "none", borderRadius: "8px", px: 4, py: 1.5,
+                      boxShadow: "0 0 36px -8px rgba(249,115,22,0.65)",
+                      "&:hover": { boxShadow: "0 0 48px -4px rgba(249,115,22,0.75)" } }}>
+                    Acessar a plataforma
+                  </Button>
+                  <Typography sx={{ fontSize: "0.6875rem", color: "#333", fontFamily: "monospace" }}>
+                    Sem cartão de crédito
+                  </Typography>
+                </Stack>
+              </FadeIn>
             </Box>
+
+            {/* ── Right: demo (desktop) ── */}
+            <FadeIn delay={320} sx={{ display: { xs: "none", lg: "block" } }}>
+              <ProductDemo />
+            </FadeIn>
+          </Box>
+
+          {/* Demo on mobile */}
+          <FadeIn delay={300} sx={{ display: { xs: "block", lg: "none" }, mt: 8 }}>
+            <ProductDemo />
           </FadeIn>
         </Box>
       </Box>
 
       {/* ── STATS ────────────────────────────────────────────────────────── */}
-      <Box component="section" sx={{ py: { xs: 10, md: 14 }, ...sectionBorder }}>
-        <Box sx={{ ...container, display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, gap: { xs: 4, md: 6 } }}>
-          <StatCounter end={56} suffix="M+" label="CNPJs na base" />
-          <StatCounter end={30} suffix="+" label="Filtros" />
-          <StatCounter end={78} suffix="%" label="Taxa de contato" />
-          <StatCounter end={10} suffix="x" label="Mais rápido" />
+      <Box component="section" sx={{ ...divider, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+        <Box sx={container}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" } }}>
+            {[
+              { end: 56, suffix: "M+", label: "CNPJs na base"      },
+              { end: 30, suffix: "+",  label: "Filtros disponíveis" },
+              { end: 78, suffix: "%",  label: "Taxa de contato"     },
+              { end: 10, suffix: "×",  label: "Mais rápido"         },
+            ].map((s, i) => (
+              <Box key={i} sx={{
+                py: { xs: 6, md: 8 }, px: { xs: 3, md: 5 }, textAlign: "center",
+                borderRight: i < 3 ? "1px solid rgba(255,255,255,0.04)" : "none",
+                borderBottom: { xs: i < 2 ? "1px solid rgba(255,255,255,0.04)" : "none", md: "none" },
+              }}>
+                <StatCounter end={s.end} suffix={s.suffix} label={s.label} />
+              </Box>
+            ))}
+          </Box>
         </Box>
       </Box>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
-      <Box component="section" sx={{ py: { xs: 10, md: 16 }, ...sectionBorder }}>
+      <Box component="section" sx={{ py: { xs: 12, md: 18 }, ...divider }}>
         <Box sx={container}>
-          <FadeIn sx={{ textAlign: "center", mb: 8 }}>
-            <Typography sx={{ fontSize: "0.6875rem", fontWeight: 700, color: "#F97316", textTransform: "uppercase", letterSpacing: "0.2em", mb: 1.5 }}>Como funciona</Typography>
-            <Typography sx={{ fontSize: { xs: "1.75rem", md: "2.25rem" }, fontWeight: 800, letterSpacing: "-0.02em" }}>3 passos para leads qualificados</Typography>
+          <FadeIn sx={{ mb: 10 }}>
+            <SectionEyebrow label="Como funciona" />
+            <Typography sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.1, maxWidth: 440 }}>
+              Três etapas.<Box component="br" />
+              <Box component="span" sx={{ color: "#3A3A3A" }}>Um pipeline completo.</Box>
+            </Typography>
           </FadeIn>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2.5 }}>
+
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2 }}>
             {WORKFLOW_STEPS.map((s, i) => (
-              <FadeIn key={i} delay={i * 120}>
-                <SpotlightCard sx={{ p: 3, height: "100%" }}>
-                  <Box sx={{ width: 40, height: 40, borderRadius: "12px", background: s.gradient, display: "flex", alignItems: "center", justifyContent: "center", mb: 2 }}>
-                    <s.Icon sx={{ fontSize: 20, color: "#fff" }} />
-                  </Box>
-                  <Typography sx={{ fontSize: "0.625rem", fontWeight: 700, color: "#444", textTransform: "uppercase", letterSpacing: "0.15em", mb: 1 }}>{s.num}</Typography>
-                  <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#E0E0E0", mb: 1 }}>{s.title}</Typography>
-                  <Typography sx={{ fontSize: "0.8125rem", color: "#666", lineHeight: 1.7 }}>{s.desc}</Typography>
+              <FadeIn key={i} delay={i * 100}>
+                <SpotlightCard sx={{ p: 3.5, height: "100%" }}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
+                    <Box sx={{ width: 40, height: 40, borderRadius: "10px", background: s.gradient, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <s.Icon sx={{ fontSize: 19, color: "#fff" }} />
+                    </Box>
+                    <Typography sx={{ fontSize: "1.75rem", fontWeight: 900, color: "rgba(255,255,255,0.05)", letterSpacing: "-0.04em", lineHeight: 1, fontFamily: "monospace" }}>
+                      {s.num}
+                    </Typography>
+                  </Stack>
+                  <Typography sx={{ fontWeight: 700, fontSize: "0.9375rem", color: "#E0E0E0", mb: 1.5 }}>{s.title}</Typography>
+                  <Typography sx={{ fontSize: "0.8125rem", color: "#555", lineHeight: 1.75 }}>{s.desc}</Typography>
                 </SpotlightCard>
               </FadeIn>
             ))}
@@ -713,28 +747,43 @@ export default function Landing() {
       </Box>
 
       {/* ── FEATURES ─────────────────────────────────────────────────────── */}
-      <Box id="features" component="section" sx={{ py: { xs: 10, md: 16 }, ...sectionBorder }}>
+      <Box id="features" component="section" sx={{ py: { xs: 12, md: 18 }, ...divider }}>
         <Box sx={container}>
-          <FadeIn sx={{ textAlign: "center", mb: 8 }}>
-            <Typography sx={{ fontSize: "0.6875rem", fontWeight: 700, color: "#F97316", textTransform: "uppercase", letterSpacing: "0.2em", mb: 1.5 }}>Recursos</Typography>
-            <Typography sx={{ fontSize: { xs: "1.75rem", md: "2.25rem" }, fontWeight: 800, letterSpacing: "-0.02em" }}>
-              Tudo em uma{" "}
-              <Box component="span" sx={{ background: "linear-gradient(90deg, #F97316, #F59E0B)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                plataforma
-              </Box>
+          <FadeIn sx={{ mb: 10 }}>
+            <SectionEyebrow label="Capacidades" />
+            <Typography sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.1 }}>
+              Uma plataforma.<Box component="br" />
+              <Box component="span" sx={{ color: "#3A3A3A" }}>Cobertura total.</Box>
             </Typography>
           </FadeIn>
+
+          {/* Hero features: first 2 full-width columns */}
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: 2 }}>
+            {FEATURES_GRID.slice(0, 2).map((f, i) => (
+              <FadeIn key={i} delay={i * 60}>
+                <SpotlightCard sx={{ p: 3.5, height: "100%" }}>
+                  <Box sx={{ width: 40, height: 40, borderRadius: "10px", backgroundColor: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.12)", display: "flex", alignItems: "center", justifyContent: "center", mb: 2.5 }}>
+                    <f.Icon sx={{ fontSize: 18, color: "#F97316" }} />
+                  </Box>
+                  <Typography sx={{ fontSize: "1rem", fontWeight: 700, color: "#E8E8E8", mb: 1 }}>{f.title}</Typography>
+                  <Typography sx={{ fontSize: "0.8125rem", color: "#555", lineHeight: 1.75 }}>{f.desc}</Typography>
+                </SpotlightCard>
+              </FadeIn>
+            ))}
+          </Box>
+
+          {/* Remaining features: 3 col */}
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "repeat(3, 1fr)" }, gap: 2 }}>
-            {FEATURES_GRID.map((f, i) => (
-              <FadeIn key={i} delay={i * 50}>
+            {FEATURES_GRID.slice(2).map((f, i) => (
+              <FadeIn key={i} delay={(i + 2) * 50}>
                 <SpotlightCard sx={{ p: 2.5, height: "100%" }}>
                   <Stack direction="row" alignItems="flex-start" gap={2}>
-                    <Box sx={{ width: 36, height: 36, borderRadius: "10px", backgroundColor: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <f.Icon sx={{ fontSize: 17, color: "#F97316" }} />
+                    <Box sx={{ width: 32, height: 32, borderRadius: "8px", backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, mt: 0.25 }}>
+                      <f.Icon sx={{ fontSize: 15, color: "#F97316" }} />
                     </Box>
                     <Box>
-                      <Typography sx={{ fontSize: "0.8125rem", fontWeight: 600, color: "#E0E0E0", mb: 0.5 }}>{f.title}</Typography>
-                      <Typography sx={{ fontSize: "0.75rem", color: "#666", lineHeight: 1.6 }}>{f.desc}</Typography>
+                      <Typography sx={{ fontSize: "0.8125rem", fontWeight: 600, color: "#D8D8D8", mb: 0.5 }}>{f.title}</Typography>
+                      <Typography sx={{ fontSize: "0.75rem", color: "#555", lineHeight: 1.65 }}>{f.desc}</Typography>
                     </Box>
                   </Stack>
                 </SpotlightCard>
@@ -745,21 +794,25 @@ export default function Landing() {
       </Box>
 
       {/* ── PERSONAS ─────────────────────────────────────────────────────── */}
-      <Box component="section" sx={{ py: { xs: 10, md: 16 }, ...sectionBorder }}>
+      <Box component="section" sx={{ py: { xs: 12, md: 18 }, ...divider }}>
         <Box sx={container}>
-          <FadeIn sx={{ textAlign: "center", mb: 8 }}>
-            <Typography sx={{ fontSize: "0.6875rem", fontWeight: 700, color: "#F97316", textTransform: "uppercase", letterSpacing: "0.2em", mb: 1.5 }}>Para quem</Typography>
-            <Typography sx={{ fontSize: { xs: "1.75rem", md: "2.25rem" }, fontWeight: 800, letterSpacing: "-0.02em" }}>Feito para quem vive de vendas</Typography>
+          <FadeIn sx={{ mb: 10 }}>
+            <SectionEyebrow label="Para quem" />
+            <Typography sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.1 }}>
+              Construído para<Box component="br" />
+              <Box component="span" sx={{ color: "#3A3A3A" }}>quem vive de vendas.</Box>
+            </Typography>
           </FadeIn>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2.5 }}>
+
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2 }}>
             {PERSONAS.map((p, i) => (
               <FadeIn key={i} delay={i * 100}>
-                <SpotlightCard sx={{ p: 3, textAlign: "center", height: "100%" }}>
-                  <Box sx={{ width: 48, height: 48, borderRadius: "14px", backgroundColor: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.1)", display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2 }}>
-                    <p.Icon sx={{ fontSize: 22, color: "#F97316" }} />
+                <SpotlightCard sx={{ p: 3.5, height: "100%" }}>
+                  <Box sx={{ width: 44, height: 44, borderRadius: "12px", backgroundColor: "rgba(249,115,22,0.07)", border: "1px solid rgba(249,115,22,0.1)", display: "flex", alignItems: "center", justifyContent: "center", mb: 2.5 }}>
+                    <p.Icon sx={{ fontSize: 20, color: "#F97316" }} />
                   </Box>
-                  <Typography sx={{ fontWeight: 700, fontSize: "0.9375rem", color: "#E0E0E0", mb: 1 }}>{p.role}</Typography>
-                  <Typography sx={{ fontSize: "0.8125rem", color: "#666", lineHeight: 1.7 }}>{p.desc}</Typography>
+                  <Typography sx={{ fontWeight: 700, fontSize: "0.9375rem", color: "#E0E0E0", mb: 1.5 }}>{p.role}</Typography>
+                  <Typography sx={{ fontSize: "0.8125rem", color: "#555", lineHeight: 1.75 }}>{p.desc}</Typography>
                 </SpotlightCard>
               </FadeIn>
             ))}
@@ -768,27 +821,31 @@ export default function Landing() {
       </Box>
 
       {/* ── TESTIMONIALS ─────────────────────────────────────────────────── */}
-      <Box component="section" sx={{ py: { xs: 10, md: 16 }, ...sectionBorder }}>
+      <Box component="section" sx={{ py: { xs: 12, md: 18 }, ...divider }}>
         <Box sx={container}>
-          <FadeIn sx={{ textAlign: "center", mb: 8 }}>
-            <Typography sx={{ fontSize: "0.6875rem", fontWeight: 700, color: "#F97316", textTransform: "uppercase", letterSpacing: "0.2em", mb: 1.5 }}>Depoimentos</Typography>
-            <Typography sx={{ fontSize: { xs: "1.75rem", md: "2.25rem" }, fontWeight: 800, letterSpacing: "-0.02em" }}>O que nossos usuários dizem</Typography>
+          <FadeIn sx={{ mb: 10 }}>
+            <SectionEyebrow label="Resultados reais" />
+            <Typography sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.1 }}>
+              Equipes que já<Box component="br" />
+              <Box component="span" sx={{ color: "#3A3A3A" }}>operam com Hermes.</Box>
+            </Typography>
           </FadeIn>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2.5 }}>
+
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2 }}>
             {TESTIMONIALS.map((t, i) => (
               <FadeIn key={i} delay={i * 100}>
-                <SpotlightCard sx={{ p: 3, height: "100%" }}>
-                  <Stack direction="row" gap={0.5} mb={2}>
-                    {Array.from({ length: 5 }).map((_, j) => <StarRounded key={j} sx={{ fontSize: 14, color: "#F59E0B" }} />)}
-                  </Stack>
-                  <Typography sx={{ fontSize: "0.8125rem", color: "#888", lineHeight: 1.8, mb: 3, fontStyle: "italic" }}>"{t.text}"</Typography>
-                  <Stack direction="row" alignItems="center" gap={1.5} sx={{ borderTop: "1px solid rgba(255,255,255,0.06)", pt: 2 }}>
-                    <Box sx={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, rgba(249,115,22,0.3), rgba(245,158,11,0.3))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", fontWeight: 700, color: "#F97316" }}>
+                <SpotlightCard sx={{ p: 3.5, height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                  <Box>
+                    <Typography sx={{ fontSize: "2.5rem", fontWeight: 900, color: "rgba(249,115,22,0.15)", lineHeight: 0.8, mb: 2, fontFamily: "Georgia, serif" }}>"</Typography>
+                    <Typography sx={{ fontSize: "0.875rem", color: "#777", lineHeight: 1.8, fontStyle: "italic" }}>{t.text}</Typography>
+                  </Box>
+                  <Stack direction="row" alignItems="center" gap={1.5} sx={{ borderTop: "1px solid rgba(255,255,255,0.05)", pt: 2.5, mt: 3 }}>
+                    <Box sx={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg, rgba(249,115,22,0.25), rgba(245,158,11,0.25))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6875rem", fontWeight: 700, color: "#F97316", flexShrink: 0 }}>
                       {t.name[0]}
                     </Box>
                     <Box>
-                      <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: "#D0D0D0" }}>{t.name}</Typography>
-                      <Typography sx={{ fontSize: "0.625rem", color: "#555" }}>{t.role}</Typography>
+                      <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: "#C8C8C8" }}>{t.name}</Typography>
+                      <Typography sx={{ fontSize: "0.625rem", color: "#444", letterSpacing: "0.04em" }}>{t.role}</Typography>
                     </Box>
                   </Stack>
                 </SpotlightCard>
@@ -799,10 +856,10 @@ export default function Landing() {
       </Box>
 
       {/* ── INTEGRATIONS ─────────────────────────────────────────────────── */}
-      <Box component="section" sx={{ py: { xs: 8, md: 12 }, ...sectionBorder }}>
+      <Box component="section" sx={{ py: { xs: 8, md: 10 }, ...divider }}>
         <Box sx={container}>
-          <FadeIn sx={{ textAlign: "center", mb: 4 }}>
-            <Typography sx={{ fontSize: "0.6875rem", fontWeight: 700, color: "#F97316", textTransform: "uppercase", letterSpacing: "0.2em" }}>Integrações</Typography>
+          <FadeIn sx={{ mb: 5 }}>
+            <SectionEyebrow label="Integrações" />
           </FadeIn>
           <FadeIn>
             <Marquee items={CRM_LOGOS} />
@@ -811,63 +868,80 @@ export default function Landing() {
       </Box>
 
       {/* ── FAQ ──────────────────────────────────────────────────────────── */}
-      <Box id="faq" component="section" sx={{ py: { xs: 10, md: 16 }, ...sectionBorder }}>
-        <Box sx={{ ...container, maxWidth: 640, mx: "auto" }}>
-          <FadeIn sx={{ textAlign: "center", mb: 6 }}>
-            <Typography sx={{ fontSize: "0.6875rem", fontWeight: 700, color: "#F97316", textTransform: "uppercase", letterSpacing: "0.2em", mb: 1.5 }}>FAQ</Typography>
-            <Typography sx={{ fontSize: { xs: "1.75rem", md: "2.25rem" }, fontWeight: 800, letterSpacing: "-0.02em" }}>Perguntas frequentes</Typography>
-          </FadeIn>
-          <Stack gap={1}>
-            {FAQS.map((f, i) => (
-              <FadeIn key={i} delay={i * 50}>
-                <FaqItem question={f.q} answer={f.a} />
-              </FadeIn>
-            ))}
-          </Stack>
+      <Box id="faq" component="section" sx={{ py: { xs: 12, md: 18 }, ...divider }}>
+        <Box sx={container}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "5fr 7fr" }, gap: { xs: 8, md: 14 }, alignItems: "start" }}>
+            {/* Left sticky label */}
+            <FadeIn sx={{ position: { md: "sticky" }, top: { md: 96 } }}>
+              <SectionEyebrow label="FAQ" />
+              <Typography sx={{ fontSize: { xs: "1.875rem", md: "2.5rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.1 }}>
+                Perguntas<Box component="br" />
+                <Box component="span" sx={{ color: "#3A3A3A" }}>frequentes.</Box>
+              </Typography>
+            </FadeIn>
+
+            {/* Right: accordion */}
+            <Stack gap={1}>
+              {FAQS.map((f, i) => (
+                <FadeIn key={i} delay={i * 40}>
+                  <FaqItem question={f.q} answer={f.a} />
+                </FadeIn>
+              ))}
+            </Stack>
+          </Box>
         </Box>
       </Box>
 
       {/* ── CTA FINAL ────────────────────────────────────────────────────── */}
-      <Box component="section" sx={{ py: { xs: 14, md: 20 }, ...sectionBorder, position: "relative", overflow: "hidden" }}>
-        <Box sx={{ pointerEvents: "none", position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 500, height: 500, borderRadius: "50%", backgroundColor: "rgba(249,115,22,0.05)", filter: "blur(140px)", animation: "glowPulse 4s ease-in-out infinite" }} />
-        <Box sx={{ ...container, position: "relative", textAlign: "center", maxWidth: 600, mx: "auto" }}>
+      <Box component="section" sx={{ py: { xs: 16, md: 22 }, ...divider, position: "relative", overflow: "hidden" }}>
+        <Box sx={{ pointerEvents: "none", position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 600, height: 600, borderRadius: "50%", backgroundColor: "rgba(249,115,22,0.04)", filter: "blur(150px)", animation: "glowPulse 5s ease-in-out infinite" }} />
+        <Box sx={{ ...container, position: "relative", maxWidth: 680, mx: "auto" }}>
           <FadeIn>
-            <Typography sx={{ fontSize: { xs: "1.75rem", md: "2.5rem" }, fontWeight: 800, letterSpacing: "-0.02em", mb: 2, lineHeight: 1.15 }}>
-              Pronto para prospectar de verdade?
+            <SectionEyebrow label="Comece agora" />
+            <Typography sx={{ fontSize: { xs: "2rem", md: "3rem" }, fontWeight: 900, letterSpacing: "-0.04em", mb: 3, lineHeight: 1.06 }}>
+              Seu próximo cliente<Box component="br" />
+              está na base agora.
             </Typography>
-            <Typography sx={{ color: "#666", mb: 5, fontSize: "0.9375rem" }}>
-              Sua próxima venda começa com o lead certo.
+            <Typography sx={{ color: "#444", mb: 6, fontSize: "0.9375rem", lineHeight: 1.7, maxWidth: 420 }}>
+              Configure seu ICP, rode a busca e receba leads qualificados com contato validado — em minutos.
             </Typography>
-            <Button
-              variant="contained"
-              size="large"
+            <Button variant="contained" size="large"
               endIcon={<ArrowForwardRounded />}
               onClick={() => navigate("/login")}
-              sx={{
-                fontWeight: 700, fontSize: "1rem", textTransform: "none",
-                borderRadius: "12px", px: 5, py: 1.5,
-                boxShadow: "0 0 40px -8px rgba(249,115,22,0.5)",
-              }}
-            >
-              Entrar
+              sx={{ fontWeight: 700, fontSize: "0.9375rem", textTransform: "none", borderRadius: "8px", px: 5, py: 1.5,
+                boxShadow: "0 0 48px -10px rgba(249,115,22,0.6)",
+                "&:hover": { boxShadow: "0 0 60px -6px rgba(249,115,22,0.7)" } }}>
+              Acessar a plataforma
             </Button>
           </FadeIn>
         </Box>
       </Box>
 
       {/* ── FOOTER ───────────────────────────────────────────────────────── */}
-      <Box component="footer" sx={{ borderTop: "1px solid rgba(255,255,255,0.05)", py: 3 }}>
-        <Stack direction={{ xs: "column", sm: "row" }} alignItems="center" justifyContent="space-between" gap={2} sx={container}>
-          <Stack direction="row" alignItems="center" gap={1}>
-            <Box sx={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: "rgba(249,115,22,0.3)" }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#444" }}>© 2026 Projeto Hermes</Typography>
+      <Box component="footer" sx={{ borderTop: "1px solid rgba(255,255,255,0.04)", py: 5 }}>
+        <Box sx={container}>
+          <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "flex-start", sm: "center" }} justifyContent="space-between" gap={4}>
+            {/* Brand */}
+            <Stack gap={1}>
+              <Stack direction="row" alignItems="center" gap={1.5}>
+                <Box sx={{ width: 22, height: 22, borderRadius: "6px", background: "linear-gradient(135deg, #F97316, #EA580C)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Typography sx={{ color: "#fff", fontWeight: 900, fontSize: "0.625rem" }}>H</Typography>
+                </Box>
+                <Typography sx={{ fontWeight: 900, fontSize: "0.75rem", letterSpacing: "-0.04em", color: "#555" }}>HERMES</Typography>
+              </Stack>
+              <Typography sx={{ fontSize: "0.625rem", color: "#333", letterSpacing: "0.04em" }}>© 2026 Projeto Hermes · Todos os direitos reservados</Typography>
+            </Stack>
+
+            {/* Links */}
+            <Stack direction="row" gap={5}>
+              {[["Termos", "#"], ["Privacidade", "#"], ["Contato", "#"]].map(([label, href]) => (
+                <Box key={label} component="a" href={href} sx={{ fontSize: "0.6875rem", color: "#333", textDecoration: "none", "&:hover": { color: "#666" }, transition: "color 0.15s" }}>
+                  {label}
+                </Box>
+              ))}
+            </Stack>
           </Stack>
-          <Stack direction="row" gap={4}>
-            {["Termos", "Privacidade", "Contato"].map(item => (
-              <Typography key={item} sx={{ fontSize: "0.6875rem", color: "#444", cursor: "pointer", "&:hover": { color: "#888" }, transition: "0.15s" }}>{item}</Typography>
-            ))}
-          </Stack>
-        </Stack>
+        </Box>
       </Box>
 
       {/* ── SIGNUP MODAL ─────────────────────────────────────────────────── */}
