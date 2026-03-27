@@ -1,23 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  ArrowRight,
-  ExternalLink,
-  Loader2,
-  RefreshCw,
-  Scale,
-  Search,
-  ShieldCheck,
-  Upload,
-} from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import ScaleIcon from "@mui/icons-material/Balance";
+import SearchIcon from "@mui/icons-material/Search";
+import RefreshCwIcon from "@mui/icons-material/Refresh";
+import ShieldCheckIcon from "@mui/icons-material/VerifiedUser";
+import UploadIcon from "@mui/icons-material/Upload";
+import ExternalLinkIcon from "@mui/icons-material/OpenInNew";
+import ArrowRightIcon from "@mui/icons-material/ArrowForward";
+import CircularProgress from "@mui/material/CircularProgress";
+
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import TextField from "@mui/material/TextField";
+import Chip from "@mui/material/Chip";
+
 import {
   consultarFiscalPublicaPorCnpj,
   getFiscalPublicSnapshotMeta,
@@ -29,7 +31,6 @@ import {
   type FiscalPublicRecord,
   type FiscalPublicSnapshot,
 } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
 function formatCnpj(value: string): string {
   const digits = normalizeCnpj(value);
@@ -56,23 +57,30 @@ function formatDate(value?: string | null): string {
   return parsed.toLocaleDateString("pt-BR");
 }
 
-function statusTone(value?: string | null): string {
+function statusChipSx(value?: string | null) {
   const normalized = String(value || "").toLowerCase();
   if (normalized.includes("irregular")) {
-    return "border-rose-500/30 bg-rose-500/10 text-rose-300";
+    return { bgcolor: "rgba(239,68,68,0.1)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px" };
   }
   if (normalized.includes("susp")) {
-    return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+    return { bgcolor: "rgba(245,158,11,0.1)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px" };
   }
   if (normalized.includes("garant")) {
-    return "border-sky-500/30 bg-sky-500/10 text-sky-300";
+    return { bgcolor: "rgba(14,165,233,0.1)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "8px" };
   }
-  return "border-border bg-muted/20 text-foreground/80";
+  return { bgcolor: "rgba(255,255,255,0.05)", color: "rgba(240,240,240,0.8)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: "8px" };
 }
 
 function sourceUrl(record: FiscalPublicRecord): string | null {
   return record.source_url || null;
 }
+
+const STAT_BOX_SX = {
+  borderRadius: "12px",
+  border: "1px solid rgba(255,255,255,0.07)",
+  bgcolor: "rgba(255,255,255,0.03)",
+  p: 1.5,
+};
 
 const ConsultaFiscal = () => {
   const navigate = useNavigate();
@@ -220,458 +228,467 @@ const ConsultaFiscal = () => {
   };
 
   return (
-    <div className="space-y-6 p-1">
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10">
-            <Scale className="h-5 w-5 text-amber-300" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-display tracking-tight">Consulta Fiscal</h2>
-            <p className="text-sm text-muted-foreground">
-              Consulta publica/manual por CNPJ para expor o maximo de informacao fiscal disponivel sem autorizacao.
-            </p>
-          </div>
-        </div>
-      </div>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3, p: 0.5 }}>
+      {/* Page Header */}
+      <Stack direction="row" alignItems="center" spacing={2}>
+        <Box
+          sx={{
+            width: 44,
+            height: 44,
+            borderRadius: "16px",
+            border: "1px solid rgba(245,158,11,0.3)",
+            bgcolor: "rgba(245,158,11,0.1)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <ScaleIcon sx={{ fontSize: 20, color: "#fcd34d" }} />
+        </Box>
+        <Box>
+          <Typography variant="h5" fontWeight={700} letterSpacing="-0.02em">
+            Consulta Fiscal
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Consulta publica/manual por CNPJ para expor o maximo de informacao fiscal disponivel sem autorizacao.
+          </Typography>
+        </Box>
+      </Stack>
 
-      <Card className="border-border bg-card shadow-surface-sm">
-        <CardHeader className="space-y-2">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Search className="h-4 w-4 text-amber-300" />
-            Consulta por CNPJ
-          </CardTitle>
-          <CardDescription>
+      {/* Lookup Card */}
+      <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+        <CardContent sx={{ p: 3 }}>
+          <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+            <SearchIcon sx={{ fontSize: 16, color: "#fcd34d" }} />
+            <Typography variant="subtitle1" fontWeight={600}>Consulta por CNPJ</Typography>
+          </Stack>
+          <Typography variant="body2" color="text.secondary" mb={2}>
             O resultado depende da ultima base fiscal publica importada. Nao consulta areas restritas do contribuinte.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col gap-3 lg:flex-row">
-            <Input
+          </Typography>
+
+          <Stack direction={{ xs: "column", lg: "row" }} spacing={1.5} mb={2}>
+            <TextField
               value={formatCnpj(cnpjInput)}
               onChange={(e) => setCnpjInput(normalizeCnpj(e.target.value))}
               placeholder="00.000.000/0000-00"
-              className="h-11 border-border bg-muted/20 text-base"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   void handleLookup();
                 }
               }}
+              sx={{ flex: 1 }}
+              inputProps={{ style: { fontSize: 16 } }}
             />
             <Button
-              type="button"
-              className="h-11 bg-amber-400 text-muted-foreground hover:bg-amber-300"
+              variant="contained"
               onClick={() => void handleLookup()}
               disabled={isLookingUp}
+              startIcon={isLookingUp ? <CircularProgress size={16} color="inherit" /> : <SearchIcon />}
+              sx={{
+                bgcolor: "#eab308",
+                color: "#0F0F0F",
+                fontWeight: 600,
+                whiteSpace: "nowrap",
+                minWidth: 180,
+                "&:hover": { bgcolor: "#facc15" },
+              }}
             >
-              {isLookingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
               Consultar base publica
             </Button>
             <Button
-              type="button"
-              variant="outline"
-              className="h-11 border-border bg-muted/20"
+              variant="outlined"
               onClick={() => navigate(`/cnpj?cnpj=${cnpjDigits}`)}
               disabled={cnpjDigits.length !== 14}
+              startIcon={<ArrowRightIcon />}
+              sx={{ whiteSpace: "nowrap" }}
             >
-              <ArrowRight className="mr-2 h-4 w-4" />
               Abrir no Enriquecer
             </Button>
-          </div>
+          </Stack>
 
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline" className="border-border text-foreground/80">
-              Sem autorizacao externa
-            </Badge>
-            <Badge variant="outline" className="border-border text-foreground/80">
-              Snapshot publico/manual
-            </Badge>
-            <Badge variant="outline" className="border-border text-foreground/80">
-              Nao substitui Regularize ou e-CAC
-            </Badge>
-          </div>
+          <Stack direction="row" flexWrap="wrap" gap={1} mb={2.5}>
+            {["Sem autorizacao externa", "Snapshot publico/manual", "Nao substitui Regularize ou e-CAC"].map((label) => (
+              <Chip
+                key={label}
+                label={label}
+                variant="outlined"
+                size="small"
+                sx={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(240,240,240,0.8)", borderRadius: "8px" }}
+              />
+            ))}
+          </Stack>
 
-          <div className="rounded-2xl border border-border bg-muted/20/70 p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Ultima base fiscal</p>
+          {/* Snapshot status banner */}
+          <Box sx={{ borderRadius: "12px", border: "1px solid rgba(255,255,255,0.07)", bgcolor: "rgba(255,255,255,0.03)", p: 2 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2}>
+              <Box>
+                <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(240,240,240,0.35)", display: "block" }}>
+                  Ultima base fiscal
+                </Typography>
                 {isLoadingMeta ? (
-                  <p className="mt-2 text-sm text-muted-foreground">Carregando status...</p>
+                  <Typography variant="body2" color="text.secondary" mt={1}>Carregando status...</Typography>
                 ) : snapshot ? (
                   <>
-                    <p className="mt-2 text-sm font-medium text-foreground">
-                      {snapshot.source_label || "Base publica manual"}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground/70">
+                    <Typography variant="body2" fontWeight={500} mt={1}>{snapshot.source_label || "Base publica manual"}</Typography>
+                    <Typography variant="caption" color="text.secondary">
                       {snapshot.filename || "Arquivo sem nome"} · importado em {formatDate(snapshot.imported_at)}
-                    </p>
+                    </Typography>
                   </>
                 ) : (
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Nenhum snapshot fiscal importado ainda.
-                  </p>
+                  <Typography variant="body2" color="text.secondary" mt={1}>Nenhum snapshot fiscal importado ainda.</Typography>
                 )}
-              </div>
+              </Box>
               <Button
-                type="button"
-                variant="outline"
-                className="border-border bg-card"
+                variant="outlined"
+                size="small"
                 onClick={() => void loadSnapshotMeta()}
                 disabled={isLoadingMeta}
+                startIcon={isLoadingMeta ? <CircularProgress size={14} color="inherit" /> : <RefreshCwIcon />}
+                sx={{ whiteSpace: "nowrap" }}
               >
-                {isLoadingMeta ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                 Atualizar
               </Button>
-            </div>
+            </Stack>
 
             {snapshot && (
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-border bg-card/80 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Registros</p>
-                  <p className="mt-2 text-sm font-medium text-foreground">{snapshot.record_count}</p>
-                </div>
-                <div className="rounded-2xl border border-border bg-card/80 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">CNPJs unicos</p>
-                  <p className="mt-2 text-sm font-medium text-foreground">{snapshot.unique_cnpjs}</p>
-                </div>
-                <div className="rounded-2xl border border-border bg-card/80 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Linhas puladas</p>
-                  <p className="mt-2 text-sm font-medium text-foreground">{snapshot.skipped_rows}</p>
-                </div>
-              </div>
+              <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { sm: "repeat(3,1fr)" }, mt: 2 }}>
+                {[
+                  { label: "Registros", value: String(snapshot.record_count) },
+                  { label: "CNPJs unicos", value: String(snapshot.unique_cnpjs) },
+                  { label: "Linhas puladas", value: String(snapshot.skipped_rows) },
+                ].map((item) => (
+                  <Box key={item.label} sx={{ ...STAT_BOX_SX, bgcolor: "rgba(24,24,24,0.8)" }}>
+                    <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(240,240,240,0.35)", display: "block" }}>
+                      {item.label}
+                    </Typography>
+                    <Typography variant="body2" fontWeight={500} mt={1}>{item.value}</Typography>
+                  </Box>
+                ))}
+              </Box>
             )}
-          </div>
+          </Box>
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card shadow-surface-sm">
-        <CardHeader className="space-y-2">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Upload className="h-4 w-4 text-cyan-300" />
-            Importacao Manual da Base
-          </CardTitle>
-          <CardDescription>
+      {/* Import Card */}
+      <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+        <CardContent sx={{ p: 3 }}>
+          <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+            <UploadIcon sx={{ fontSize: 16, color: "#67e8f9" }} />
+            <Typography variant="subtitle1" fontWeight={600}>Importacao Manual da Base</Typography>
+          </Stack>
+          <Typography variant="body2" color="text.secondary" mb={2.5}>
             Suba um CSV/TSV/JSON/ZIP publico, cole os dados manualmente ou importe arquivos grandes ja copiados para a VPS.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="grid gap-4 xl:grid-cols-3">
-            <div className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
-              <div className="space-y-2">
-                <Label htmlFor="fiscal-source">Fonte exibida</Label>
-                <Input
-                  id="fiscal-source"
-                  value={sourceLabel}
-                  onChange={(e) => setSourceLabel(e.target.value)}
-                  className="border-border bg-card"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="fiscal-notes">Notas</Label>
-                <Input
-                  id="fiscal-notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ex.: recorte publico baixado manualmente"
-                  className="border-border bg-card"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="fiscal-file">Arquivo</Label>
-                <Input
-                  id="fiscal-file"
+          </Typography>
+
+          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xl: "repeat(3,1fr)" } }}>
+            {/* File Import */}
+            <Box sx={{ ...STAT_BOX_SX, display: "flex", flexDirection: "column", gap: 2 }}>
+              <TextField
+                label="Fonte exibida"
+                value={sourceLabel}
+                onChange={(e) => setSourceLabel(e.target.value)}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Notas"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Ex.: recorte publico baixado manualmente"
+                fullWidth
+                size="small"
+              />
+              <Box>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.75}>Arquivo</Typography>
+                <input
                   type="file"
                   accept=".csv,.tsv,.txt,.json,.zip"
-                  className="border-border bg-card file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1 file:text-sm file:text-foreground"
                   onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                  style={{
+                    width: "100%",
+                    fontSize: 13,
+                    color: "rgba(240,240,240,0.8)",
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    borderRadius: 8,
+                    padding: "6px 8px",
+                    cursor: "pointer",
+                  }}
                 />
-              </div>
+              </Box>
               <Button
-                type="button"
-                className="w-full bg-cyan-500 text-muted-foreground hover:bg-cyan-400"
+                variant="contained"
+                fullWidth
                 onClick={() => void handleImportFile()}
                 disabled={isImportingFile}
+                startIcon={isImportingFile ? <CircularProgress size={16} color="inherit" /> : <UploadIcon />}
+                sx={{ bgcolor: "#06b6d4", color: "#0F0F0F", fontWeight: 600, "&:hover": { bgcolor: "#22d3ee" } }}
               >
-                {isImportingFile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                 Importar arquivo
               </Button>
-            </div>
+            </Box>
 
-            <div className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
-              <div className="space-y-2">
-                <Label htmlFor="fiscal-filename">Nome do arquivo textual</Label>
-                <Input
-                  id="fiscal-filename"
-                  value={textFilename}
-                  onChange={(e) => setTextFilename(e.target.value)}
-                  className="border-border bg-card"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="fiscal-raw">CSV / JSON manual</Label>
-                <Textarea
-                  id="fiscal-raw"
-                  value={rawText}
-                  onChange={(e) => setRawText(e.target.value)}
-                  placeholder="Cole aqui um CSV com coluna de CNPJ e os campos fiscais publicos."
-                  className="min-h-[160px] border-border bg-card"
-                />
-              </div>
+            {/* Text Import */}
+            <Box sx={{ ...STAT_BOX_SX, display: "flex", flexDirection: "column", gap: 2 }}>
+              <TextField
+                label="Nome do arquivo textual"
+                value={textFilename}
+                onChange={(e) => setTextFilename(e.target.value)}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="CSV / JSON manual"
+                value={rawText}
+                onChange={(e) => setRawText(e.target.value)}
+                placeholder="Cole aqui um CSV com coluna de CNPJ e os campos fiscais publicos."
+                multiline
+                minRows={6}
+                fullWidth
+                size="small"
+              />
               <Button
-                type="button"
-                variant="outline"
-                className="w-full border-border bg-card"
+                variant="outlined"
+                fullWidth
                 onClick={() => void handleImportText()}
                 disabled={isImportingText}
+                startIcon={isImportingText ? <CircularProgress size={16} color="inherit" /> : <UploadIcon />}
               >
-                {isImportingText ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                 Importar texto
               </Button>
-            </div>
+            </Box>
 
-            <div className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
-              <div className="space-y-2">
-                <Label htmlFor="fiscal-server-name">Nome do snapshot grande</Label>
-                <Input
-                  id="fiscal-server-name"
-                  value={serverFilename}
-                  onChange={(e) => setServerFilename(e.target.value)}
-                  className="border-border bg-card"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="fiscal-server-paths">Caminhos no servidor</Label>
-                <Textarea
-                  id="fiscal-server-paths"
-                  value={serverPaths}
-                  onChange={(e) => setServerPaths(e.target.value)}
-                  placeholder={"/opt/hermes/data/fiscal/pgfn-nao-2025Q4.zip\n/opt/hermes/data/fiscal/pgfn-previdenciario-2025Q4.zip"}
-                  className="min-h-[160px] border-border bg-card"
-                />
-              </div>
+            {/* Server Paths Import */}
+            <Box sx={{ ...STAT_BOX_SX, display: "flex", flexDirection: "column", gap: 2 }}>
+              <TextField
+                label="Nome do snapshot grande"
+                value={serverFilename}
+                onChange={(e) => setServerFilename(e.target.value)}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Caminhos no servidor"
+                value={serverPaths}
+                onChange={(e) => setServerPaths(e.target.value)}
+                placeholder={"/opt/hermes/data/fiscal/pgfn-nao-2025Q4.zip\n/opt/hermes/data/fiscal/pgfn-previdenciario-2025Q4.zip"}
+                multiline
+                minRows={6}
+                fullWidth
+                size="small"
+              />
               <Button
-                type="button"
-                variant="outline"
-                className="w-full border-border bg-card"
+                variant="outlined"
+                fullWidth
                 onClick={() => void handleImportPaths()}
                 disabled={isImportingPaths}
+                startIcon={isImportingPaths ? <CircularProgress size={16} color="inherit" /> : <UploadIcon />}
               >
-                {isImportingPaths ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                 Importar caminhos do servidor
               </Button>
-            </div>
-          </div>
+            </Box>
+          </Box>
 
-          <div className="rounded-2xl border border-dashed border-border bg-muted/20/30 p-4 text-sm text-muted-foreground">
-            O Hermes expõe apenas o que existir na base publica importada. Sem autenticacao do contribuinte, nao mostra o universo completo de pendencias do Regularize/e-CAC.
-          </div>
+          <Box
+            sx={{
+              mt: 2.5,
+              borderRadius: "12px",
+              border: "1px dashed rgba(255,255,255,0.14)",
+              bgcolor: "rgba(255,255,255,0.02)",
+              p: 2,
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              O Hermes expoe apenas o que existir na base publica importada. Sem autenticacao do contribuinte, nao mostra o universo completo de pendencias do Regularize/e-CAC.
+            </Typography>
+          </Box>
         </CardContent>
       </Card>
 
+      {/* Lookup Results */}
       {lookup && (
         <>
-          <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
-            <Card className="border-border bg-card shadow-surface-sm">
-              <CardHeader className="space-y-2">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <ShieldCheck className="h-4 w-4 text-amber-300" />
-                  Leitura publica do CNPJ
-                </CardTitle>
-                <CardDescription>
+          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xl: "1.3fr 1fr" } }}>
+            {/* Public Reading */}
+            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+                  <ShieldCheckIcon sx={{ fontSize: 16, color: "#fcd34d" }} />
+                  <Typography variant="subtitle1" fontWeight={600}>Leitura publica do CNPJ</Typography>
+                </Stack>
+                <Typography variant="body2" color="text.secondary" mb={2}>
                   Snapshot consultado para {formatCnpj(lookup.cnpj)}.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                </Typography>
+
                 {!lookup.summary.has_snapshot ? (
-                  <div className="rounded-2xl border border-dashed border-border bg-muted/20/30 p-4 text-sm text-muted-foreground">
-                    Nenhuma base fiscal foi importada ainda. Importe um snapshot publico para liberar essa consulta.
-                  </div>
+                  <Box sx={{ borderRadius: "12px", border: "1px dashed rgba(255,255,255,0.14)", bgcolor: "rgba(255,255,255,0.02)", p: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Nenhuma base fiscal foi importada ainda. Importe um snapshot publico para liberar essa consulta.
+                    </Typography>
+                  </Box>
                 ) : !lookup.summary.has_records ? (
-                  <div className="rounded-2xl border border-dashed border-border bg-muted/20/30 p-4 text-sm text-muted-foreground">
-                    Esse CNPJ nao apareceu na ultima base publica importada.
-                  </div>
+                  <Box sx={{ borderRadius: "12px", border: "1px dashed rgba(255,255,255,0.14)", bgcolor: "rgba(255,255,255,0.02)", p: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Esse CNPJ nao apareceu na ultima base publica importada.
+                    </Typography>
+                  </Box>
                 ) : (
                   <>
-                    <div className="flex flex-wrap gap-2">
+                    <Stack direction="row" flexWrap="wrap" gap={1} mb={2}>
                       {(lookup.summary.situacoes ?? []).map((status) => (
-                        <Badge key={status} variant="outline" className={cn("capitalize", statusTone(status))}>
-                          {status}
-                        </Badge>
+                        <Chip key={status} label={status} size="small" sx={{ ...statusChipSx(status), textTransform: "capitalize" }} />
                       ))}
-                    </div>
+                    </Stack>
 
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                      <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Devedor</p>
-                        <p className="mt-2 text-sm font-medium text-foreground">
-                          {lookup.summary.nome_devedor || "Nao informado"}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Inscricoes</p>
-                        <p className="mt-2 text-sm font-medium text-foreground">{lookup.summary.total_records}</p>
-                      </div>
-                      <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Valor consolidado</p>
-                        <p className="mt-2 text-sm font-medium text-foreground">
-                          {formatMoney(lookup.summary.total_valor_consolidado)}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Ajuizadas</p>
-                        <p className="mt-2 text-sm font-medium text-foreground">{lookup.summary.ajuizadas}</p>
-                      </div>
-                    </div>
+                    <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { sm: "repeat(2,1fr)", xl: "repeat(4,1fr)" }, mb: 2 }}>
+                      {[
+                        { label: "Devedor", value: lookup.summary.nome_devedor || "Nao informado" },
+                        { label: "Inscricoes", value: String(lookup.summary.total_records) },
+                        { label: "Valor consolidado", value: formatMoney(lookup.summary.total_valor_consolidado) },
+                        { label: "Ajuizadas", value: String(lookup.summary.ajuizadas) },
+                      ].map((item) => (
+                        <Box key={item.label} sx={STAT_BOX_SX}>
+                          <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(240,240,240,0.35)", display: "block" }}>
+                            {item.label}
+                          </Typography>
+                          <Typography variant="body2" fontWeight={500} mt={1}>{item.value}</Typography>
+                        </Box>
+                      ))}
+                    </Box>
 
-                    <div className="rounded-2xl border border-border bg-muted/20/50 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Contexto do snapshot</p>
-                      <p className="mt-2 text-sm text-foreground/80">
+                    <Box sx={{ ...STAT_BOX_SX, bgcolor: "rgba(255,255,255,0.02)" }}>
+                      <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(240,240,240,0.35)", display: "block", mb: 1 }}>
+                        Contexto do snapshot
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: "rgba(240,240,240,0.8)" }}>
                         Fonte: {lookup.snapshot?.source_label || "Base publica manual"}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
                         Arquivo: {lookup.snapshot?.filename || "Nao informado"} · importado em {formatDate(lookup.snapshot?.imported_at)}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
                         Ultima data de inscricao encontrada: {formatDate(lookup.summary.latest_data_inscricao)}
-                      </p>
-                      <div className="mt-3 flex flex-wrap gap-2">
+                      </Typography>
+                      <Stack direction="row" flexWrap="wrap" gap={1} mt={1.5}>
                         {lookup.summary.ufs.map((item) => (
-                          <Badge key={`uf-${item}`} variant="outline" className="border-border text-foreground/80">
-                            UF {item}
-                          </Badge>
+                          <Chip key={`uf-${item}`} label={`UF ${item}`} size="small" variant="outlined" sx={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(240,240,240,0.8)", borderRadius: "8px" }} />
                         ))}
                         {lookup.summary.tipos_credito.map((item) => (
-                          <Badge key={`credito-${item}`} variant="outline" className="border-border text-foreground/80">
-                            {item}
-                          </Badge>
+                          <Chip key={`credito-${item}`} label={item} size="small" variant="outlined" sx={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(240,240,240,0.8)", borderRadius: "8px" }} />
                         ))}
-                      </div>
-                    </div>
+                      </Stack>
+                    </Box>
                   </>
                 )}
               </CardContent>
             </Card>
 
-            <Card className="border-border bg-card shadow-surface-sm">
-              <CardHeader className="space-y-2">
-                <CardTitle className="text-lg">Totais</CardTitle>
-                <CardDescription>
-                  Consolidado do que a base publica expõe hoje para esse CNPJ.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Valor originario</p>
-                  <p className="mt-2 text-sm font-medium text-foreground">
-                    {formatMoney(lookup.summary.total_valor_originario)}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Valor consolidado</p>
-                  <p className="mt-2 text-sm font-medium text-foreground">
-                    {formatMoney(lookup.summary.total_valor_consolidado)}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Status expostos</p>
-                  <p className="mt-2 text-sm font-medium text-foreground">
-                    {lookup.summary.situacoes.length || 0}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Cobertura</p>
-                  <p className="mt-2 text-sm font-medium text-foreground">
-                    Publica / sem autorizacao
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Arquivos fonte</p>
-                  <p className="mt-2 text-sm font-medium text-foreground">
-                    {lookup.summary.fontes.length || 0}
-                  </p>
-                </div>
+            {/* Totals Card */}
+            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="subtitle1" fontWeight={600} mb={0.5}>Totais</Typography>
+                <Typography variant="body2" color="text.secondary" mb={2}>
+                  Consolidado do que a base publica expoe hoje para esse CNPJ.
+                </Typography>
+                <Stack spacing={1.5}>
+                  {[
+                    { label: "Valor originario", value: formatMoney(lookup.summary.total_valor_originario) },
+                    { label: "Valor consolidado", value: formatMoney(lookup.summary.total_valor_consolidado) },
+                    { label: "Status expostos", value: String(lookup.summary.situacoes.length || 0) },
+                    { label: "Cobertura", value: "Publica / sem autorizacao" },
+                    { label: "Arquivos fonte", value: String(lookup.summary.fontes.length || 0) },
+                  ].map((item) => (
+                    <Box key={item.label} sx={STAT_BOX_SX}>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="body2" color="text.secondary">{item.label}</Typography>
+                        <Typography variant="body2" fontWeight={500}>{item.value}</Typography>
+                      </Stack>
+                    </Box>
+                  ))}
+                </Stack>
               </CardContent>
             </Card>
-          </div>
+          </Box>
 
+          {/* Records */}
           {lookup.records.length > 0 && (
-            <Card className="border-border bg-card shadow-surface-sm">
-              <CardHeader className="space-y-2">
-                <CardTitle className="text-lg">Inscricoes encontradas</CardTitle>
-                <CardDescription>
+            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="subtitle1" fontWeight={600} mb={0.5}>Inscricoes encontradas</Typography>
+                <Typography variant="body2" color="text.secondary" mb={2}>
                   Cada item abaixo corresponde ao que o snapshot publico trouxe para o CNPJ consultado.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {lookup.records.map((record) => (
-                  <div key={record.id} className="rounded-2xl border border-border bg-muted/20/70 p-4">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold text-foreground">
-                            {record.numero_inscricao || "Inscricao sem numero"}
-                          </p>
-                          {record.situacao && (
-                            <Badge variant="outline" className={statusTone(record.situacao)}>
-                              {record.situacao}
-                            </Badge>
-                          )}
-                          {record.indicador_ajuizado != null && (
-                            <Badge
-                              variant="outline"
-                              className={
-                                record.indicador_ajuizado
-                                  ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
-                                  : "border-border bg-muted/20 text-foreground/80"
-                              }
-                            >
-                              {record.indicador_ajuizado ? "Ajuizada" : "Nao ajuizada"}
-                            </Badge>
-                          )}
-                        </div>
+                </Typography>
+                <Stack spacing={2}>
+                  {lookup.records.map((record) => (
+                    <Box key={record.id} sx={{ ...STAT_BOX_SX, p: 2 }}>
+                      <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" alignItems={{ lg: "flex-start" }} gap={2}>
+                        <Box sx={{ flex: 1 }}>
+                          <Stack direction="row" flexWrap="wrap" alignItems="center" gap={1} mb={1}>
+                            <Typography variant="body2" fontWeight={600}>
+                              {record.numero_inscricao || "Inscricao sem numero"}
+                            </Typography>
+                            {record.situacao && (
+                              <Chip label={record.situacao} size="small" sx={statusChipSx(record.situacao)} />
+                            )}
+                            {record.indicador_ajuizado != null && (
+                              <Chip
+                                label={record.indicador_ajuizado ? "Ajuizada" : "Nao ajuizada"}
+                                size="small"
+                                sx={
+                                  record.indicador_ajuizado
+                                    ? { bgcolor: "rgba(239,68,68,0.1)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px" }
+                                    : { bgcolor: "rgba(255,255,255,0.05)", color: "rgba(240,240,240,0.8)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: "8px" }
+                                }
+                              />
+                            )}
+                          </Stack>
 
-                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                          <span>Data: {formatDate(record.data_inscricao)}</span>
-                          <span>Originario: {formatMoney(record.valor_originario)}</span>
-                          <span>Consolidado: {formatMoney(record.valor_consolidado)}</span>
-                        </div>
+                          <Stack direction="row" flexWrap="wrap" gap={2} mb={1}>
+                            <Typography variant="body2" color="text.secondary">Data: {formatDate(record.data_inscricao)}</Typography>
+                            <Typography variant="body2" color="text.secondary">Originario: {formatMoney(record.valor_originario)}</Typography>
+                            <Typography variant="body2" color="text.secondary">Consolidado: {formatMoney(record.valor_consolidado)}</Typography>
+                          </Stack>
 
-                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground/70">
-                          {record.tipo_pessoa && <span>Tipo pessoa: {record.tipo_pessoa}</span>}
-                          {record.uf_devedor && <span>UF: {record.uf_devedor}</span>}
-                          {record.tipo_situacao_inscricao && <span>Tipo situacao: {record.tipo_situacao_inscricao}</span>}
-                          {record.tipo_credito && <span>Credito: {record.tipo_credito}</span>}
-                          {record.receita_principal && <span>Receita: {record.receita_principal}</span>}
-                          {record.tipo_devedor && <span>Devedor: {record.tipo_devedor}</span>}
-                          {record.unidade_responsavel && <span>Unidade: {record.unidade_responsavel}</span>}
-                          {record.entidade_responsavel && <span>Entidade: {record.entidade_responsavel}</span>}
-                          {record.unidade_inscricao && <span>Unidade inscricao: {record.unidade_inscricao}</span>}
-                          {record.processo_judicial && <span>Processo: {record.processo_judicial}</span>}
-                          {record.source_member_name && <span>Arquivo: {record.source_member_name}</span>}
-                        </div>
-                      </div>
+                          <Stack direction="row" flexWrap="wrap" gap={2}>
+                            {record.tipo_pessoa && <Typography variant="caption" color="text.secondary">Tipo pessoa: {record.tipo_pessoa}</Typography>}
+                            {record.uf_devedor && <Typography variant="caption" color="text.secondary">UF: {record.uf_devedor}</Typography>}
+                            {record.tipo_situacao_inscricao && <Typography variant="caption" color="text.secondary">Tipo situacao: {record.tipo_situacao_inscricao}</Typography>}
+                            {record.tipo_credito && <Typography variant="caption" color="text.secondary">Credito: {record.tipo_credito}</Typography>}
+                            {record.receita_principal && <Typography variant="caption" color="text.secondary">Receita: {record.receita_principal}</Typography>}
+                            {record.tipo_devedor && <Typography variant="caption" color="text.secondary">Devedor: {record.tipo_devedor}</Typography>}
+                            {record.unidade_responsavel && <Typography variant="caption" color="text.secondary">Unidade: {record.unidade_responsavel}</Typography>}
+                            {record.entidade_responsavel && <Typography variant="caption" color="text.secondary">Entidade: {record.entidade_responsavel}</Typography>}
+                            {record.unidade_inscricao && <Typography variant="caption" color="text.secondary">Unidade inscricao: {record.unidade_inscricao}</Typography>}
+                            {record.processo_judicial && <Typography variant="caption" color="text.secondary">Processo: {record.processo_judicial}</Typography>}
+                            {record.source_member_name && <Typography variant="caption" color="text.secondary">Arquivo: {record.source_member_name}</Typography>}
+                          </Stack>
+                        </Box>
 
-                      {sourceUrl(record) && (
-                        <a
-                          href={sourceUrl(record) ?? undefined}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-2 text-sm text-cyan-300 hover:text-cyan-200"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          Abrir fonte
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                        {sourceUrl(record) && (
+                          <Box
+                            component="a"
+                            href={sourceUrl(record) ?? undefined}
+                            target="_blank"
+                            rel="noreferrer"
+                            sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, color: "#67e8f9", textDecoration: "none", fontSize: 14, whiteSpace: "nowrap", "&:hover": { color: "#a5f3fc" } }}
+                          >
+                            <ExternalLinkIcon sx={{ fontSize: 16 }} />
+                            Abrir fonte
+                          </Box>
+                        )}
+                      </Stack>
+                    </Box>
+                  ))}
+                </Stack>
               </CardContent>
             </Card>
           )}
         </>
       )}
-    </div>
+    </Box>
   );
 };
 

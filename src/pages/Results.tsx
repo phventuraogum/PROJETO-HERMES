@@ -2,39 +2,72 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
-  Card, CardContent, CardHeader, CardTitle,
-} from "@/components/ui/card";
-import { Input }  from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge }  from "@/components/ui/badge";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
-} from "@/components/ui/sheet";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuTrigger, DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Search, Download, ExternalLink, Globe,
-  MapPin, Building2, Users, Instagram, Linkedin, Facebook,
-  Tag, Link2, MessageCircle, Share2, Sparkles,
-  Mail, Phone, LayoutGrid, List, ChevronDown,
-  ArrowUpDown, CheckSquare2, X, Copy, Check,
-  TrendingUp, Percent, Wallet, Target, Wand2,
-  Loader2, ShieldCheck, FolderPlus, ShieldBan,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+  Box,
+  Stack,
+  Typography,
+  Button,
+  Card,
+  CardContent,
+  TextField,
+  Select,
+  MenuItem,
+  Chip,
+  IconButton,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableContainer,
+  CircularProgress,
+  Tooltip,
+  Paper,
+  Checkbox,
+  Drawer,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Menu,
+  InputAdornment,
+  Divider,
+  FormControl,
+  InputLabel,
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import DownloadIcon from "@mui/icons-material/Download";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import LanguageIcon from "@mui/icons-material/Language";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import BusinessIcon from "@mui/icons-material/Business";
+import GroupsIcon from "@mui/icons-material/Groups";
+import InstagramIcon from "@mui/icons-material/Instagram";
+import LinkedInIcon from "@mui/icons-material/LinkedIn";
+import FacebookIcon from "@mui/icons-material/Facebook";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import LinkIcon from "@mui/icons-material/Link";
+import ChatIcon from "@mui/icons-material/Chat";
+import ShareIcon from "@mui/icons-material/Share";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import MailIcon from "@mui/icons-material/Mail";
+import PhoneIcon from "@mui/icons-material/Phone";
+import GridViewIcon from "@mui/icons-material/GridView";
+import ListIcon from "@mui/icons-material/List";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import SwapVertIcon from "@mui/icons-material/SwapVert";
+import CheckBoxIcon from "@mui/icons-material/CheckBox";
+import CloseIcon from "@mui/icons-material/Close";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import CheckIcon from "@mui/icons-material/Check";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import WalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import TrackChangesIcon from "@mui/icons-material/TrackChanges";
+import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
+import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
+import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
+import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
+import GppBadIcon from "@mui/icons-material/GppBad";
 import {
   ContatoCaptado, Empresa, SocioEstruturado,
   ExecucaoResumo, getResultados, getResultadosUltimaExecucao,
@@ -120,46 +153,46 @@ function formatBRL(n?: number | null) {
 }
 
 const SEG_COLORS: Record<string, string> = {
-  Hospitais:     "bg-rose-500",
-  "Clínicas":    "bg-pink-500",
-  "Laboratórios":"bg-violet-500",
-  "Farmácias":   "bg-sky-500",
-  Supermercados: "bg-amber-500",
-  "Logística":   "bg-orange-500",
-  "Indústria":   "bg-blue-500",
-  "Serviços":    "bg-emerald-500",
+  Hospitais:      "#f43f5e",
+  "Clínicas":     "#ec4899",
+  "Laboratórios": "#8b5cf6",
+  "Farmácias":    "#0ea5e9",
+  Supermercados:  "#f59e0b",
+  "Logística":    "#f97316",
+  "Indústria":    "#3b82f6",
+  "Serviços":     "#10b981",
 };
 
-function avatarColor(seg?: string | null) {
-  return SEG_COLORS[seg ?? ""] ?? "bg-muted-foreground/40";
+function avatarBg(seg?: string | null) {
+  return SEG_COLORS[seg ?? ""] ?? "#4b5563";
 }
 
 function initials(name: string) {
   return name.split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase();
 }
 
-function scoreColor(s?: number | null) {
-  if (!s) return "bg-muted-foreground/50";
-  if (s >= 80) return "bg-emerald-500";
-  if (s >= 50) return "bg-amber-500";
-  return "bg-rose-500";
-}
-function scoreTextColor(s?: number | null) {
-  if (!s) return "text-muted-foreground";
-  if (s >= 80) return "text-emerald-600";
-  if (s >= 50) return "text-amber-600";
-  return "text-red-600";
+function scoreColor(s?: number | null): "success" | "warning" | "error" | "default" {
+  if (!s) return "default";
+  if (s >= 80) return "success";
+  if (s >= 50) return "warning";
+  return "error";
 }
 
-function getPorteBadge(p?: string | null) {
-  const base = "border text-[10px] font-medium";
-  const map: Record<string, string> = {
-    ME:          "border-blue-500/40 bg-blue-500/10 text-blue-300",
-    EPP:         "border-emerald-500/40 bg-emerald-500/10 text-emerald-700",
-    "Médio/Grande":"border-amber-500/40 bg-amber-500/10 text-amber-300",
-    Grande:      "border-purple-500/40 bg-purple-500/10 text-purple-300",
+function scoreHex(s?: number | null) {
+  if (!s) return "#6b7280";
+  if (s >= 80) return "#10b981";
+  if (s >= 50) return "#f59e0b";
+  return "#f43f5e";
+}
+
+function getPorteColor(p?: string | null): "info" | "success" | "warning" | "secondary" | "default" {
+  const map: Record<string, "info" | "success" | "warning" | "secondary"> = {
+    ME: "info",
+    EPP: "success",
+    "Médio/Grande": "warning",
+    Grande: "secondary",
   };
-  return `${base} ${map[p ?? ""] ?? "border-border text-muted-foreground"}`;
+  return map[p ?? ""] ?? "default";
 }
 
 function extractLinks(raw?: string | null): string[] {
@@ -253,19 +286,14 @@ function formatIntelPattern(pattern?: string | null) {
   return pattern ? pattern.replaceAll("_", " / ").replaceAll(".", " . ") : "Não inferido";
 }
 
-function intelStatusTone(status?: string | null) {
+function intelStatusColor(status?: string | null): "success" | "info" | "warning" | "error" | "default" {
   switch (status) {
-    case "verified":
-      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700";
+    case "verified": return "success";
     case "deliverable":
-    case "mx_only":
-      return "border-sky-500/30 bg-sky-500/10 text-sky-700";
-    case "risky":
-      return "border-amber-500/30 bg-amber-500/10 text-amber-300";
-    case "invalid":
-      return "border-rose-500/30 bg-rose-500/10 text-rose-300";
-    default:
-      return "border-border bg-muted/30 text-foreground/80";
+    case "mx_only": return "info";
+    case "risky": return "warning";
+    case "invalid": return "error";
+    default: return "default";
   }
 }
 
@@ -323,18 +351,22 @@ function buildResultadoSnapshot(config: ProspeccaoConfig | null, empresas: Empre
 function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <button
-      className="text-muted-foreground/70 hover:text-foreground transition-colors"
-      title={`Copiar: ${text}`}
-      onClick={e => {
-        e.stopPropagation();
-        navigator.clipboard.writeText(text).catch(() => {});
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      }}
-    >
-      {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
-    </button>
+    <Tooltip title={`Copiar: ${text}`}>
+      <IconButton
+        size="small"
+        onClick={e => {
+          e.stopPropagation();
+          navigator.clipboard.writeText(text).catch(() => {});
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }}
+        sx={{ p: 0.25, color: "text.secondary" }}
+      >
+        {copied
+          ? <CheckIcon sx={{ fontSize: 12, color: "#10b981" }} />
+          : <ContentCopyIcon sx={{ fontSize: 12 }} />}
+      </IconButton>
+    </Tooltip>
   );
 }
 
@@ -342,17 +374,20 @@ function CopyBtn({ text }: { text: string }) {
 function ScoreBar({ score }: { score?: number | null }) {
   const s = score ?? 0;
   return (
-    <div className="flex items-center gap-1.5">
-      <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
-        <div
-          className={cn("h-full rounded-full transition-all", scoreColor(s))}
-          style={{ width: `${Math.min(100, s)}%` }}
-        />
-      </div>
-      <span className={cn("text-[11px] font-semibold tabular-nums", scoreTextColor(s))}>
+    <Stack direction="row" alignItems="center" spacing={0.75}>
+      <Box sx={{ width: 64, height: 6, borderRadius: 3, bgcolor: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+        <Box sx={{
+          height: "100%",
+          borderRadius: 3,
+          width: `${Math.min(100, s)}%`,
+          bgcolor: scoreHex(s),
+          transition: "width 0.3s",
+        }} />
+      </Box>
+      <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 600, color: scoreHex(s), fontVariantNumeric: "tabular-nums" }}>
         {s.toFixed(0)}
-      </span>
-    </div>
+      </Typography>
+    </Stack>
   );
 }
 
@@ -371,49 +406,103 @@ function ContactRow({ emp }: { emp: Empresa }) {
     ?? emp.redes_sociais_socios?.flatMap(s => s.links).find(l => /linkedin/i.test(l));
 
   return (
-    <div className="flex items-center gap-1">
+    <Stack direction="row" spacing={0.5} alignItems="center">
       {wa && (
-        <a href={wa.startsWith("http") ? wa : `https://wa.me/${wa.replace(/\D/g, "")}`}
-          target="_blank" rel="noreferrer" title={`WhatsApp: ${wa}`}
-          onClick={e => e.stopPropagation()}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors">
-          <MessageCircle className="h-3.5 w-3.5" />
-        </a>
+        <Tooltip title={`WhatsApp: ${wa}`}>
+          <IconButton
+            size="small"
+            component="a"
+            href={wa.startsWith("http") ? wa : `https://wa.me/${wa.replace(/\D/g, "")}`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={e => e.stopPropagation()}
+            sx={{
+              width: 28, height: 28, border: "1px solid rgba(16,185,129,0.4)",
+              bgcolor: "rgba(16,185,129,0.1)", color: "#10b981",
+              "&:hover": { bgcolor: "rgba(16,185,129,0.2)" },
+            }}
+          >
+            <ChatIcon sx={{ fontSize: 14 }} />
+          </IconButton>
+        </Tooltip>
       )}
       {email && (
-        <a href={`mailto:${email}`} title={`E-mail: ${email}`}
-          onClick={e => e.stopPropagation()}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-sky-500/40 bg-sky-500/10 text-sky-600 hover:bg-sky-500/20 transition-colors">
-          <Mail className="h-3.5 w-3.5" />
-        </a>
+        <Tooltip title={`E-mail: ${email}`}>
+          <IconButton
+            size="small"
+            component="a"
+            href={`mailto:${email}`}
+            onClick={e => e.stopPropagation()}
+            sx={{
+              width: 28, height: 28, border: "1px solid rgba(14,165,233,0.4)",
+              bgcolor: "rgba(14,165,233,0.1)", color: "#0ea5e9",
+              "&:hover": { bgcolor: "rgba(14,165,233,0.2)" },
+            }}
+          >
+            <MailIcon sx={{ fontSize: 14 }} />
+          </IconButton>
+        </Tooltip>
       )}
       {tel && (
-        <a href={`tel:${tel}`} title={`Telefone: ${tel}`}
-          onClick={e => e.stopPropagation()}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors">
-          <Phone className="h-3.5 w-3.5" />
-        </a>
+        <Tooltip title={`Telefone: ${tel}`}>
+          <IconButton
+            size="small"
+            component="a"
+            href={`tel:${tel}`}
+            onClick={e => e.stopPropagation()}
+            sx={{
+              width: 28, height: 28, border: "1px solid rgba(255,255,255,0.07)",
+              bgcolor: "rgba(255,255,255,0.04)", color: "text.secondary",
+              "&:hover": { bgcolor: "rgba(255,255,255,0.08)" },
+            }}
+          >
+            <PhoneIcon sx={{ fontSize: 14 }} />
+          </IconButton>
+        </Tooltip>
       )}
       {linkedin && (
-        <a href={linkedin} target="_blank" rel="noreferrer" title="LinkedIn"
-          onClick={e => e.stopPropagation()}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-blue-500/40 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors">
-          <Linkedin className="h-3.5 w-3.5" />
-        </a>
+        <Tooltip title="LinkedIn">
+          <IconButton
+            size="small"
+            component="a"
+            href={linkedin}
+            target="_blank"
+            rel="noreferrer"
+            onClick={e => e.stopPropagation()}
+            sx={{
+              width: 28, height: 28, border: "1px solid rgba(59,130,246,0.4)",
+              bgcolor: "rgba(59,130,246,0.1)", color: "#60a5fa",
+              "&:hover": { bgcolor: "rgba(59,130,246,0.2)" },
+            }}
+          >
+            <LinkedInIcon sx={{ fontSize: 14 }} />
+          </IconButton>
+        </Tooltip>
       )}
       {emp.site && (
-        <a href={emp.site.startsWith("http") ? emp.site : `https://${emp.site}`}
-          target="_blank" rel="noreferrer" title={emp.site}
-          onClick={e => e.stopPropagation()}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors">
-          <Globe className="h-3.5 w-3.5" />
-        </a>
+        <Tooltip title={emp.site}>
+          <IconButton
+            size="small"
+            component="a"
+            href={emp.site.startsWith("http") ? emp.site : `https://${emp.site}`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={e => e.stopPropagation()}
+            sx={{
+              width: 28, height: 28, border: "1px solid rgba(255,255,255,0.07)",
+              bgcolor: "rgba(255,255,255,0.04)", color: "text.secondary",
+              "&:hover": { bgcolor: "rgba(255,255,255,0.08)" },
+            }}
+          >
+            <LanguageIcon sx={{ fontSize: 14 }} />
+          </IconButton>
+        </Tooltip>
       )}
-    </div>
+    </Stack>
   );
 }
 
-// ─── Detalhe lateral (Sheet) ──────────────────────────────────────────────────
+// ─── Detalhe lateral (Drawer) ─────────────────────────────────────────────────
 function DetalheEmpresa({
   company,
   contactIntel,
@@ -449,240 +538,256 @@ function DetalheEmpresa({
     company.telefone_estab2 ?? "",
   ]);
 
+  const sectionSx = {
+    borderRadius: "12px",
+    border: "1px solid rgba(255,255,255,0.07)",
+    bgcolor: "rgba(255,255,255,0.02)",
+    p: 2,
+  };
+
   return (
-    <div className="space-y-5 text-sm pb-8">
+    <Stack spacing={2.5} sx={{ pb: 4, fontSize: 14 }}>
 
-      {/* ── Resumo ── */}
-      <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-          <Building2 className="h-3 w-3" /> Identificação
-        </p>
-        <div className="flex items-start gap-3">
-          <div className={cn("flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white", avatarColor(company.segmento))}>
+      {/* Identificação */}
+      <Box sx={sectionSx}>
+        <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", color: "text.secondary", display: "flex", alignItems: "center", gap: 0.5, mb: 1.5 }}>
+          <BusinessIcon sx={{ fontSize: 12 }} /> Identificação
+        </Typography>
+        <Stack direction="row" spacing={1.5} alignItems="flex-start">
+          <Box sx={{
+            width: 40, height: 40, flexShrink: 0, borderRadius: "10px",
+            bgcolor: avatarBg(company.segmento), display: "flex",
+            alignItems: "center", justifyContent: "center",
+            fontSize: 14, fontWeight: 700, color: "#fff",
+          }}>
             {initials(company.nome_fantasia || company.razao_social)}
-          </div>
-          <div>
-            <p className="font-semibold text-foreground leading-tight">{company.nome_fantasia || company.razao_social}</p>
-            <p className="text-xs text-muted-foreground">{company.razao_social}</p>
-            <p className="font-mono text-[11px] text-muted-foreground/70 mt-0.5">{company.cnpj}</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-1.5 pt-1">
-          {company.porte && <Badge variant="outline" className={getPorteBadge(company.porte)}>{company.porte}</Badge>}
+          </Box>
+          <Box>
+            <Typography variant="body2" fontWeight={600}>{company.nome_fantasia || company.razao_social}</Typography>
+            <Typography variant="caption" color="text.secondary">{company.razao_social}</Typography>
+            <Typography variant="caption" sx={{ display: "block", fontFamily: "monospace", fontSize: 11, color: "text.disabled", mt: 0.25 }}>{company.cnpj}</Typography>
+          </Box>
+        </Stack>
+        <Stack direction="row" flexWrap="wrap" spacing={0.75} sx={{ mt: 1.5 }}>
+          {company.porte && <Chip label={company.porte} size="small" color={getPorteColor(company.porte)} variant="outlined" sx={{ fontSize: 10 }} />}
           {company.score_icp != null && (
-            <div className="flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5">
-              <span className="text-[10px] text-muted-foreground">Score ICP</span>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, borderRadius: "999px", border: "1px solid rgba(255,255,255,0.07)", bgcolor: "rgba(255,255,255,0.03)", px: 1, py: 0.25 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>Score ICP</Typography>
               <ScoreBar score={company.score_icp} />
-            </div>
+            </Box>
           )}
-          {company.situacao_cadastral && (
-            <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-700">
-              {company.situacao_cadastral}
-            </Badge>
+          {company.situacao_cadastral && <Chip label={company.situacao_cadastral} size="small" color="success" variant="outlined" sx={{ fontSize: 10 }} />}
+        </Stack>
+      </Box>
+
+      {/* Dados cadastrais */}
+      <Box sx={sectionSx}>
+        <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", color: "text.secondary", display: "flex", alignItems: "center", gap: 0.5, mb: 1.5 }}>
+          <LocalOfferIcon sx={{ fontSize: 12 }} /> Dados cadastrais
+        </Typography>
+        <Stack spacing={1}>
+          {company.cnae_principal && (
+            <Stack direction="row" spacing={1.5}>
+              <Typography variant="caption" color="text.disabled" sx={{ minWidth: 80 }}>CNAE</Typography>
+              <Typography variant="caption" sx={{ fontFamily: "monospace" }}>{company.cnae_principal}{company.cnae_descricao && <span style={{ fontFamily: "inherit", color: "rgba(240,240,240,0.7)", marginLeft: 4 }}>— {company.cnae_descricao}</span>}</Typography>
+            </Stack>
           )}
-        </div>
-      </section>
-
-      {/* ── Dados cadastrais ── */}
-      <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-          <Tag className="h-3 w-3" /> Dados cadastrais
-        </p>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
-          {company.cnae_principal && <>
-            <dt className="text-muted-foreground/70">CNAE</dt>
-            <dd className="font-mono">{company.cnae_principal}{company.cnae_descricao && <span className="ml-1 font-sans text-foreground/80">— {company.cnae_descricao}</span>}</dd>
-          </>}
-          {company.cnaes_secundarios && company.cnaes_secundarios.length > 0 && <>
-            <dt className="text-muted-foreground/70">CNAEs sec.</dt>
-            <dd className="text-foreground/80 leading-relaxed">
-              {company.cnaes_secundarios.slice(0, 4).map(c => c.descricao || c.cnae).join(" · ")}
-              {company.cnaes_secundarios.length > 4 && ` +${company.cnaes_secundarios.length - 4}`}
-            </dd>
-          </>}
-          {company.capital_social != null && <>
-            <dt className="text-muted-foreground/70">Capital</dt>
-            <dd className="font-medium">
-              {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(company.capital_social)}
-            </dd>
-          </>}
-          {company.natureza_juridica && <>
-            <dt className="text-muted-foreground/70">Natureza Jur.</dt>
-            <dd>{company.natureza_juridica}</dd>
-          </>}
-          {company.data_abertura && <>
-            <dt className="text-muted-foreground/70">Fundação</dt>
-            <dd>{company.data_abertura}</dd>
-          </>}
-          {company.segmento && <>
-            <dt className="text-muted-foreground/70">Segmento</dt>
-            <dd>{company.segmento}{company.subsegmento && <span className="ml-1 text-muted-foreground">· {company.subsegmento}</span>}</dd>
-          </>}
-        </dl>
-
+          {company.cnaes_secundarios && company.cnaes_secundarios.length > 0 && (
+            <Stack direction="row" spacing={1.5}>
+              <Typography variant="caption" color="text.disabled" sx={{ minWidth: 80 }}>CNAEs sec.</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {company.cnaes_secundarios.slice(0, 4).map(c => c.descricao || c.cnae).join(" · ")}
+                {company.cnaes_secundarios.length > 4 && ` +${company.cnaes_secundarios.length - 4}`}
+              </Typography>
+            </Stack>
+          )}
+          {company.capital_social != null && (
+            <Stack direction="row" spacing={1.5}>
+              <Typography variant="caption" color="text.disabled" sx={{ minWidth: 80 }}>Capital</Typography>
+              <Typography variant="caption" fontWeight={500}>
+                {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(company.capital_social)}
+              </Typography>
+            </Stack>
+          )}
+          {company.natureza_juridica && (
+            <Stack direction="row" spacing={1.5}>
+              <Typography variant="caption" color="text.disabled" sx={{ minWidth: 80 }}>Natureza Jur.</Typography>
+              <Typography variant="caption">{company.natureza_juridica}</Typography>
+            </Stack>
+          )}
+          {company.data_abertura && (
+            <Stack direction="row" spacing={1.5}>
+              <Typography variant="caption" color="text.disabled" sx={{ minWidth: 80 }}>Fundação</Typography>
+              <Typography variant="caption">{company.data_abertura}</Typography>
+            </Stack>
+          )}
+          {company.segmento && (
+            <Stack direction="row" spacing={1.5}>
+              <Typography variant="caption" color="text.disabled" sx={{ minWidth: 80 }}>Segmento</Typography>
+              <Typography variant="caption">{company.segmento}{company.subsegmento && <span style={{ color: "rgba(240,240,240,0.5)", marginLeft: 4 }}>· {company.subsegmento}</span>}</Typography>
+            </Stack>
+          )}
+        </Stack>
         {company.sidra_pib && (
-          <div className="mt-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-xs">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70 mb-0.5">PIB do município (IBGE)</p>
-            <p className="text-foreground">
+          <Box sx={{ mt: 1.5, borderRadius: "8px", border: "1px solid rgba(255,255,255,0.05)", bgcolor: "rgba(255,255,255,0.02)", px: 1.5, py: 1 }}>
+            <Typography variant="caption" sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "text.disabled", display: "block", mb: 0.25 }}>PIB do município (IBGE)</Typography>
+            <Typography variant="caption">
               R$ {(company.sidra_pib / 1_000_000).toFixed(1)} milhões
               {company.sidra_populacao && ` · ${Math.round(company.sidra_populacao).toLocaleString("pt-BR")} hab.`}
-            </p>
-          </div>
+            </Typography>
+          </Box>
         )}
-      </section>
+      </Box>
 
-      {/* ── Localização ── */}
-      <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-          <MapPin className="h-3 w-3" /> Localização
-        </p>
-        <p className="font-medium">{company.cidade || "—"}{company.uf && ` / ${company.uf}`}</p>
+      {/* Localização */}
+      <Box sx={sectionSx}>
+        <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", color: "text.secondary", display: "flex", alignItems: "center", gap: 0.5, mb: 1 }}>
+          <LocationOnIcon sx={{ fontSize: 12 }} /> Localização
+        </Typography>
+        <Typography variant="body2" fontWeight={500}>{company.cidade || "—"}{company.uf && ` / ${company.uf}`}</Typography>
         {(company.logradouro || company.bairro) && (
-          <p className="text-xs text-foreground/80">
+          <Typography variant="caption" color="text.secondary">
             {[company.logradouro, company.numero, company.complemento].filter(Boolean).join(", ")}
             {company.bairro && ` · ${company.bairro}`}
             {company.cep && ` · CEP ${company.cep}`}
-          </p>
+          </Typography>
         )}
-      </section>
+      </Box>
 
-      {/* ── Contatos ── */}
-      <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-2.5">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-          <Globe className="h-3 w-3" /> Contatos e presença digital
-        </p>
-        {company.site && (
-          <div className="flex items-center gap-2">
-            <Link2 className="h-3.5 w-3.5 text-muted-foreground/70 flex-shrink-0" />
-            <a href={company.site.startsWith("http") ? company.site : `https://${company.site}`}
-              target="_blank" rel="noreferrer"
-              className="text-xs text-primary hover:underline break-all">
-              {company.site}
-            </a>
-          </div>
-        )}
-        {[
-          { label: "WhatsApp",  icon: MessageCircle, value: whatsCaptados[0]?.valor,                                  href: (v: string) => v.startsWith("http") ? v : `https://wa.me/${v.replace(/\D/g, "")}`, color: "text-emerald-600" },
-          { label: "E-mail",    icon: Mail,          value: emailsCaptados[0]?.valor,                                  href: (v: string) => `mailto:${v}`,                                             color: "text-sky-600" },
-          { label: "Telefone",  icon: Phone,         value: telefonesCaptados[0]?.valor,                               href: (v: string) => `tel:${v}`,                                                color: "text-foreground/80" },
-          { label: "LinkedIn",  icon: Linkedin,      value: primaryLinkedin(company),                                  href: (v: string) => v,                                                          color: "text-blue-400" },
-        ].filter(c => c.value).map(c => (
-          <div key={c.label} className="flex items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2">
-              <c.icon className={cn("h-3.5 w-3.5", c.color)} />
-              <span className="text-muted-foreground">{c.label}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <a href={c.href(c.value!)} target="_blank" rel="noreferrer"
-                className="font-medium text-foreground hover:text-primary hover:underline break-all">
-                {c.value}
-              </a>
-              <CopyBtn text={c.value!} />
-            </div>
-          </div>
-        ))}
+      {/* Contatos */}
+      <Box sx={sectionSx}>
+        <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", color: "text.secondary", display: "flex", alignItems: "center", gap: 0.5, mb: 1.5 }}>
+          <LanguageIcon sx={{ fontSize: 12 }} /> Contatos e presença digital
+        </Typography>
+        <Stack spacing={1}>
+          {company.site && (
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <LinkIcon sx={{ fontSize: 14, color: "text.disabled", flexShrink: 0 }} />
+              <Typography component="a" href={company.site.startsWith("http") ? company.site : `https://${company.site}`} target="_blank" rel="noreferrer" variant="caption" sx={{ color: "primary.main", wordBreak: "break-all", "&:hover": { textDecoration: "underline" } }}>
+                {company.site}
+              </Typography>
+            </Stack>
+          )}
+          {[
+            { label: "WhatsApp", Icon: ChatIcon, value: whatsCaptados[0]?.valor, href: (v: string) => v.startsWith("http") ? v : `https://wa.me/${v.replace(/\D/g, "")}`, color: "#10b981" },
+            { label: "E-mail", Icon: MailIcon, value: emailsCaptados[0]?.valor, href: (v: string) => `mailto:${v}`, color: "#0ea5e9" },
+            { label: "Telefone", Icon: PhoneIcon, value: telefonesCaptados[0]?.valor, href: (v: string) => `tel:${v}`, color: "rgba(240,240,240,0.8)" },
+            { label: "LinkedIn", Icon: LinkedInIcon, value: primaryLinkedin(company), href: (v: string) => v, color: "#60a5fa" },
+          ].filter(c => c.value).map(c => (
+            <Stack key={c.label} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <c.Icon sx={{ fontSize: 14, color: c.color }} />
+                <Typography variant="caption" color="text.secondary">{c.label}</Typography>
+              </Stack>
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                <Typography component="a" href={c.href(c.value!)} target="_blank" rel="noreferrer" variant="caption" fontWeight={500} sx={{ color: "text.primary", wordBreak: "break-all", "&:hover": { color: "primary.main", textDecoration: "underline" } }}>
+                  {c.value}
+                </Typography>
+                <CopyBtn text={c.value!} />
+              </Stack>
+            </Stack>
+          ))}
 
-        {emailsCaptados.length > 1 && (
-          <div className="border-t border-border pt-2 space-y-1.5">
-            <p className="text-[10px] text-muted-foreground/70">E-mails captados</p>
-            {emailsCaptados.slice(1).map(item => (
-              <div key={item.valor} className="flex items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-3.5 w-3.5 text-sky-600" />
-                  <a href={`mailto:${item.valor}`} className="font-medium text-foreground hover:text-primary hover:underline break-all">
-                    {item.valor}
-                  </a>
-                </div>
-                <Badge variant="outline" className="border-border text-[10px] text-muted-foreground">
-                  {contactSource(item)}
-                </Badge>
-              </div>
-            ))}
-          </div>
-        )}
+          {emailsCaptados.length > 1 && (
+            <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.07)", pt: 1.5 }}>
+              <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, display: "block", mb: 1 }}>E-mails captados</Typography>
+              <Stack spacing={1}>
+                {emailsCaptados.slice(1).map(item => (
+                  <Stack key={item.valor} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <MailIcon sx={{ fontSize: 14, color: "#0ea5e9" }} />
+                      <Typography component="a" href={`mailto:${item.valor}`} variant="caption" fontWeight={500} sx={{ color: "text.primary", wordBreak: "break-all", "&:hover": { textDecoration: "underline" } }}>{item.valor}</Typography>
+                    </Stack>
+                    <Chip label={contactSource(item)} size="small" variant="outlined" sx={{ fontSize: 10, height: 18 }} />
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+          )}
 
-        {whatsCaptados.length > 1 && (
-          <div className="border-t border-border pt-2 space-y-1.5">
-            <p className="text-[10px] text-muted-foreground/70">WhatsApps captados</p>
-            {whatsCaptados.slice(1).map(item => (
-              <div key={item.valor} className="flex items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
-                  <a href={`https://wa.me/${item.valor.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
-                    className="font-medium text-foreground hover:text-primary hover:underline break-all">
-                    {item.valor}
-                  </a>
-                </div>
-                <Badge variant="outline" className="border-border text-[10px] text-muted-foreground">
-                  {contactSource(item)}
-                </Badge>
-              </div>
-            ))}
-          </div>
-        )}
+          {whatsCaptados.length > 1 && (
+            <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.07)", pt: 1.5 }}>
+              <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, display: "block", mb: 1 }}>WhatsApps captados</Typography>
+              <Stack spacing={1}>
+                {whatsCaptados.slice(1).map(item => (
+                  <Stack key={item.valor} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <ChatIcon sx={{ fontSize: 14, color: "#10b981" }} />
+                      <Typography component="a" href={`https://wa.me/${item.valor.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" variant="caption" fontWeight={500} sx={{ color: "text.primary", "&:hover": { textDecoration: "underline" } }}>{item.valor}</Typography>
+                    </Stack>
+                    <Chip label={contactSource(item)} size="small" variant="outlined" sx={{ fontSize: 10, height: 18 }} />
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+          )}
 
-        {telefonesCaptados.length > 1 && (
-          <div className="border-t border-border pt-2 space-y-1.5">
-            <p className="text-[10px] text-muted-foreground/70">Telefones captados</p>
-            {telefonesCaptados.slice(1).map(item => (
-              <div key={item.valor} className="flex items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <Phone className="h-3.5 w-3.5 text-foreground/80" />
-                  <a href={`tel:${item.valor}`} className="font-medium text-foreground hover:text-primary hover:underline break-all">
-                    {item.valor}
-                  </a>
-                </div>
-                <Badge variant="outline" className="border-border text-[10px] text-muted-foreground">
-                  {contactSource(item)}
-                </Badge>
-              </div>
-            ))}
-          </div>
-        )}
+          {telefonesCaptados.length > 1 && (
+            <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.07)", pt: 1.5 }}>
+              <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, display: "block", mb: 1 }}>Telefones captados</Typography>
+              <Stack spacing={1}>
+                {telefonesCaptados.slice(1).map(item => (
+                  <Stack key={item.valor} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <PhoneIcon sx={{ fontSize: 14, color: "text.secondary" }} />
+                      <Typography component="a" href={`tel:${item.valor}`} variant="caption" fontWeight={500} sx={{ color: "text.primary", "&:hover": { textDecoration: "underline" } }}>{item.valor}</Typography>
+                    </Stack>
+                    <Chip label={contactSource(item)} size="small" variant="outlined" sx={{ fontSize: 10, height: 18 }} />
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+          )}
 
-        {(company.registro_dono || company.registro_email || company.fonte_dados_prioritaria) && (
-          <div className="border-t border-border pt-2 space-y-1 text-xs text-foreground/80">
-            {company.registro_dono && <p><span className="text-muted-foreground/70">Registro.br:</span> {company.registro_dono}</p>}
-            {company.registro_email && <p><span className="text-muted-foreground/70">E-mail do registro:</span> {company.registro_email}</p>}
-            {company.fonte_dados_prioritaria && <p><span className="text-muted-foreground/70">Fonte principal:</span> {company.fonte_dados_prioritaria}</p>}
-          </div>
-        )}
+          {(company.registro_dono || company.registro_email || company.fonte_dados_prioritaria) && (
+            <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.07)", pt: 1.5 }}>
+              {company.registro_dono && <Typography variant="caption" display="block"><span style={{ color: "rgba(240,240,240,0.5)" }}>Registro.br:</span> {company.registro_dono}</Typography>}
+              {company.registro_email && <Typography variant="caption" display="block"><span style={{ color: "rgba(240,240,240,0.5)" }}>E-mail do registro:</span> {company.registro_email}</Typography>}
+              {company.fonte_dados_prioritaria && <Typography variant="caption" display="block"><span style={{ color: "rgba(240,240,240,0.5)" }}>Fonte principal:</span> {company.fonte_dados_prioritaria}</Typography>}
+            </Box>
+          )}
 
-        {redesRaw.length > 0 && (
-          <div className="border-t border-border pt-2 space-y-1.5">
-            <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1"><Share2 className="h-3 w-3" /> Redes sociais</p>
-            {redesRaw.map(link => {
-              const t = detectSocial(link);
-              return (
-                <a key={link} href={link} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-2 text-xs text-primary hover:underline break-all">
-                  {t === "instagram" && <Instagram className="h-3 w-3 text-pink-400 flex-shrink-0" />}
-                  {t === "linkedin"  && <Linkedin  className="h-3 w-3 text-sky-600 flex-shrink-0" />}
-                  {t === "facebook"  && <Facebook  className="h-3 w-3 text-blue-400 flex-shrink-0" />}
-                  {t === "other"     && <ExternalLink className="h-3 w-3 text-muted-foreground/70 flex-shrink-0" />}
-                  {link}
-                </a>
-              );
-            })}
-          </div>
-        )}
+          {redesRaw.length > 0 && (
+            <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.07)", pt: 1.5 }}>
+              <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, display: "flex", alignItems: "center", gap: 0.5, mb: 1 }}>
+                <ShareIcon sx={{ fontSize: 12 }} /> Redes sociais
+              </Typography>
+              <Stack spacing={0.75}>
+                {redesRaw.map(link => {
+                  const t = detectSocial(link);
+                  return (
+                    <Typography key={link} component="a" href={link} target="_blank" rel="noreferrer" variant="caption" sx={{ display: "flex", alignItems: "center", gap: 0.75, color: "primary.main", wordBreak: "break-all", "&:hover": { textDecoration: "underline" } }}>
+                      {t === "instagram" && <InstagramIcon sx={{ fontSize: 12, color: "#f472b6", flexShrink: 0 }} />}
+                      {t === "linkedin" && <LinkedInIcon sx={{ fontSize: 12, color: "#0ea5e9", flexShrink: 0 }} />}
+                      {t === "facebook" && <FacebookIcon sx={{ fontSize: 12, color: "#60a5fa", flexShrink: 0 }} />}
+                      {t === "other" && <OpenInNewIcon sx={{ fontSize: 12, color: "text.disabled", flexShrink: 0 }} />}
+                      {link}
+                    </Typography>
+                  );
+                })}
+              </Stack>
+            </Box>
+          )}
 
-        {resumoIA && (
-          <div className="border-t border-border pt-2 space-y-1">
-            <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1"><Sparkles className="h-3 w-3" /> Resumo IA</p>
-            <p className="text-xs leading-relaxed text-foreground/80">{resumoIA}</p>
-          </div>
-        )}
-      </section>
+          {resumoIA && (
+            <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.07)", pt: 1.5 }}>
+              <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, display: "flex", alignItems: "center", gap: 0.5, mb: 0.75 }}>
+                <AutoAwesomeIcon sx={{ fontSize: 12 }} /> Resumo IA
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6 }}>{resumoIA}</Typography>
+            </Box>
+          )}
+        </Stack>
+      </Box>
 
-      {/* ── Sócios ── */}
-      {(company.socios_estruturado?.length || company.socios_resumo || company.redes_sociais_socios?.length) && (
-        <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-            <Users className="h-3 w-3" /> Sócios / Decisores
-          </p>
+      {/* Sócios */}
+      {(company.socios_estruturado?.length || company.socios_resumo || company.redes_sociais_socios?.length) ? (
+        <Box sx={sectionSx}>
+          <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", color: "text.secondary", display: "flex", alignItems: "center", gap: 0.5, mb: 1.5 }}>
+            <GroupsIcon sx={{ fontSize: 12 }} /> Sócios / Decisores
+          </Typography>
           {company.socios_estruturado && company.socios_estruturado.length > 0 ? (
-            <div className="space-y-2">
+            <Stack spacing={1.5}>
               {company.socios_estruturado.map((s: SocioEstruturado, i: number) => {
                 const linkedin = s.linkedin || company.redes_sociais_socios
                   ?.find(r => r.nome.toLowerCase().slice(0,8) === s.nome.toLowerCase().slice(0,8))
@@ -691,225 +796,185 @@ function DetalheEmpresa({
                 const email = s.email;
                 const telefone = s.telefone;
                 return (
-                  <div key={i} className="flex items-start justify-between gap-2 rounded-lg border border-border/50 bg-muted/30 p-2.5">
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-foreground">{s.nome}</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {s.qualificacao && (
-                          <Badge variant="outline" className="border-violet-500/40 bg-violet-500/10 text-[10px] text-violet-300">
-                            {s.qualificacao}
-                          </Badge>
+                  <Box key={i} sx={{ border: "1px solid rgba(255,255,255,0.07)", borderRadius: "8px", bgcolor: "rgba(255,255,255,0.02)", p: 1.5 }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="caption" fontWeight={500}>{s.nome}</Typography>
+                        <Stack direction="row" flexWrap="wrap" spacing={0.5} sx={{ mt: 0.5 }}>
+                          {s.qualificacao && <Chip label={s.qualificacao} size="small" color="secondary" variant="outlined" sx={{ fontSize: 10, height: 18 }} />}
+                          {s.data_entrada && <Typography variant="caption" color="text.disabled">desde {s.data_entrada}</Typography>}
+                          {s.cargo_atual && <Typography variant="caption" color="text.disabled">{s.cargo_atual}</Typography>}
+                        </Stack>
+                        <Stack spacing={0.25} sx={{ mt: 0.75 }}>
+                          {email && <Typography variant="caption" color="text.secondary">E-mail: <a href={`mailto:${email}`} style={{ color: "inherit" }}>{email}</a></Typography>}
+                          {whatsapp && <Typography variant="caption" color="text.secondary">WhatsApp: <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>{whatsapp}</a></Typography>}
+                          {telefone && <Typography variant="caption" color="text.secondary">Telefone: <a href={`tel:${telefone}`} style={{ color: "inherit" }}>{telefone}</a></Typography>}
+                          {s.emails_alternativos && s.emails_alternativos.length > 0 && (
+                            <Typography variant="caption" color="text.disabled">Alternativos: {s.emails_alternativos.join(" · ")}</Typography>
+                          )}
+                          {s.fonte_contato && <Typography variant="caption" color="text.disabled">Fonte: {s.fonte_contato}</Typography>}
+                        </Stack>
+                      </Box>
+                      <Stack direction="row" spacing={0.5}>
+                        {email && (
+                          <IconButton size="small" component="a" href={`mailto:${email}`} sx={{ width: 28, height: 28, border: "1px solid rgba(14,165,233,0.4)", bgcolor: "rgba(14,165,233,0.1)", color: "#0ea5e9", "&:hover": { bgcolor: "rgba(14,165,233,0.2)" } }}>
+                            <MailIcon sx={{ fontSize: 14 }} />
+                          </IconButton>
                         )}
-                        {s.data_entrada && <span className="text-[10px] text-muted-foreground/70">desde {s.data_entrada}</span>}
-                        {s.cargo_atual && <span className="text-[10px] text-muted-foreground/70">{s.cargo_atual}</span>}
-                        {s.empresa_atual && <span className="text-[10px] text-muted-foreground/70">{s.empresa_atual}</span>}
-                      </div>
-                      <div className="space-y-1 text-[11px] text-foreground/80">
-                        {email && <p>E-mail: <a href={`mailto:${email}`} className="hover:underline">{email}</a></p>}
-                        {whatsapp && <p>WhatsApp: <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="hover:underline">{whatsapp}</a></p>}
-                        {telefone && <p>Telefone: <a href={`tel:${telefone}`} className="hover:underline">{telefone}</a></p>}
-                        {s.emails_alternativos && s.emails_alternativos.length > 0 && (
-                          <p className="text-muted-foreground/70">Alternativos: {s.emails_alternativos.join(" · ")}</p>
+                        {whatsapp && (
+                          <IconButton size="small" component="a" href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" sx={{ width: 28, height: 28, border: "1px solid rgba(16,185,129,0.4)", bgcolor: "rgba(16,185,129,0.1)", color: "#10b981", "&:hover": { bgcolor: "rgba(16,185,129,0.2)" } }}>
+                            <ChatIcon sx={{ fontSize: 14 }} />
+                          </IconButton>
                         )}
-                        {s.fonte_contato && <p className="text-muted-foreground/70">Fonte: {s.fonte_contato}</p>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {email && (
-                        <a href={`mailto:${email}`}
-                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-sky-500/40 bg-sky-500/10 text-sky-600 hover:bg-sky-500/20">
-                          <Mail className="h-3.5 w-3.5" />
-                        </a>
-                      )}
-                      {whatsapp && (
-                        <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
-                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">
-                          <MessageCircle className="h-3.5 w-3.5" />
-                        </a>
-                      )}
-                      {linkedin && (
-                        <a href={linkedin} target="_blank" rel="noreferrer"
-                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-blue-500/40 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20">
-                          <Linkedin className="h-3.5 w-3.5" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
+                        {linkedin && (
+                          <IconButton size="small" component="a" href={linkedin} target="_blank" rel="noreferrer" sx={{ width: 28, height: 28, border: "1px solid rgba(59,130,246,0.4)", bgcolor: "rgba(59,130,246,0.1)", color: "#60a5fa", "&:hover": { bgcolor: "rgba(59,130,246,0.2)" } }}>
+                            <LinkedInIcon sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        )}
+                      </Stack>
+                    </Stack>
+                  </Box>
                 );
               })}
-            </div>
+            </Stack>
           ) : company.socios_resumo ? (
-            <div className="text-xs text-foreground/80 space-y-1">
-              {company.socios_resumo.split("\n").map((s, i) => <p key={i}>{s}</p>)}
-            </div>
+            <Stack spacing={0.5}>
+              {company.socios_resumo.split("\n").map((s, i) => <Typography key={i} variant="caption" color="text.secondary">{s}</Typography>)}
+            </Stack>
           ) : null}
-        </section>
-      )}
+        </Box>
+      ) : null}
 
-      <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-              <ShieldCheck className="h-3 w-3" /> Contact Intelligence
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground/70">
+      {/* Contact Intelligence */}
+      <Box sx={sectionSx}>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2} sx={{ mb: 1.5 }}>
+          <Box>
+            <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", color: "text.secondary", display: "flex", alignItems: "center", gap: 0.5 }}>
+              <VerifiedUserIcon sx={{ fontSize: 12 }} /> Contact Intelligence
+            </Typography>
+            <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: "block" }}>
               Domínio validado, padrão corporativo, caixas gerais e decisores resolvidos.
-            </p>
-          </div>
+            </Typography>
+          </Box>
           <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5 border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/15"
+            size="small"
+            variant="outlined"
+            startIcon={isResolvingContactIntel ? <CircularProgress size={14} /> : <VerifiedUserIcon />}
             onClick={onResolveContactIntel}
             disabled={isResolvingContactIntel || !onResolveContactIntel}
+            sx={{ border: "1px solid rgba(139,92,246,0.3)", color: "#c4b5fd", bgcolor: "rgba(139,92,246,0.1)", whiteSpace: "nowrap", "&:hover": { bgcolor: "rgba(139,92,246,0.15)" } }}
           >
-            {isResolvingContactIntel ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
             {contactIntel ? "Atualizar" : "Resolver"}
           </Button>
-        </div>
+        </Stack>
 
         {contactIntel ? (
-          <div className="space-y-3">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Domínio</p>
-                <p className="mt-1 break-all text-xs font-medium text-foreground">
-                  {contactIntel.domain_profile.domain || "Não resolvido"}
-                </p>
-                {contactIntel.domain_profile.site_url && (
-                  <a
-                    href={contactIntel.domain_profile.site_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-1 inline-flex text-[11px] text-primary hover:underline"
-                  >
-                    {contactIntel.domain_profile.site_url.replace(/^https?:\/\//, "")}
-                  </a>
-                )}
-              </div>
-              <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Padrão</p>
-                <p className="mt-1 text-xs font-medium text-foreground">
-                  {formatIntelPattern(contactIntel.domain_profile.email_pattern)}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground/70">
-                  Confiança {formatIntelPercent(contactIntel.domain_profile.pattern_confidence)}
-                </p>
-              </div>
-              <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Emails acionáveis</p>
-                <p className="mt-1 text-xs font-medium text-foreground">
-                  {contactIntel.summary.deliverable ?? 0}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground/70">
-                  {contactIntel.summary.verified ?? 0} verificados
-                </p>
-              </div>
-              <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Decisores</p>
-                <p className="mt-1 text-xs font-medium text-foreground">
-                  {contactIntel.summary.decision_makers ?? 0}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground/70">
-                  {contactIntel.summary.sourced ?? 0} sourced · {contactIntel.summary.guessed ?? 0} guessed
-                </p>
-              </div>
-            </div>
+          <Stack spacing={2}>
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+              {[
+                { label: "Domínio", value: contactIntel.domain_profile.domain || "Não resolvido", sub: contactIntel.domain_profile.site_url?.replace(/^https?:\/\//, "") },
+                { label: "Padrão", value: formatIntelPattern(contactIntel.domain_profile.email_pattern), sub: `Confiança ${formatIntelPercent(contactIntel.domain_profile.pattern_confidence)}` },
+                { label: "Emails acionáveis", value: String(contactIntel.summary.deliverable ?? 0), sub: `${contactIntel.summary.verified ?? 0} verificados` },
+                { label: "Decisores", value: String(contactIntel.summary.decision_makers ?? 0), sub: `${contactIntel.summary.sourced ?? 0} sourced · ${contactIntel.summary.guessed ?? 0} guessed` },
+              ].map(item => (
+                <Box key={item.label} sx={{ border: "1px solid rgba(255,255,255,0.07)", borderRadius: "8px", bgcolor: "rgba(255,255,255,0.02)", p: 1.5 }}>
+                  <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em" }}>{item.label}</Typography>
+                  <Typography variant="body2" fontWeight={500} sx={{ mt: 0.5, wordBreak: "break-all" }}>{item.value}</Typography>
+                  {item.sub && <Typography variant="caption" color="text.disabled">{item.sub}</Typography>}
+                </Box>
+              ))}
+            </Box>
 
             {(contactIntel.domain_profile.generic_inboxes?.length ?? 0) > 0 && (
-              <div className="space-y-1.5">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Caixas gerais</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {(contactIntel.domain_profile.generic_inboxes ?? []).slice(0, 6).map((item) => (
-                    <Badge key={item.email} variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-700">
-                      {item.email}
-                    </Badge>
+              <Box>
+                <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", display: "block", mb: 1 }}>Caixas gerais</Typography>
+                <Stack direction="row" flexWrap="wrap" spacing={0.75}>
+                  {(contactIntel.domain_profile.generic_inboxes ?? []).slice(0, 6).map(item => (
+                    <Chip key={item.email} label={item.email} size="small" color="success" variant="outlined" sx={{ fontSize: 10 }} />
                   ))}
-                </div>
-              </div>
+                </Stack>
+              </Box>
             )}
 
             {(contactIntel.contacts?.length ?? 0) > 0 ? (
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Decisores resolvidos</p>
-                {(contactIntel.contacts ?? []).slice(0, 4).map((contact) => {
-                  const primary = contact.emails.find((item) => item.is_primary) || contact.emails[0];
-                  return (
-                    <div key={`${company.cnpj}-${contact.name}`} className="rounded-lg border border-border/50 bg-muted/30 p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-medium text-foreground">{contact.name}</p>
-                          <p className="mt-1 text-[11px] text-muted-foreground/70">{contact.role || "Decisor potencial"}</p>
-                        </div>
-                        {primary?.verification_status && (
-                          <Badge variant="outline" className={cn("capitalize text-[10px]", intelStatusTone(primary.verification_status))}>
-                            {primary.verification_status}
-                          </Badge>
-                        )}
-                      </div>
-
-                      {primary ? (
-                        <div className="mt-2 space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            <Mail className="h-3.5 w-3.5 text-sky-600" />
-                            <a href={`mailto:${primary.email}`} className="break-all text-xs font-medium text-foreground hover:underline">
-                              {primary.email}
-                            </a>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5 text-[11px] text-muted-foreground/70">
-                            <span>Score {formatIntelPercent(primary.score_total)}</span>
-                            <span>·</span>
-                            <span>{primary.kind === "sourced" ? "Sourced" : "Guessed"}</span>
-                            {primary.source_label && (
-                              <>
-                                <span>·</span>
-                                <span>{primary.source_label}</span>
-                              </>
-                            )}
-                          </div>
-                          {contact.linkedin && (
-                            <a
-                              href={contact.linkedin}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 text-[11px] text-cyan-300 hover:underline"
-                            >
-                              <Linkedin className="h-3 w-3" />
-                              Abrir LinkedIn
-                            </a>
+              <Box>
+                <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", display: "block", mb: 1 }}>Decisores resolvidos</Typography>
+                <Stack spacing={1.5}>
+                  {(contactIntel.contacts ?? []).slice(0, 4).map(contact => {
+                    const primary = contact.emails.find(item => item.is_primary) || contact.emails[0];
+                    return (
+                      <Box key={`${company.cnpj}-${contact.name}`} sx={{ border: "1px solid rgba(255,255,255,0.07)", borderRadius: "8px", bgcolor: "rgba(255,255,255,0.02)", p: 1.5 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+                          <Box>
+                            <Typography variant="caption" fontWeight={500}>{contact.name}</Typography>
+                            <Typography variant="caption" color="text.disabled" display="block">{contact.role || "Decisor potencial"}</Typography>
+                          </Box>
+                          {primary?.verification_status && (
+                            <Chip label={primary.verification_status} size="small" color={intelStatusColor(primary.verification_status)} variant="outlined" sx={{ fontSize: 10, height: 18, textTransform: "capitalize" }} />
                           )}
-                        </div>
-                      ) : (
-                        <p className="mt-2 text-[11px] text-muted-foreground/70">Sem email resolvido para este contato.</p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                        </Stack>
+                        {primary ? (
+                          <Box sx={{ mt: 1.5 }}>
+                            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.75 }}>
+                              <MailIcon sx={{ fontSize: 14, color: "#0ea5e9" }} />
+                              <Typography component="a" href={`mailto:${primary.email}`} variant="caption" fontWeight={500} sx={{ color: "text.primary", wordBreak: "break-all", "&:hover": { textDecoration: "underline" } }}>{primary.email}</Typography>
+                            </Stack>
+                            <Stack direction="row" flexWrap="wrap" spacing={0.5}>
+                              <Typography variant="caption" color="text.disabled">Score {formatIntelPercent(primary.score_total)}</Typography>
+                              <Typography variant="caption" color="text.disabled">·</Typography>
+                              <Typography variant="caption" color="text.disabled">{primary.kind === "sourced" ? "Sourced" : "Guessed"}</Typography>
+                              {primary.source_label && <>
+                                <Typography variant="caption" color="text.disabled">·</Typography>
+                                <Typography variant="caption" color="text.disabled">{primary.source_label}</Typography>
+                              </>}
+                            </Stack>
+                            {contact.linkedin && (
+                              <Typography component="a" href={contact.linkedin} target="_blank" rel="noreferrer" variant="caption" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, color: "#67e8f9", "&:hover": { textDecoration: "underline" }, mt: 0.75 }}>
+                                <LinkedInIcon sx={{ fontSize: 12 }} /> Abrir LinkedIn
+                              </Typography>
+                            )}
+                          </Box>
+                        ) : (
+                          <Typography variant="caption" color="text.disabled" sx={{ mt: 1, display: "block" }}>Sem email resolvido para este contato.</Typography>
+                        )}
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              </Box>
             ) : (
-              <div className="rounded-lg border border-dashed border-border bg-muted/20 p-3 text-xs text-muted-foreground">
-                Nenhum decisor resolvido ainda. Rode a resolução para inferir padrão de email e validar contatos.
-              </div>
+              <Box sx={{ border: "1px dashed rgba(255,255,255,0.1)", borderRadius: "8px", p: 1.5 }}>
+                <Typography variant="caption" color="text.disabled">
+                  Nenhum decisor resolvido ainda. Rode a resolução para inferir padrão de email e validar contatos.
+                </Typography>
+              </Box>
             )}
-          </div>
+          </Stack>
         ) : (
-          <div className="rounded-lg border border-dashed border-border bg-muted/20 p-3 text-xs text-muted-foreground">
-            Este lead ainda não passou pelo módulo Hunter-style. Use o botão acima para carregar do cache ou resolver agora.
-          </div>
+          <Box sx={{ border: "1px dashed rgba(255,255,255,0.1)", borderRadius: "8px", p: 1.5 }}>
+            <Typography variant="caption" color="text.disabled">
+              Este lead ainda não passou pelo módulo Hunter-style. Use o botão acima para carregar do cache ou resolver agora.
+            </Typography>
+          </Box>
         )}
-      </section>
+      </Box>
 
-      {/* Enviar para CRM */}
-      <section className="rounded-xl border border-border bg-muted/20 p-4">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Integração</p>
-        <Button size="sm" variant="outline" className="gap-1.5 border-sky-700 text-sky-600 hover:bg-sky-900/20"
-          onClick={() => setCrmOpen(true)}>
-          <Building2 className="h-3.5 w-3.5" /> Enviar para CRM
+      {/* Integração */}
+      <Box sx={sectionSx}>
+        <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", color: "text.secondary", display: "block", mb: 1.5 }}>Integração</Typography>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<BusinessIcon />}
+          onClick={() => setCrmOpen(true)}
+          sx={{ border: "1px solid rgba(14,165,233,0.4)", color: "#0ea5e9", "&:hover": { bgcolor: "rgba(14,165,233,0.08)" } }}
+        >
+          Enviar para CRM
         </Button>
-      </section>
+      </Box>
 
       <CrmExportModal open={crmOpen} onClose={() => setCrmOpen(false)} empresa={company} />
-    </div>
+    </Stack>
   );
 }
 
@@ -930,6 +995,7 @@ function EmpresaCard({
   onResolveContactIntel?: () => void;
 }) {
   const [mensagemOpen, setMensagemOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handlePipeline = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -942,101 +1008,125 @@ function EmpresaCard({
   };
 
   return (
-    <div className={cn(
-      "group relative rounded-xl border bg-muted/40 p-4 transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-black/30",
-      selected ? "border-primary/60 bg-primary/5" : "border-border"
-    )}>
-      {/* Checkbox */}
-      <div className="absolute left-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-        <Checkbox checked={selected} onCheckedChange={onSelect} className="border-border" />
-      </div>
+    <Card sx={{
+      border: selected ? "1px solid rgba(249,115,22,0.6)" : "1px solid rgba(255,255,255,0.07)",
+      bgcolor: selected ? "rgba(249,115,22,0.05)" : "#181818",
+      borderRadius: "12px",
+      position: "relative",
+      transition: "border-color 0.15s, box-shadow 0.15s",
+      "&:hover": { borderColor: "rgba(249,115,22,0.3)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" },
+      "&:hover .card-checkbox": { opacity: 1 },
+      "&:hover .card-detail-btn": { opacity: 1 },
+    }}>
+      <CardContent sx={{ p: 2 }}>
+        {/* Checkbox */}
+        <Box
+          className="card-checkbox"
+          sx={{ position: "absolute", left: 12, top: 12, opacity: selected ? 1 : 0, transition: "opacity 0.15s", zIndex: 1 }}
+          onClick={e => e.stopPropagation()}
+        >
+          <Checkbox size="small" checked={selected} onChange={e => onSelect(e.target.checked)} sx={{ p: 0 }} />
+        </Box>
 
-      {/* Header */}
-      <div className="flex items-start gap-3 mb-3">
-        <div className={cn("flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white", avatarColor(emp.segmento))}>
-          {initials(emp.nome_fantasia || emp.razao_social)}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm text-foreground leading-tight truncate">
-            {emp.nome_fantasia || emp.razao_social}
-          </p>
-          <p className="text-[11px] text-muted-foreground/70 truncate">{emp.razao_social}</p>
-        </div>
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-              <ExternalLink className="h-3.5 w-3.5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent className="w-full max-w-md overflow-y-auto border-l border-border bg-background">
-            <SheetHeader className="mb-6">
-              <SheetTitle className="flex flex-col gap-1">
-                <span className="text-[10px] font-normal uppercase tracking-widest text-muted-foreground">Visão detalhada</span>
-                <span className="text-base font-semibold">{emp.nome_fantasia || emp.razao_social}</span>
-              </SheetTitle>
-            </SheetHeader>
-            <DetalheEmpresa
-              company={emp}
-              contactIntel={contactIntel ?? null}
-              isResolvingContactIntel={isResolvingContactIntel}
-              onResolveContactIntel={onResolveContactIntel}
-            />
-          </SheetContent>
-        </Sheet>
-      </div>
+        {/* Header */}
+        <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ mb: 1.5 }}>
+          <Box sx={{
+            width: 40, height: 40, flexShrink: 0, borderRadius: "10px",
+            bgcolor: avatarBg(emp.segmento), display: "flex",
+            alignItems: "center", justifyContent: "center",
+            fontSize: 14, fontWeight: 700, color: "#fff",
+          }}>
+            {initials(emp.nome_fantasia || emp.razao_social)}
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={600} noWrap>{emp.nome_fantasia || emp.razao_social}</Typography>
+            <Typography variant="caption" color="text.disabled" noWrap>{emp.razao_social}</Typography>
+          </Box>
+          <Tooltip title="Ver detalhes">
+            <IconButton
+              className="card-detail-btn"
+              size="small"
+              onClick={() => setDrawerOpen(true)}
+              sx={{ opacity: 0, transition: "opacity 0.15s", width: 28, height: 28 }}
+            >
+              <OpenInNewIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Tooltip>
+        </Stack>
 
-      {/* Badges */}
-      <div className="flex flex-wrap gap-1 mb-3">
-        {emp.segmento && (
-          <Badge variant="outline" className="border-border bg-muted/50 text-[10px] text-foreground/80">
-            {emp.segmento}
-          </Badge>
-        )}
-        {emp.porte && (
-          <Badge variant="outline" className={cn("text-[10px]", getPorteBadge(emp.porte))}>
-            {emp.porte}
-          </Badge>
-        )}
-        <Badge variant="outline" className="border-border bg-muted/50 text-[10px] text-muted-foreground">
-          <MapPin className="mr-1 h-2.5 w-2.5" />{emp.cidade || "—"}
-        </Badge>
-      </div>
+        {/* Badges */}
+        <Stack direction="row" flexWrap="wrap" spacing={0.5} sx={{ mb: 1.5 }}>
+          {emp.segmento && <Chip label={emp.segmento} size="small" variant="outlined" sx={{ fontSize: 10, height: 20 }} />}
+          {emp.porte && <Chip label={emp.porte} size="small" color={getPorteColor(emp.porte)} variant="outlined" sx={{ fontSize: 10, height: 20 }} />}
+          <Chip
+            icon={<LocationOnIcon sx={{ fontSize: 10 }} />}
+            label={emp.cidade || "—"}
+            size="small"
+            variant="outlined"
+            sx={{ fontSize: 10, height: 20 }}
+          />
+        </Stack>
 
-      {/* Métricas */}
-      <div className="grid grid-cols-2 gap-2 mb-3">
-        <div className="rounded-lg bg-muted/30 px-2.5 py-1.5">
-          <p className="text-[10px] text-muted-foreground/70">Capital</p>
-          <p className="text-xs font-medium text-foreground">{formatBRL(emp.capital_social)}</p>
-        </div>
-        <div className="rounded-lg bg-muted/30 px-2.5 py-1.5">
-          <p className="text-[10px] text-muted-foreground/70">Score ICP</p>
-          <ScoreBar score={emp.score_icp} />
-        </div>
-      </div>
+        {/* Métricas */}
+        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, mb: 1.5 }}>
+          <Box sx={{ borderRadius: "8px", bgcolor: "rgba(255,255,255,0.03)", px: 1.25, py: 1 }}>
+            <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10 }}>Capital</Typography>
+            <Typography variant="caption" fontWeight={500} display="block">{formatBRL(emp.capital_social)}</Typography>
+          </Box>
+          <Box sx={{ borderRadius: "8px", bgcolor: "rgba(255,255,255,0.03)", px: 1.25, py: 1 }}>
+            <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10 }}>Score ICP</Typography>
+            <ScoreBar score={emp.score_icp} />
+          </Box>
+        </Box>
 
-      {/* Ações de contato */}
-      <ContactRow emp={emp} />
+        {/* Ações de contato */}
+        <ContactRow emp={emp} />
 
-      {/* Ações rápidas */}
-      <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/60">
-        <Button
-          size="sm" variant="ghost"
-          className="flex-1 h-6 gap-1 text-[10px] text-muted-foreground/70 hover:text-primary hover:bg-primary/10"
-          onClick={handlePipeline}>
-          <Target className="h-3 w-3" /> Pipeline + SDR
-        </Button>
-        <Button
-          size="sm" variant="ghost"
-          className="flex-1 h-6 gap-1 text-[10px] text-muted-foreground/70 hover:text-amber-600 hover:bg-amber-400/10"
-          onClick={e => { e.stopPropagation(); setMensagemOpen(true); }}>
-          <Wand2 className="h-3 w-3" /> Abordar
-        </Button>
-      </div>
+        {/* Ações rápidas */}
+        <Stack direction="row" spacing={0.5} sx={{ mt: 1.5, pt: 1.5, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <Button
+            size="small"
+            variant="text"
+            startIcon={<TrackChangesIcon sx={{ fontSize: 12 }} />}
+            onClick={handlePipeline}
+            sx={{ flex: 1, fontSize: 10, color: "text.disabled", "&:hover": { color: "primary.main", bgcolor: "rgba(249,115,22,0.08)" } }}
+          >
+            Pipeline + SDR
+          </Button>
+          <Button
+            size="small"
+            variant="text"
+            startIcon={<AutoFixHighIcon sx={{ fontSize: 12 }} />}
+            onClick={e => { e.stopPropagation(); setMensagemOpen(true); }}
+            sx={{ flex: 1, fontSize: 10, color: "text.disabled", "&:hover": { color: "#f59e0b", bgcolor: "rgba(245,158,11,0.08)" } }}
+          >
+            Abordar
+          </Button>
+        </Stack>
+      </CardContent>
+
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        PaperProps={{ sx: { width: 440, maxWidth: "100vw", bgcolor: "#0F0F0F", borderLeft: "1px solid rgba(255,255,255,0.07)", overflowY: "auto" } }}
+      >
+        <Box sx={{ p: 3 }}>
+          <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", display: "block", mb: 0.5 }}>Visão detalhada</Typography>
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 3 }}>{emp.nome_fantasia || emp.razao_social}</Typography>
+          <DetalheEmpresa
+            company={emp}
+            contactIntel={contactIntel ?? null}
+            isResolvingContactIntel={isResolvingContactIntel}
+            onResolveContactIntel={onResolveContactIntel}
+          />
+        </Box>
+      </Drawer>
 
       {mensagemOpen && (
         <MensagemModal empresa={emp} open={mensagemOpen} onClose={() => setMensagemOpen(false)} />
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -1071,6 +1161,9 @@ const ResultsPage = () => {
   const [suppressionReason, setSuppressionReason] = useState("");
   const [savingSuppressionSelection, setSavingSuppressionSelection] = useState(false);
   const [expandingSimilar, setExpandingSimilar] = useState(false);
+  const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(null);
+  const [exportMenuAnchor, setExportMenuAnchor] = useState<null | HTMLElement>(null);
+  const [detailDrawerEmp, setDetailDrawerEmp] = useState<Empresa | null>(null);
 
   const refreshLeadRegistryMeta = async () => {
     const [lists, suppressions] = await Promise.all([
@@ -1610,248 +1703,272 @@ const ResultsPage = () => {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-5 p-1">
+    <Stack spacing={3} sx={{ p: 0.5 }}>
 
-      {/* ── Cabeçalho ─────────────────────────────────────────────────────── */}
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Resultados da Prospecção</h2>
+      {/* Cabeçalho */}
+      <Box>
+        <Typography variant="h5" fontWeight={600} letterSpacing="-0.02em">Resultados da Prospecção</Typography>
         {execucao && (
-          <p className="mt-1 text-sm text-muted-foreground">
-            <span className="font-medium">{execucao.termo || "Sem termo"}</span>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            <strong>{execucao.termo || "Sem termo"}</strong>
             {" · "}{execucao.cidade} / {execucao.uf}
-            {" · "}<span className="font-semibold text-foreground">{execucao.total_empresas}</span> empresas
-          </p>
+            {" · "}<strong style={{ color: "#F0F0F0" }}>{execucao.total_empresas}</strong> empresas
+          </Typography>
         )}
-      </div>
+      </Box>
 
-      {/* ── Stats cards ───────────────────────────────────────────────────── */}
+      {/* Stats cards */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 1.5 }}>
           {[
-            { icon: Building2,  label: "Total",       value: stats.t,                         fmt: (v: number) => v.toString(),              color: "text-foreground" },
-            { icon: Mail,       label: "Com e-mail",  value: stats.comEmail,                   fmt: (v: number) => `${v} (${Math.round(v/stats.t*100)}%)`, color: "text-sky-600" },
-            { icon: MessageCircle, label: "WhatsApp", value: stats.comWa,                      fmt: (v: number) => `${v} (${Math.round(v/stats.t*100)}%)`, color: "text-emerald-600" },
-            { icon: TrendingUp, label: "Score médio", value: stats.scoreAvg,                   fmt: (v: number) => v.toFixed(1),              color: "text-amber-600" },
+            { Icon: BusinessIcon, label: "Total", value: stats.t, fmt: (v: number) => String(v), color: "#F0F0F0" },
+            { Icon: MailIcon, label: "Com e-mail", value: stats.comEmail, fmt: (v: number) => `${v} (${Math.round(v/stats.t*100)}%)`, color: "#0ea5e9" },
+            { Icon: ChatIcon, label: "WhatsApp", value: stats.comWa, fmt: (v: number) => `${v} (${Math.round(v/stats.t*100)}%)`, color: "#10b981" },
+            { Icon: TrendingUpIcon, label: "Score médio", value: stats.scoreAvg, fmt: (v: number) => v.toFixed(1), color: "#f59e0b" },
           ].map(s => (
-            <Card key={s.label} className="border-border bg-card shadow-surface-sm">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
-                  <s.icon className={cn("h-4 w-4", s.color)} />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
-                  <p className={cn("text-lg font-bold leading-tight", s.color)}>{s.fmt(s.value)}</p>
-                </div>
+            <Card key={s.label} sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+              <CardContent sx={{ p: 2, display: "flex", alignItems: "center", gap: 1.5, "&:last-child": { pb: 2 } }}>
+                <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <s.Icon sx={{ fontSize: 18, color: s.color }} />
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">{s.label}</Typography>
+                  <Typography variant="h6" sx={{ fontSize: 18, fontWeight: 700, color: s.color, lineHeight: 1.2 }}>{s.fmt(s.value)}</Typography>
+                </Box>
               </CardContent>
             </Card>
           ))}
-        </div>
+        </Box>
       )}
 
-      {/* ── Toolbar ───────────────────────────────────────────────────────── */}
-      <div className="space-y-2">
-        <div className="flex flex-col sm:flex-row gap-2">
+      {/* Toolbar */}
+      <Stack spacing={1.5}>
+        <Stack direction="row" flexWrap="wrap" spacing={1} alignItems="center">
           {/* Search */}
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar empresa, CNPJ, cidade, segmento..."
-              className="pl-9 h-9 bg-muted/30 border-border"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm("")} className="absolute right-3 top-2.5">
-                <X className="h-4 w-4 text-muted-foreground/70 hover:text-foreground" />
-              </button>
-            )}
-          </div>
+          <TextField
+            size="small"
+            placeholder="Buscar empresa, CNPJ, cidade, segmento..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            sx={{ flex: "1 1 280px", minWidth: 200 }}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 18, color: "text.disabled" }} /></InputAdornment>,
+              endAdornment: searchTerm ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearchTerm("")} sx={{ p: 0.25 }}>
+                    <CloseIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            }}
+          />
 
           {/* Sort */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 h-9 border-border bg-muted/30">
-                <ArrowUpDown className="h-3.5 w-3.5" />
-                Ordenar
-                <ChevronDown className="h-3 w-3 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {([
-                { key: "score_icp",      label: "Score ICP" },
-                { key: "capital_social", label: "Capital Social" },
-                { key: "razao_social",   label: "Nome (A–Z)" },
-              ] as { key: SortKey; label: string }[]).map(o => (
-                <DropdownMenuItem key={o.key}
-                  className={cn(sortKey === o.key && "text-primary")}
-                  onClick={() => { if (sortKey === o.key) setSortAsc(p => !p); else { setSortKey(o.key); setSortAsc(false); } }}>
-                  {o.label} {sortKey === o.key && (sortAsc ? "↑" : "↓")}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<SwapVertIcon />}
+            endIcon={<KeyboardArrowDownIcon />}
+            onClick={e => setSortMenuAnchor(e.currentTarget)}
+            sx={{ height: 36, border: "1px solid rgba(255,255,255,0.14)", bgcolor: "rgba(255,255,255,0.03)" }}
+          >
+            Ordenar
+          </Button>
+          <Menu anchorEl={sortMenuAnchor} open={Boolean(sortMenuAnchor)} onClose={() => setSortMenuAnchor(null)}>
+            {([
+              { key: "score_icp", label: "Score ICP" },
+              { key: "capital_social", label: "Capital Social" },
+              { key: "razao_social", label: "Nome (A–Z)" },
+            ] as { key: SortKey; label: string }[]).map(o => (
+              <MenuItem
+                key={o.key}
+                selected={sortKey === o.key}
+                onClick={() => {
+                  if (sortKey === o.key) setSortAsc(p => !p);
+                  else { setSortKey(o.key); setSortAsc(false); }
+                  setSortMenuAnchor(null);
+                }}
+              >
+                {o.label} {sortKey === o.key && (sortAsc ? "↑" : "↓")}
+              </MenuItem>
+            ))}
+          </Menu>
 
           {/* View toggle */}
-          <div className="flex rounded-lg border border-border overflow-hidden">
-            <button
+          <Box sx={{ display: "flex", border: "1px solid rgba(255,255,255,0.14)", borderRadius: "8px", overflow: "hidden" }}>
+            <IconButton
+              size="small"
               onClick={() => setViewMode("cards")}
-              className={cn("flex h-9 w-9 items-center justify-center transition-colors",
-                viewMode === "cards" ? "bg-primary/20 text-primary" : "bg-muted/30 text-muted-foreground/70 hover:text-foreground/80")}>
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
+              sx={{ width: 36, height: 36, borderRadius: 0, bgcolor: viewMode === "cards" ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.03)", color: viewMode === "cards" ? "primary.main" : "text.disabled" }}
+            >
+              <GridViewIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+            <IconButton
+              size="small"
               onClick={() => setViewMode("table")}
-              className={cn("flex h-9 w-9 items-center justify-center transition-colors",
-                viewMode === "table" ? "bg-primary/20 text-primary" : "bg-muted/30 text-muted-foreground/70 hover:text-foreground/80")}>
-              <List className="h-4 w-4" />
-            </button>
-          </div>
+              sx={{ width: 36, height: 36, borderRadius: 0, bgcolor: viewMode === "table" ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.03)", color: viewMode === "table" ? "primary.main" : "text.disabled" }}
+            >
+              <ListIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Box>
 
           {/* Export */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 h-9 border-border bg-muted/30">
-                <Download className="h-3.5 w-3.5" />
-                Exportar
-                <ChevronDown className="h-3 w-3 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => downloadCsv(filtered, "hermes-filtrados")}>
-                CSV — resultados filtrados ({filtered.length})
-              </DropdownMenuItem>
-              {selected.size > 0 && <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={exportSelected}>
-                  CSV — selecionados ({selected.size})
-                </DropdownMenuItem>
-              </>}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => downloadCsv(visibleEmpresas, "hermes-todos")}>
-                CSV — todos ({visibleEmpresas.length})
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<DownloadIcon />}
+            endIcon={<KeyboardArrowDownIcon />}
+            onClick={e => setExportMenuAnchor(e.currentTarget)}
+            sx={{ height: 36, border: "1px solid rgba(255,255,255,0.14)", bgcolor: "rgba(255,255,255,0.03)" }}
+          >
+            Exportar
+          </Button>
+          <Menu anchorEl={exportMenuAnchor} open={Boolean(exportMenuAnchor)} onClose={() => setExportMenuAnchor(null)}>
+            <MenuItem onClick={() => { downloadCsv(filtered, "hermes-filtrados"); setExportMenuAnchor(null); }}>
+              CSV — resultados filtrados ({filtered.length})
+            </MenuItem>
+            {selected.size > 0 && [
+              <Divider key="div1" />,
+              <MenuItem key="sel" onClick={() => { exportSelected(); setExportMenuAnchor(null); }}>
+                CSV — selecionados ({selected.size})
+              </MenuItem>,
+            ]}
+            <Divider />
+            <MenuItem onClick={() => { downloadCsv(visibleEmpresas, "hermes-todos"); setExportMenuAnchor(null); }}>
+              CSV — todos ({visibleEmpresas.length})
+            </MenuItem>
+          </Menu>
+
+          {/* Selection actions */}
           {selected.size > 0 && (
             <>
               <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 h-9 border-cyan-500/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/15"
+                variant="outlined"
+                size="small"
+                startIcon={<CreateNewFolderIcon />}
                 onClick={() => setSaveListOpen(true)}
+                sx={{ height: 36, border: "1px solid rgba(14,165,233,0.3)", color: "#67e8f9", bgcolor: "rgba(14,165,233,0.08)", "&:hover": { bgcolor: "rgba(14,165,233,0.14)" } }}
               >
-                <FolderPlus className="h-3.5 w-3.5" />
                 Salvar em lista ({selected.size})
               </Button>
               <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 h-9 border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15"
+                variant="outlined"
+                size="small"
+                startIcon={<GppBadIcon />}
                 onClick={() => setSuppressSelectionOpen(true)}
+                sx={{ height: 36, border: "1px solid rgba(245,158,11,0.3)", color: "#fcd34d", bgcolor: "rgba(245,158,11,0.08)", "&:hover": { bgcolor: "rgba(245,158,11,0.14)" } }}
               >
-                <ShieldBan className="h-3.5 w-3.5" />
                 Suprimir ({selected.size})
               </Button>
               <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 h-9 border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/15"
+                variant="outlined"
+                size="small"
+                startIcon={resolvingIntelBatch ? <CircularProgress size={14} /> : <VerifiedUserIcon />}
                 onClick={resolverSelecionadasContactIntel}
                 disabled={resolvingIntelBatch}
+                sx={{ height: 36, border: "1px solid rgba(139,92,246,0.3)", color: "#c4b5fd", bgcolor: "rgba(139,92,246,0.08)", "&:hover": { bgcolor: "rgba(139,92,246,0.14)" } }}
               >
-                {resolvingIntelBatch ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
                 Hunter Core ({selected.size})
               </Button>
               <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 h-9 border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15"
+                variant="outlined"
+                size="small"
+                startIcon={expandingSimilar ? <CircularProgress size={14} /> : <AutoFixHighIcon />}
                 onClick={expandirSelecionadasParecidas}
                 disabled={expandingSimilar}
+                sx={{ height: 36, border: "1px solid rgba(245,158,11,0.3)", color: "#fcd34d", bgcolor: "rgba(245,158,11,0.08)", "&:hover": { bgcolor: "rgba(245,158,11,0.14)" } }}
               >
-                {expandingSimilar ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
                 Parecidas ({Math.min(selected.size, 5)})
               </Button>
               <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 h-9 border-primary/40 bg-primary/10 text-primary hover:bg-primary/15"
+                variant="outlined"
+                size="small"
+                startIcon={<TrackChangesIcon />}
                 onClick={enviarSelecionadasParaPipelineESDR}
+                sx={{ height: 36, border: "1px solid rgba(249,115,22,0.4)", color: "#f97316", bgcolor: "rgba(249,115,22,0.08)", "&:hover": { bgcolor: "rgba(249,115,22,0.14)" } }}
               >
-                <Target className="h-3.5 w-3.5" />
                 Pipeline + SDR ({selected.size})
               </Button>
             </>
           )}
-        </div>
+        </Stack>
 
         {/* Filter chips */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-muted-foreground/70">Filtrar:</span>
+        <Stack direction="row" flexWrap="wrap" alignItems="center" spacing={1}>
+          <Typography variant="caption" color="text.disabled" sx={{ fontSize: 11 }}>Filtrar:</Typography>
           {([
-            { id: "com_email",    label: "Com e-mail",  icon: Mail },
-            { id: "com_whatsapp", label: "Com WhatsApp",icon: MessageCircle },
-            { id: "com_linkedin", label: "Com LinkedIn",icon: Linkedin },
-            { id: "com_site",     label: "Com site",    icon: Globe },
-          ] as { id: FilterChip; label: string; icon: React.FC<{className?: string}> }[]).map(chip => {
+            { id: "com_email" as FilterChip, label: "Com e-mail", Icon: MailIcon },
+            { id: "com_whatsapp" as FilterChip, label: "Com WhatsApp", Icon: ChatIcon },
+            { id: "com_linkedin" as FilterChip, label: "Com LinkedIn", Icon: LinkedInIcon },
+            { id: "com_site" as FilterChip, label: "Com site", Icon: LanguageIcon },
+          ]).map(chip => {
             const on = activeChips.includes(chip.id);
             return (
-              <button key={chip.id} onClick={() => toggleChip(chip.id)}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-all",
-                  on ? "border-primary/60 bg-primary/15 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-primary/30"
-                )}>
-                <chip.icon className="h-2.5 w-2.5" />
-                {chip.label}
-              </button>
+              <Chip
+                key={chip.id}
+                label={chip.label}
+                icon={<chip.Icon sx={{ fontSize: 12 }} />}
+                size="small"
+                onClick={() => toggleChip(chip.id)}
+                variant={on ? "filled" : "outlined"}
+                color={on ? "primary" : "default"}
+                sx={{ fontSize: 11, height: 24, cursor: "pointer" }}
+              />
             );
           })}
 
-          {/* Contadores direita */}
-          <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground/70">
+          <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 1.5 }}>
             {selected.size > 0 && (
-              <span className="flex items-center gap-1 text-primary font-medium">
-                <CheckSquare2 className="h-3.5 w-3.5" />
+              <Typography variant="caption" sx={{ color: "primary.main", fontWeight: 500, display: "flex", alignItems: "center", gap: 0.5 }}>
+                <CheckBoxIcon sx={{ fontSize: 14 }} />
                 {selected.size} selecionadas
-              </span>
+              </Typography>
             )}
             {suppressedCount > 0 && (
-              <span>{suppressedCount} suprimidas</span>
+              <Typography variant="caption" color="text.disabled">{suppressedCount} suprimidas</Typography>
             )}
-            <span>{filtered.length} de {visibleEmpresas.length}</span>
-          </div>
-        </div>
-      </div>
+            <Typography variant="caption" color="text.disabled">{filtered.length} de {visibleEmpresas.length}</Typography>
+          </Box>
+        </Stack>
+      </Stack>
 
-      {/* ── Conteúdo ──────────────────────────────────────────────────────── */}
+      {/* Conteúdo */}
       {loading ? (
-        <div className="py-16 text-center text-sm text-muted-foreground">
-          Carregando resultados...
-        </div>
+        <Box sx={{ py: 10, textAlign: "center" }}>
+          <CircularProgress size={32} sx={{ color: "primary.main", mb: 2 }} />
+          <Typography variant="body2" color="text.secondary">Carregando resultados...</Typography>
+        </Box>
       ) : filtered.length === 0 ? (
-        <div className="py-16 text-center space-y-2">
-          <Search className="h-8 w-8 text-muted-foreground/40 mx-auto" />
-          <p className="text-sm text-muted-foreground">Nenhuma empresa encontrada com os filtros atuais.</p>
+        <Box sx={{ py: 10, textAlign: "center" }}>
+          <SearchIcon sx={{ fontSize: 40, color: "text.disabled", mb: 2 }} />
+          <Typography variant="body2" color="text.secondary">Nenhuma empresa encontrada com os filtros atuais.</Typography>
           {(searchTerm || activeChips.length > 0) && (
-            <Button variant="ghost" size="sm" onClick={() => { setSearchTerm(""); setActiveChips([]); }}>
+            <Button variant="text" size="small" onClick={() => { setSearchTerm(""); setActiveChips([]); }} sx={{ mt: 1.5 }}>
               Limpar filtros
             </Button>
           )}
-        </div>
+        </Box>
       ) : viewMode === "cards" ? (
 
         /* ─── CARDS ─────────────────────────────────────────────────────── */
         <>
-          {/* Selecionar todos */}
-          <div className="flex items-center gap-2 pb-1">
-            <button onClick={toggleSelectAll}
-              className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70 hover:text-foreground/80 transition-colors">
-              <Checkbox checked={selected.size === filtered.length && filtered.length > 0}
-                onCheckedChange={toggleSelectAll} className="h-3.5 w-3.5 border-border" />
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Checkbox
+              size="small"
+              checked={selected.size === filtered.length && filtered.length > 0}
+              indeterminate={selected.size > 0 && selected.size < filtered.length}
+              onChange={toggleSelectAll}
+            />
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ cursor: "pointer" }}
+              onClick={toggleSelectAll}
+            >
               {selected.size === filtered.length && filtered.length > 0 ? "Desmarcar todos" : "Selecionar todos"}
-            </button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            </Typography>
+          </Stack>
+          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 1.5 }}>
             {filtered.map(emp => (
               <EmpresaCard
                 key={emp.cnpj}
@@ -1863,233 +1980,223 @@ const ResultsPage = () => {
                 onResolveContactIntel={() => void resolveOneContactIntel(emp.cnpj)}
               />
             ))}
-          </div>
+          </Box>
         </>
 
       ) : (
 
         /* ─── TABLE ─────────────────────────────────────────────────────── */
-        <Card className="border-border">
-          <CardHeader className="py-3 px-4 border-b border-border">
-            <div className="flex items-center gap-3">
-              <Checkbox
-                checked={selected.size === filtered.length && filtered.length > 0}
-                onCheckedChange={toggleSelectAll}
-                className="border-border"
-              />
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {filtered.length} empresas
-              </CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border/80 bg-muted/60">
-                    <TableHead className="w-8 pl-4" />
-                    <TableHead>Empresa</TableHead>
-                    <TableHead>Segmento</TableHead>
-                    <TableHead>Localização</TableHead>
-                    <TableHead>Capital</TableHead>
-                    <TableHead>Score ICP</TableHead>
-                    <TableHead>Contatos</TableHead>
-                    <TableHead className="w-10" />
+        <Paper sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px", overflow: "hidden" }}>
+          <Box sx={{ px: 2, py: 1.5, borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Checkbox
+              size="small"
+              checked={selected.size === filtered.length && filtered.length > 0}
+              indeterminate={selected.size > 0 && selected.size < filtered.length}
+              onChange={toggleSelectAll}
+            />
+            <Typography variant="caption" color="text.secondary" fontWeight={500}>
+              {filtered.length} empresas
+            </Typography>
+          </Box>
+          <TableContainer>
+            <Table size="small" stickyHeader>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ width: 32, bgcolor: "#202020", pl: 2 }} />
+                  <TableCell sx={{ bgcolor: "#202020" }}>Empresa</TableCell>
+                  <TableCell sx={{ bgcolor: "#202020" }}>Segmento</TableCell>
+                  <TableCell sx={{ bgcolor: "#202020" }}>Localização</TableCell>
+                  <TableCell sx={{ bgcolor: "#202020" }}>Capital</TableCell>
+                  <TableCell sx={{ bgcolor: "#202020" }}>Score ICP</TableCell>
+                  <TableCell sx={{ bgcolor: "#202020" }}>Contatos</TableCell>
+                  <TableCell sx={{ width: 40, bgcolor: "#202020" }} />
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filtered.map(emp => (
+                  <TableRow
+                    key={emp.cnpj}
+                    sx={{
+                      borderBottom: "1px solid rgba(255,255,255,0.05)",
+                      bgcolor: selected.has(emp.cnpj) ? "rgba(249,115,22,0.06)" : "transparent",
+                      "&:hover": { bgcolor: selected.has(emp.cnpj) ? "rgba(249,115,22,0.08)" : "rgba(255,255,255,0.02)" },
+                    }}
+                  >
+                    <TableCell sx={{ pl: 2, py: 1 }}>
+                      <Checkbox
+                        size="small"
+                        checked={selected.has(emp.cnpj)}
+                        onChange={e => toggleSelect(emp.cnpj, e.target.checked)}
+                        sx={{ p: 0 }}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ py: 1 }}>
+                      <Stack direction="row" alignItems="center" spacing={1.25}>
+                        <Box sx={{
+                          width: 32, height: 32, flexShrink: 0, borderRadius: "8px",
+                          bgcolor: avatarBg(emp.segmento), display: "flex",
+                          alignItems: "center", justifyContent: "center",
+                          fontSize: 12, fontWeight: 700, color: "#fff",
+                        }}>
+                          {initials(emp.nome_fantasia || emp.razao_social)}
+                        </Box>
+                        <Box>
+                          <Typography variant="body2" fontWeight={500} sx={{ lineHeight: 1.3 }}>{emp.nome_fantasia || emp.razao_social}</Typography>
+                          <Typography variant="caption" sx={{ fontFamily: "monospace", fontSize: 10, color: "text.disabled" }}>{emp.cnpj}</Typography>
+                        </Box>
+                      </Stack>
+                    </TableCell>
+                    <TableCell sx={{ py: 1 }}>
+                      {emp.segmento && <Chip label={emp.segmento} size="small" variant="outlined" sx={{ fontSize: 10, height: 20 }} />}
+                    </TableCell>
+                    <TableCell sx={{ py: 1 }}>
+                      <Typography variant="body2">{emp.cidade || "—"}</Typography>
+                      {emp.uf && <Typography variant="caption" color="text.secondary">/ {emp.uf}</Typography>}
+                    </TableCell>
+                    <TableCell sx={{ py: 1 }}>
+                      <Typography variant="body2" fontWeight={500}>{formatBRL(emp.capital_social)}</Typography>
+                    </TableCell>
+                    <TableCell sx={{ py: 1 }}>
+                      <ScoreBar score={emp.score_icp} />
+                    </TableCell>
+                    <TableCell sx={{ py: 1 }}>
+                      <ContactRow emp={emp} />
+                    </TableCell>
+                    <TableCell sx={{ py: 1 }}>
+                      <Tooltip title="Ver detalhes">
+                        <IconButton size="small" onClick={() => setDetailDrawerEmp(emp)} sx={{ width: 32, height: 32 }}>
+                          <OpenInNewIcon sx={{ fontSize: 15 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map(emp => (
-                    <TableRow
-                      key={emp.cnpj}
-                      className={cn(
-                        "border-border/75 transition-colors hover:bg-muted/55",
-                        selected.has(emp.cnpj) && "bg-primary/8",
-                      )}
-                    >
-                      <TableCell className="pl-4">
-                        <Checkbox
-                          checked={selected.has(emp.cnpj)}
-                          onCheckedChange={checked => toggleSelect(emp.cnpj, !!checked)}
-                          className="border-border"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2.5">
-                          <div className={cn("flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white", avatarColor(emp.segmento))}>
-                            {initials(emp.nome_fantasia || emp.razao_social)}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium leading-tight">{emp.nome_fantasia || emp.razao_social}</p>
-                            <p className="font-mono text-[10px] text-muted-foreground/70">{emp.cnpj}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {emp.segmento && (
-                          <Badge variant="outline" className="border-border bg-muted/70 text-[10px] text-foreground/80">
-                            {emp.segmento}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">{emp.cidade || "—"}</span>
-                        {emp.uf && <span className="ml-1 text-xs text-muted-foreground">/ {emp.uf}</span>}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm font-medium">{formatBRL(emp.capital_social)}</span>
-                      </TableCell>
-                      <TableCell>
-                        <ScoreBar score={emp.score_icp} />
-                      </TableCell>
-                      <TableCell>
-                        <ContactRow emp={emp} />
-                      </TableCell>
-                      <TableCell>
-                        <Sheet>
-                          <SheetTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </Button>
-                          </SheetTrigger>
-                          <SheetContent className="w-full max-w-md overflow-y-auto border-l border-border bg-background">
-                            <SheetHeader className="mb-6">
-                              <SheetTitle className="flex flex-col gap-1">
-                                <span className="text-[10px] font-normal uppercase tracking-widest text-muted-foreground">Visão detalhada</span>
-                                <span className="text-base font-semibold">{emp.nome_fantasia || emp.razao_social}</span>
-                              </SheetTitle>
-                            </SheetHeader>
-                            <DetalheEmpresa
-                              company={emp}
-                              contactIntel={contactIntelByCnpj[emp.cnpj] ?? null}
-                              isResolvingContactIntel={resolvingIntelCnpjs.has(emp.cnpj)}
-                              onResolveContactIntel={() => void resolveOneContactIntel(emp.cnpj)}
-                            />
-                          </SheetContent>
-                        </Sheet>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
       )}
 
-      <Dialog open={saveListOpen} onOpenChange={setSaveListOpen}>
-        <DialogContent className="border-border bg-background text-foreground">
-          <DialogHeader>
-            <DialogTitle>Salvar selecao em lista</DialogTitle>
-            <DialogDescription>
-              Guarde esse lote para outreach, revisao ou nova rodada operacional.
-            </DialogDescription>
-          </DialogHeader>
+      {/* Table detail drawer */}
+      <Drawer
+        anchor="right"
+        open={Boolean(detailDrawerEmp)}
+        onClose={() => setDetailDrawerEmp(null)}
+        PaperProps={{ sx: { width: 440, maxWidth: "100vw", bgcolor: "#0F0F0F", borderLeft: "1px solid rgba(255,255,255,0.07)", overflowY: "auto" } }}
+      >
+        {detailDrawerEmp && (
+          <Box sx={{ p: 3 }}>
+            <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", display: "block", mb: 0.5 }}>Visão detalhada</Typography>
+            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 3 }}>{detailDrawerEmp.nome_fantasia || detailDrawerEmp.razao_social}</Typography>
+            <DetalheEmpresa
+              company={detailDrawerEmp}
+              contactIntel={contactIntelByCnpj[detailDrawerEmp.cnpj] ?? null}
+              isResolvingContactIntel={resolvingIntelCnpjs.has(detailDrawerEmp.cnpj)}
+              onResolveContactIntel={() => void resolveOneContactIntel(detailDrawerEmp.cnpj)}
+            />
+          </Box>
+        )}
+      </Drawer>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground/70">Destino</p>
-              <Select value={saveListTarget} onValueChange={setSaveListTarget}>
-                <SelectTrigger className="border-border bg-muted/30">
-                  <SelectValue placeholder="Escolha uma lista" />
-                </SelectTrigger>
-                <SelectContent>
-                  {leadLists.map((list) => (
-                    <SelectItem key={list.id} value={list.id}>
-                      {list.name} ({list.item_count})
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="__new__">Criar nova lista</SelectItem>
-                </SelectContent>
+      {/* Dialog: Salvar em lista */}
+      <Dialog open={saveListOpen} onClose={() => setSaveListOpen(false)} PaperProps={{ sx: { bgcolor: "#181818", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "12px", minWidth: 420 } }}>
+        <DialogTitle>Salvar selecao em lista</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Guarde esse lote para outreach, revisao ou nova rodada operacional.
+          </DialogContentText>
+          <Stack spacing={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Destino</InputLabel>
+              <Select value={saveListTarget} onChange={e => setSaveListTarget(e.target.value)} label="Destino">
+                {leadLists.map(list => (
+                  <MenuItem key={list.id} value={list.id}>{list.name} ({list.item_count})</MenuItem>
+                ))}
+                <MenuItem value="__new__">Criar nova lista</MenuItem>
               </Select>
-            </div>
+            </FormControl>
 
             {saveListTarget === "__new__" && (
               <>
-                <Input
+                <TextField
+                  size="small"
+                  fullWidth
+                  label="Nome da nova lista"
                   value={newListName}
-                  onChange={(event) => setNewListName(event.target.value)}
-                  placeholder="Nome da nova lista"
-                  className="border-border bg-muted/30"
+                  onChange={e => setNewListName(e.target.value)}
+                  placeholder="Ex.: Imobiliarias SP - rodada 1"
                 />
-                <Textarea
+                <TextField
+                  size="small"
+                  fullWidth
+                  multiline
+                  rows={3}
+                  label="Descrição opcional"
                   value={newListDescription}
-                  onChange={(event) => setNewListDescription(event.target.value)}
-                  placeholder="Descricao opcional"
-                  className="min-h-[88px] border-border bg-muted/30"
+                  onChange={e => setNewListDescription(e.target.value)}
                 />
               </>
             )}
 
-            <div className="rounded-xl border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-              {selected.size} lead(s) selecionados serao salvos.
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              className="border-border bg-muted/30"
-              onClick={() => setSaveListOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              className="bg-cyan-500 text-muted-foreground hover:bg-cyan-400"
-              onClick={() => void salvarSelecionadasEmLista()}
-              disabled={savingListSelection}
-            >
-              {savingListSelection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderPlus className="mr-2 h-4 w-4" />}
-              Salvar lista
-            </Button>
-          </DialogFooter>
+            <Box sx={{ borderRadius: "8px", border: "1px solid rgba(255,255,255,0.07)", bgcolor: "rgba(255,255,255,0.02)", p: 1.5 }}>
+              <Typography variant="caption" color="text.secondary">
+                {selected.size} lead(s) selecionados serao salvos.
+              </Typography>
+            </Box>
+          </Stack>
         </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button variant="outlined" onClick={() => setSaveListOpen(false)} sx={{ border: "1px solid rgba(255,255,255,0.14)" }}>Cancelar</Button>
+          <Button
+            variant="contained"
+            startIcon={savingListSelection ? <CircularProgress size={16} /> : <CreateNewFolderIcon />}
+            onClick={() => void salvarSelecionadasEmLista()}
+            disabled={savingListSelection}
+            sx={{ bgcolor: "#0ea5e9", color: "#fff", "&:hover": { bgcolor: "#0284c7" } }}
+          >
+            Salvar lista
+          </Button>
+        </DialogActions>
       </Dialog>
 
-      <Dialog open={suppressSelectionOpen} onOpenChange={setSuppressSelectionOpen}>
-        <DialogContent className="border-border bg-background text-foreground">
-          <DialogHeader>
-            <DialogTitle>Suprimir selecao</DialogTitle>
-            <DialogDescription>
-              Esses CNPJs saem do fluxo operacional e deixam de aparecer nas proximas rodadas.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3">
-            <Textarea
+      {/* Dialog: Suprimir */}
+      <Dialog open={suppressSelectionOpen} onClose={() => setSuppressSelectionOpen(false)} PaperProps={{ sx: { bgcolor: "#181818", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "12px", minWidth: 420 } }}>
+        <DialogTitle>Suprimir selecao</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Esses CNPJs saem do fluxo operacional e deixam de aparecer nas proximas rodadas.
+          </DialogContentText>
+          <Stack spacing={2}>
+            <TextField
+              size="small"
+              fullWidth
+              multiline
+              rows={3}
+              label="Motivo da supressao"
               value={suppressionReason}
-              onChange={(event) => setSuppressionReason(event.target.value)}
-              placeholder="Motivo da supressao"
-              className="min-h-[96px] border-border bg-muted/30"
+              onChange={e => setSuppressionReason(e.target.value)}
             />
-            <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-100">
-              {selected.size} lead(s) selecionados serao removidos da tela e bloqueados nas proximas prospeccoes.
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              className="border-border bg-muted/30"
-              onClick={() => setSuppressSelectionOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              className="bg-amber-500 text-muted-foreground hover:bg-amber-400"
-              onClick={() => void suprimirSelecionadas()}
-              disabled={savingSuppressionSelection}
-            >
-              {savingSuppressionSelection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldBan className="mr-2 h-4 w-4" />}
-              Suprimir lote
-            </Button>
-          </DialogFooter>
+            <Box sx={{ borderRadius: "8px", border: "1px solid rgba(245,158,11,0.2)", bgcolor: "rgba(245,158,11,0.08)", p: 1.5 }}>
+              <Typography variant="caption" sx={{ color: "#fef3c7" }}>
+                {selected.size} lead(s) selecionados serao removidos da tela e bloqueados nas proximas prospeccoes.
+              </Typography>
+            </Box>
+          </Stack>
         </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button variant="outlined" onClick={() => setSuppressSelectionOpen(false)} sx={{ border: "1px solid rgba(255,255,255,0.14)" }}>Cancelar</Button>
+          <Button
+            variant="contained"
+            startIcon={savingSuppressionSelection ? <CircularProgress size={16} /> : <GppBadIcon />}
+            onClick={() => void suprimirSelecionadas()}
+            disabled={savingSuppressionSelection}
+            sx={{ bgcolor: "#f59e0b", color: "#000", "&:hover": { bgcolor: "#d97706" } }}
+          >
+            Suprimir lote
+          </Button>
+        </DialogActions>
       </Dialog>
-    </div>
+    </Stack>
   );
 };
 

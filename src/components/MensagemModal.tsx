@@ -1,34 +1,49 @@
 // src/components/MensagemModal.tsx
 import { useState } from "react";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge }  from "@/components/ui/badge";
-import { Input }  from "@/components/ui/input";
+  Dialog, DialogTitle, DialogContent,
+  Button, TextField, Stack, Box, Typography, Chip, IconButton,
+  CircularProgress,
+} from "@mui/material";
 import {
-  Mail, MessageCircle, Linkedin, Copy, Check,
-  Wand2, RefreshCw,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+  AutoAwesomeRounded, RefreshRounded,
+  MailRounded, MessageRounded, LinkedInIcon,
+  ContentCopyRounded, CheckRounded,
+} from "@mui/icons-material";
 import {
   gerarMensagemAbordagem, type Empresa, type CanalMensagem,
 } from "@/lib/api";
 
-type Canal = {
+// LinkedIn icon not in @mui/icons-material standard — use a simple SVG chip
+function LinkedInSvg({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/>
+    </svg>
+  );
+}
+
+type CanalConfig = {
   id: CanalMensagem;
   label: string;
-  icon: React.FC<{ className?: string }>;
-  color: string;
-  border: string;
-  bg: string;
+  activeColor: string;
+  activeBg: string;
+  activeBorder: string;
 };
 
-const CANAIS: Canal[] = [
-  { id: "whatsapp", label: "WhatsApp",  icon: MessageCircle, color: "text-emerald-400", border: "border-emerald-700", bg: "bg-emerald-900/20" },
-  { id: "email",    label: "E-mail",    icon: Mail,          color: "text-sky-400",     border: "border-sky-700",     bg: "bg-sky-900/20"     },
-  { id: "linkedin", label: "LinkedIn",  icon: Linkedin,      color: "text-blue-400",    border: "border-blue-700",    bg: "bg-blue-900/20"    },
+const CANAIS: CanalConfig[] = [
+  { id: "whatsapp", label: "WhatsApp", activeColor: "#22C55E", activeBg: "rgba(34,197,94,0.1)",  activeBorder: "rgba(34,197,94,0.3)"  },
+  { id: "email",    label: "E-mail",   activeColor: "#38BDF8", activeBg: "rgba(56,189,248,0.1)", activeBorder: "rgba(56,189,248,0.3)" },
+  { id: "linkedin", label: "LinkedIn", activeColor: "#60A5FA", activeBg: "rgba(96,165,250,0.1)", activeBorder: "rgba(96,165,250,0.3)" },
 ];
+
+const paperSx = {
+  backgroundColor: "#141414",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: "12px",
+  minWidth: { xs: 340, sm: 500 },
+  maxWidth: 560,
+};
 
 export function MensagemModal({
   empresa,
@@ -60,9 +75,7 @@ export function MensagemModal({
   };
 
   const copiar = async () => {
-    const texto = canal === "email" && assunto
-      ? `Assunto: ${assunto}\n\n${corpo}`
-      : corpo;
+    const texto = canal === "email" && assunto ? `Assunto: ${assunto}\n\n${corpo}` : corpo;
     await navigator.clipboard.writeText(texto);
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
@@ -71,99 +84,135 @@ export function MensagemModal({
   const canalAtual = CANAIS.find(c => c.id === canal)!;
 
   return (
-    <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-xl bg-card border-border">
-        <DialogHeader>
-          <DialogTitle className="text-base flex items-center gap-2">
-            <Wand2 className="h-4 w-4 text-amber-400" />
+    <Dialog open={open} onClose={onClose} PaperProps={{ sx: paperSx }}>
+      <DialogTitle sx={{ pb: 1 }}>
+        <Stack direction="row" alignItems="center" gap={1}>
+          <AutoAwesomeRounded sx={{ fontSize: 17, color: "#F59E0B" }} />
+          <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>
             Gerar mensagem de abordagem
-          </DialogTitle>
-          <p className="text-xs text-muted-foreground/70">
-            {empresa.nome_fantasia || empresa.razao_social} · {empresa.cidade} / {empresa.uf}
-          </p>
-        </DialogHeader>
+          </Typography>
+        </Stack>
+        <Typography sx={{ fontSize: "0.75rem", color: "#666", mt: 0.25 }}>
+          {empresa.nome_fantasia || empresa.razao_social} · {empresa.cidade} / {empresa.uf}
+        </Typography>
+      </DialogTitle>
 
-        {/* Seleção de canal */}
-        <div className="flex gap-2">
-          {CANAIS.map(c => (
-            <button
-              key={c.id}
-              onClick={() => { setCanal(c.id); setCorpo(""); setAssunto(""); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
-                canal === c.id
-                  ? `${c.border} ${c.bg} ${c.color}`
-                  : "border-border text-muted-foreground/70 hover:border-border hover:text-foreground/80"
-              )}>
-              <c.icon className="h-3.5 w-3.5" />
-              {c.label}
-            </button>
-          ))}
-        </div>
+      <DialogContent sx={{ pt: "8px !important" }}>
+        <Stack gap={2}>
+          {/* Canal selector */}
+          <Stack direction="row" gap={1}>
+            {CANAIS.map(c => {
+              const active = canal === c.id;
+              return (
+                <Box
+                  key={c.id}
+                  component="button"
+                  onClick={() => { setCanal(c.id); setCorpo(""); setAssunto(""); }}
+                  sx={{
+                    display: "flex", alignItems: "center", gap: 0.75,
+                    px: 1.5, py: 0.75, borderRadius: "8px",
+                    border: `1px solid ${active ? c.activeBorder : "rgba(255,255,255,0.08)"}`,
+                    backgroundColor: active ? c.activeBg : "transparent",
+                    color: active ? c.activeColor : "#666",
+                    fontSize: "0.75rem", fontWeight: 500, cursor: "pointer",
+                    transition: "all 0.15s",
+                    "&:hover": { borderColor: active ? c.activeBorder : "rgba(255,255,255,0.15)", color: active ? c.activeColor : "#A0A0A0" },
+                  }}
+                >
+                  {c.id === "whatsapp" && <MessageRounded sx={{ fontSize: 14 }} />}
+                  {c.id === "email"    && <MailRounded    sx={{ fontSize: 14 }} />}
+                  {c.id === "linkedin" && <LinkedInSvg size={14} />}
+                  {c.label}
+                </Box>
+              );
+            })}
+          </Stack>
 
-        {/* Produto / serviço */}
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Produto/serviço (opcional)</label>
-          <Input
+          {/* Produto */}
+          <TextField
+            size="small"
+            label="Produto/serviço (opcional)"
             value={produto}
             onChange={e => setProduto(e.target.value)}
             placeholder="ex: consultoria fiscal, software ERP, logística..."
-            className="text-sm border-border bg-muted/30 placeholder-zinc-600"
+            fullWidth
+            sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }}
           />
-        </div>
 
-        {/* Gerar */}
-        <Button
-          onClick={gerar}
-          disabled={loading}
-          className="w-full gap-2"
-        >
-          {loading
-            ? <><RefreshCw className="h-4 w-4 animate-spin" /> Gerando...</>
-            : <><Wand2 className="h-4 w-4" /> Gerar mensagem</>
-          }
-        </Button>
+          {/* Gerar button */}
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={gerar}
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={14} color="inherit" /> : <AutoAwesomeRounded sx={{ fontSize: 16 }} />}
+            sx={{ fontWeight: 600, fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px" }}
+          >
+            {loading ? "Gerando..." : "Gerar mensagem"}
+          </Button>
 
-        {/* Resultado */}
-        {corpo && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <canalAtual.icon className={cn("h-3.5 w-3.5", canalAtual.color)} />
-                <span className="text-xs font-medium text-foreground/80">{canalAtual.label}</span>
-                <Badge variant="outline"
-                  className={cn("text-[9px] border py-0 px-1.5",
-                    iaUsada ? "border-amber-700/60 text-amber-400" : "border-border text-muted-foreground/70")}>
-                  {iaUsada ? "✦ IA" : "template"}
-                </Badge>
-              </div>
-              <Button
-                size="sm" variant="ghost"
-                className={cn("h-6 gap-1 text-[11px]", copiado ? "text-emerald-400" : "text-muted-foreground")}
-                onClick={copiar}>
-                {copiado ? <><Check className="h-3 w-3" /> Copiado!</> : <><Copy className="h-3 w-3" /> Copiar</>}
-              </Button>
-            </div>
+          {/* Resultado */}
+          {corpo && (
+            <Stack gap={1.5}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Stack direction="row" alignItems="center" gap={1}>
+                  {canalAtual.id === "whatsapp" && <MessageRounded sx={{ fontSize: 14, color: canalAtual.activeColor }} />}
+                  {canalAtual.id === "email"    && <MailRounded    sx={{ fontSize: 14, color: canalAtual.activeColor }} />}
+                  {canalAtual.id === "linkedin" && <Box sx={{ color: canalAtual.activeColor, display: "flex" }}><LinkedInSvg size={14} /></Box>}
+                  <Typography sx={{ fontSize: "0.75rem", fontWeight: 500, color: "#D0D0D0" }}>{canalAtual.label}</Typography>
+                  <Chip
+                    label={iaUsada ? "✦ IA" : "template"}
+                    size="small"
+                    sx={{
+                      fontSize: "0.625rem", height: 18,
+                      backgroundColor: iaUsada ? "rgba(245,158,11,0.1)" : "rgba(255,255,255,0.05)",
+                      color: iaUsada ? "#F59E0B" : "#666",
+                      border: `1px solid ${iaUsada ? "rgba(245,158,11,0.25)" : "rgba(255,255,255,0.08)"}`,
+                    }}
+                  />
+                </Stack>
+                <Button
+                  size="small"
+                  startIcon={copiado ? <CheckRounded sx={{ fontSize: 13 }} /> : <ContentCopyRounded sx={{ fontSize: 13 }} />}
+                  onClick={copiar}
+                  sx={{
+                    fontSize: "0.6875rem", textTransform: "none",
+                    color: copiado ? "#22C55E" : "#666",
+                    "&:hover": { color: copiado ? "#22C55E" : "#A0A0A0" },
+                  }}
+                >
+                  {copiado ? "Copiado!" : "Copiar"}
+                </Button>
+              </Stack>
 
-            {assunto && (
-              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
-                <span className="text-[10px] text-muted-foreground/70 block mb-0.5">Assunto</span>
-                <p className="text-sm text-foreground">{assunto}</p>
-              </div>
-            )}
+              {assunto && (
+                <Box sx={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", px: 2, py: 1.5 }}>
+                  <Typography sx={{ fontSize: "0.6875rem", color: "#555", display: "block", mb: 0.5 }}>Assunto</Typography>
+                  <Typography sx={{ fontSize: "0.875rem", color: "#E0E0E0" }}>{assunto}</Typography>
+                </Box>
+              )}
 
-            <textarea
-              value={corpo}
-              onChange={e => setCorpo(e.target.value)}
-              rows={8}
-              className="w-full resize-none rounded-lg border border-border bg-muted/20 px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-border"
-            />
+              <TextField
+                multiline
+                rows={8}
+                value={corpo}
+                onChange={e => setCorpo(e.target.value)}
+                fullWidth
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    backgroundColor: "#181818",
+                    fontSize: "0.8125rem",
+                    lineHeight: 1.6,
+                  },
+                }}
+              />
 
-            <p className="text-[10px] text-muted-foreground/50">
-              Personalize antes de enviar. Substitua os [colchetes] pelos dados reais.
-            </p>
-          </div>
-        )}
+              <Typography sx={{ fontSize: "0.6875rem", color: "#444" }}>
+                Personalize antes de enviar. Substitua os [colchetes] pelos dados reais.
+              </Typography>
+            </Stack>
+          )}
+        </Stack>
       </DialogContent>
     </Dialog>
   );

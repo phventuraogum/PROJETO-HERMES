@@ -342,3 +342,224 @@ async def admin_delete_org(org_id: str, _user: dict = Depends(require_master)):
             raise HTTPException(status_code=502, detail=f"Falha ao remover org: {r.text[:200]}")
 
     return {"success": True, "org_id": org_id}
+
+
+# ─── Stats ──────────────────────────────────────────────────
+
+@router.get("/stats")
+async def admin_stats(_user: dict = Depends(require_master)):
+    """KPIs gerais do sistema."""
+    async with httpx.AsyncClient(timeout=10) as c:
+        orgs_r = await c.get(
+            f"{settings.SUPABASE_URL}/rest/v1/organizations",
+            headers=_svc_headers(),
+            params={"select": "id", "order": "created_at.asc"},
+        )
+        tenants_r = await c.get(
+            f"{settings.SUPABASE_URL}/rest/v1/org_tenants",
+            headers=_svc_headers(),
+            params={"select": "org_id,supabase_url"},
+        )
+        members_r = await c.get(
+            f"{settings.SUPABASE_URL}/rest/v1/org_members",
+            headers=_svc_headers(),
+            params={"select": "user_id"},
+        )
+
+    orgs = orgs_r.json() if orgs_r.status_code == 200 and orgs_r.content else []
+    tenants = tenants_r.json() if tenants_r.status_code == 200 and tenants_r.content else []
+    members = members_r.json() if members_r.status_code == 200 and members_r.content else []
+
+    configured = sum(1 for t in tenants if t.get("supabase_url"))
+    unique_users = len({m["user_id"] for m in members if m.get("user_id")})
+
+    return {
+        "total_orgs": len(orgs),
+        "configured_tenants": configured,
+        "unconfigured_tenants": len(orgs) - configured,
+        "total_members": len(members),
+        "unique_users": unique_users,
+    }
+
+
+# ─── Members ────────────────────────────────────────────────
+
+class AddMemberBody(BaseModel):
+    user_email: str
+    role: str = "member"
+
+
+class UpdateMemberBody(BaseModel):
+    role: str
+
+
+@router.get("/orgs/{org_id}/members")
+async def admin_list_members(org_id: str, _user: dict = Depends(require_master)):
+    """Lista membros de uma org com info básica do usuário."""
+    async with httpx.AsyncClient(timeout=10) as c:
+        members_r = await c.get(
+            f"{settings.SUPABASE_URL}/rest/v1/org_members",
+            headers=_svc_headers(),
+            params={"select": "user_id,role,created_at", "org_id": f"eq.{org_id}"},
+        )
+        if members_r.status_code >= 300:
+            raise HTTPException(status_code=502, detail="Falha ao listar membros")
+        members = members_r.json() if members_r.content else []
+
+        # Busca info dos usuários via Admin API
+        users_r = await c.get(
+            f"{settings.SUPABASE_URL}/auth/v1/admin/users",
+            headers={
+                "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+                "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+            },
+            params={"per_page": 1000},
+        )
+        users_map: dict[str, Any] = {}
+        if users_r.status_code == 200 and users_r.content:
+            data = users_r.json()
+            users_list = data.get("users", data) if isinstance(data, dict) else data
+            for u in (users_list if isinstance(users_list, list) else []):
+                users_map[u["id"]] = u
+
+    result = []
+    for m in members:
+        uid = m["user_id"]
+        user_info = users_map.get(uid, {})
+        result.append({
+            "user_id": uid,
+            "email": user_info.get("email", ""),
+            "role": m["role"],
+            "created_at": m.get("created_at"),
+            "last_sign_in": user_info.get("last_sign_in_at"),
+        })
+    return result
+
+
+@router.post("/orgs/{org_id}/members", status_code=201)
+async def admin_add_member(org_id: str, body: AddMemberBody, _user: dict = Depends(require_master)):
+    """Adiciona um usuário existente como membro da org."""
+    async with httpx.AsyncClient(timeout=10) as c:
+        # Busca user por email
+        users_r = await c.get(
+            f"{settings.SUPABASE_URL}/auth/v1/admin/users",
+            headers={
+                "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+                "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+            },
+            params={"per_page": 1000},
+        )
+        if users_r.status_code >= 300:
+            raise HTTPException(status_code=502, detail="Falha ao buscar usuários")
+
+        data = users_r.json()
+        users_list = data.get("users", data) if isinstance(data, dict) else data
+        target_user = next(
+            (u for u in (users_list if isinstance(users_list, list) else [])
+             if u.get("email", "").lower() == body.user_email.lower()),
+            None,
+        )
+        if not target_user:
+            raise HTTPException(status_code=404, detail=f"Usuário '{body.user_email}' não encontrado")
+
+        user_id = target_user["id"]
+        r = await c.post(
+            f"{settings.SUPABASE_URL}/rest/v1/org_members",
+            headers=_svc_headers(),
+            json={"org_id": org_id, "user_id": user_id, "role": body.role},
+        )
+        if r.status_code >= 300:
+            raise HTTPException(status_code=r.status_code, detail=f"Falha ao adicionar membro: {r.text[:200]}")
+
+    return {"success": True, "user_id": user_id, "role": body.role}
+
+
+@router.patch("/orgs/{org_id}/members/{user_id}")
+async def admin_update_member(
+    org_id: str, user_id: str, body: UpdateMemberBody, _user: dict = Depends(require_master)
+):
+    """Atualiza o papel de um membro."""
+    async with httpx.AsyncClient(timeout=10) as c:
+        r = await c.patch(
+            f"{settings.SUPABASE_URL}/rest/v1/org_members",
+            headers=_svc_headers(),
+            params={"org_id": f"eq.{org_id}", "user_id": f"eq.{user_id}"},
+            json={"role": body.role},
+        )
+        if r.status_code >= 300:
+            raise HTTPException(status_code=502, detail=f"Falha ao atualizar membro: {r.text[:200]}")
+    return {"success": True}
+
+
+@router.delete("/orgs/{org_id}/members/{user_id}")
+async def admin_remove_member(org_id: str, user_id: str, _user: dict = Depends(require_master)):
+    """Remove um membro da org."""
+    async with httpx.AsyncClient(timeout=10) as c:
+        r = await c.delete(
+            f"{settings.SUPABASE_URL}/rest/v1/org_members",
+            headers=_svc_headers(),
+            params={"org_id": f"eq.{org_id}", "user_id": f"eq.{user_id}"},
+        )
+        if r.status_code >= 300:
+            raise HTTPException(status_code=502, detail=f"Falha ao remover membro: {r.text[:200]}")
+    return {"success": True}
+
+
+# ─── Health ─────────────────────────────────────────────────
+
+@router.get("/orgs/{org_id}/health")
+async def admin_org_health(org_id: str, _user: dict = Depends(require_master)):
+    """Verifica conectividade e contagens do tenant."""
+    from api.tenancy.supabase import resolve_tenant
+
+    tenant = resolve_tenant(org_id)
+    if not tenant.url or not tenant.service_role_key:
+        return {
+            "org_id": org_id,
+            "reachable": False,
+            "error": "Tenant não configurado",
+            "tables": {},
+            "counts": {},
+        }
+
+    tables_status: dict[str, str] = {}
+    counts: dict[str, int] = {}
+    reachable = False
+
+    async with httpx.AsyncClient(timeout=8) as c:
+        for table in ("pipeline_leads", "leads"):
+            try:
+                r = await c.get(
+                    f"{tenant.url}/rest/v1/{table}",
+                    headers={
+                        "apikey": tenant.service_role_key,
+                        "Authorization": f"Bearer {tenant.service_role_key}",
+                        "Prefer": "count=exact",
+                    },
+                    params={"limit": "0"},
+                )
+                if r.status_code == 200:
+                    tables_status[table] = "ok"
+                    reachable = True
+                    content_range = r.headers.get("content-range", "")
+                    if "/" in content_range:
+                        try:
+                            counts[table] = int(content_range.split("/")[-1])
+                        except ValueError:
+                            counts[table] = 0
+                elif r.status_code == 404:
+                    tables_status[table] = "missing"
+                    reachable = True
+                else:
+                    tables_status[table] = f"error_{r.status_code}"
+            except Exception as exc:
+                tables_status[table] = f"unreachable"
+                counts[table] = 0
+
+    return {
+        "org_id": org_id,
+        "supabase_url": tenant.url,
+        "reachable": reachable,
+        "tables": tables_status,
+        "counts": counts,
+    }

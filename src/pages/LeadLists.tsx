@@ -1,34 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Archive,
-  BookmarkPlus,
-  Clock3,
-  FolderPlus,
-  Loader2,
-  Mail,
-  MessageCircleOff,
-  Phone,
-  Radar,
-  RefreshCw,
-  ShieldBan,
-  Trash2,
-} from "lucide-react";
-import { toast } from "sonner";
-
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+  Box, Stack, Typography, Button, IconButton, Chip,
+  Card, CardContent, TextField, Dialog, DialogTitle,
+  DialogContent, DialogContentText, DialogActions,
+  CircularProgress,
+} from "@mui/material";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+  ArchiveRounded,
+  BookmarkAddRounded,
+  AccessTimeRounded,
+  CreateNewFolderRounded,
+  MailRounded,
+  SpeakerNotesOffRounded,
+  PhoneRounded,
+  TrackChangesRounded,
+  RefreshRounded,
+  BlockRounded,
+  DeleteRounded,
+} from "@mui/icons-material";
+import { toast } from "sonner";
 import {
   createLeadRefreshJob,
   createLeadList,
@@ -73,6 +64,62 @@ function formatDate(value?: string | null): string {
   }
 }
 
+// ── Shared style helpers ──────────────────────────────────────────────────────
+const cardSx = {
+  backgroundColor: "#141414",
+  border: "1px solid rgba(255,255,255,0.06)",
+  borderRadius: "12px",
+};
+
+const rowSx = {
+  backgroundColor: "rgba(255,255,255,0.02)",
+  border: "1px solid rgba(255,255,255,0.06)",
+  borderRadius: "10px",
+  p: 2,
+};
+
+const emptyBoxSx = {
+  border: "1px dashed rgba(255,255,255,0.1)",
+  borderRadius: "10px",
+  p: 2.5,
+  color: "#555",
+  fontSize: "0.8125rem",
+};
+
+const sectionLabelSx = {
+  fontSize: "0.625rem",
+  fontWeight: 600,
+  color: "#444",
+  textTransform: "uppercase" as const,
+  letterSpacing: "0.12em",
+};
+
+function StatusChip({ label, tone }: { label: string; tone: "success" | "warning" | "error" | "info" | "default" }) {
+  const colors: Record<string, { bg: string; color: string; border: string }> = {
+    success: { bg: "rgba(34,197,94,0.1)", color: "#22C55E", border: "rgba(34,197,94,0.2)" },
+    warning: { bg: "rgba(245,158,11,0.1)", color: "#F59E0B", border: "rgba(245,158,11,0.2)" },
+    error:   { bg: "rgba(239,68,68,0.1)",  color: "#EF4444",  border: "rgba(239,68,68,0.2)"  },
+    info:    { bg: "rgba(56,189,248,0.1)", color: "#38BDF8", border: "rgba(56,189,248,0.2)" },
+    default: { bg: "rgba(255,255,255,0.05)", color: "#888", border: "rgba(255,255,255,0.1)" },
+  };
+  const c = colors[tone] ?? colors.default;
+  return (
+    <Chip
+      label={label}
+      size="small"
+      sx={{
+        fontSize: "0.6875rem",
+        fontWeight: 600,
+        height: 22,
+        backgroundColor: c.bg,
+        color: c.color,
+        border: `1px solid ${c.border}`,
+      }}
+    />
+  );
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 const LeadLists = () => {
   const navigate = useNavigate();
   const [lists, setLists] = useState<LeadListSummary[]>([]);
@@ -188,10 +235,7 @@ const LeadLists = () => {
   }, []);
 
   useEffect(() => {
-    if (!selectedListId) {
-      setItems([]);
-      return;
-    }
+    if (!selectedListId) { setItems([]); return; }
     const loadItems = async () => {
       try {
         setLoadingItems(true);
@@ -206,10 +250,7 @@ const LeadLists = () => {
   }, [selectedListId]);
 
   useEffect(() => {
-    if (!selectedRefreshJobId) {
-      setRefreshJobTargets([]);
-      return;
-    }
+    if (!selectedRefreshJobId) { setRefreshJobTargets([]); return; }
     const loadTargets = async () => {
       try {
         setLoadingRefreshTargets(true);
@@ -239,7 +280,7 @@ const LeadLists = () => {
               : Promise.resolve(),
           ]);
         } catch {
-          // polling best-effort; explicit handlers already report on direct actions
+          // polling best-effort
         }
       })();
     }, 5000);
@@ -248,10 +289,7 @@ const LeadLists = () => {
 
   const handleCreateList = async () => {
     const name = createName.trim();
-    if (!name) {
-      toast.info("Informe um nome para a lista.");
-      return;
-    }
+    if (!name) { toast.info("Informe um nome para a lista."); return; }
     try {
       setCreating(true);
       const created = await createLeadList(name, createDescription.trim() || null);
@@ -291,9 +329,9 @@ const LeadLists = () => {
   };
 
   const handleManualSuppression = async () => {
-    const cnpjs = manualCnpj.split(/[\s,;]+/).map((value) => value.trim()).filter(Boolean);
-    const emails = manualEmail.split(/[\s,;]+/).map((value) => value.trim()).filter(Boolean);
-    const domains = manualDomain.split(/[\s,;]+/).map((value) => value.trim()).filter(Boolean);
+    const cnpjs = manualCnpj.split(/[\s,;]+/).map((v) => v.trim()).filter(Boolean);
+    const emails = manualEmail.split(/[\s,;]+/).map((v) => v.trim()).filter(Boolean);
+    const domains = manualDomain.split(/[\s,;]+/).map((v) => v.trim()).filter(Boolean);
     if (cnpjs.length === 0 && emails.length === 0 && domains.length === 0) {
       toast.info("Informe ao menos um CNPJ, e-mail ou dominio.");
       return;
@@ -301,16 +339,11 @@ const LeadLists = () => {
     try {
       setSavingSuppression(true);
       const result = await createLeadSuppressions({
-        cnpjs,
-        emails,
-        domains,
+        cnpjs, emails, domains,
         reason: manualReason.trim() || null,
         source: "lead_lists_page",
       });
-      setManualCnpj("");
-      setManualEmail("");
-      setManualDomain("");
-      setManualReason("");
+      setManualCnpj(""); setManualEmail(""); setManualDomain(""); setManualReason("");
       await reloadSuppressions();
       toast.success(`${result.added} supressao(oes) adicionada(s).`);
     } catch (err: any) {
@@ -356,10 +389,7 @@ const LeadLists = () => {
   };
 
   const handleFollowCompany = async () => {
-    if (!manualWatchCnpj.trim()) {
-      toast.info("Informe um CNPJ para acompanhar.");
-      return;
-    }
+    if (!manualWatchCnpj.trim()) { toast.info("Informe um CNPJ para acompanhar."); return; }
     try {
       setSavingWatch(true);
       const result = await followCompany({
@@ -367,8 +397,7 @@ const LeadLists = () => {
         reason: manualWatchReason.trim() || null,
         source: "lead_lists_page",
       });
-      setManualWatchCnpj("");
-      setManualWatchReason("");
+      setManualWatchCnpj(""); setManualWatchReason("");
       await Promise.all([reloadWatchlist(), reloadCompanyDataHealth(), reloadSignals()]);
       toast.success(
         result.signals.length > 0
@@ -436,10 +465,7 @@ const LeadLists = () => {
   };
 
   const handleQueueSelectedListRefresh = async () => {
-    if (!selectedList) {
-      toast.info("Selecione uma lista para reverificar.");
-      return;
-    }
+    if (!selectedList) { toast.info("Selecione uma lista para reverificar."); return; }
     await handleQueueRefreshJob(
       `list:${selectedList.id}`,
       {
@@ -454,10 +480,7 @@ const LeadLists = () => {
   };
 
   const handleQueueWatchlistRefresh = async () => {
-    if (watchlist.length === 0) {
-      toast.info("Nenhuma empresa na watchlist para reverificar.");
-      return;
-    }
+    if (watchlist.length === 0) { toast.info("Nenhuma empresa na watchlist para reverificar."); return; }
     await handleQueueRefreshJob(
       "watchlist",
       {
@@ -485,879 +508,798 @@ const LeadLists = () => {
     );
   };
 
+  // ── JSX ─────────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6 p-1">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-display tracking-tight">Listas, buscas e signals</h2>
-          <p className="text-sm text-muted-foreground">
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+
+      {/* Header */}
+      <Stack direction="row" alignItems="flex-end" justifyContent="space-between" gap={2} flexWrap="wrap">
+        <Box>
+          <Typography sx={{ fontWeight: 700, fontSize: "1.375rem", letterSpacing: "-0.02em", color: "#F0F0F0" }}>
+            Listas, buscas e signals
+          </Typography>
+          <Typography sx={{ fontSize: "0.8125rem", color: "#666", mt: 0.5 }}>
             Organize listas estaticas, rode buscas salvas, acompanhe empresas e bloqueie contatos improdutivos.
-          </p>
-        </div>
+          </Typography>
+        </Box>
         <Button
-          type="button"
-          className="h-10 gap-2 bg-cyan-500 text-muted-foreground hover:bg-cyan-400"
+          variant="contained"
+          startIcon={<CreateNewFolderRounded sx={{ fontSize: 16 }} />}
           onClick={() => setCreateDialogOpen(true)}
+          sx={{ fontWeight: 600, fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px" }}
         >
-          <FolderPlus className="h-4 w-4" />
           Criar lista
         </Button>
-      </div>
+      </Stack>
 
-      <Card className="border-border bg-card shadow-surface-sm">
-        <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-1">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Radar className="h-4 w-4 text-cyan-300" />
-              Data Health Center
-            </CardTitle>
-            <CardDescription>
-              Leitura Apollo-style da watchlist para detectar gaps de mobile e WhatsApp acionavel antes do outreach.
-            </CardDescription>
-          </div>
-          <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-            Watchlist {companyDataHealth?.summary.watchlist_total ?? 0}
-          </Badge>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      {/* ── Data Health Center ─────────────────────────────────────────────── */}
+      <Card sx={cardSx} elevation={0}>
+        <CardContent sx={{ p: 2.5 }}>
+          <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={2} mb={2.5}>
+            <Box>
+              <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
+                <TrackChangesRounded sx={{ fontSize: 16, color: "#38BDF8" }} />
+                <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>Data Health Center</Typography>
+              </Stack>
+              <Typography sx={{ fontSize: "0.8125rem", color: "#666" }}>
+                Leitura Apollo-style da watchlist para detectar gaps de mobile e WhatsApp acionavel antes do outreach.
+              </Typography>
+            </Box>
+            <Chip
+              label={`Watchlist ${companyDataHealth?.summary.watchlist_total ?? 0}`}
+              size="small"
+              sx={{ fontSize: "0.75rem", backgroundColor: "rgba(255,255,255,0.05)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }}
+            />
+          </Stack>
+
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", xl: "repeat(5, 1fr)" }, gap: 1.5, mb: 2 }}>
             {[
-              {
-                label: "Sem mobile",
-                value: companyDataHealth?.summary.without_mobile ?? 0,
-                tone: "border-amber-500/30 bg-amber-500/10 text-amber-300",
-                icon: Phone,
-              },
-              {
-                label: "Sem WhatsApp validado",
-                value: companyDataHealth?.summary.without_verified_whatsapp ?? 0,
-                tone: "border-rose-500/30 bg-rose-500/10 text-rose-300",
-                icon: MessageCircleOff,
-              },
-              {
-                label: "Sem mobile decisor",
-                value: companyDataHealth?.summary.without_decision_maker_mobile ?? 0,
-                tone: "border-sky-500/30 bg-sky-500/10 text-sky-300",
-                icon: BookmarkPlus,
-              },
-              {
-                label: "Snapshots stale",
-                value: companyDataHealth?.summary.stale_records ?? 0,
-                tone: "border-violet-500/30 bg-violet-500/10 text-violet-300",
-                icon: Clock3,
-              },
+              { label: "Sem mobile", value: companyDataHealth?.summary.without_mobile ?? 0, bg: "rgba(245,158,11,0.08)", color: "#F59E0B", border: "rgba(245,158,11,0.2)", Icon: PhoneRounded },
+              { label: "Sem WhatsApp validado", value: companyDataHealth?.summary.without_verified_whatsapp ?? 0, bg: "rgba(239,68,68,0.08)", color: "#EF4444", border: "rgba(239,68,68,0.2)", Icon: SpeakerNotesOffRounded },
+              { label: "Sem mobile decisor", value: companyDataHealth?.summary.without_decision_maker_mobile ?? 0, bg: "rgba(56,189,248,0.08)", color: "#38BDF8", border: "rgba(56,189,248,0.2)", Icon: BookmarkAddRounded },
+              { label: "Snapshots stale", value: companyDataHealth?.summary.stale_records ?? 0, bg: "rgba(167,139,250,0.08)", color: "#A78BFA", border: "rgba(167,139,250,0.2)", Icon: AccessTimeRounded },
               {
                 label: "Cobertura ativa",
-                value: Math.max(
-                  0,
-                  (companyDataHealth?.summary.watchlist_total ?? 0) -
-                    (companyDataHealth?.summary.without_mobile ?? 0),
-                ),
-                tone: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-                icon: Radar,
+                value: Math.max(0, (companyDataHealth?.summary.watchlist_total ?? 0) - (companyDataHealth?.summary.without_mobile ?? 0)),
+                bg: "rgba(34,197,94,0.08)", color: "#22C55E", border: "rgba(34,197,94,0.2)", Icon: TrackChangesRounded,
               },
             ].map((item) => (
-              <div key={item.label} className={`rounded-xl border p-4 ${item.tone}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.18em]">{item.label}</p>
-                    <p className="mt-2 text-2xl font-display">{item.value}</p>
-                  </div>
-                  <item.icon className="mt-0.5 h-4 w-4" />
-                </div>
-              </div>
+              <Box key={item.label} sx={{ backgroundColor: item.bg, border: `1px solid ${item.border}`, borderRadius: "10px", p: 2 }}>
+                <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1}>
+                  <Box>
+                    <Typography sx={sectionLabelSx}>{item.label}</Typography>
+                    <Typography sx={{ fontSize: "1.5rem", fontWeight: 700, color: item.color, mt: 1, lineHeight: 1 }}>{item.value}</Typography>
+                  </Box>
+                  <item.Icon sx={{ fontSize: 15, color: item.color, mt: 0.25, opacity: 0.8 }} />
+                </Stack>
+              </Box>
             ))}
-          </div>
+          </Box>
 
           {!companyDataHealth || companyDataHealth.items.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
-              Nenhum gap relevante identificado na watchlist ainda.
-            </div>
+            <Box sx={emptyBoxSx}>Nenhum gap relevante identificado na watchlist ainda.</Box>
           ) : (
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Top gaps</p>
-              {companyDataHealth.items.slice(0, 6).map((item) => (
-                <div key={item.cnpj} className="rounded-xl border border-border bg-muted/20/50 p-4">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-foreground">
-                        {item.nome_fantasia || item.razao_social || item.cnpj}
-                      </p>
-                      <p className="text-xs text-muted-foreground/70">
-                        {item.cnpj} . {[item.cidade, item.uf].filter(Boolean).join(" / ") || "Sem localizacao"}
-                      </p>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className={
-                        item.gap_score >= 4
-                          ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
-                          : item.gap_score >= 2
-                            ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
-                            : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
-                      }
-                    >
-                      Gap score {item.gap_score}
-                    </Badge>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                      Mobiles {item.mobile_candidates}
-                    </Badge>
-                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                      WhatsApps validados {item.verified_whatsapp_candidates}
-                    </Badge>
-                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                      Mobiles decisor {item.decision_maker_mobile_candidates}
-                    </Badge>
-                    {item.stale && (
-                      <Badge variant="outline" className="border-violet-500/30 bg-violet-500/10 text-violet-300">
-                        Snapshot stale
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="mt-3 text-xs text-muted-foreground/70">
-                    Ultimo snapshot: {formatDate(item.generated_at)}
-                  </p>
-                </div>
-              ))}
-            </div>
+            <Box>
+              <Typography sx={{ ...sectionLabelSx, mb: 1.5 }}>Top gaps</Typography>
+              <Stack gap={1}>
+                {companyDataHealth.items.slice(0, 6).map((item) => (
+                  <Box key={item.cnpj} sx={rowSx}>
+                    <Stack direction={{ xs: "column", lg: "row" }} alignItems={{ lg: "flex-start" }} justifyContent="space-between" gap={1.5}>
+                      <Box>
+                        <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>
+                          {item.nome_fantasia || item.razao_social || item.cnpj}
+                        </Typography>
+                        <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                          {item.cnpj} · {[item.cidade, item.uf].filter(Boolean).join(" / ") || "Sem localizacao"}
+                        </Typography>
+                      </Box>
+                      <StatusChip
+                        label={`Gap score ${item.gap_score}`}
+                        tone={item.gap_score >= 4 ? "error" : item.gap_score >= 2 ? "warning" : "info"}
+                      />
+                    </Stack>
+                    <Stack direction="row" flexWrap="wrap" gap={0.75} mt={1.5}>
+                      <Chip label={`Mobiles ${item.mobile_candidates}`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
+                      <Chip label={`WhatsApps validados ${item.verified_whatsapp_candidates}`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
+                      <Chip label={`Mobiles decisor ${item.decision_maker_mobile_candidates}`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
+                      {item.stale && <StatusChip label="Snapshot stale" tone="warning" />}
+                    </Stack>
+                    <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 1.5 }}>
+                      Ultimo snapshot: {formatDate(item.generated_at)}
+                    </Typography>
+                  </Box>
+                ))}
+              </Stack>
+            </Box>
           )}
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.35fr]">
-        <Card className="border-border bg-card shadow-surface-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <RefreshCw className="h-4 w-4 text-cyan-300" />
-              Bulk center e reverificacao
-            </CardTitle>
-            <CardDescription>
+      {/* ── Bulk Center + Jobs Recentes ────────────────────────────────────── */}
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "0.95fr 1.35fr" }, gap: 2 }}>
+
+        {/* Bulk Center */}
+        <Card sx={cardSx} elevation={0}>
+          <CardContent sx={{ p: 2.5 }}>
+            <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
+              <RefreshRounded sx={{ fontSize: 16, color: "#38BDF8" }} />
+              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>Bulk center e reverificacao</Typography>
+            </Stack>
+            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
               Reenriquece listas, watchlist e buscas salvas em background para manter contatos frescos.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid gap-3 md:grid-cols-2">
+            </Typography>
+
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5, mb: 2 }}>
               <Button
-                type="button"
-                className="justify-start gap-2 bg-cyan-500 text-muted-foreground hover:bg-cyan-400"
+                variant="contained"
+                startIcon={queueingRefreshKey === "watchlist" ? <CircularProgress size={14} color="inherit" /> : <RefreshRounded sx={{ fontSize: 16 }} />}
                 onClick={() => void handleQueueWatchlistRefresh()}
                 disabled={queueingRefreshKey === "watchlist" || watchlist.length === 0}
+                sx={{ fontWeight: 600, fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px" }}
               >
-                {queueingRefreshKey === "watchlist" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
                 Reverificar watchlist
               </Button>
               <Button
-                type="button"
-                variant="outline"
-                className="justify-start gap-2 border-border bg-muted/20"
+                variant="outlined"
+                startIcon={queueingRefreshKey === `list:${selectedList?.id || ""}` ? <CircularProgress size={14} color="inherit" /> : <ArchiveRounded sx={{ fontSize: 16 }} />}
                 onClick={() => void handleQueueSelectedListRefresh()}
                 disabled={queueingRefreshKey === `list:${selectedList?.id || ""}` || !selectedList}
+                sx={{ fontWeight: 600, fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", borderColor: "rgba(255,255,255,0.12)", color: "#A0A0A0", "&:hover": { borderColor: "rgba(255,255,255,0.2)", backgroundColor: "rgba(255,255,255,0.04)" } }}
               >
-                {queueingRefreshKey === `list:${selectedList?.id || ""}` ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Archive className="h-4 w-4" />
-                )}
                 Reverificar lista ativa
               </Button>
-            </div>
+            </Box>
 
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-border bg-muted/20/50 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Jobs ativos</p>
-                <p className="mt-2 text-2xl font-display text-foreground">{activeRefreshJobs.length}</p>
-                <p className="mt-1 text-xs text-muted-foreground/70">Executando no worker</p>
-              </div>
-              <div className="rounded-xl border border-border bg-muted/20/50 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Pendentes</p>
-                <p className="mt-2 text-2xl font-display text-foreground">{refreshStates.length}</p>
-                <p className="mt-1 text-xs text-muted-foreground/70">CNPJs com refresh vencido</p>
-              </div>
-              <div className="rounded-xl border border-border bg-muted/20/50 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Lista ativa</p>
-                <p className="mt-2 text-lg font-semibold text-foreground">{selectedList?.name || "Nenhuma"}</p>
-                <p className="mt-1 text-xs text-muted-foreground/70">{selectedList?.item_count || 0} lead(s)</p>
-              </div>
-            </div>
+            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1.5, mb: 2 }}>
+              {[
+                { label: "Jobs ativos", value: String(activeRefreshJobs.length), sub: "Executando no worker" },
+                { label: "Pendentes", value: String(refreshStates.length), sub: "CNPJs com refresh vencido" },
+                { label: "Lista ativa", value: selectedList?.name || "Nenhuma", sub: `${selectedList?.item_count || 0} lead(s)`, small: true },
+              ].map((stat) => (
+                <Box key={stat.label} sx={rowSx}>
+                  <Typography sx={sectionLabelSx}>{stat.label}</Typography>
+                  <Typography sx={{ fontSize: stat.small ? "0.9375rem" : "1.375rem", fontWeight: 700, color: "#E0E0E0", mt: 1, lineHeight: 1.2 }}>
+                    {stat.value}
+                  </Typography>
+                  <Typography sx={{ fontSize: "0.6875rem", color: "#555", mt: 0.75 }}>{stat.sub}</Typography>
+                </Box>
+              ))}
+            </Box>
 
             {refreshStates.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Fila natural de reverificacao</p>
-                {refreshStates.slice(0, 5).map((entry) => (
-                  <div key={entry.id} className="rounded-xl border border-border bg-muted/20/50 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold text-foreground">{entry.cnpj}</p>
-                        <p className="text-xs text-muted-foreground/70">
-                          Proximo refresh: {formatDate(entry.next_refresh_at)} . Ultimo refresh: {formatDate(entry.last_refresh_at)}
-                        </p>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={
-                          entry.freshness_status === "fresh"
-                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                            : entry.freshness_status === "warming"
-                              ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
-                              : "border-amber-500/30 bg-amber-500/10 text-amber-300"
-                        }
-                      >
-                        {entry.freshness_status || "pendente"}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <Box>
+                <Typography sx={{ ...sectionLabelSx, mb: 1 }}>Fila natural de reverificacao</Typography>
+                <Stack gap={1}>
+                  {refreshStates.slice(0, 5).map((entry) => (
+                    <Box key={entry.id} sx={rowSx}>
+                      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5}>
+                        <Box>
+                          <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>{entry.cnpj}</Typography>
+                          <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                            Proximo refresh: {formatDate(entry.next_refresh_at)} · Ultimo: {formatDate(entry.last_refresh_at)}
+                          </Typography>
+                        </Box>
+                        <StatusChip
+                          label={entry.freshness_status || "pendente"}
+                          tone={entry.freshness_status === "fresh" ? "success" : entry.freshness_status === "warming" ? "info" : "warning"}
+                        />
+                      </Stack>
+                    </Box>
+                  ))}
+                </Stack>
+              </Box>
             )}
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card shadow-surface-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Clock3 className="h-4 w-4 text-emerald-300" />
-              Jobs recentes
-            </CardTitle>
-            <CardDescription>
+        {/* Jobs Recentes */}
+        <Card sx={cardSx} elevation={0}>
+          <CardContent sx={{ p: 2.5 }}>
+            <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
+              <AccessTimeRounded sx={{ fontSize: 16, color: "#22C55E" }} />
+              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>Jobs recentes</Typography>
+            </Stack>
+            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
               Acompanhe refresh de listas, buscas salvas e watchlist sem travar o frontend.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
+            </Typography>
+
             {loading ? (
-              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Carregando jobs de refresh...
-              </div>
+              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+                <CircularProgress size={14} color="inherit" />
+                <Typography sx={{ fontSize: "0.8125rem" }}>Carregando jobs de refresh...</Typography>
+              </Stack>
             ) : refreshJobs.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
-                Nenhum job de refresh em lote ainda.
-              </div>
+              <Box sx={emptyBoxSx}>Nenhum job de refresh em lote ainda.</Box>
             ) : (
               <>
-                <div className="space-y-2">
-                  {refreshJobs.map((job) => (
-                    <button
-                      key={job.id}
-                      type="button"
-                      onClick={() => setSelectedRefreshJobId(job.id)}
-                      className={`w-full rounded-xl border p-4 text-left transition-colors ${
-                        selectedRefreshJobId === job.id
-                          ? "border-emerald-500/40 bg-emerald-500/10"
-                          : "border-border bg-muted/20/50 hover:border-border"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold text-foreground">{job.name}</p>
-                          <p className="text-xs text-muted-foreground/70">
-                            {job.source_label || job.source_kind} . {job.processed_targets}/{job.total_targets} alvo(s)
-                          </p>
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className={
-                            job.status === "completed"
-                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                              : job.status === "completed_with_errors"
-                                ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
-                                : job.status === "failed"
-                                  ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
-                                  : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
-                          }
-                        >
-                          {job.status}
-                        </Badge>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                <Stack gap={1} mb={2}>
+                  {refreshJobs.map((job) => {
+                    const isSelected = selectedRefreshJobId === job.id;
+                    return (
+                      <Box
+                        key={job.id}
+                        onClick={() => setSelectedRefreshJobId(job.id)}
+                        sx={{
+                          ...rowSx,
+                          cursor: "pointer",
+                          border: isSelected ? "1px solid rgba(34,197,94,0.35)" : "1px solid rgba(255,255,255,0.06)",
+                          backgroundColor: isSelected ? "rgba(34,197,94,0.07)" : "rgba(255,255,255,0.02)",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5}>
+                          <Box>
+                            <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>{job.name}</Typography>
+                            <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                              {job.source_label || job.source_kind} · {job.processed_targets}/{job.total_targets} alvo(s)
+                            </Typography>
+                          </Box>
+                          <StatusChip
+                            label={job.status}
+                            tone={
+                              job.status === "completed" ? "success"
+                              : job.status === "completed_with_errors" ? "warning"
+                              : job.status === "failed" ? "error"
+                              : "info"
+                            }
+                          />
+                        </Stack>
+                      </Box>
+                    );
+                  })}
+                </Stack>
 
                 {selectedRefreshJob && (
-                  <div className="rounded-xl border border-border bg-muted/20/50 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold text-foreground">{selectedRefreshJob.name}</p>
-                        <p className="text-xs text-muted-foreground/70">
-                          {selectedRefreshJob.source_label || selectedRefreshJob.source_kind} . Atualizado {formatDate(selectedRefreshJob.updated_at)}
-                        </p>
-                      </div>
-                      <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                        SMTP {selectedRefreshJob.options.probe_smtp ? "on" : "off"}
-                      </Badge>
-                    </div>
+                  <Box sx={rowSx}>
+                    <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5} mb={1}>
+                      <Box>
+                        <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>{selectedRefreshJob.name}</Typography>
+                        <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                          {selectedRefreshJob.source_label || selectedRefreshJob.source_kind} · Atualizado {formatDate(selectedRefreshJob.updated_at)}
+                        </Typography>
+                      </Box>
+                      <Chip
+                        label={`SMTP ${selectedRefreshJob.options.probe_smtp ? "on" : "off"}`}
+                        size="small"
+                        sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }}
+                      />
+                    </Stack>
                     {selectedRefreshJob.error && (
-                      <p className="mt-3 text-xs text-rose-300">{selectedRefreshJob.error}</p>
+                      <Typography sx={{ fontSize: "0.75rem", color: "#EF4444", mb: 1.5 }}>{selectedRefreshJob.error}</Typography>
                     )}
-                    <div className="mt-4 space-y-2">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Alvos recentes</p>
-                      {loadingRefreshTargets ? (
-                        <div className="flex items-center gap-2 rounded-xl border border-border bg-card/70 p-3 text-sm text-muted-foreground">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Carregando alvos...
-                        </div>
-                      ) : refreshJobTargets.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-border bg-card p-3 text-sm text-muted-foreground/70">
-                          Nenhum alvo carregado para este job.
-                        </div>
-                      ) : (
-                        refreshJobTargets.slice(0, 8).map((target) => (
-                          <div key={target.id} className="rounded-xl border border-border bg-card/70 p-3">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="space-y-1">
-                                <p className="text-sm font-semibold text-foreground">{target.cnpj}</p>
-                                <p className="text-xs text-muted-foreground/70">
-                                  {target.stage || "queued"} . {formatDate(target.updated_at)}
-                                </p>
-                              </div>
-                              <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                                {target.status}
-                              </Badge>
-                            </div>
-                            {target.error && <p className="mt-2 text-xs text-rose-300">{target.error}</p>}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
+                    <Typography sx={{ ...sectionLabelSx, mb: 1.5 }}>Alvos recentes</Typography>
+                    {loadingRefreshTargets ? (
+                      <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+                        <CircularProgress size={14} color="inherit" />
+                        <Typography sx={{ fontSize: "0.8125rem" }}>Carregando alvos...</Typography>
+                      </Stack>
+                    ) : refreshJobTargets.length === 0 ? (
+                      <Box sx={emptyBoxSx}>Nenhum alvo carregado para este job.</Box>
+                    ) : (
+                      <Stack gap={1}>
+                        {refreshJobTargets.slice(0, 8).map((target) => (
+                          <Box key={target.id} sx={{ ...rowSx, py: 1.5 }}>
+                            <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5}>
+                              <Box>
+                                <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>{target.cnpj}</Typography>
+                                <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                                  {target.stage || "queued"} · {formatDate(target.updated_at)}
+                                </Typography>
+                              </Box>
+                              <Chip label={target.status} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
+                            </Stack>
+                            {target.error && <Typography sx={{ fontSize: "0.75rem", color: "#EF4444", mt: 1 }}>{target.error}</Typography>}
+                          </Box>
+                        ))}
+                      </Stack>
+                    )}
+                  </Box>
                 )}
               </>
             )}
           </CardContent>
         </Card>
-      </div>
+      </Box>
 
-      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.35fr]">
-        <Card className="border-border bg-card shadow-surface-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Archive className="h-4 w-4 text-cyan-300" />
-              Listas salvas
-            </CardTitle>
-            <CardDescription>
+      {/* ── Listas Salvas + Itens da Lista ────────────────────────────────── */}
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "0.95fr 1.35fr" }, gap: 2 }}>
+
+        {/* Listas Salvas */}
+        <Card sx={cardSx} elevation={0}>
+          <CardContent sx={{ p: 2.5 }}>
+            <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
+              <ArchiveRounded sx={{ fontSize: 16, color: "#38BDF8" }} />
+              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>Listas salvas</Typography>
+            </Stack>
+            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
               Use estas listas para separar segmentos, campanhas e lotes prontos para outreach.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
+            </Typography>
+
             {loading ? (
-              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Carregando listas...
-              </div>
+              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+                <CircularProgress size={14} color="inherit" />
+                <Typography sx={{ fontSize: "0.8125rem" }}>Carregando listas...</Typography>
+              </Stack>
             ) : lists.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
-                Nenhuma lista criada ainda. Salve leads de Results para comecar.
-              </div>
+              <Box sx={emptyBoxSx}>Nenhuma lista criada ainda. Salve leads de Results para comecar.</Box>
             ) : (
-              lists.map((list) => (
-                <button
-                  key={list.id}
-                  type="button"
-                  onClick={() => setSelectedListId(list.id)}
-                  className={`w-full rounded-xl border p-4 text-left transition-colors ${
-                    selectedListId === list.id
-                      ? "border-cyan-500/40 bg-cyan-500/10"
-                      : "border-border bg-muted/20/50 hover:border-border"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-foreground">{list.name}</p>
-                      <p className="text-xs text-muted-foreground/70">{list.description || "Sem descricao"}</p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground/70 hover:text-rose-300"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void handleDeleteList(list.id);
+              <Stack gap={1}>
+                {lists.map((list) => {
+                  const isSelected = selectedListId === list.id;
+                  return (
+                    <Box
+                      key={list.id}
+                      onClick={() => setSelectedListId(list.id)}
+                      sx={{
+                        ...rowSx,
+                        cursor: "pointer",
+                        border: isSelected ? "1px solid rgba(56,189,248,0.35)" : "1px solid rgba(255,255,255,0.06)",
+                        backgroundColor: isSelected ? "rgba(56,189,248,0.06)" : "rgba(255,255,255,0.02)",
+                        transition: "all 0.15s",
                       }}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                  <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground/70">
-                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                      {list.item_count} leads
-                    </Badge>
-                    <span>Atualizada em {formatDate(list.updated_at)}</span>
-                  </div>
-                </button>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-border bg-card shadow-surface-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">{selectedList ? selectedList.name : "Itens da lista"}</CardTitle>
-            <CardDescription>
-              Snapshot operacional dos leads salvos, pronto para reuso em campanhas e revisoes.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {!selectedListId ? (
-              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
-                Selecione uma lista para visualizar os leads armazenados.
-              </div>
-            ) : loadingItems ? (
-              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Carregando leads da lista...
-              </div>
-            ) : items.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
-                Esta lista ainda esta vazia.
-              </div>
-            ) : (
-              items.map((item) => {
-                const emp = item.empresa;
-                const whatsapp = emp.whatsapp_enriquecido || emp.whatsapp_publico;
-                const telefone = emp.telefone_final || emp.telefone_padrao || emp.telefone_enriquecido;
-                const email = emp.email_final || emp.email_enriquecido || emp.email;
-                return (
-                  <div key={`${item.id}-${item.cnpj}`} className="rounded-xl border border-border bg-muted/20/50 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold text-foreground">{emp.nome_fantasia || emp.razao_social}</p>
-                        <p className="text-xs text-muted-foreground/70">
-                          {emp.cnpj} . {emp.cidade || "-"} / {emp.uf || "-"}
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground/70 hover:text-rose-300"
-                        onClick={() => void handleRemoveItem(item.cnpj)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                      {email && (
-                        <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300">
-                          <Mail className="mr-1 h-3 w-3" />
-                          {email}
-                        </Badge>
-                      )}
-                      {telefone && (
-                        <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                          <Phone className="mr-1 h-3 w-3" />
-                          {telefone}
-                        </Badge>
-                      )}
-                      {whatsapp && (
-                        <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
-                          {whatsapp}
-                        </Badge>
-                      )}
-                      {emp.segmento && (
-                        <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
-                          {emp.segmento}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-        <Card className="border-border bg-card shadow-surface-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <BookmarkPlus className="h-4 w-4 text-cyan-300" />
-              Buscas salvas e listas dinamicas
-            </CardTitle>
-            <CardDescription>
-              Reexecute queries com 1 clique e abra o resultado direto no fluxo operacional do Hermes.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {loading ? (
-              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Carregando buscas salvas...
-              </div>
-            ) : savedSearches.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
-                Nenhuma busca salva ainda. Use o Workbench para criar buscas e listas dinamicas.
-              </div>
-            ) : (
-              savedSearches.map((search) => (
-                <div key={search.id} className="rounded-xl border border-border bg-muted/20/50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">{search.name}</p>
-                        <Badge
-                          variant="outline"
-                          className={
-                            search.kind === "dynamic"
-                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                              : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
-                          }
+                      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5}>
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }} noWrap>{list.name}</Typography>
+                          <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }} noWrap>{list.description || "Sem descricao"}</Typography>
+                        </Box>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => { e.stopPropagation(); void handleDeleteList(list.id); }}
+                          sx={{ color: "#444", "&:hover": { color: "#EF4444" } }}
                         >
-                          {search.kind === "dynamic" ? "dinamica" : "salva"}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground/70">
-                        {search.description || "Sem descricao"} . Ultima execucao: {formatDate(search.last_run_at)}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground/70 hover:text-rose-300"
-                      onClick={() => void handleDeleteSavedSearch(search.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                      {(search.config.ufs ?? []).length || (search.config.uf ? 1 : 0)} UF(s)
-                    </Badge>
-                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                      {(search.config.cnaes ?? []).length} CNAE(s)
-                    </Badge>
-                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                      limite {search.config.limite_empresas}
-                    </Badge>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="mt-4 w-full border-border bg-card text-foreground shadow-surface-xs hover:bg-accent hover:text-accent-foreground"
-                    onClick={() => void handleRunSavedSearch(search)}
-                    disabled={runningSavedSearchId === search.id}
-                  >
-                    {runningSavedSearchId === search.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Abrir no Results
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="mt-2 w-full border-border bg-muted/20"
-                    onClick={() => void handleQueueSavedSearchRefresh(search)}
-                    disabled={queueingRefreshKey === `search:${search.id}`}
-                  >
-                    {queueingRefreshKey === `search:${search.id}` ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                    )}
-                    Reverificar leads desta busca
-                  </Button>
-                </div>
-              ))
+                          <DeleteRounded sx={{ fontSize: 15 }} />
+                        </IconButton>
+                      </Stack>
+                      <Stack direction="row" alignItems="center" gap={1} mt={1.5}>
+                        <Chip label={`${list.item_count} leads`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
+                        <Typography sx={{ fontSize: "0.75rem", color: "#555" }}>Atualizada em {formatDate(list.updated_at)}</Typography>
+                      </Stack>
+                    </Box>
+                  );
+                })}
+              </Stack>
             )}
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card shadow-surface-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Radar className="h-4 w-4 text-emerald-300" />
-              Watchlist e refresh
-            </CardTitle>
-            <CardDescription>
+        {/* Itens da Lista */}
+        <Card sx={cardSx} elevation={0}>
+          <CardContent sx={{ p: 2.5 }}>
+            <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0", mb: 0.5 }}>
+              {selectedList ? selectedList.name : "Itens da lista"}
+            </Typography>
+            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
+              Snapshot operacional dos leads salvos, pronto para reuso em campanhas e revisoes.
+            </Typography>
+
+            {!selectedListId ? (
+              <Box sx={emptyBoxSx}>Selecione uma lista para visualizar os leads armazenados.</Box>
+            ) : loadingItems ? (
+              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+                <CircularProgress size={14} color="inherit" />
+                <Typography sx={{ fontSize: "0.8125rem" }}>Carregando leads da lista...</Typography>
+              </Stack>
+            ) : items.length === 0 ? (
+              <Box sx={emptyBoxSx}>Esta lista ainda esta vazia.</Box>
+            ) : (
+              <Stack gap={1}>
+                {items.map((item) => {
+                  const emp = item.empresa;
+                  const whatsapp = emp.whatsapp_enriquecido || emp.whatsapp_publico;
+                  const telefone = emp.telefone_final || emp.telefone_padrao || emp.telefone_enriquecido;
+                  const email = emp.email_final || emp.email_enriquecido || emp.email;
+                  return (
+                    <Box key={`${item.id}-${item.cnpj}`} sx={rowSx}>
+                      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5}>
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }} noWrap>
+                            {emp.nome_fantasia || emp.razao_social}
+                          </Typography>
+                          <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                            {emp.cnpj} · {emp.cidade || "-"} / {emp.uf || "-"}
+                          </Typography>
+                        </Box>
+                        <IconButton
+                          size="small"
+                          onClick={() => void handleRemoveItem(item.cnpj)}
+                          sx={{ color: "#444", "&:hover": { color: "#EF4444" } }}
+                        >
+                          <DeleteRounded sx={{ fontSize: 15 }} />
+                        </IconButton>
+                      </Stack>
+                      <Stack direction="row" flexWrap="wrap" gap={0.75} mt={1.5}>
+                        {email && (
+                          <Chip
+                            icon={<MailRounded sx={{ fontSize: 12 }} />}
+                            label={email}
+                            size="small"
+                            sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(56,189,248,0.08)", color: "#38BDF8", border: "1px solid rgba(56,189,248,0.2)" }}
+                          />
+                        )}
+                        {telefone && (
+                          <Chip
+                            icon={<PhoneRounded sx={{ fontSize: 12 }} />}
+                            label={telefone}
+                            size="small"
+                            sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }}
+                          />
+                        )}
+                        {whatsapp && (
+                          <Chip label={whatsapp} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(34,197,94,0.08)", color: "#22C55E", border: "1px solid rgba(34,197,94,0.2)" }} />
+                        )}
+                        {emp.segmento && (
+                          <Chip label={emp.segmento} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(56,189,248,0.08)", color: "#38BDF8", border: "1px solid rgba(56,189,248,0.2)" }} />
+                        )}
+                      </Stack>
+                    </Box>
+                  );
+                })}
+              </Stack>
+            )}
+          </CardContent>
+        </Card>
+      </Box>
+
+      {/* ── Buscas Salvas + Watchlist ──────────────────────────────────────── */}
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "1.05fr 0.95fr" }, gap: 2 }}>
+
+        {/* Buscas Salvas */}
+        <Card sx={cardSx} elevation={0}>
+          <CardContent sx={{ p: 2.5 }}>
+            <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
+              <BookmarkAddRounded sx={{ fontSize: 16, color: "#38BDF8" }} />
+              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>Buscas salvas e listas dinamicas</Typography>
+            </Stack>
+            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
+              Reexecute queries com 1 clique e abra o resultado direto no fluxo operacional do Hermes.
+            </Typography>
+
+            {loading ? (
+              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+                <CircularProgress size={14} color="inherit" />
+                <Typography sx={{ fontSize: "0.8125rem" }}>Carregando buscas salvas...</Typography>
+              </Stack>
+            ) : savedSearches.length === 0 ? (
+              <Box sx={emptyBoxSx}>Nenhuma busca salva ainda. Use o Workbench para criar buscas e listas dinamicas.</Box>
+            ) : (
+              <Stack gap={1.5}>
+                {savedSearches.map((search) => (
+                  <Box key={search.id} sx={rowSx}>
+                    <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5} mb={1}>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Stack direction="row" alignItems="center" gap={1} mb={0.5} flexWrap="wrap">
+                          <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>{search.name}</Typography>
+                          <StatusChip label={search.kind === "dynamic" ? "dinamica" : "salva"} tone={search.kind === "dynamic" ? "success" : "info"} />
+                        </Stack>
+                        <Typography sx={{ fontSize: "0.75rem", color: "#555" }}>
+                          {search.description || "Sem descricao"} · Ultima execucao: {formatDate(search.last_run_at)}
+                        </Typography>
+                      </Box>
+                      <IconButton
+                        size="small"
+                        onClick={() => void handleDeleteSavedSearch(search.id)}
+                        sx={{ color: "#444", "&:hover": { color: "#EF4444" } }}
+                      >
+                        <DeleteRounded sx={{ fontSize: 15 }} />
+                      </IconButton>
+                    </Stack>
+                    <Stack direction="row" flexWrap="wrap" gap={0.75} mb={2}>
+                      <Chip label={`${(search.config.ufs ?? []).length || (search.config.uf ? 1 : 0)} UF(s)`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
+                      <Chip label={`${(search.config.cnaes ?? []).length} CNAE(s)`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
+                      <Chip label={`limite ${search.config.limite_empresas}`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
+                    </Stack>
+                    <Stack gap={1}>
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        startIcon={runningSavedSearchId === search.id ? <CircularProgress size={14} color="inherit" /> : undefined}
+                        onClick={() => void handleRunSavedSearch(search)}
+                        disabled={runningSavedSearchId === search.id}
+                        sx={{ fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", borderColor: "rgba(255,255,255,0.12)", color: "#A0A0A0", "&:hover": { borderColor: "rgba(255,255,255,0.2)", backgroundColor: "rgba(255,255,255,0.04)" } }}
+                      >
+                        Abrir no Results
+                      </Button>
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        startIcon={queueingRefreshKey === `search:${search.id}` ? <CircularProgress size={14} color="inherit" /> : <RefreshRounded sx={{ fontSize: 16 }} />}
+                        onClick={() => void handleQueueSavedSearchRefresh(search)}
+                        disabled={queueingRefreshKey === `search:${search.id}`}
+                        sx={{ fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", borderColor: "rgba(255,255,255,0.08)", color: "#666", "&:hover": { borderColor: "rgba(255,255,255,0.14)", backgroundColor: "rgba(255,255,255,0.03)" } }}
+                      >
+                        Reverificar leads desta busca
+                      </Button>
+                    </Stack>
+                  </Box>
+                ))}
+              </Stack>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Watchlist */}
+        <Card sx={cardSx} elevation={0}>
+          <CardContent sx={{ p: 2.5 }}>
+            <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
+              <TrackChangesRounded sx={{ fontSize: 16, color: "#22C55E" }} />
+              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>Watchlist e refresh</Typography>
+            </Stack>
+            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
               Acompanhe empresas, gere sinais internos e monitore WhatsApp acionavel.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Input
-              value={manualWatchCnpj}
-              onChange={(event) => setManualWatchCnpj(event.target.value)}
-              placeholder="CNPJ para acompanhar"
-              className="border-border bg-muted/20"
-            />
-            <Textarea
-              value={manualWatchReason}
-              onChange={(event) => setManualWatchReason(event.target.value)}
-              placeholder="Motivo do acompanhamento"
-              className="min-h-[84px] border-border bg-muted/20"
-            />
-            <Button
-              type="button"
-              className="w-full gap-2 bg-emerald-500 text-muted-foreground hover:bg-emerald-400"
-              onClick={() => void handleFollowCompany()}
-              disabled={savingWatch}
-            >
-              {savingWatch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radar className="h-4 w-4" />}
-              Seguir empresa
-            </Button>
+            </Typography>
+
+            <Stack gap={1.5} mb={2}>
+              <TextField
+                size="small"
+                value={manualWatchCnpj}
+                onChange={(e) => setManualWatchCnpj(e.target.value)}
+                placeholder="CNPJ para acompanhar"
+                fullWidth
+                sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }}
+              />
+              <TextField
+                size="small"
+                multiline
+                rows={3}
+                value={manualWatchReason}
+                onChange={(e) => setManualWatchReason(e.target.value)}
+                placeholder="Motivo do acompanhamento"
+                fullWidth
+                sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }}
+              />
+              <Button
+                fullWidth
+                variant="contained"
+                color="success"
+                startIcon={savingWatch ? <CircularProgress size={14} color="inherit" /> : <TrackChangesRounded sx={{ fontSize: 16 }} />}
+                onClick={() => void handleFollowCompany()}
+                disabled={savingWatch}
+                sx={{ fontWeight: 600, fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", backgroundColor: "#22C55E", "&:hover": { backgroundColor: "#16A34A" } }}
+              >
+                Seguir empresa
+              </Button>
+            </Stack>
+
             {loading ? (
-              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Carregando watchlist...
-              </div>
+              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+                <CircularProgress size={14} color="inherit" />
+                <Typography sx={{ fontSize: "0.8125rem" }}>Carregando watchlist...</Typography>
+              </Stack>
             ) : watchlist.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
-                Nenhuma empresa acompanhada ainda.
-              </div>
+              <Box sx={emptyBoxSx}>Nenhuma empresa acompanhada ainda.</Box>
             ) : (
-              watchlist.map((entry) => (
-                <div key={entry.id} className="rounded-xl border border-border bg-muted/20/50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-foreground">
-                        {entry.nome_fantasia || entry.razao_social || entry.cnpj}
-                      </p>
-                      <p className="text-xs text-muted-foreground/70">
-                        {entry.cnpj} . {entry.cidade || "-"} / {entry.uf || "-"}
-                      </p>
-                    </div>
+              <Stack gap={1.5}>
+                {watchlist.map((entry) => (
+                  <Box key={entry.id} sx={rowSx}>
+                    <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5} mb={1}>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }} noWrap>
+                          {entry.nome_fantasia || entry.razao_social || entry.cnpj}
+                        </Typography>
+                        <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                          {entry.cnpj} · {entry.cidade || "-"} / {entry.uf || "-"}
+                        </Typography>
+                      </Box>
+                      <IconButton
+                        size="small"
+                        onClick={() => void handleUnfollowCompany(entry.cnpj)}
+                        sx={{ color: "#444", "&:hover": { color: "#EF4444" } }}
+                      >
+                        <DeleteRounded sx={{ fontSize: 15 }} />
+                      </IconButton>
+                    </Stack>
+                    <Stack direction="row" flexWrap="wrap" gap={0.75} mb={1.5}>
+                      <Chip label={`${entry.signal_count} signal(s)`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
+                      <Chip label={`${entry.snapshot.decision_makers ?? 0} decisor(es)`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(56,189,248,0.08)", color: "#38BDF8", border: "1px solid rgba(56,189,248,0.2)" }} />
+                      <Chip label={`${entry.snapshot.deliverable_emails ?? 0} email(s)`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(56,189,248,0.06)", color: "#60A5FA", border: "1px solid rgba(56,189,248,0.15)" }} />
+                      <StatusChip
+                        label={`WA valido: ${entry.snapshot.validated_whatsapp_candidates ?? 0}`}
+                        tone={entry.snapshot.has_whatsapp_validated ? "success" : "default"}
+                      />
+                    </Stack>
+                    <Typography sx={{ fontSize: "0.75rem", color: "#555", mb: 1.5 }}>
+                      Padrao: {entry.snapshot.email_pattern || "nao resolvido"} · Ultimo refresh: {formatDate(entry.last_refresh_at)}
+                    </Typography>
                     <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground/70 hover:text-rose-300"
-                      onClick={() => void handleUnfollowCompany(entry.cnpj)}
+                      fullWidth
+                      variant="outlined"
+                      startIcon={refreshingWatchCnpj === entry.cnpj ? <CircularProgress size={14} color="inherit" /> : <RefreshRounded sx={{ fontSize: 16 }} />}
+                      onClick={() => void handleRefreshWatch(entry.cnpj)}
+                      disabled={refreshingWatchCnpj === entry.cnpj}
+                      sx={{ fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", borderColor: "rgba(255,255,255,0.08)", color: "#666", "&:hover": { borderColor: "rgba(255,255,255,0.14)", backgroundColor: "rgba(255,255,255,0.03)" } }}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      Atualizar sinais
                     </Button>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                      {entry.signal_count} signal(s)
-                    </Badge>
-                    <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
-                      {entry.snapshot.decision_makers ?? 0} decisor(es)
-                    </Badge>
-                    <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300">
-                      {entry.snapshot.deliverable_emails ?? 0} email(s) deliverable
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className={
-                        entry.snapshot.has_whatsapp_validated
-                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                          : "border-border bg-muted/20 text-foreground/80"
-                      }
-                    >
-                      WA valido: {entry.snapshot.validated_whatsapp_candidates ?? 0}
-                    </Badge>
-                  </div>
-                  <p className="mt-3 text-xs text-muted-foreground/70">
-                    Padrao: {entry.snapshot.email_pattern || "nao resolvido"} . Ultimo refresh: {formatDate(entry.last_refresh_at)}
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="mt-4 w-full border-border bg-muted/20"
-                    onClick={() => void handleRefreshWatch(entry.cnpj)}
-                    disabled={refreshingWatchCnpj === entry.cnpj}
-                  >
-                    {refreshingWatchCnpj === entry.cnpj ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                    )}
-                    Atualizar sinais
-                  </Button>
-                </div>
-              ))
+                  </Box>
+                ))}
+              </Stack>
             )}
           </CardContent>
         </Card>
-      </div>
+      </Box>
 
-      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.4fr]">
-        <Card className="border-border bg-card shadow-surface-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <ShieldBan className="h-4 w-4 text-amber-300" />
-              Nova supressao
-            </CardTitle>
-            <CardDescription>
+      {/* ── Supressao + Signals ────────────────────────────────────────────── */}
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "0.9fr 1.4fr" }, gap: 2 }}>
+
+        {/* Nova Supressao */}
+        <Card sx={cardSx} elevation={0}>
+          <CardContent sx={{ p: 2.5 }}>
+            <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
+              <BlockRounded sx={{ fontSize: 16, color: "#F59E0B" }} />
+              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>Nova supressao</Typography>
+            </Stack>
+            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
               Bloqueie CNPJs, e-mails ou dominios para que nao retornem nas proximas prospeccoes.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Input
-              value={manualCnpj}
-              onChange={(event) => setManualCnpj(event.target.value)}
-              placeholder="CNPJs separados por virgula"
-              className="border-border bg-muted/20"
-            />
-            <Input
-              value={manualEmail}
-              onChange={(event) => setManualEmail(event.target.value)}
-              placeholder="E-mails separados por virgula"
-              className="border-border bg-muted/20"
-            />
-            <Input
-              value={manualDomain}
-              onChange={(event) => setManualDomain(event.target.value)}
-              placeholder="Dominios separados por virgula"
-              className="border-border bg-muted/20"
-            />
-            <Textarea
-              value={manualReason}
-              onChange={(event) => setManualReason(event.target.value)}
-              placeholder="Motivo da supressao"
-              className="min-h-[96px] border-border bg-muted/20"
-            />
-            <Button
-              type="button"
-              className="w-full gap-2 bg-amber-500 text-muted-foreground hover:bg-amber-400"
-              onClick={() => void handleManualSuppression()}
-              disabled={savingSuppression}
-            >
-              {savingSuppression ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircleOff className="h-4 w-4" />}
-              Registrar supressao
-            </Button>
+            </Typography>
+            <Stack gap={1.5}>
+              <TextField size="small" value={manualCnpj} onChange={(e) => setManualCnpj(e.target.value)} placeholder="CNPJs separados por virgula" fullWidth sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }} />
+              <TextField size="small" value={manualEmail} onChange={(e) => setManualEmail(e.target.value)} placeholder="E-mails separados por virgula" fullWidth sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }} />
+              <TextField size="small" value={manualDomain} onChange={(e) => setManualDomain(e.target.value)} placeholder="Dominios separados por virgula" fullWidth sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }} />
+              <TextField size="small" multiline rows={3} value={manualReason} onChange={(e) => setManualReason(e.target.value)} placeholder="Motivo da supressao" fullWidth sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }} />
+              <Button
+                fullWidth
+                variant="contained"
+                startIcon={savingSuppression ? <CircularProgress size={14} color="inherit" /> : <SpeakerNotesOffRounded sx={{ fontSize: 16 }} />}
+                onClick={() => void handleManualSuppression()}
+                disabled={savingSuppression}
+                sx={{ fontWeight: 600, fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", backgroundColor: "#F59E0B", color: "#0F0F0F", "&:hover": { backgroundColor: "#D97706" } }}
+              >
+                Registrar supressao
+              </Button>
+            </Stack>
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card shadow-surface-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Signals recentes</CardTitle>
-            <CardDescription>
+        {/* Signals Recentes */}
+        <Card sx={cardSx} elevation={0}>
+          <CardContent sx={{ p: 2.5 }}>
+            <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0", mb: 0.5 }}>Signals recentes</Typography>
+            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
               Eventos internos do Hermes para timing de abordagem e cobertura de contato.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
+            </Typography>
+
             {loading ? (
-              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Carregando sinais...
-              </div>
+              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+                <CircularProgress size={14} color="inherit" />
+                <Typography sx={{ fontSize: "0.8125rem" }}>Carregando sinais...</Typography>
+              </Stack>
             ) : signals.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
-                Nenhum sinal registrado ainda.
-              </div>
+              <Box sx={emptyBoxSx}>Nenhum sinal registrado ainda.</Box>
             ) : (
-              signals.map((signal) => (
-                <div key={signal.id} className="rounded-xl border border-border bg-muted/20/50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-foreground">{signal.title}</p>
-                      <p className="text-xs text-muted-foreground/70">
-                        {signal.cnpj} . {formatDate(signal.created_at)}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                      {signal.signal_type}
-                    </Badge>
-                  </div>
-                  {signal.payload && Object.keys(signal.payload).length > 0 && (
-                    <pre className="mt-3 overflow-auto rounded-xl border border-border bg-card/70 p-3 text-[11px] leading-5 text-muted-foreground">
-                      {JSON.stringify(signal.payload, null, 2)}
-                    </pre>
-                  )}
-                </div>
-              ))
+              <Stack gap={1}>
+                {signals.map((signal) => (
+                  <Box key={signal.id} sx={rowSx}>
+                    <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5} mb={0.5}>
+                      <Box>
+                        <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>{signal.title}</Typography>
+                        <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                          {signal.cnpj} · {formatDate(signal.created_at)}
+                        </Typography>
+                      </Box>
+                      <Chip label={signal.signal_type} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
+                    </Stack>
+                    {signal.payload && Object.keys(signal.payload).length > 0 && (
+                      <Box
+                        component="pre"
+                        sx={{
+                          mt: 1.5, p: 1.5, overflow: "auto", borderRadius: "8px",
+                          backgroundColor: "#0D0D0D", border: "1px solid rgba(255,255,255,0.06)",
+                          fontSize: "0.6875rem", lineHeight: 1.7, color: "#888", fontFamily: "monospace",
+                        }}
+                      >
+                        {JSON.stringify(signal.payload, null, 2)}
+                      </Box>
+                    )}
+                  </Box>
+                ))}
+              </Stack>
             )}
           </CardContent>
         </Card>
-      </div>
+      </Box>
 
-      <Card className="border-border bg-card shadow-surface-sm">
-        <CardHeader>
-          <CardTitle className="text-lg">Registro de supressao</CardTitle>
-          <CardDescription>
+      {/* ── Registro de Supressao ──────────────────────────────────────────── */}
+      <Card sx={cardSx} elevation={0}>
+        <CardContent sx={{ p: 2.5 }}>
+          <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0", mb: 0.5 }}>Registro de supressao</Typography>
+          <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
             Itens bloqueados da prospeccao automatica para evitar retrabalho e contato indevido.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
+          </Typography>
+
           {loading ? (
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Carregando supressoes...
-            </div>
+            <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+              <CircularProgress size={14} color="inherit" />
+              <Typography sx={{ fontSize: "0.8125rem" }}>Carregando supressoes...</Typography>
+            </Stack>
           ) : suppressions.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
-              Nenhuma supressao cadastrada.
-            </div>
+            <Box sx={emptyBoxSx}>Nenhuma supressao cadastrada.</Box>
           ) : (
-            suppressions.map((entry) => (
-              <div key={entry.id} className="flex items-start justify-between gap-3 rounded-xl border border-border bg-muted/20/50 p-4">
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-foreground">
-                    {entry.cnpj || entry.email || entry.domain || "Registro"}
-                  </p>
-                  <p className="text-xs text-muted-foreground/70">
-                    {entry.reason || "Sem motivo informado"} . {formatDate(entry.updated_at || entry.created_at)}
-                  </p>
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    {entry.cnpj && <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">CNPJ</Badge>}
-                    {entry.email && <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300">E-mail</Badge>}
-                    {entry.domain && <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300">Dominio</Badge>}
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground/70 hover:text-rose-300"
-                  onClick={() => void handleRemoveSuppression(entry.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            ))
+            <Stack gap={1}>
+              {suppressions.map((entry) => (
+                <Stack key={entry.id} direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5} sx={rowSx}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>
+                      {entry.cnpj || entry.email || entry.domain || "Registro"}
+                    </Typography>
+                    <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                      {entry.reason || "Sem motivo informado"} · {formatDate(entry.updated_at || entry.created_at)}
+                    </Typography>
+                    <Stack direction="row" flexWrap="wrap" gap={0.75} mt={1}>
+                      {entry.cnpj && <Chip label="CNPJ" size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />}
+                      {entry.email && <Chip label="E-mail" size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(56,189,248,0.08)", color: "#38BDF8", border: "1px solid rgba(56,189,248,0.2)" }} />}
+                      {entry.domain && <Chip label="Dominio" size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(56,189,248,0.06)", color: "#60A5FA", border: "1px solid rgba(56,189,248,0.15)" }} />}
+                    </Stack>
+                  </Box>
+                  <IconButton
+                    size="small"
+                    onClick={() => void handleRemoveSuppression(entry.id)}
+                    sx={{ color: "#444", "&:hover": { color: "#EF4444" } }}
+                  >
+                    <DeleteRounded sx={{ fontSize: 15 }} />
+                  </IconButton>
+                </Stack>
+              ))}
+            </Stack>
           )}
         </CardContent>
       </Card>
 
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="border-border bg-card text-foreground">
-          <DialogHeader>
-            <DialogTitle>Criar nova lista</DialogTitle>
-            <DialogDescription>
-              De um nome para a lista e use Results para alimentar os leads selecionados.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <Input
+      {/* ── Dialog: Criar Lista ────────────────────────────────────────────── */}
+      <Dialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        PaperProps={{ sx: { backgroundColor: "#141414", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", minWidth: 420 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 600, fontSize: "1rem", color: "#F0F0F0", pb: 1 }}>
+          Criar nova lista
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
+            De um nome para a lista e use Results para alimentar os leads selecionados.
+          </DialogContentText>
+          <Stack gap={1.5}>
+            <TextField
+              size="small"
               value={createName}
-              onChange={(event) => setCreateName(event.target.value)}
+              onChange={(e) => setCreateName(e.target.value)}
               placeholder="Ex.: Imobiliarias SP - rodada 1"
-              className="border-border bg-muted/20"
+              fullWidth
+              autoFocus
+              sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }}
             />
-            <Textarea
+            <TextField
+              size="small"
+              multiline
+              rows={3}
               value={createDescription}
-              onChange={(event) => setCreateDescription(event.target.value)}
+              onChange={(e) => setCreateDescription(e.target.value)}
               placeholder="Descricao opcional"
-              className="min-h-[96px] border-border bg-muted/20"
+              fullWidth
+              sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }}
             />
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              className="border-border bg-muted/20"
-              onClick={() => setCreateDialogOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              className="bg-cyan-500 text-muted-foreground hover:bg-cyan-400"
-              onClick={() => void handleCreateList()}
-              disabled={creating}
-            >
-              {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Criar lista
-            </Button>
-          </DialogFooter>
+          </Stack>
         </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setCreateDialogOpen(false)}
+            sx={{ fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", borderColor: "rgba(255,255,255,0.1)", color: "#888" }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => void handleCreateList()}
+            disabled={creating}
+            startIcon={creating ? <CircularProgress size={14} color="inherit" /> : undefined}
+            sx={{ fontWeight: 600, fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px" }}
+          >
+            Criar lista
+          </Button>
+        </DialogActions>
       </Dialog>
-    </div>
+    </Box>
   );
 };
 

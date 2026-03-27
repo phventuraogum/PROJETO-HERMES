@@ -1,33 +1,37 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import {
-  ArrowRight,
-  BadgeCheck,
-  Brain,
-  Building2,
-  Factory,
-  Globe,
-  Link2,
-  Loader2,
-  Mail,
-  Newspaper,
-  Phone,
-  RefreshCw,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  Target,
-  TrendingUp,
-  Users,
-  WalletCards,
-} from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import SearchIcon from "@mui/icons-material/Search";
+import SparklesIcon from "@mui/icons-material/AutoAwesome";
+import ArrowRightIcon from "@mui/icons-material/ArrowForward";
+import RefreshCwIcon from "@mui/icons-material/Refresh";
+import BrainIcon from "@mui/icons-material/Psychology";
+import GlobeIcon from "@mui/icons-material/Language";
+import MailIcon from "@mui/icons-material/Email";
+import PhoneIcon from "@mui/icons-material/Phone";
+import Building2Icon from "@mui/icons-material/WhatsApp";
+import FactoryIcon from "@mui/icons-material/Factory";
+import NewspaperIcon from "@mui/icons-material/Newspaper";
+import Link2Icon from "@mui/icons-material/Link";
+import ShieldCheckIcon from "@mui/icons-material/VerifiedUser";
+import BadgeCheckIcon from "@mui/icons-material/CheckCircle";
+import TargetIcon from "@mui/icons-material/TrackChanges";
+import UsersIcon from "@mui/icons-material/People";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import WalletCardsIcon from "@mui/icons-material/AccountBalanceWallet";
+import CircularProgress from "@mui/material/CircularProgress";
+
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import TextField from "@mui/material/TextField";
+import Chip from "@mui/material/Chip";
+import Divider from "@mui/material/Divider";
+
 import {
   addToPipeline,
   buscarEmpresasParecidasPorCnpj,
@@ -46,7 +50,6 @@ import {
   type MobileWaterfallResult,
   type SimilarCompany,
 } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
 function formatCnpj(value: string): string {
   const digits = normalizeCnpj(value);
@@ -87,19 +90,19 @@ function formatPercent(value?: number | null): string {
   return `${Math.round(pct)}%`;
 }
 
-function statusTone(status?: string | null): string {
+function statusColor(status?: string | null): { color: string; bgcolor: string; borderColor: string } {
   switch (status) {
     case "verified":
-      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+      return { color: "#6ee7b7", bgcolor: "rgba(16,185,129,0.1)", borderColor: "rgba(16,185,129,0.3)" };
     case "deliverable":
     case "mx_only":
-      return "border-sky-500/30 bg-sky-500/10 text-sky-300";
+      return { color: "#7dd3fc", bgcolor: "rgba(14,165,233,0.1)", borderColor: "rgba(14,165,233,0.3)" };
     case "risky":
-      return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+      return { color: "#fcd34d", bgcolor: "rgba(245,158,11,0.1)", borderColor: "rgba(245,158,11,0.3)" };
     case "invalid":
-      return "border-rose-500/30 bg-rose-500/10 text-rose-300";
+      return { color: "#fca5a5", bgcolor: "rgba(239,68,68,0.1)", borderColor: "rgba(239,68,68,0.3)" };
     default:
-      return "border-border bg-muted/20 text-foreground/80";
+      return { color: "#F0F0F0", bgcolor: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.14)" };
   }
 }
 
@@ -107,33 +110,28 @@ function formatPattern(pattern?: string | null): string {
   return pattern ? pattern.replaceAll("_", " / ").replaceAll(".", " . ") : "Nao inferido";
 }
 
-function signalTone(signalType?: string | null): string {
+function signalColors(signalType?: string | null): { color: string; bgcolor: string; borderColor: string } {
   switch (signalType) {
     case "jobs_signal":
-      return "border-sky-500/30 bg-sky-500/10 text-sky-300";
+      return { color: "#7dd3fc", bgcolor: "rgba(14,165,233,0.1)", borderColor: "rgba(14,165,233,0.3)" };
     case "funding_signal":
-      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+      return { color: "#6ee7b7", bgcolor: "rgba(16,185,129,0.1)", borderColor: "rgba(16,185,129,0.3)" };
     case "growth_signal":
-      return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+      return { color: "#fcd34d", bgcolor: "rgba(245,158,11,0.1)", borderColor: "rgba(245,158,11,0.3)" };
     case "news_signal":
-      return "border-violet-500/30 bg-violet-500/10 text-violet-300";
+      return { color: "#c4b5fd", bgcolor: "rgba(139,92,246,0.1)", borderColor: "rgba(139,92,246,0.3)" };
     default:
-      return "border-border bg-muted/20 text-foreground/80";
+      return { color: "#F0F0F0", bgcolor: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.14)" };
   }
 }
 
 function signalLabel(signalType?: string | null): string {
   switch (signalType) {
-    case "jobs_signal":
-      return "Vagas";
-    case "funding_signal":
-      return "Investimento";
-    case "growth_signal":
-      return "Expansao";
-    case "news_signal":
-      return "Noticia";
-    default:
-      return "Signal";
+    case "jobs_signal": return "Vagas";
+    case "funding_signal": return "Investimento";
+    case "growth_signal": return "Expansao";
+    case "news_signal": return "Noticia";
+    default: return "Signal";
   }
 }
 
@@ -154,18 +152,12 @@ function signalDomain(signal: ExternalSignal): string | null {
 
 function phoneTypeLabel(value?: string | null): string {
   switch (value) {
-    case "whatsapp_verified":
-      return "WhatsApp validado";
-    case "decision_maker_whatsapp_likely":
-      return "WhatsApp do decisor";
-    case "decision_maker_mobile":
-      return "Mobile do decisor";
-    case "company_whatsapp_likely":
-      return "WhatsApp da empresa";
-    case "company_mobile":
-      return "Mobile da empresa";
-    default:
-      return "Telefone";
+    case "whatsapp_verified": return "WhatsApp validado";
+    case "decision_maker_whatsapp_likely": return "WhatsApp do decisor";
+    case "decision_maker_mobile": return "Mobile do decisor";
+    case "company_whatsapp_likely": return "WhatsApp da empresa";
+    case "company_mobile": return "Mobile da empresa";
+    default: return "Telefone";
   }
 }
 
@@ -173,19 +165,32 @@ const scoreCards = (empresa: Empresa) => [
   {
     label: "Confiabilidade",
     value: empresa.confiabilidade?.score_total,
-    tone: "text-sky-300 border-sky-500/30 bg-sky-500/10",
+    color: "#7dd3fc",
+    bgcolor: "rgba(14,165,233,0.1)",
+    borderColor: "rgba(14,165,233,0.3)",
   },
   {
     label: "Qualidade",
     value: empresa.qualidade?.score_total,
-    tone: "text-emerald-300 border-emerald-500/30 bg-emerald-500/10",
+    color: "#6ee7b7",
+    bgcolor: "rgba(16,185,129,0.1)",
+    borderColor: "rgba(16,185,129,0.3)",
   },
   {
     label: "Priorizacao",
     value: empresa.priorizacao?.score_total,
-    tone: "text-amber-300 border-amber-500/30 bg-amber-500/10",
+    color: "#fcd34d",
+    bgcolor: "rgba(245,158,11,0.1)",
+    borderColor: "rgba(245,158,11,0.3)",
   },
 ];
+
+const STAT_BOX_SX = {
+  borderRadius: "12px",
+  border: "1px solid rgba(255,255,255,0.07)",
+  bgcolor: "rgba(255,255,255,0.03)",
+  p: 1.5,
+};
 
 const EnriquecerCnpj = () => {
   const navigate = useNavigate();
@@ -516,768 +521,822 @@ const EnriquecerCnpj = () => {
   };
 
   return (
-    <div className="space-y-6 p-1">
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/10">
-            <Search className="h-5 w-5 text-cyan-300" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-display tracking-tight">Enriquecer por CNPJ</h2>
-            <p className="text-sm text-muted-foreground">
-              Consulte uma empresa especifica e rode o enriquecimento completo sem passar pelo fluxo de ICP.
-            </p>
-          </div>
-        </div>
-      </div>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3, p: 0.5 }}>
+      {/* Page Header */}
+      <Stack direction="row" alignItems="center" spacing={2}>
+        <Box
+          sx={{
+            width: 44,
+            height: 44,
+            borderRadius: "16px",
+            border: "1px solid rgba(14,165,233,0.3)",
+            bgcolor: "rgba(14,165,233,0.1)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <SearchIcon sx={{ fontSize: 20, color: "#7dd3fc" }} />
+        </Box>
+        <Box>
+          <Typography variant="h5" fontWeight={700} letterSpacing="-0.02em">
+            Enriquecer por CNPJ
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Consulte uma empresa especifica e rode o enriquecimento completo sem passar pelo fluxo de ICP.
+          </Typography>
+        </Box>
+      </Stack>
 
-      <Card className="border-border bg-card shadow-surface-sm">
-        <CardHeader className="space-y-2">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Sparkles className="h-4 w-4 text-cyan-300" />
-            Fluxo Manual
-          </CardTitle>
-          <CardDescription>
-            Digite um CNPJ, carregue os dados da base e, se quiser, rode o enriquecimento na hora.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col gap-3 lg:flex-row">
-            <div className="flex-1">
-              <Input
-                value={formatCnpj(cnpjInput)}
-                onChange={(e) => setCnpjInput(normalizeCnpj(e.target.value))}
-                placeholder="00.000.000/0000-00"
-                className="h-11 border-border bg-muted/20 text-base"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void handleBuscar();
-                  }
-                }}
-              />
-            </div>
+      {/* Search Card */}
+      <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+        <CardContent sx={{ p: 3 }}>
+          <Stack spacing={0.5} mb={2.5}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <SparklesIcon sx={{ fontSize: 16, color: "#7dd3fc" }} />
+              <Typography variant="subtitle1" fontWeight={600}>Fluxo Manual</Typography>
+            </Stack>
+            <Typography variant="body2" color="text.secondary">
+              Digite um CNPJ, carregue os dados da base e, se quiser, rode o enriquecimento na hora.
+            </Typography>
+          </Stack>
+
+          <Stack direction={{ xs: "column", lg: "row" }} spacing={1.5} mb={2}>
+            <TextField
+              value={formatCnpj(cnpjInput)}
+              onChange={(e) => setCnpjInput(normalizeCnpj(e.target.value))}
+              placeholder="00.000.000/0000-00"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void handleBuscar();
+                }
+              }}
+              sx={{ flex: 1 }}
+              inputProps={{ style: { fontSize: 16 } }}
+            />
             <Button
-              type="button"
-              variant="outline"
-              className="h-11 border-border bg-muted/20"
+              variant="outlined"
               onClick={() => void handleBuscar()}
               disabled={isFetching || isEnriching}
+              startIcon={isFetching ? <CircularProgress size={16} color="inherit" /> : <SearchIcon />}
+              sx={{ whiteSpace: "nowrap", minWidth: 160 }}
             >
-              {isFetching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
               Buscar empresa
             </Button>
             <Button
-              type="button"
-              className="h-11 bg-cyan-500 text-muted-foreground hover:bg-cyan-400"
+              variant="contained"
               onClick={() => void handleEnriquecer()}
               disabled={isFetching || isEnriching}
+              startIcon={isEnriching ? <CircularProgress size={16} color="inherit" /> : <SparklesIcon />}
+              sx={{
+                bgcolor: "#0ea5e9",
+                color: "#0F0F0F",
+                fontWeight: 600,
+                whiteSpace: "nowrap",
+                minWidth: 160,
+                "&:hover": { bgcolor: "#38bdf8" },
+              }}
             >
-              {isEnriching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
               Enriquecer agora
             </Button>
-          </div>
+          </Stack>
 
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline" className="border-border text-foreground/80">
-              Busca direta por CNPJ
-            </Badge>
-            <Badge variant="outline" className="border-border text-foreground/80">
-              Resultado unitario
-            </Badge>
-            <Badge variant="outline" className="border-border text-foreground/80">
-              Compatível com Results e Pipeline
-            </Badge>
-          </div>
+          <Stack direction="row" flexWrap="wrap" gap={1}>
+            {["Busca direta por CNPJ", "Resultado unitario", "Compativel com Results e Pipeline"].map((label) => (
+              <Chip
+                key={label}
+                label={label}
+                variant="outlined"
+                size="small"
+                sx={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(240,240,240,0.8)", borderRadius: "8px" }}
+              />
+            ))}
+          </Stack>
         </CardContent>
       </Card>
 
       {empresa && (
         <>
-          <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-            <Card className="border-border bg-card shadow-surface-sm">
-              <CardHeader className="space-y-3">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <CardTitle className="text-xl">{empresa.razao_social}</CardTitle>
-                    <CardDescription>
+          {/* Company Header + Actions */}
+          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xl: "1.5fr 1fr" } }}>
+            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2} mb={2.5}>
+                  <Box>
+                    <Typography variant="h6" fontWeight={700}>{empresa.razao_social}</Typography>
+                    <Typography variant="body2" color="text.secondary">
                       {empresa.nome_fantasia || "Sem nome fantasia"} · {formatCnpj(empresa.cnpj)}
-                    </CardDescription>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
-                      {empresa.uf || "UF"} · {empresa.cidade || "Cidade"}
-                    </Badge>
+                    </Typography>
+                  </Box>
+                  <Stack direction="row" flexWrap="wrap" gap={1}>
+                    <Chip
+                      label={`${empresa.uf || "UF"} · ${empresa.cidade || "Cidade"}`}
+                      size="small"
+                      sx={{ bgcolor: "rgba(16,185,129,0.1)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px" }}
+                    />
                     {temEnriquecimento && (
-                      <Badge className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
-                        Dados enriquecidos
-                      </Badge>
+                      <Chip
+                        label="Dados enriquecidos"
+                        size="small"
+                        sx={{ bgcolor: "rgba(14,165,233,0.1)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "8px" }}
+                      />
                     )}
-                  </div>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Situacao</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">{empresa.situacao_cadastral || "Nao informada"}</p>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Capital social</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">{formatCapital(empresa.capital_social)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">CNAE principal</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">{empresa.cnae_principal || "Nao informado"}</p>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Atualizacao</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">
-                      {empresa.enriquecimento_data ? new Date(empresa.enriquecimento_data).toLocaleString("pt-BR") : "Em tempo real"}
-                    </p>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-
-            <Card className="border-border bg-card shadow-surface-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Target className="h-4 w-4 text-amber-300" />
-                  Acoes
-                </CardTitle>
-                <CardDescription>
-                  Salve esse enriquecimento como resultado navegavel ou empurre direto para pipeline.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button
-                  variant="outline"
-                  className="w-full justify-between border-border bg-card text-foreground shadow-surface-xs hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => void handleAbrirResultados()}
-                  disabled={isSavingResult}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    {isSavingResult ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                    Abrir em Resultados
-                  </span>
-                  <span className="text-xs uppercase tracking-[0.18em]">1 lead</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between border-border bg-muted/20"
-                  onClick={() => void handleAdicionarPipeline()}
-                  disabled={isSendingPipeline}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    {isSendingPipeline ? <Loader2 className="h-4 w-4 animate-spin" /> : <WalletCards className="h-4 w-4" />}
-                    Adicionar ao pipeline
-                  </span>
-                  <span className="text-xs uppercase tracking-[0.18em]">CRM ready</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between border-cyan-500/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/15"
-                  onClick={() => void handleEnriquecer()}
-                  disabled={isFetching || isEnriching}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    {isEnriching ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
-                    Rodar enriquecimento novamente
-                  </span>
-                  <span className="text-xs uppercase tracking-[0.18em]">refresh</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/15"
-                  onClick={() => void handleResolverContatos()}
-                  disabled={isFetching || isEnriching || isResolvingContacts}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    {isResolvingContacts ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                    Resolver contatos e emails
-                  </span>
-                  <span className="text-xs uppercase tracking-[0.18em]">hunter core</span>
-                </Button>
+                  </Stack>
+                </Stack>
+                <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { sm: "repeat(2, 1fr)", xl: "repeat(4, 1fr)" } }}>
+                  {[
+                    { label: "Situacao", value: empresa.situacao_cadastral || "Nao informada" },
+                    { label: "Capital social", value: formatCapital(empresa.capital_social) },
+                    { label: "CNAE principal", value: empresa.cnae_principal || "Nao informado" },
+                    {
+                      label: "Atualizacao",
+                      value: empresa.enriquecimento_data
+                        ? new Date(empresa.enriquecimento_data).toLocaleString("pt-BR")
+                        : "Em tempo real",
+                    },
+                  ].map((item) => (
+                    <Box key={item.label} sx={STAT_BOX_SX}>
+                      <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(240,240,240,0.4)", display: "block" }}>
+                        {item.label}
+                      </Typography>
+                      <Typography variant="body2" fontWeight={500} mt={1}>{item.value}</Typography>
+                    </Box>
+                  ))}
+                </Box>
               </CardContent>
             </Card>
-          </div>
 
-          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+                  <TargetIcon sx={{ fontSize: 16, color: "#fcd34d" }} />
+                  <Typography variant="subtitle1" fontWeight={600}>Acoes</Typography>
+                </Stack>
+                <Typography variant="body2" color="text.secondary" mb={2}>
+                  Salve esse enriquecimento como resultado navegavel ou empurre direto para pipeline.
+                </Typography>
+                <Stack spacing={1.5}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => void handleAbrirResultados()}
+                    disabled={isSavingResult}
+                    startIcon={isSavingResult ? <CircularProgress size={16} color="inherit" /> : <ArrowRightIcon />}
+                    endIcon={<Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.5 }}>1 lead</Typography>}
+                    sx={{ justifyContent: "space-between" }}
+                  >
+                    Abrir em Resultados
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => void handleAdicionarPipeline()}
+                    disabled={isSendingPipeline}
+                    startIcon={isSendingPipeline ? <CircularProgress size={16} color="inherit" /> : <WalletCardsIcon />}
+                    endIcon={<Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.5 }}>CRM ready</Typography>}
+                    sx={{ justifyContent: "space-between" }}
+                  >
+                    Adicionar ao pipeline
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => void handleEnriquecer()}
+                    disabled={isFetching || isEnriching}
+                    startIcon={isEnriching ? <CircularProgress size={16} color="inherit" /> : <BadgeCheckIcon />}
+                    endIcon={<Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.5 }}>refresh</Typography>}
+                    sx={{
+                      justifyContent: "space-between",
+                      borderColor: "rgba(14,165,233,0.3)",
+                      bgcolor: "rgba(14,165,233,0.1)",
+                      color: "#bae6fd",
+                      "&:hover": { bgcolor: "rgba(14,165,233,0.15)" },
+                    }}
+                  >
+                    Rodar enriquecimento novamente
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => void handleResolverContatos()}
+                    disabled={isFetching || isEnriching || isResolvingContacts}
+                    startIcon={isResolvingContacts ? <CircularProgress size={16} color="inherit" /> : <ShieldCheckIcon />}
+                    endIcon={<Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.5 }}>hunter core</Typography>}
+                    sx={{
+                      justifyContent: "space-between",
+                      borderColor: "rgba(139,92,246,0.3)",
+                      bgcolor: "rgba(139,92,246,0.1)",
+                      color: "#ddd6fe",
+                      "&:hover": { bgcolor: "rgba(139,92,246,0.15)" },
+                    }}
+                  >
+                    Resolver contatos e emails
+                  </Button>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Box>
+
+          {/* Contact Cards Row */}
+          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { lg: "repeat(2,1fr)", xl: "repeat(4,1fr)" } }}>
             {[
               {
                 label: "Site",
                 value: empresa.site || "Nao encontrado",
-                icon: Globe,
-                tone: empresa.site ? "text-cyan-300" : "text-muted-foreground/70",
+                Icon: GlobeIcon,
+                color: empresa.site ? "#7dd3fc" : "rgba(240,240,240,0.4)",
               },
               {
                 label: "Email final",
                 value: empresa.email_final || empresa.email || "Nao encontrado",
-                icon: Mail,
-                tone: empresa.email_final || empresa.email ? "text-sky-300" : "text-muted-foreground/70",
+                Icon: MailIcon,
+                color: empresa.email_final || empresa.email ? "#7dd3fc" : "rgba(240,240,240,0.4)",
               },
               {
                 label: "Telefone final",
                 value: empresa.telefone_final || empresa.telefone_padrao || "Nao encontrado",
-                icon: Phone,
-                tone: empresa.telefone_final || empresa.telefone_padrao ? "text-foreground" : "text-muted-foreground/70",
+                Icon: PhoneIcon,
+                color: empresa.telefone_final || empresa.telefone_padrao ? "#F0F0F0" : "rgba(240,240,240,0.4)",
               },
               {
                 label: "WhatsApp final",
                 value: empresa.whatsapp_final || empresa.whatsapp_publico || "Nao encontrado",
-                icon: Building2,
-                tone: empresa.whatsapp_final || empresa.whatsapp_publico ? "text-emerald-300" : "text-muted-foreground/70",
+                Icon: Building2Icon,
+                color: empresa.whatsapp_final || empresa.whatsapp_publico ? "#6ee7b7" : "rgba(240,240,240,0.4)",
               },
             ].map((item) => (
-              <Card key={item.label} className="border-border bg-card shadow-surface-sm">
-                <CardContent className="flex h-full items-start gap-3 p-4">
-                  <div className="mt-0.5 rounded-xl border border-border bg-muted/20/80 p-2">
-                    <item.icon className={cn("h-4 w-4", item.tone)} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">{item.label}</p>
-                    <p className={cn("mt-2 break-words text-sm font-medium", item.tone)}>{item.value}</p>
-                  </div>
+              <Card key={item.label} sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+                <CardContent sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, p: 2, "&:last-child": { pb: 2 } }}>
+                  <Box
+                    sx={{
+                      mt: 0.25,
+                      p: 1,
+                      borderRadius: "10px",
+                      border: "1px solid rgba(255,255,255,0.07)",
+                      bgcolor: "rgba(255,255,255,0.03)",
+                    }}
+                  >
+                    <item.Icon sx={{ fontSize: 16, color: item.color }} />
+                  </Box>
+                  <Box minWidth={0}>
+                    <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(240,240,240,0.4)", display: "block" }}>
+                      {item.label}
+                    </Typography>
+                    <Typography variant="body2" fontWeight={500} mt={1} sx={{ wordBreak: "break-all", color: item.color }}>
+                      {item.value}
+                    </Typography>
+                  </Box>
                 </CardContent>
               </Card>
             ))}
-          </div>
+          </Box>
 
-          <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
-            <Card className="border-border bg-card shadow-surface-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Brain className="h-4 w-4 text-violet-300" />
-                  Leitura Rapida
-                </CardTitle>
-                <CardDescription>
+          {/* Quick Read + Scores */}
+          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xl: "1.3fr 1fr" } }}>
+            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+                  <BrainIcon sx={{ fontSize: 16, color: "#c4b5fd" }} />
+                  <Typography variant="subtitle1" fontWeight={600}>Leitura Rapida</Typography>
+                </Stack>
+                <Typography variant="body2" color="text.secondary" mb={2}>
                   Resumo do enriquecimento e sinais comerciais imediatamente acionaveis.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2">
+                </Typography>
+                <Stack direction="row" flexWrap="wrap" gap={1} mb={2}>
                   {empresa.email_enriquecido && (
-                    <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300">
-                      Email enriquecido
-                    </Badge>
+                    <Chip label="Email enriquecido" size="small" sx={{ bgcolor: "rgba(14,165,233,0.1)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "8px" }} />
                   )}
                   {empresa.whatsapp_enriquecido && (
-                    <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
-                      WhatsApp enriquecido
-                    </Badge>
+                    <Chip label="WhatsApp enriquecido" size="small" sx={{ bgcolor: "rgba(16,185,129,0.1)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px" }} />
                   )}
                   {empresa.site && (
-                    <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
-                      Site encontrado
-                    </Badge>
+                    <Chip label="Site encontrado" size="small" sx={{ bgcolor: "rgba(14,165,233,0.1)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "8px" }} />
                   )}
                   {empresa.resumo_ia_empresa && (
-                    <Badge variant="outline" className="border-violet-500/30 bg-violet-500/10 text-violet-300">
-                      IA ativa
-                    </Badge>
+                    <Chip label="IA ativa" size="small" sx={{ bgcolor: "rgba(139,92,246,0.1)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.3)", borderRadius: "8px" }} />
                   )}
-                </div>
-                <Separator className="bg-muted" />
-                <p className="text-sm leading-7 text-foreground/80">
+                </Stack>
+                <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", mb: 2 }} />
+                <Typography variant="body2" sx={{ lineHeight: 1.75, color: "rgba(240,240,240,0.8)" }}>
                   {empresa.resumo_ia_empresa ||
                     "Sem resumo de IA ainda. Rode o enriquecimento para puxar o maximo de contexto comercial disponivel para esse CNPJ."}
-                </p>
+                </Typography>
               </CardContent>
             </Card>
 
-            <Card className="border-border bg-card shadow-surface-sm">
-              <CardHeader>
-                <CardTitle className="text-lg">Scores</CardTitle>
-                <CardDescription>
+            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="subtitle1" fontWeight={600} mb={0.5}>Scores</Typography>
+                <Typography variant="body2" color="text.secondary" mb={2}>
                   Indicadores que ajudam a decidir se esse lead merece follow-up imediato.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {scoreCards(empresa).map((item) => (
-                  <div key={item.label} className={cn("rounded-2xl border p-3", item.tone)}>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium">{item.label}</span>
-                      <span className="text-sm font-semibold">{formatScore(item.value)}</span>
-                    </div>
-                  </div>
-                ))}
+                </Typography>
+                <Stack spacing={1.5}>
+                  {scoreCards(empresa).map((item) => (
+                    <Box
+                      key={item.label}
+                      sx={{
+                        borderRadius: "12px",
+                        border: `1px solid ${item.borderColor}`,
+                        bgcolor: item.bgcolor,
+                        p: 1.5,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Typography variant="body2" fontWeight={500} sx={{ color: item.color }}>{item.label}</Typography>
+                      <Typography variant="body2" fontWeight={700} sx={{ color: item.color }}>{formatScore(item.value)}</Typography>
+                    </Box>
+                  ))}
+                </Stack>
               </CardContent>
             </Card>
-          </div>
+          </Box>
 
-          <div className="grid gap-4 xl:grid-cols-[1.05fr_1fr]">
-            <Card className="border-border bg-card shadow-surface-sm">
-              <CardHeader className="flex flex-row items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Factory className="h-4 w-4 text-amber-300" />
-                    Empresas parecidas
-                  </CardTitle>
-                  <CardDescription>
-                    Lookalikes por CNAE, porte, geografia e cobertura de contato para expandir o ICP.
-                  </CardDescription>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-border bg-muted/20"
-                  onClick={() => void loadSimilarCompanies(empresa.cnpj, true)}
-                  disabled={isLoadingSimilar}
-                >
-                  {isLoadingSimilar ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                  Atualizar
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {isLoadingSimilar && similarCompanies.length === 0 ? (
-                  <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-                    Carregando empresas parecidas...
-                  </div>
-                ) : similarCompanies.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
-                    Nenhuma empresa parecida encontrada para este recorte ainda.
-                  </div>
-                ) : (
-                  similarCompanies.map((item) => (
-                    <div key={item.cnpj} className="rounded-2xl border border-border bg-muted/20/70 p-4">
-                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="space-y-2">
-                          <div>
-                            <p className="text-sm font-semibold text-foreground">{item.razao_social}</p>
-                            <p className="mt-1 text-xs text-muted-foreground/70">
-                              {formatCnpj(item.cnpj)}
-                              {" · "}
-                              {[item.cidade, item.uf].filter(Boolean).join(" / ") || "Localizacao nao informada"}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300">
-                              Similaridade {formatPercent(item.similarity_score)}
-                            </Badge>
-                            {item.site && (
-                              <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
-                                Site
-                              </Badge>
-                            )}
-                            {item.whatsapp && (
-                              <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
-                                WhatsApp
-                              </Badge>
-                            )}
-                            {item.email_receita && (
-                              <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300">
-                                Email
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="border-border bg-card"
-                          onClick={() => void handleCarregarSimilar(item.cnpj)}
-                          disabled={isFetching || isEnriching}
-                        >
-                          <ArrowRight className="mr-2 h-4 w-4" />
-                          Abrir CNPJ
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
+          {/* Similar Companies + External Signals */}
+          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xl: "1.05fr 1fr" } }}>
+            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2} mb={2}>
+                  <Box>
+                    <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+                      <FactoryIcon sx={{ fontSize: 16, color: "#fcd34d" }} />
+                      <Typography variant="subtitle1" fontWeight={600}>Empresas parecidas</Typography>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      Lookalikes por CNAE, porte, geografia e cobertura de contato para expandir o ICP.
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => void loadSimilarCompanies(empresa.cnpj, true)}
+                    disabled={isLoadingSimilar}
+                    startIcon={isLoadingSimilar ? <CircularProgress size={14} color="inherit" /> : <RefreshCwIcon />}
+                    sx={{ whiteSpace: "nowrap" }}
+                  >
+                    Atualizar
+                  </Button>
+                </Stack>
+                <Stack spacing={1.5}>
+                  {isLoadingSimilar && similarCompanies.length === 0 ? (
+                    <Box sx={{ ...STAT_BOX_SX, p: 2 }}>
+                      <Typography variant="body2" color="text.secondary">Carregando empresas parecidas...</Typography>
+                    </Box>
+                  ) : similarCompanies.length === 0 ? (
+                    <Box sx={{ borderRadius: "12px", border: "1px dashed rgba(255,255,255,0.14)", bgcolor: "rgba(255,255,255,0.02)", p: 2 }}>
+                      <Typography variant="body2" color="text.secondary">Nenhuma empresa parecida encontrada para este recorte ainda.</Typography>
+                    </Box>
+                  ) : (
+                    similarCompanies.map((item) => (
+                      <Box key={item.cnpj} sx={{ ...STAT_BOX_SX, p: 2 }}>
+                        <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" alignItems={{ lg: "flex-start" }} gap={2}>
+                          <Box>
+                            <Typography variant="body2" fontWeight={600}>{item.razao_social}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {formatCnpj(item.cnpj)} · {[item.cidade, item.uf].filter(Boolean).join(" / ") || "Localizacao nao informada"}
+                            </Typography>
+                            <Stack direction="row" flexWrap="wrap" gap={0.75} mt={1}>
+                              <Chip label={`Similaridade ${formatPercent(item.similarity_score)}`} size="small" sx={{ bgcolor: "rgba(245,158,11,0.1)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px" }} />
+                              {item.site && <Chip label="Site" size="small" sx={{ bgcolor: "rgba(14,165,233,0.1)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "8px" }} />}
+                              {item.whatsapp && <Chip label="WhatsApp" size="small" sx={{ bgcolor: "rgba(16,185,129,0.1)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px" }} />}
+                              {item.email_receita && <Chip label="Email" size="small" sx={{ bgcolor: "rgba(14,165,233,0.1)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "8px" }} />}
+                            </Stack>
+                          </Box>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => void handleCarregarSimilar(item.cnpj)}
+                            disabled={isFetching || isEnriching}
+                            startIcon={<ArrowRightIcon />}
+                            sx={{ whiteSpace: "nowrap" }}
+                          >
+                            Abrir CNPJ
+                          </Button>
+                        </Stack>
+                      </Box>
+                    ))
+                  )}
+                </Stack>
               </CardContent>
             </Card>
 
-            <Card className="border-border bg-card shadow-surface-sm">
-              <CardHeader className="flex flex-row items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Newspaper className="h-4 w-4 text-violet-300" />
-                    Sinais externos
-                  </CardTitle>
-                  <CardDescription>
-                    Vagas, investimento, expansao e noticias recentes rastreadas para este CNPJ.
-                  </CardDescription>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-border bg-muted/20"
-                  onClick={() => void loadExternalSignals(empresa.cnpj, true)}
-                  disabled={isLoadingSignals}
-                >
-                  {isLoadingSignals ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                  Atualizar
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {isLoadingSignals && externalSignals.length === 0 ? (
-                  <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-                    Capturando sinais externos...
-                  </div>
-                ) : externalSignals.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
-                    Nenhum sinal externo relevante apareceu para este CNPJ ate agora.
-                  </div>
-                ) : (
-                  externalSignals.slice(0, 8).map((signal, index) => (
-                    <div key={`${signal.signal_type}-${signal.title}-${index}`} className="rounded-2xl border border-border bg-muted/20/70 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-2">
-                          <Badge variant="outline" className={signalTone(signal.signal_type)}>
-                            {signal.signal_type === "jobs_signal" && <Users className="mr-1 h-3 w-3" />}
-                            {signal.signal_type === "funding_signal" && <TrendingUp className="mr-1 h-3 w-3" />}
-                            {signal.signal_type === "growth_signal" && <Factory className="mr-1 h-3 w-3" />}
-                            {signal.signal_type === "news_signal" && <Newspaper className="mr-1 h-3 w-3" />}
-                            {signalLabel(signal.signal_type)}
-                          </Badge>
-                          <p className="text-sm font-medium text-foreground">{signal.title}</p>
-                          {signalSnippet(signal) && (
-                            <p className="text-sm leading-6 text-muted-foreground">{signalSnippet(signal)}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground/70">
-                        {signalDomain(signal) && <span>{signalDomain(signal)}</span>}
-                        {signal.created_at && (
-                          <>
-                            <span>·</span>
-                            <span>{new Date(signal.created_at).toLocaleString("pt-BR")}</span>
-                          </>
-                        )}
-                      </div>
-                      {signalUrl(signal) && (
-                        <a
-                          href={signalUrl(signal) ?? undefined}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-3 inline-flex items-center gap-2 text-sm text-cyan-300 hover:text-cyan-200"
-                        >
-                          <Link2 className="h-4 w-4" />
-                          Abrir fonte
-                        </a>
-                      )}
-                    </div>
-                  ))
-                )}
+            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2} mb={2}>
+                  <Box>
+                    <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+                      <NewspaperIcon sx={{ fontSize: 16, color: "#c4b5fd" }} />
+                      <Typography variant="subtitle1" fontWeight={600}>Sinais externos</Typography>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      Vagas, investimento, expansao e noticias recentes rastreadas para este CNPJ.
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => void loadExternalSignals(empresa.cnpj, true)}
+                    disabled={isLoadingSignals}
+                    startIcon={isLoadingSignals ? <CircularProgress size={14} color="inherit" /> : <RefreshCwIcon />}
+                    sx={{ whiteSpace: "nowrap" }}
+                  >
+                    Atualizar
+                  </Button>
+                </Stack>
+                <Stack spacing={1.5}>
+                  {isLoadingSignals && externalSignals.length === 0 ? (
+                    <Box sx={{ ...STAT_BOX_SX, p: 2 }}>
+                      <Typography variant="body2" color="text.secondary">Capturando sinais externos...</Typography>
+                    </Box>
+                  ) : externalSignals.length === 0 ? (
+                    <Box sx={{ borderRadius: "12px", border: "1px dashed rgba(255,255,255,0.14)", bgcolor: "rgba(255,255,255,0.02)", p: 2 }}>
+                      <Typography variant="body2" color="text.secondary">Nenhum sinal externo relevante apareceu para este CNPJ ate agora.</Typography>
+                    </Box>
+                  ) : (
+                    externalSignals.slice(0, 8).map((signal, index) => {
+                      const sc = signalColors(signal.signal_type);
+                      return (
+                        <Box key={`${signal.signal_type}-${signal.title}-${index}`} sx={{ ...STAT_BOX_SX, p: 2 }}>
+                          <Stack spacing={1}>
+                            <Chip
+                              icon={
+                                signal.signal_type === "jobs_signal" ? <UsersIcon sx={{ fontSize: 12 }} /> :
+                                signal.signal_type === "funding_signal" ? <TrendingUpIcon sx={{ fontSize: 12 }} /> :
+                                signal.signal_type === "growth_signal" ? <FactoryIcon sx={{ fontSize: 12 }} /> :
+                                <NewspaperIcon sx={{ fontSize: 12 }} />
+                              }
+                              label={signalLabel(signal.signal_type)}
+                              size="small"
+                              sx={{ bgcolor: sc.bgcolor, color: sc.color, border: `1px solid ${sc.borderColor}`, borderRadius: "8px", alignSelf: "flex-start" }}
+                            />
+                            <Typography variant="body2" fontWeight={500}>{signal.title}</Typography>
+                            {signalSnippet(signal) && (
+                              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                                {signalSnippet(signal)}
+                              </Typography>
+                            )}
+                            <Stack direction="row" flexWrap="wrap" gap={0.5} alignItems="center">
+                              {signalDomain(signal) && (
+                                <Typography variant="caption" color="text.secondary">{signalDomain(signal)}</Typography>
+                              )}
+                              {signal.created_at && (
+                                <>
+                                  <Typography variant="caption" color="text.secondary">·</Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {new Date(signal.created_at).toLocaleString("pt-BR")}
+                                  </Typography>
+                                </>
+                              )}
+                            </Stack>
+                            {signalUrl(signal) && (
+                              <Box
+                                component="a"
+                                href={signalUrl(signal) ?? undefined}
+                                target="_blank"
+                                rel="noreferrer"
+                                sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, color: "#7dd3fc", textDecoration: "none", fontSize: 14, "&:hover": { color: "#bae6fd" } }}
+                              >
+                                <Link2Icon sx={{ fontSize: 16 }} />
+                                Abrir fonte
+                              </Box>
+                            )}
+                          </Stack>
+                        </Box>
+                      );
+                    })
+                  )}
+                </Stack>
               </CardContent>
             </Card>
-          </div>
+          </Box>
 
+          {/* Contact Intelligence */}
           {contactIntel ? (
-            <div className="grid gap-4 xl:grid-cols-[1.15fr_1fr]">
-              <Card className="border-border bg-card shadow-surface-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <ShieldCheck className="h-4 w-4 text-violet-300" />
-                    Contact Intelligence
-                  </CardTitle>
-                  <CardDescription>
+            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xl: "1.15fr 1fr" } }}>
+              <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+                    <ShieldCheckIcon sx={{ fontSize: 16, color: "#c4b5fd" }} />
+                    <Typography variant="subtitle1" fontWeight={600}>Contact Intelligence</Typography>
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary" mb={2}>
                     Dominio resolvido, padrao corporativo e evidencias de contato derivadas do CNPJ.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Dominio</p>
-                      <p className="mt-2 break-all text-sm font-medium text-foreground">
-                        {contactIntel.domain_profile.domain || "Nao resolvido"}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Padrao</p>
-                      <p className="mt-2 text-sm font-medium text-foreground">
-                        {formatPattern(contactIntel.domain_profile.email_pattern)}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground/70">
-                        {formatPercent(contactIntel.domain_profile.pattern_confidence)}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Emails acionaveis</p>
-                      <p className="mt-2 text-sm font-medium text-foreground">
-                        {contactIntel.summary.deliverable ?? 0}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground/70">
-                        {contactIntel.summary.verified ?? 0} verificados
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Decisores</p>
-                      <p className="mt-2 text-sm font-medium text-foreground">
-                        {contactIntel.summary.decision_makers ?? 0}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground/70">
-                        {contactIntel.summary.guessed ?? 0} guessed / {contactIntel.summary.sourced ?? 0} sourced
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
+                  </Typography>
+                  <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { sm: "repeat(2,1fr)", xl: "repeat(4,1fr)" }, mb: 2 }}>
+                    {[
+                      { label: "Dominio", value: contactIntel.domain_profile.domain || "Nao resolvido" },
+                      {
+                        label: "Padrao",
+                        value: formatPattern(contactIntel.domain_profile.email_pattern),
+                        sub: formatPercent(contactIntel.domain_profile.pattern_confidence),
+                      },
+                      {
+                        label: "Emails acionaveis",
+                        value: String(contactIntel.summary.deliverable ?? 0),
+                        sub: `${contactIntel.summary.verified ?? 0} verificados`,
+                      },
+                      {
+                        label: "Decisores",
+                        value: String(contactIntel.summary.decision_makers ?? 0),
+                        sub: `${contactIntel.summary.guessed ?? 0} guessed / ${contactIntel.summary.sourced ?? 0} sourced`,
+                      },
+                    ].map((item) => (
+                      <Box key={item.label} sx={STAT_BOX_SX}>
+                        <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(240,240,240,0.4)", display: "block" }}>
+                          {item.label}
+                        </Typography>
+                        <Typography variant="body2" fontWeight={500} mt={1} sx={{ wordBreak: "break-all" }}>{item.value}</Typography>
+                        {item.sub && <Typography variant="caption" color="text.secondary">{item.sub}</Typography>}
+                      </Box>
+                    ))}
+                  </Box>
+                  <Stack direction="row" flexWrap="wrap" gap={1} mb={2}>
                     {(contactIntel.domain_profile.company_profiles ?? []).map((profile) => (
-                      <Badge key={`${profile.type}-${profile.url}`} variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                        <Link2 className="mr-1 h-3 w-3" />
-                        {profile.type}: {profile.url.replace(/^https?:\/\//, "")}
-                      </Badge>
+                      <Chip
+                        key={`${profile.type}-${profile.url}`}
+                        icon={<Link2Icon sx={{ fontSize: 12 }} />}
+                        label={`${profile.type}: ${profile.url.replace(/^https?:\/\//, "")}`}
+                        size="small"
+                        variant="outlined"
+                        sx={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(240,240,240,0.8)", borderRadius: "8px" }}
+                      />
                     ))}
                     {(contactIntel.domain_profile.public_emails ?? []).slice(0, 4).map((item) => (
-                      <Badge key={item.email} variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300">
-                        {item.email}
-                      </Badge>
+                      <Chip
+                        key={item.email}
+                        label={item.email}
+                        size="small"
+                        sx={{ bgcolor: "rgba(14,165,233,0.1)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "8px" }}
+                      />
                     ))}
-                  </div>
-
+                  </Stack>
                   {(contactIntel.domain_profile.generic_inboxes ?? []).length > 0 && (
                     <>
-                      <Separator className="bg-muted" />
-                      <div className="space-y-2">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Caixas gerais encontradas</p>
-                        <div className="flex flex-wrap gap-2">
-                          {(contactIntel.domain_profile.generic_inboxes ?? []).map((item) => (
-                            <Badge key={item.email} variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
-                              {item.email}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
+                      <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", mb: 2 }} />
+                      <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(240,240,240,0.4)", display: "block", mb: 1 }}>
+                        Caixas gerais encontradas
+                      </Typography>
+                      <Stack direction="row" flexWrap="wrap" gap={1}>
+                        {(contactIntel.domain_profile.generic_inboxes ?? []).map((item) => (
+                          <Chip
+                            key={item.email}
+                            label={item.email}
+                            size="small"
+                            sx={{ bgcolor: "rgba(16,185,129,0.1)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px" }}
+                          />
+                        ))}
+                      </Stack>
                     </>
                   )}
                 </CardContent>
               </Card>
 
-              <Card className="border-border bg-card shadow-surface-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Users className="h-4 w-4 text-cyan-300" />
-                    Decisores Resolvidos
-                  </CardTitle>
-                  <CardDescription>
+              <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+                    <UsersIcon sx={{ fontSize: 16, color: "#7dd3fc" }} />
+                    <Typography variant="subtitle1" fontWeight={600}>Decisores Resolvidos</Typography>
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary" mb={2}>
                     Contatos deduzidos ou encontrados com score, status tecnico e evidencias.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {(contactIntel.contacts ?? []).length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-                      Nenhum decisor foi resolvido ainda. Rode novamente apos enriquecer o site da empresa.
-                    </div>
-                  ) : (
-                    (contactIntel.contacts ?? []).slice(0, 6).map((contact) => {
-                      const primary = contact.emails.find((item) => item.is_primary) || contact.emails[0];
-                      return (
-                        <div key={contact.name} className="rounded-2xl border border-border bg-muted/20/70 p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-foreground">{contact.name}</p>
-                              <p className="mt-1 text-xs text-muted-foreground/70">
-                                {contact.role || "Socio / decisor potencial"}
-                              </p>
-                            </div>
-                            {primary?.verification_status && (
-                              <Badge variant="outline" className={cn("capitalize", statusTone(primary.verification_status))}>
-                                {primary.verification_status}
-                              </Badge>
-                            )}
-                          </div>
-
-                          {primary ? (
-                            <div className="mt-3 space-y-2">
-                              <div className="flex items-center gap-2 text-sm">
-                                <Mail className="h-4 w-4 text-sky-300" />
-                                <span className="break-all font-medium text-foreground">{primary.email}</span>
-                              </div>
-                              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                <span>Score {formatPercent(primary.score_total)}</span>
-                                <span>·</span>
-                                <span>{primary.kind === "sourced" ? "Sourced" : "Guessed"}</span>
-                                {primary.pattern && (
-                                  <>
-                                    <span>·</span>
-                                    <span>{primary.pattern}</span>
-                                  </>
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {(contactIntel.contacts ?? []).length === 0 ? (
+                      <Box sx={{ borderRadius: "12px", border: "1px dashed rgba(255,255,255,0.14)", bgcolor: "rgba(255,255,255,0.02)", p: 2 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Nenhum decisor foi resolvido ainda. Rode novamente apos enriquecer o site da empresa.
+                        </Typography>
+                      </Box>
+                    ) : (
+                      (contactIntel.contacts ?? []).slice(0, 6).map((contact) => {
+                        const primary = contact.emails.find((item) => item.is_primary) || contact.emails[0];
+                        const sc = statusColor(primary?.verification_status);
+                        return (
+                          <Box key={contact.name} sx={{ ...STAT_BOX_SX, p: 2 }}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1} mb={primary ? 1.5 : 0}>
+                              <Box>
+                                <Typography variant="body2" fontWeight={600}>{contact.name}</Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {contact.role || "Socio / decisor potencial"}
+                                </Typography>
+                              </Box>
+                              {primary?.verification_status && (
+                                <Chip
+                                  label={primary.verification_status}
+                                  size="small"
+                                  sx={{ bgcolor: sc.bgcolor, color: sc.color, border: `1px solid ${sc.borderColor}`, borderRadius: "8px", textTransform: "capitalize" }}
+                                />
+                              )}
+                            </Stack>
+                            {primary ? (
+                              <Stack spacing={0.75}>
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                  <MailIcon sx={{ fontSize: 16, color: "#7dd3fc" }} />
+                                  <Typography variant="body2" fontWeight={500} sx={{ wordBreak: "break-all" }}>{primary.email}</Typography>
+                                </Stack>
+                                <Stack direction="row" flexWrap="wrap" gap={0.5} alignItems="center">
+                                  <Typography variant="caption" color="text.secondary">Score {formatPercent(primary.score_total)}</Typography>
+                                  <Typography variant="caption" color="text.secondary">·</Typography>
+                                  <Typography variant="caption" color="text.secondary">{primary.kind === "sourced" ? "Sourced" : "Guessed"}</Typography>
+                                  {primary.pattern && (
+                                    <>
+                                      <Typography variant="caption" color="text.secondary">·</Typography>
+                                      <Typography variant="caption" color="text.secondary">{primary.pattern}</Typography>
+                                    </>
+                                  )}
+                                </Stack>
+                                {contact.linkedin && (
+                                  <Box
+                                    component="a"
+                                    href={contact.linkedin}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, color: "#7dd3fc", textDecoration: "none", fontSize: 12, "&:hover": { color: "#bae6fd" } }}
+                                  >
+                                    <Link2Icon sx={{ fontSize: 14 }} />
+                                    Abrir perfil
+                                  </Box>
                                 )}
-                              </div>
-                              {contact.linkedin && (
-                                <a
-                                  href={contact.linkedin}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-2 text-xs text-cyan-300 hover:text-cyan-200"
-                                >
-                                  <Link2 className="h-3 w-3" />
-                                  Abrir perfil
-                                </a>
-                              )}
-                              {contact.emails.length > 1 && (
-                                <div className="flex flex-wrap gap-2 pt-1">
-                                  {contact.emails.slice(1, 4).map((email) => (
-                                    <Badge key={email.email} variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                                      {email.email}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="mt-3 text-sm text-muted-foreground">Sem email resolvido para esse contato.</p>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
+                                {contact.emails.length > 1 && (
+                                  <Stack direction="row" flexWrap="wrap" gap={0.75} pt={0.5}>
+                                    {contact.emails.slice(1, 4).map((email) => (
+                                      <Chip
+                                        key={email.email}
+                                        label={email.email}
+                                        size="small"
+                                        variant="outlined"
+                                        sx={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(240,240,240,0.8)", borderRadius: "8px" }}
+                                      />
+                                    ))}
+                                  </Stack>
+                                )}
+                              </Stack>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">Sem email resolvido para esse contato.</Typography>
+                            )}
+                          </Box>
+                        );
+                      })
+                    )}
+                  </Stack>
                 </CardContent>
               </Card>
-            </div>
+            </Box>
           ) : (
-            <Card className="border-dashed border-border bg-card/40">
-              <CardContent className="flex flex-col gap-3 p-6 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Modulo Hunter-style ainda nao resolvido para este CNPJ.</p>
-                  <p className="mt-1 text-sm text-muted-foreground/70">
-                    O Hermes ja tem a empresa carregada. Falta resolver dominio, pattern corporativo e decisores por email.
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  className="border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/15"
-                  onClick={() => void handleResolverContatos()}
-                  disabled={isResolvingContacts}
-                >
-                  {isResolvingContacts ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-                  Resolver Contact Intelligence
-                </Button>
+            <Card sx={{ border: "1px dashed rgba(255,255,255,0.14)", bgcolor: "rgba(24,24,24,0.4)", borderRadius: "12px" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" alignItems={{ lg: "center" }} gap={2}>
+                  <Box>
+                    <Typography variant="body2" fontWeight={500}>Modulo Hunter-style ainda nao resolvido para este CNPJ.</Typography>
+                    <Typography variant="body2" color="text.secondary" mt={0.5}>
+                      O Hermes ja tem a empresa carregada. Falta resolver dominio, pattern corporativo e decisores por email.
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    onClick={() => void handleResolverContatos()}
+                    disabled={isResolvingContacts}
+                    startIcon={isResolvingContacts ? <CircularProgress size={16} color="inherit" /> : <ShieldCheckIcon />}
+                    sx={{
+                      borderColor: "rgba(139,92,246,0.3)",
+                      bgcolor: "rgba(139,92,246,0.1)",
+                      color: "#ddd6fe",
+                      whiteSpace: "nowrap",
+                      "&:hover": { bgcolor: "rgba(139,92,246,0.15)" },
+                    }}
+                  >
+                    Resolver Contact Intelligence
+                  </Button>
+                </Stack>
               </CardContent>
             </Card>
           )}
 
+          {/* Mobile Waterfall */}
           {mobileWaterfall ? (
-            <Card className="border-border bg-card shadow-surface-sm">
-              <CardHeader>
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <Phone className="h-4 w-4 text-emerald-300" />
-                      Mobile Waterfall
-                    </CardTitle>
-                    <CardDescription>
+            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" alignItems={{ lg: "center" }} gap={2} mb={2}>
+                  <Box>
+                    <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+                      <PhoneIcon sx={{ fontSize: 16, color: "#6ee7b7" }} />
+                      <Typography variant="subtitle1" fontWeight={600}>Mobile Waterfall</Typography>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
                       Camada Apollo-style para priorizar mobiles e WhatsApps acionaveis por empresa.
-                    </CardDescription>
-                  </div>
+                    </Typography>
+                  </Box>
                   <Button
-                    variant="outline"
-                    className="border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"
+                    variant="outlined"
                     onClick={() => void handleResolverMobile(true)}
                     disabled={isResolvingMobile}
+                    startIcon={isResolvingMobile ? <CircularProgress size={16} color="inherit" /> : <RefreshCwIcon />}
+                    sx={{
+                      borderColor: "rgba(16,185,129,0.3)",
+                      bgcolor: "rgba(16,185,129,0.1)",
+                      color: "#bbf7d0",
+                      whiteSpace: "nowrap",
+                      "&:hover": { bgcolor: "rgba(16,185,129,0.15)" },
+                    }}
                   >
-                    {isResolvingMobile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                     Revalidar mobiles
                   </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Mobiles</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">{mobileWaterfall.summary.mobile_candidates ?? 0}</p>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">WhatsApps validados</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">
-                      {mobileWaterfall.summary.verified_whatsapp_candidates ?? 0}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Mobiles de decisor</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">
-                      {mobileWaterfall.summary.decision_maker_mobile_candidates ?? 0}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-muted/20/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Primario</p>
-                    <p className="mt-2 break-all text-sm font-medium text-foreground">
-                      {mobileWaterfall.summary.primary_phone || "Nao definido"}
-                    </p>
-                  </div>
-                </div>
-
+                </Stack>
+                <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { sm: "repeat(2,1fr)", xl: "repeat(4,1fr)" }, mb: 2 }}>
+                  {[
+                    { label: "Mobiles", value: String(mobileWaterfall.summary.mobile_candidates ?? 0) },
+                    { label: "WhatsApps validados", value: String(mobileWaterfall.summary.verified_whatsapp_candidates ?? 0) },
+                    { label: "Mobiles de decisor", value: String(mobileWaterfall.summary.decision_maker_mobile_candidates ?? 0) },
+                    { label: "Primario", value: mobileWaterfall.summary.primary_phone || "Nao definido" },
+                  ].map((item) => (
+                    <Box key={item.label} sx={STAT_BOX_SX}>
+                      <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(240,240,240,0.4)", display: "block" }}>
+                        {item.label}
+                      </Typography>
+                      <Typography variant="body2" fontWeight={500} mt={1} sx={{ wordBreak: "break-all" }}>{item.value}</Typography>
+                    </Box>
+                  ))}
+                </Box>
                 {(mobileWaterfall.candidates ?? []).length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-                    Nenhum mobile foi priorizado ainda para este CNPJ.
-                  </div>
+                  <Box sx={{ borderRadius: "12px", border: "1px dashed rgba(255,255,255,0.14)", bgcolor: "rgba(255,255,255,0.02)", p: 2 }}>
+                    <Typography variant="body2" color="text.secondary">Nenhum mobile foi priorizado ainda para este CNPJ.</Typography>
+                  </Box>
                 ) : (
-                  <div className="grid gap-3 lg:grid-cols-2">
+                  <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { lg: "repeat(2,1fr)" } }}>
                     {mobileWaterfall.candidates.slice(0, 6).map((candidate) => (
-                      <div key={`${candidate.normalized_phone}-${candidate.contact_name || "company"}`} className="rounded-2xl border border-border bg-muted/20/70 p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold text-foreground">{candidate.normalized_phone}</p>
-                            <p className="mt-1 text-xs text-muted-foreground/70">
+                      <Box key={`${candidate.normalized_phone}-${candidate.contact_name || "company"}`} sx={{ ...STAT_BOX_SX, p: 2 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1} mb={1.5}>
+                          <Box>
+                            <Typography variant="body2" fontWeight={600}>{candidate.normalized_phone}</Typography>
+                            <Typography variant="caption" color="text.secondary">
                               {candidate.contact_name || empresa?.razao_social || "Empresa"}
                               {candidate.contact_role ? ` · ${candidate.contact_role}` : ""}
-                            </p>
-                          </div>
+                            </Typography>
+                          </Box>
                           {candidate.is_primary && (
-                            <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
-                              Primario
-                            </Badge>
+                            <Chip label="Primario" size="small" sx={{ bgcolor: "rgba(14,165,233,0.1)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "8px" }} />
                           )}
-                        </div>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                            {phoneTypeLabel(candidate.phone_type)}
-                          </Badge>
+                        </Stack>
+                        <Stack direction="row" flexWrap="wrap" gap={0.75}>
+                          <Chip label={phoneTypeLabel(candidate.phone_type)} size="small" variant="outlined" sx={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(240,240,240,0.8)", borderRadius: "8px" }} />
                           {candidate.verified_whatsapp && (
-                            <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
-                              <BadgeCheck className="mr-1 h-3 w-3" />
-                              WhatsApp validado
-                            </Badge>
+                            <Chip icon={<BadgeCheckIcon sx={{ fontSize: 12 }} />} label="WhatsApp validado" size="small" sx={{ bgcolor: "rgba(16,185,129,0.1)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px" }} />
                           )}
                           {!candidate.verified_whatsapp && candidate.likely_whatsapp && (
-                            <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300">
-                              WhatsApp provavel
-                            </Badge>
+                            <Chip label="WhatsApp provavel" size="small" sx={{ bgcolor: "rgba(245,158,11,0.1)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px" }} />
                           )}
                           {candidate.contact_level === "decision_maker" && (
-                            <Badge variant="outline" className="border-violet-500/30 bg-violet-500/10 text-violet-300">
-                              Decisor
-                            </Badge>
+                            <Chip label="Decisor" size="small" sx={{ bgcolor: "rgba(139,92,246,0.1)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.3)", borderRadius: "8px" }} />
                           )}
-                        </div>
-                        <div className="mt-3 text-xs text-muted-foreground">
-                          <span>Fonte: {candidate.source_label || "Nao informada"}</span>
-                          {candidate.validation_source && <span> · Validacao: {candidate.validation_source}</span>}
-                          {candidate.score_total != null && <span> · Score {formatPercent(candidate.score_total)}</span>}
-                        </div>
-                      </div>
+                        </Stack>
+                        <Typography variant="caption" color="text.secondary" mt={1} display="block">
+                          Fonte: {candidate.source_label || "Nao informada"}
+                          {candidate.validation_source && ` · Validacao: ${candidate.validation_source}`}
+                          {candidate.score_total != null && ` · Score ${formatPercent(candidate.score_total)}`}
+                        </Typography>
+                      </Box>
                     ))}
-                  </div>
+                  </Box>
                 )}
               </CardContent>
             </Card>
           ) : (
             empresa && (
-              <Card className="border-dashed border-border bg-card/40">
-                <CardContent className="flex flex-col gap-3 p-6 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Apollo-style mobile waterfall ainda nao resolvido para este CNPJ.</p>
-                    <p className="mt-1 text-sm text-muted-foreground/70">
-                      O Hermes ja tem telefones e socios. Falta priorizar mobile, validar WhatsApp e destacar o melhor canal.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"
-                    onClick={() => void handleResolverMobile(true)}
-                    disabled={isResolvingMobile}
-                  >
-                    {isResolvingMobile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Phone className="mr-2 h-4 w-4" />}
-                    Resolver mobiles e WhatsApp
-                  </Button>
+              <Card sx={{ border: "1px dashed rgba(255,255,255,0.14)", bgcolor: "rgba(24,24,24,0.4)", borderRadius: "12px" }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" alignItems={{ lg: "center" }} gap={2}>
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>Apollo-style mobile waterfall ainda nao resolvido para este CNPJ.</Typography>
+                      <Typography variant="body2" color="text.secondary" mt={0.5}>
+                        O Hermes ja tem telefones e socios. Falta priorizar mobile, validar WhatsApp e destacar o melhor canal.
+                      </Typography>
+                    </Box>
+                    <Button
+                      variant="outlined"
+                      onClick={() => void handleResolverMobile(true)}
+                      disabled={isResolvingMobile}
+                      startIcon={isResolvingMobile ? <CircularProgress size={16} color="inherit" /> : <PhoneIcon />}
+                      sx={{
+                        borderColor: "rgba(16,185,129,0.3)",
+                        bgcolor: "rgba(16,185,129,0.1)",
+                        color: "#bbf7d0",
+                        whiteSpace: "nowrap",
+                        "&:hover": { bgcolor: "rgba(16,185,129,0.15)" },
+                      }}
+                    >
+                      Resolver mobiles e WhatsApp
+                    </Button>
+                  </Stack>
                 </CardContent>
               </Card>
             )
           )}
         </>
       )}
-    </div>
+    </Box>
   );
 };
 

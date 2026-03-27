@@ -1,4 +1,4 @@
-// src/pages/Dashboard.tsx — Hermes Design System v2
+// src/pages/Dashboard.tsx — Hermes Design System v2 (MUI)
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -7,13 +7,25 @@ import {
   PolarGrid, PolarAngleAxis, Radar,
 } from "recharts";
 import {
-  Building2, TrendingUp, Mail, Phone, DollarSign, BarChart3,
-  MessageCircle, Globe, Linkedin, Target, ArrowRight,
-  Zap, MapPin, CheckCircle2, AlertCircle, Users,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+  Box, Stack, Typography, Button, Card, CardContent,
+  CircularProgress, Chip, Divider,
+} from "@mui/material";
+import BusinessIcon from "@mui/icons-material/Business";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import EmailIcon from "@mui/icons-material/Email";
+import PhoneIcon from "@mui/icons-material/Phone";
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import BarChartIcon from "@mui/icons-material/BarChart";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import LanguageIcon from "@mui/icons-material/Language";
+import LinkedInIcon from "@mui/icons-material/LinkedIn";
+import TrackChangesIcon from "@mui/icons-material/TrackChanges";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import BoltIcon from "@mui/icons-material/Bolt";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import PeopleIcon from "@mui/icons-material/People";
 import { DashboardData, getDashboardUltimaExecucao } from "@/lib/api";
 
 function formatBRL(n: number) {
@@ -23,89 +35,99 @@ function formatBRL(n: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(n);
 }
 
-function scoreColor(s: number) {
-  if (s >= 75) return "text-emerald-600";
-  if (s >= 50) return "text-blue-600";
-  if (s >= 25) return "text-amber-600";
-  return "text-red-600";
-}
-function scoreBg(s: number) {
-  if (s >= 75) return "bg-emerald-50 border-emerald-200 text-emerald-700";
-  if (s >= 50) return "bg-blue-50 border-blue-200 text-blue-700";
-  if (s >= 25) return "bg-amber-50 border-amber-200 text-amber-700";
-  return "bg-red-50 border-red-200 text-red-700";
-}
-function scoreBarColor(s: number) {
-  if (s >= 75) return "bg-emerald-500";
-  if (s >= 50) return "bg-blue-500";
-  if (s >= 25) return "bg-amber-500";
-  return "bg-red-500";
+function scoreColor(s: number): string {
+  if (s >= 75) return "#10b981";
+  if (s >= 50) return "#3b82f6";
+  if (s >= 25) return "#f59e0b";
+  return "#ef4444";
 }
 
 const SEG_COLORS = ["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#f97316","#ec4899"];
 
 const TOOLTIP_STYLE = {
-  backgroundColor: "hsl(0 0% 100%)",
-  border: "1px solid hsl(216 14% 90%)",
+  backgroundColor: "#1e1e1e",
+  border: "1px solid rgba(255,255,255,0.12)",
   borderRadius: "8px",
   fontSize: "12px",
-  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.06)",
-  color: "hsl(220 15% 12%)",
+  boxShadow: "0 4px 6px -1px rgba(0,0,0,0.4)",
+  color: "#F0F0F0",
+};
+
+const CARD_SX = {
+  borderRadius: 2,
+  border: "1px solid rgba(255,255,255,0.07)",
+  backgroundColor: "#181818",
+};
+
+const SECTION_LABEL_SX = {
+  fontSize: "0.625rem",
+  fontWeight: 600,
+  color: "#444",
+  textTransform: "uppercase" as const,
+  letterSpacing: "0.08em",
 };
 
 /* ── KPI Card ─────────────────────────────────────────────────────────────── */
-function KpiCard({ icon: Icon, label, value, sub, accent }: {
-  icon: React.FC<{ className?: string }>;
-  label: string; value: string; sub?: string; accent?: string;
+function KpiCard({ icon: Icon, label, value, sub }: {
+  icon: React.ElementType;
+  label: string; value: string; sub?: string;
 }) {
   return (
-    <div className="stat-card">
-      <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center mb-3", accent || "bg-primary/10")}>
-        <Icon className={cn("h-4 w-4", accent ? "text-white" : "text-primary")} />
-      </div>
-      <p className="text-xl font-semibold tabular-nums text-foreground">{value}</p>
-      <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-      {sub && <p className="text-[11px] text-muted-foreground/60 mt-0.5">{sub}</p>}
-    </div>
+    <Card sx={CARD_SX}>
+      <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+        <Box sx={{
+          height: 32, width: 32, borderRadius: 1.5,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          backgroundColor: "rgba(249,115,22,0.12)", mb: 1.5,
+        }}>
+          <Icon sx={{ fontSize: 16, color: "#F97316" }} />
+        </Box>
+        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.1rem", fontVariantNumeric: "tabular-nums", color: "#F0F0F0" }}>
+          {value}
+        </Typography>
+        <Typography sx={{ fontSize: "0.72rem", color: "#9A9A9A", mt: 0.25 }}>{label}</Typography>
+        {sub && (
+          <Typography sx={{ fontSize: "0.66rem", color: "rgba(154,154,154,0.6)", mt: 0.25 }}>{sub}</Typography>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
 /* ── Canal bar ────────────────────────────────────────────────────────────── */
 function CanalBar({ canal, total, pct, color, icon: Icon }: {
   canal: string; total: number; pct: number; color: string;
-  icon: React.FC<{ className?: string }>;
+  icon: React.ElementType;
 }) {
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-xs">
-        <div className="flex items-center gap-2">
-          <Icon className={cn("h-3.5 w-3.5", color)} />
-          <span className="text-foreground/80">{canal}</span>
-        </div>
-        <div className="flex items-center gap-2 tabular-nums">
-          <span className="text-muted-foreground">{total}</span>
-          <span className={cn("font-semibold", color)}>{pct.toFixed(0)}%</span>
-        </div>
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-        <div
-          className={cn("h-full rounded-full transition-all duration-700", color.replace("text-", "bg-"))}
-          style={{ width: `${Math.min(100, pct)}%` }}
-        />
-      </div>
-    </div>
+    <Box sx={{ mb: 1.5 }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+        <Stack direction="row" alignItems="center" gap={0.75}>
+          <Icon sx={{ fontSize: 14, color }} />
+          <Typography sx={{ fontSize: "0.72rem", color: "rgba(240,240,240,0.8)" }}>{canal}</Typography>
+        </Stack>
+        <Stack direction="row" alignItems="center" gap={1}>
+          <Typography sx={{ fontSize: "0.72rem", color: "#9A9A9A", fontVariantNumeric: "tabular-nums" }}>{total}</Typography>
+          <Typography sx={{ fontSize: "0.72rem", fontWeight: 600, color, fontVariantNumeric: "tabular-nums" }}>{pct.toFixed(0)}%</Typography>
+        </Stack>
+      </Stack>
+      <Box sx={{ height: 6, width: "100%", borderRadius: 1, backgroundColor: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+        <Box sx={{ height: "100%", borderRadius: 1, backgroundColor: color, width: `${Math.min(100, pct)}%`, transition: "width 0.7s ease" }} />
+      </Box>
+    </Box>
   );
 }
 
 /* ── Score chip ───────────────────────────────────────────────────────────── */
 function ScoreChip({ score }: { score: number }) {
+  const color = scoreColor(score);
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 w-14 rounded-full bg-muted overflow-hidden">
-        <div className={cn("h-full rounded-full", scoreBarColor(score))} style={{ width: `${Math.min(100, score)}%` }} />
-      </div>
-      <span className={cn("text-xs font-semibold tabular-nums", scoreColor(score))}>{score.toFixed(0)}</span>
-    </div>
+    <Stack direction="row" alignItems="center" gap={1}>
+      <Box sx={{ height: 6, width: 56, borderRadius: 1, backgroundColor: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+        <Box sx={{ height: "100%", borderRadius: 1, backgroundColor: color, width: `${Math.min(100, score)}%` }} />
+      </Box>
+      <Typography sx={{ fontSize: "0.72rem", fontWeight: 600, color, fontVariantNumeric: "tabular-nums" }}>{score.toFixed(0)}</Typography>
+    </Stack>
   );
 }
 
@@ -113,20 +135,32 @@ function ScoreChip({ score }: { score: number }) {
 function EmptyDashboard() {
   const nav = useNavigate();
   return (
-    <div className="flex flex-col items-center justify-center py-32 gap-5">
-      <div className="h-16 w-16 rounded-2xl bg-muted border border-border flex items-center justify-center">
-        <Target className="h-8 w-8 text-muted-foreground" />
-      </div>
-      <div className="text-center space-y-1.5">
-        <p className="text-lg font-display text-foreground">Nenhuma prospecção ainda</p>
-        <p className="text-sm text-muted-foreground max-w-xs">
+    <Stack alignItems="center" justifyContent="center" sx={{ py: 16, gap: 2.5 }}>
+      <Box sx={{
+        height: 64, width: 64, borderRadius: 3,
+        border: "1px solid rgba(255,255,255,0.07)",
+        backgroundColor: "rgba(255,255,255,0.04)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <TrackChangesIcon sx={{ fontSize: 32, color: "#9A9A9A" }} />
+      </Box>
+      <Box sx={{ textAlign: "center" }}>
+        <Typography sx={{ fontSize: "1.1rem", fontWeight: 600, color: "#F0F0F0", mb: 0.5 }}>
+          Nenhuma prospecção ainda
+        </Typography>
+        <Typography sx={{ fontSize: "0.85rem", color: "#9A9A9A", maxWidth: 280 }}>
           Execute sua primeira busca para ver os analytics da sua base de leads.
-        </p>
-      </div>
-      <Button onClick={() => nav("/app")} className="gap-2 text-white shadow-surface-sm" style={{ background: "var(--pinn-orange)" }}>
-        <Zap className="h-4 w-4" /> Configurar prospecção
+        </Typography>
+      </Box>
+      <Button
+        variant="contained"
+        startIcon={<BoltIcon />}
+        onClick={() => nav("/app")}
+        sx={{ backgroundColor: "#F97316", "&:hover": { backgroundColor: "#ea6a0a" }, color: "#fff", fontWeight: 600 }}
+      >
+        Configurar prospecção
       </Button>
-    </div>
+    </Stack>
   );
 }
 
@@ -155,297 +189,387 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-32">
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          Carregando dashboard...
-        </div>
-      </div>
+      <Stack alignItems="center" justifyContent="center" sx={{ py: 16 }}>
+        <Stack direction="row" alignItems="center" gap={1.5}>
+          <CircularProgress size={16} sx={{ color: "#F97316" }} />
+          <Typography sx={{ fontSize: "0.85rem", color: "#9A9A9A" }}>Carregando dashboard...</Typography>
+        </Stack>
+      </Stack>
     );
   }
 
   if (!data || data.total_empresas === 0) return <EmptyDashboard />;
 
-  const canalIcons: Record<string, React.FC<{ className?: string }>> = {
-    "E-mail": Mail, "Telefone": Phone, "WhatsApp": MessageCircle, "LinkedIn": Linkedin, "Site": Globe,
+  const canalIcons: Record<string, React.ElementType> = {
+    "E-mail": EmailIcon,
+    "Telefone": PhoneIcon,
+    "WhatsApp": ChatBubbleOutlineIcon,
+    "LinkedIn": LinkedInIcon,
+    "Site": LanguageIcon,
   };
   const canalColors: Record<string, string> = {
-    "E-mail": "text-sky-500", "Telefone": "text-slate-500", "WhatsApp": "text-emerald-500",
-    "LinkedIn": "text-blue-500", "Site": "text-violet-500",
+    "E-mail": "#0ea5e9",
+    "Telefone": "#64748b",
+    "WhatsApp": "#10b981",
+    "LinkedIn": "#3b82f6",
+    "Site": "#8b5cf6",
+  };
+
+  const porteColors: Record<string, { bar: string; text: string }> = {
+    ME: { bar: "#3b82f6", text: "#3b82f6" },
+    EPP: { bar: "#10b981", text: "#10b981" },
+    "Médio/Grande": { bar: "#f59e0b", text: "#f59e0b" },
+    Grande: { bar: "#8b5cf6", text: "#8b5cf6" },
   };
 
   return (
-    <div className="space-y-6 animate-in-fade">
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black tracking-tighter text-foreground">Dashboard de Prospecção</h1>
-          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
+      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={2}>
+        <Box>
+          <Typography variant="h5" fontWeight={700} sx={{ color: "#F0F0F0", letterSpacing: "-0.02em" }}>
+            Dashboard de Prospecção
+          </Typography>
+          <Stack direction="row" alignItems="center" gap={0.5} sx={{ mt: 0.5 }}>
             {data.execucao_cidade && (
-              <><MapPin className="h-3.5 w-3.5" />{data.execucao_cidade} / {data.execucao_uf} · </>
+              <>
+                <LocationOnIcon sx={{ fontSize: 14, color: "#9A9A9A" }} />
+                <Typography sx={{ fontSize: "0.8rem", color: "#9A9A9A" }}>
+                  {data.execucao_cidade} / {data.execucao_uf} ·{" "}
+                </Typography>
+              </>
             )}
-            {data.execucao_ts && new Date(data.execucao_ts).toLocaleString("pt-BR", {
-              day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-            })}
-          </p>
-        </div>
-        <Button size="sm" variant="outline" className="gap-1.5 shadow-surface-xs" onClick={() => navigate("/results")}>
-          Ver resultados <ArrowRight className="h-3.5 w-3.5" />
+            {data.execucao_ts && (
+              <Typography sx={{ fontSize: "0.8rem", color: "#9A9A9A" }}>
+                {new Date(data.execucao_ts).toLocaleString("pt-BR", {
+                  day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+                })}
+              </Typography>
+            )}
+          </Stack>
+        </Box>
+        <Button
+          size="small"
+          variant="outlined"
+          endIcon={<ArrowForwardIcon sx={{ fontSize: 14 }} />}
+          onClick={() => navigate("/results")}
+          sx={{
+            borderColor: "rgba(255,255,255,0.14)",
+            color: "#F0F0F0",
+            fontSize: "0.78rem",
+            "&:hover": { borderColor: "rgba(255,255,255,0.28)", backgroundColor: "rgba(255,255,255,0.04)" },
+          }}
+        >
+          Ver resultados
         </Button>
-      </div>
+      </Stack>
 
       {/* ── KPIs ───────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiCard icon={Building2}    label="Total de leads"   value={data.total_empresas.toLocaleString("pt-BR")} accent="gradient-primary" />
-        <KpiCard icon={CheckCircle2} label="Enriquecidos"     value={data.empresas_enriquecidas.toLocaleString("pt-BR")} sub={`${((data.empresas_enriquecidas/data.total_empresas)*100).toFixed(0)}% do total`} />
-        <KpiCard icon={BarChart3}    label="Score ICP médio"  value={data.score_medio.toFixed(1)} sub="de 100 pts" />
-        <KpiCard icon={DollarSign}   label="Capital médio"    value={formatBRL(data.capital_medio)} sub="por empresa" />
-        <KpiCard icon={DollarSign}   label="Capital total"    value={formatBRL(data.capital_total)} sub="pool total" />
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "1fr 1fr 1fr", lg: "repeat(6, 1fr)" }, gap: 1.5 }}>
+        <KpiCard icon={BusinessIcon}     label="Total de leads"   value={data.total_empresas.toLocaleString("pt-BR")} />
+        <KpiCard icon={CheckCircleIcon}  label="Enriquecidos"     value={data.empresas_enriquecidas.toLocaleString("pt-BR")} sub={`${((data.empresas_enriquecidas/data.total_empresas)*100).toFixed(0)}% do total`} />
+        <KpiCard icon={BarChartIcon}     label="Score ICP médio"  value={data.score_medio.toFixed(1)} sub="de 100 pts" />
+        <KpiCard icon={AttachMoneyIcon}  label="Capital médio"    value={formatBRL(data.capital_medio)} sub="por empresa" />
+        <KpiCard icon={AttachMoneyIcon}  label="Capital total"    value={formatBRL(data.capital_total)} sub="pool total" />
         {data.pib_medio > 0
-          ? <KpiCard icon={TrendingUp} label="PIB médio / mun." value={formatBRL(data.pib_medio)} sub="IBGE" />
-          : <KpiCard icon={Users}      label="Com LinkedIn"     value={data.com_linkedin.toLocaleString("pt-BR")} sub={`${((data.com_linkedin/data.total_empresas)*100).toFixed(0)}% do total`} />
+          ? <KpiCard icon={TrendingUpIcon} label="PIB médio / mun." value={formatBRL(data.pib_medio)} sub="IBGE" />
+          : <KpiCard icon={PeopleIcon}     label="Com LinkedIn"     value={data.com_linkedin.toLocaleString("pt-BR")} sub={`${((data.com_linkedin/data.total_empresas)*100).toFixed(0)}% do total`} />
         }
-      </div>
+      </Box>
 
       {/* ── Canais + Radar + Score ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr 1fr" }, gap: 2 }}>
 
         {/* Canais */}
-        <div className="card-surface p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-4">
-            <Phone className="h-3.5 w-3.5" /> Canais de contato
-          </p>
-          <div className="space-y-3">
+        <Card sx={CARD_SX}>
+          <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+            <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 2 }}>
+              <PhoneIcon sx={{ fontSize: 14, color: "#444" }} />
+              <Typography sx={SECTION_LABEL_SX}>Canais de contato</Typography>
+            </Stack>
             {data.canais_contato.map(c => (
-              <CanalBar key={c.canal} canal={c.canal} total={c.total} pct={c.pct}
-                color={canalColors[c.canal] ?? "text-slate-500"} icon={canalIcons[c.canal] ?? Phone} />
+              <CanalBar
+                key={c.canal}
+                canal={c.canal}
+                total={c.total}
+                pct={c.pct}
+                color={canalColors[c.canal] ?? "#64748b"}
+                icon={canalIcons[c.canal] ?? PhoneIcon}
+              />
             ))}
-          </div>
-          <div className="mt-4 pt-4 border-t border-border grid grid-cols-2 gap-2">
-            <div className="rounded-lg bg-muted/50 p-2.5">
-              <p className="text-[11px] text-muted-foreground">Com LinkedIn</p>
-              <p className="text-sm font-semibold text-blue-600 tabular-nums">{data.com_linkedin}</p>
-            </div>
-            <div className="rounded-lg bg-muted/50 p-2.5">
-              <p className="text-[11px] text-muted-foreground">Com site</p>
-              <p className="text-sm font-semibold text-violet-600 tabular-nums">{data.com_site}</p>
-            </div>
-          </div>
-        </div>
+            <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.07)" }} />
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+              <Box sx={{ borderRadius: 1.5, backgroundColor: "rgba(255,255,255,0.04)", p: 1.25 }}>
+                <Typography sx={{ fontSize: "0.66rem", color: "#9A9A9A" }}>Com LinkedIn</Typography>
+                <Typography sx={{ fontSize: "0.85rem", fontWeight: 600, color: "#3b82f6", fontVariantNumeric: "tabular-nums" }}>{data.com_linkedin}</Typography>
+              </Box>
+              <Box sx={{ borderRadius: 1.5, backgroundColor: "rgba(255,255,255,0.04)", p: 1.25 }}>
+                <Typography sx={{ fontSize: "0.66rem", color: "#9A9A9A" }}>Com site</Typography>
+                <Typography sx={{ fontSize: "0.85rem", fontWeight: 600, color: "#8b5cf6", fontVariantNumeric: "tabular-nums" }}>{data.com_site}</Typography>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
 
         {/* Radar ICP */}
-        <div className="card-surface p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-2">
-            <Target className="h-3.5 w-3.5" /> Radar ICP
-          </p>
-          <ResponsiveContainer width="100%" height={220}>
-            <RadarChart data={radarData}>
-              <PolarGrid stroke="hsl(216 14% 90%)" />
-              <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11, fill: "hsl(215 12% 52%)" }} />
-              <Radar name="Cobertura %" dataKey="val"
-                stroke="hsl(221 65% 36%)" fill="hsl(221 65% 36%)" fillOpacity={0.15} strokeWidth={2} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [`${v.toFixed(1)}%`, "Cobertura"]} />
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
+        <Card sx={CARD_SX}>
+          <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+            <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 1 }}>
+              <TrackChangesIcon sx={{ fontSize: 14, color: "#444" }} />
+              <Typography sx={SECTION_LABEL_SX}>Radar ICP</Typography>
+            </Stack>
+            <ResponsiveContainer width="100%" height={220}>
+              <RadarChart data={radarData}>
+                <PolarGrid stroke="rgba(255,255,255,0.08)" />
+                <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11, fill: "#9A9A9A" }} />
+                <Radar name="Cobertura %" dataKey="val"
+                  stroke="#F97316" fill="#F97316" fillOpacity={0.15} strokeWidth={2} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [`${v.toFixed(1)}%`, "Cobertura"]} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
         {/* Score distribution */}
-        <div className="card-surface p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-4">
-            <BarChart3 className="h-3.5 w-3.5" /> Distribuição de Score
-          </p>
-          <div className="space-y-3">
+        <Card sx={CARD_SX}>
+          <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+            <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 2 }}>
+              <BarChartIcon sx={{ fontSize: 14, color: "#444" }} />
+              <Typography sx={SECTION_LABEL_SX}>Distribuição de Score</Typography>
+            </Stack>
             {data.score_distribuicao.map(f => (
-              <div key={f.label} className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground/80">Score {f.label}</span>
-                  <div className="flex items-center gap-2 tabular-nums">
-                    <span className="text-muted-foreground">{f.count}</span>
-                    <span className="font-semibold" style={{ color: f.color }}>
+              <Box key={f.label} sx={{ mb: 1.5 }}>
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                  <Typography sx={{ fontSize: "0.72rem", color: "rgba(154,154,154,0.8)" }}>Score {f.label}</Typography>
+                  <Stack direction="row" alignItems="center" gap={1}>
+                    <Typography sx={{ fontSize: "0.72rem", color: "#9A9A9A", fontVariantNumeric: "tabular-nums" }}>{f.count}</Typography>
+                    <Typography sx={{ fontSize: "0.72rem", fontWeight: 600, color: f.color, fontVariantNumeric: "tabular-nums" }}>
                       {data.total_empresas > 0 ? ((f.count / data.total_empresas) * 100).toFixed(0) : 0}%
-                    </span>
-                  </div>
-                </div>
-                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${data.total_empresas > 0 ? (f.count / data.total_empresas) * 100 : 0}%`, backgroundColor: f.color }} />
-                </div>
-              </div>
+                    </Typography>
+                  </Stack>
+                </Stack>
+                <Box sx={{ height: 6, width: "100%", borderRadius: 1, backgroundColor: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                  <Box sx={{
+                    height: "100%", borderRadius: 1,
+                    width: `${data.total_empresas > 0 ? (f.count / data.total_empresas) * 100 : 0}%`,
+                    backgroundColor: f.color, transition: "width 0.7s ease",
+                  }} />
+                </Box>
+              </Box>
             ))}
-          </div>
-          <div className="mt-4 pt-4 border-t border-border rounded-xl bg-muted/40 p-3">
-            <div className="flex justify-between text-xs mb-1.5">
-              <span className="text-muted-foreground">Score médio do lote</span>
-              <span className={cn("font-bold", scoreColor(data.score_medio))}>{data.score_medio.toFixed(1)} pts</span>
-            </div>
-            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-              <div className={cn("h-full rounded-full", scoreBarColor(data.score_medio))} style={{ width: `${Math.min(100, data.score_medio)}%` }} />
-            </div>
-          </div>
-        </div>
-      </div>
+            <Box sx={{ mt: 2, borderRadius: 1.5, backgroundColor: "rgba(255,255,255,0.04)", p: 1.5 }}>
+              <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.75 }}>
+                <Typography sx={{ fontSize: "0.72rem", color: "#9A9A9A" }}>Score médio do lote</Typography>
+                <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, color: scoreColor(data.score_medio) }}>
+                  {data.score_medio.toFixed(1)} pts
+                </Typography>
+              </Stack>
+              <Box sx={{ height: 6, width: "100%", borderRadius: 1, backgroundColor: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                <Box sx={{ height: "100%", borderRadius: 1, backgroundColor: scoreColor(data.score_medio), width: `${Math.min(100, data.score_medio)}%` }} />
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+      </Box>
 
       {/* ── Charts ─────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 2 }}>
 
         {/* Segmentos */}
-        <div className="card-surface p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">Segmentos</p>
-          <div className="flex items-center gap-4">
-            <ResponsiveContainer width={160} height={160}>
-              <PieChart>
-                <Pie data={data.empresas_por_segmento.map((s, i) => ({ name: s.segmento, value: s.total, fill: SEG_COLORS[i % SEG_COLORS.length] }))}
-                  cx="50%" cy="50%" innerRadius={44} outerRadius={72} dataKey="value" strokeWidth={2} stroke="white">
-                  {data.empresas_por_segmento.map((_, i) => (
-                    <Cell key={i} fill={SEG_COLORS[i % SEG_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={TOOLTIP_STYLE} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="flex-1 space-y-2">
-              {data.empresas_por_segmento.slice(0, 6).map((s, i) => (
-                <div key={s.segmento} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: SEG_COLORS[i % SEG_COLORS.length] }} />
-                    <span className="text-foreground/80 truncate">{s.segmento}</span>
-                  </div>
-                  <span className="text-muted-foreground ml-2 tabular-nums shrink-0">
-                    {s.total} ({((s.total / data.total_empresas) * 100).toFixed(0)}%)
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <Card sx={CARD_SX}>
+          <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+            <Typography sx={{ ...SECTION_LABEL_SX, mb: 2 }}>Segmentos</Typography>
+            <Stack direction="row" alignItems="center" gap={2}>
+              <ResponsiveContainer width={160} height={160}>
+                <PieChart>
+                  <Pie
+                    data={data.empresas_por_segmento.map((s, i) => ({ name: s.segmento, value: s.total, fill: SEG_COLORS[i % SEG_COLORS.length] }))}
+                    cx="50%" cy="50%" innerRadius={44} outerRadius={72} dataKey="value" strokeWidth={2} stroke="#181818"
+                  >
+                    {data.empresas_por_segmento.map((_, i) => (
+                      <Cell key={i} fill={SEG_COLORS[i % SEG_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                </PieChart>
+              </ResponsiveContainer>
+              <Box sx={{ flex: 1 }}>
+                {data.empresas_por_segmento.slice(0, 6).map((s, i) => (
+                  <Stack key={s.segmento} direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                    <Stack direction="row" alignItems="center" gap={0.75}>
+                      <Box sx={{ height: 8, width: 8, borderRadius: "50%", flexShrink: 0, backgroundColor: SEG_COLORS[i % SEG_COLORS.length] }} />
+                      <Typography sx={{ fontSize: "0.72rem", color: "rgba(240,240,240,0.8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 100 }}>
+                        {s.segmento}
+                      </Typography>
+                    </Stack>
+                    <Typography sx={{ fontSize: "0.72rem", color: "#9A9A9A", ml: 1, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
+                      {s.total} ({((s.total / data.total_empresas) * 100).toFixed(0)}%)
+                    </Typography>
+                  </Stack>
+                ))}
+              </Box>
+            </Stack>
+          </CardContent>
+        </Card>
 
         {/* Porte */}
-        <div className="card-surface p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">Porte das empresas</p>
-          <div className="space-y-3">
+        <Card sx={CARD_SX}>
+          <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+            <Typography sx={{ ...SECTION_LABEL_SX, mb: 2 }}>Porte das empresas</Typography>
             {data.empresas_por_porte.map(p => {
               const pct = (p.total / data.total_empresas) * 100;
-              const styles: Record<string, { bar: string; text: string }> = {
-                ME: { bar: "bg-blue-500", text: "text-blue-600" },
-                EPP: { bar: "bg-emerald-500", text: "text-emerald-600" },
-                "Médio/Grande": { bar: "bg-amber-500", text: "text-amber-600" },
-                Grande: { bar: "bg-violet-500", text: "text-violet-600" },
-              };
-              const style = styles[p.porte] ?? { bar: "bg-slate-400", text: "text-slate-500" };
+              const style = porteColors[p.porte] ?? { bar: "#64748b", text: "#64748b" };
               return (
-                <div key={p.porte} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className={cn("font-medium", style.text)}>{p.porte}</span>
-                    <div className="flex items-center gap-2 tabular-nums">
-                      <span className="text-muted-foreground">{p.total}</span>
-                      <span className={cn("font-semibold", style.text)}>{pct.toFixed(0)}%</span>
-                    </div>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                    <div className={cn("h-full rounded-full transition-all duration-700", style.bar)} style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
+                <Box key={p.porte} sx={{ mb: 1.5 }}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                    <Typography sx={{ fontSize: "0.72rem", fontWeight: 500, color: style.text }}>{p.porte}</Typography>
+                    <Stack direction="row" alignItems="center" gap={1}>
+                      <Typography sx={{ fontSize: "0.72rem", color: "#9A9A9A", fontVariantNumeric: "tabular-nums" }}>{p.total}</Typography>
+                      <Typography sx={{ fontSize: "0.72rem", fontWeight: 600, color: style.text, fontVariantNumeric: "tabular-nums" }}>{pct.toFixed(0)}%</Typography>
+                    </Stack>
+                  </Stack>
+                  <Box sx={{ height: 6, width: "100%", borderRadius: 1, backgroundColor: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                    <Box sx={{ height: "100%", borderRadius: 1, backgroundColor: style.bar, width: `${pct}%`, transition: "width 0.7s ease" }} />
+                  </Box>
+                </Box>
               );
             })}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* UF */}
-        <div className="card-surface p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Estados (Top 8)</p>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={data.empresas_por_uf.slice(0, 8)} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(216 14% 92%)" vertical={false} />
-              <XAxis dataKey="uf" tick={{ fontSize: 11, fill: "hsl(215 12% 52%)" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "hsl(215 12% 52%)" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v.toLocaleString("pt-BR"), "Empresas"]} />
-              <Bar dataKey="total" fill="hsl(221 65% 36%)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <Card sx={CARD_SX}>
+          <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+            <Typography sx={{ ...SECTION_LABEL_SX, mb: 1.5 }}>Estados (Top 8)</Typography>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={data.empresas_por_uf.slice(0, 8)} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+                <XAxis dataKey="uf" tick={{ fontSize: 11, fill: "#9A9A9A" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#9A9A9A" }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v.toLocaleString("pt-BR"), "Empresas"]} />
+                <Bar dataKey="total" fill="#F97316" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
         {/* Capital */}
-        <div className="card-surface p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Faixas de capital social</p>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={data.capital_faixas} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(216 14% 92%)" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(215 12% 52%)" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "hsl(215 12% 52%)" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v.toLocaleString("pt-BR"), "Empresas"]} />
-              <Bar dataKey="count" fill="hsl(235 55% 48%)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+        <Card sx={CARD_SX}>
+          <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+            <Typography sx={{ ...SECTION_LABEL_SX, mb: 1.5 }}>Faixas de capital social</Typography>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={data.capital_faixas} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#9A9A9A" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#9A9A9A" }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v.toLocaleString("pt-BR"), "Empresas"]} />
+                <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </Box>
 
       {/* ── Top leads ──────────────────────────────────────────────────────── */}
-      <div className="card-surface p-0 overflow-hidden">
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-            <Zap className="h-3.5 w-3.5 text-amber-500" /> Top leads por Score ICP
-          </p>
-          <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-primary hover:text-primary/80" onClick={() => navigate("/results")}>
-            Ver todos <ArrowRight className="h-3 w-3" />
+      <Card sx={{ ...CARD_SX, overflow: "hidden", p: 0 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between"
+          sx={{ px: 2.5, py: 2, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+          <Stack direction="row" alignItems="center" gap={1}>
+            <BoltIcon sx={{ fontSize: 14, color: "#f59e0b" }} />
+            <Typography sx={SECTION_LABEL_SX}>Top leads por Score ICP</Typography>
+          </Stack>
+          <Button
+            size="small"
+            variant="text"
+            endIcon={<ArrowForwardIcon sx={{ fontSize: 12 }} />}
+            onClick={() => navigate("/results")}
+            sx={{ fontSize: "0.72rem", color: "#F97316", minWidth: 0, px: 1, py: 0.5, height: 28 }}
+          >
+            Ver todos
           </Button>
-        </div>
-        <div className="divide-y divide-border">
-          {data.top_empresas.map((emp, i) => {
-            const temContato = emp.telefone_padrao || emp.email || emp.whatsapp_publico || emp.whatsapp_enriquecido;
-            return (
-              <div key={emp.cnpj} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors">
-                <span className={cn(
-                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
-                  i === 0 ? "bg-amber-100 text-amber-700" :
-                  i === 1 ? "bg-slate-100 text-slate-600" :
-                  i === 2 ? "bg-orange-100 text-orange-700" : "bg-muted text-muted-foreground"
-                )}>{i + 1}</span>
+        </Stack>
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate text-foreground">
-                    {emp.nome_fantasia || emp.razao_social}
-                  </p>
-                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <MapPin className="h-2.5 w-2.5" />
+        {data.top_empresas.map((emp, i) => {
+          const temContato = emp.telefone_padrao || emp.email || emp.whatsapp_publico || emp.whatsapp_enriquecido;
+          const rankBg = i === 0 ? "rgba(245,158,11,0.15)" : i === 1 ? "rgba(100,116,139,0.15)" : i === 2 ? "rgba(249,115,22,0.12)" : "rgba(255,255,255,0.04)";
+          const rankColor = i === 0 ? "#f59e0b" : i === 1 ? "#94a3b8" : i === 2 ? "#f97316" : "#9A9A9A";
+
+          return (
+            <Stack
+              key={emp.cnpj}
+              direction="row"
+              alignItems="center"
+              gap={1.5}
+              sx={{
+                px: 2.5, py: 1.5,
+                borderBottom: "1px solid rgba(255,255,255,0.05)",
+                "&:last-child": { borderBottom: "none" },
+                "&:hover": { backgroundColor: "rgba(255,255,255,0.03)" },
+                transition: "background-color 0.15s",
+              }}
+            >
+              <Box sx={{
+                height: 24, width: 24, flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                borderRadius: "50%", backgroundColor: rankBg,
+              }}>
+                <Typography sx={{ fontSize: "0.65rem", fontWeight: 700, color: rankColor }}>{i + 1}</Typography>
+              </Box>
+
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography sx={{ fontSize: "0.85rem", fontWeight: 500, color: "#F0F0F0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {emp.nome_fantasia || emp.razao_social}
+                </Typography>
+                <Stack direction="row" alignItems="center" gap={0.75}>
+                  <LocationOnIcon sx={{ fontSize: 10, color: "#9A9A9A" }} />
+                  <Typography sx={{ fontSize: "0.66rem", color: "#9A9A9A" }}>
                     {emp.cidade || "—"} / {emp.uf || "—"}
-                    {emp.segmento && (
-                      <Badge variant="outline" className="text-[10px] border-border/60 text-muted-foreground ml-1 py-0">
-                        {emp.segmento}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                <div className="hidden sm:block w-24 shrink-0">
-                  <ScoreChip score={emp.score_icp} />
-                </div>
-
-                <div className="flex items-center gap-1 shrink-0">
-                  {emp.email && (
-                    <div className="h-6 w-6 flex items-center justify-center rounded-md bg-sky-50 border border-sky-200">
-                      <Mail className="h-3 w-3 text-sky-500" />
-                    </div>
+                  </Typography>
+                  {emp.segmento && (
+                    <Chip
+                      label={emp.segmento}
+                      size="small"
+                      variant="outlined"
+                      sx={{
+                        height: 16, fontSize: "0.6rem",
+                        borderColor: "rgba(255,255,255,0.12)",
+                        color: "#9A9A9A",
+                        "& .MuiChip-label": { px: 0.75 },
+                      }}
+                    />
                   )}
-                  {(emp.whatsapp_publico || emp.whatsapp_enriquecido) && (
-                    <div className="h-6 w-6 flex items-center justify-center rounded-md bg-emerald-50 border border-emerald-200">
-                      <MessageCircle className="h-3 w-3 text-emerald-500" />
-                    </div>
-                  )}
-                  {emp.telefone_padrao && (
-                    <div className="h-6 w-6 flex items-center justify-center rounded-md bg-muted border border-border">
-                      <Phone className="h-3 w-3 text-muted-foreground" />
-                    </div>
-                  )}
-                  {!temContato && <AlertCircle className="h-3.5 w-3.5 text-muted-foreground/40" />}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                </Stack>
+              </Box>
 
-    </div>
+              <Box sx={{ display: { xs: "none", sm: "block" }, width: 96, flexShrink: 0 }}>
+                <ScoreChip score={emp.score_icp} />
+              </Box>
+
+              <Stack direction="row" alignItems="center" gap={0.5} sx={{ flexShrink: 0 }}>
+                {emp.email && (
+                  <Box sx={{ height: 24, width: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 1, backgroundColor: "rgba(14,165,233,0.1)", border: "1px solid rgba(14,165,233,0.25)" }}>
+                    <EmailIcon sx={{ fontSize: 12, color: "#0ea5e9" }} />
+                  </Box>
+                )}
+                {(emp.whatsapp_publico || emp.whatsapp_enriquecido) && (
+                  <Box sx={{ height: 24, width: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 1, backgroundColor: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)" }}>
+                    <ChatBubbleOutlineIcon sx={{ fontSize: 12, color: "#10b981" }} />
+                  </Box>
+                )}
+                {emp.telefone_padrao && (
+                  <Box sx={{ height: 24, width: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 1, backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                    <PhoneIcon sx={{ fontSize: 12, color: "#9A9A9A" }} />
+                  </Box>
+                )}
+                {!temContato && <ErrorOutlineIcon sx={{ fontSize: 14, color: "rgba(154,154,154,0.4)" }} />}
+              </Stack>
+            </Stack>
+          );
+        })}
+      </Card>
+
+    </Box>
   );
 };
 

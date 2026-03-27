@@ -1,9 +1,11 @@
-// src/pages/Heatmap.tsx
+// src/pages/Heatmap.tsx (MUI)
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, MapPin } from "lucide-react";
+import {
+  Box, Stack, Typography, Card, CardContent, Chip,
+  Table, TableHead, TableBody, TableRow, TableCell,
+  CircularProgress, Paper,
+} from "@mui/material";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
 import { toast } from "sonner";
 
 import { MapContainer, TileLayer, CircleMarker, Tooltip as LeafletTooltip } from "react-leaflet";
@@ -145,63 +147,74 @@ export default function HeatmapPage() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Carregando mapa de calor...</span>
-        </div>
-      </div>
+      <Box sx={{ display: "flex", height: "100%", alignItems: "center", justifyContent: "center" }}>
+        <Stack direction="row" alignItems="center" gap={1.5} sx={{ color: "#9A9A9A" }}>
+          <CircularProgress size={16} sx={{ color: "#9A9A9A" }} />
+          <Typography variant="body2" sx={{ color: "#9A9A9A" }}>Carregando mapa de calor...</Typography>
+        </Stack>
+      </Box>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {/* Header */}
-      <div className="space-y-2">
-        <h2 className="text-2xl font-bold tracking-tight">
+      <Box>
+        <Typography variant="h5" fontWeight={700} sx={{ color: "#F0F0F0" }}>
           Mapa de Calor – Concentração por Município
-        </h2>
-        <p className="text-sm text-muted-foreground">
+        </Typography>
+        <Typography variant="body2" sx={{ color: "#9A9A9A", mt: 0.5 }}>
           Distribuição das empresas filtradas por município, com base na última prospecção.
           {execucao && (
-            <>
-              {" "}
-              <span className="font-medium">
-                ({execucao.termo.toUpperCase()} • {execucao.cidade} / {execucao.uf})
-              </span>
-            </>
+            <Box component="span" sx={{ fontWeight: 600, color: "#F0F0F0", ml: 0.5 }}>
+              ({execucao.termo.toUpperCase()} • {execucao.cidade} / {execucao.uf})
+            </Box>
           )}
-        </p>
-      </div>
+        </Typography>
+      </Box>
 
       {/* Resumo do mapa */}
-      <Card>
-        <CardContent className="pt-4 pb-4">
-          <div className="flex flex-wrap gap-3 text-xs md:text-sm">
-            <Badge variant="outline" className="bg-muted/40">
-              Pontos de mapa:{" "}
-              <span className="ml-1 font-semibold">
-                {empresasComGeo.length}
-              </span>
-            </Badge>
-            <Badge variant="outline" className="bg-muted/40">
-              Empresas somadas:{" "}
-              <span className="ml-1 font-semibold">{totalEmpresas}</span>
-            </Badge>
-            <Badge variant="outline" className="bg-muted/40">
-              Capital social total:{" "}
-              <span className="ml-1 font-semibold">
-                {formatCurrency(totalCapital)}
-              </span>
-            </Badge>
-          </div>
+      <Card sx={{ borderRadius: 2, border: "1px solid rgba(255,255,255,0.07)", backgroundColor: "#181818" }}>
+        <CardContent sx={{ py: "14px !important" }}>
+          <Stack direction="row" flexWrap="wrap" gap={1.5}>
+            <Chip
+              label={
+                <span>
+                  Pontos de mapa: <strong>{empresasComGeo.length}</strong>
+                </span>
+              }
+              variant="outlined"
+              size="small"
+              sx={{ fontSize: 12, borderColor: "rgba(255,255,255,0.12)", color: "#9A9A9A", backgroundColor: "rgba(255,255,255,0.04)" }}
+            />
+            <Chip
+              label={
+                <span>
+                  Empresas somadas: <strong>{totalEmpresas}</strong>
+                </span>
+              }
+              variant="outlined"
+              size="small"
+              sx={{ fontSize: 12, borderColor: "rgba(255,255,255,0.12)", color: "#9A9A9A", backgroundColor: "rgba(255,255,255,0.04)" }}
+            />
+            <Chip
+              label={
+                <span>
+                  Capital social total: <strong>{formatCurrency(totalCapital)}</strong>
+                </span>
+              }
+              variant="outlined"
+              size="small"
+              sx={{ fontSize: 12, borderColor: "rgba(255,255,255,0.12)", color: "#9A9A9A", backgroundColor: "rgba(255,255,255,0.04)" }}
+            />
+          </Stack>
         </CardContent>
       </Card>
 
       {/* Mapa */}
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          <div className="h-[420px] w-full">
+      <Card sx={{ borderRadius: 2, border: "1px solid rgba(255,255,255,0.07)", backgroundColor: "#181818", overflow: "hidden" }}>
+        <CardContent sx={{ p: "0 !important" }}>
+          <Box sx={{ height: 420, width: "100%" }}>
             <MapContainer
               center={mapCenter}
               zoom={6}
@@ -228,7 +241,7 @@ export default function HeatmapPage() {
                     center={[emp.latitude as number, emp.longitude as number]}
                     radius={radius}
                     pathOptions={{
-                      color: "rgba(56,189,248,0.9)", // azul "ICP"
+                      color: "rgba(56,189,248,0.9)",
                       fillColor: "rgba(56,189,248,0.85)",
                       fillOpacity,
                       weight: 0,
@@ -236,7 +249,7 @@ export default function HeatmapPage() {
                   >
                     <LeafletTooltip direction="top" offset={[0, -4]} opacity={0.95}>
                       <div style={{ fontSize: 11 }}>
-                        <div className="font-semibold">
+                        <div style={{ fontWeight: 600 }}>
                           {emp.nome_fantasia || emp.razao_social}
                         </div>
                         <div>
@@ -255,71 +268,73 @@ export default function HeatmapPage() {
                 );
               })}
             </MapContainer>
-          </div>
+          </Box>
         </CardContent>
       </Card>
 
       {/* Concentração Regional */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Concentração Regional</CardTitle>
-          <p className="text-xs text-muted-foreground">
+      <Card sx={{ borderRadius: 2, border: "1px solid rgba(255,255,255,0.07)", backgroundColor: "#181818" }}>
+        <CardContent sx={{ pt: "20px !important", px: "20px !important", pb: "4px !important" }}>
+          <Typography variant="h6" fontWeight={700} sx={{ color: "#F0F0F0", mb: 0.5 }}>
+            Concentração Regional
+          </Typography>
+          <Typography variant="caption" sx={{ color: "#9A9A9A", display: "block", mb: 2 }}>
             Municípios com maior densidade de empresas após os filtros ICP.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-lg border border-border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40">
-                  <TableHead className="w-[40%]">Município</TableHead>
-                  <TableHead className="w-[10%]">UF</TableHead>
-                  <TableHead className="w-[15%]">Empresas</TableHead>
-                  <TableHead className="w-[25%]">Capital Social Total</TableHead>
-                  <TableHead className="w-[10%] text-right">Intensidade</TableHead>
+          </Typography>
+        </CardContent>
+        <CardContent sx={{ pt: "0 !important", px: "16px !important", pb: "16px !important" }}>
+          <Box sx={{ borderRadius: 1.5, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ backgroundColor: "rgba(255,255,255,0.03)" }}>
+                  <TableCell sx={{ color: "#9A9A9A", fontSize: 12, borderBottom: "1px solid rgba(255,255,255,0.07)", width: "40%" }}>Município</TableCell>
+                  <TableCell sx={{ color: "#9A9A9A", fontSize: 12, borderBottom: "1px solid rgba(255,255,255,0.07)", width: "10%" }}>UF</TableCell>
+                  <TableCell sx={{ color: "#9A9A9A", fontSize: 12, borderBottom: "1px solid rgba(255,255,255,0.07)", width: "15%" }}>Empresas</TableCell>
+                  <TableCell sx={{ color: "#9A9A9A", fontSize: 12, borderBottom: "1px solid rgba(255,255,255,0.07)", width: "25%" }}>Capital Social Total</TableCell>
+                  <TableCell sx={{ color: "#9A9A9A", fontSize: 12, borderBottom: "1px solid rgba(255,255,255,0.07)", width: "10%", textAlign: "right" }}>Intensidade</TableCell>
                 </TableRow>
-              </TableHeader>
+              </TableHead>
               <TableBody>
                 {municipiosAgg.map((m) => (
-                  <TableRow key={`${m.municipio}-${m.uf}`}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-3 w-3 text-primary" />
-                        <span className="font-medium">
+                  <TableRow
+                    key={`${m.municipio}-${m.uf}`}
+                    sx={{ "&:hover": { backgroundColor: "rgba(255,255,255,0.02)" } }}
+                  >
+                    <TableCell sx={{ color: "#F0F0F0", fontSize: 13, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                      <Stack direction="row" alignItems="center" gap={1}>
+                        <LocationOnIcon sx={{ fontSize: 12, color: "#F97316" }} />
+                        <Typography variant="body2" fontWeight={500} sx={{ fontSize: 13, color: "#F0F0F0" }}>
                           {m.municipio.charAt(0) + m.municipio.slice(1).toLowerCase()}
-                        </span>
-                      </div>
+                        </Typography>
+                      </Stack>
                     </TableCell>
-                    <TableCell>{m.uf}</TableCell>
-                    <TableCell>{m.empresas}</TableCell>
-                    <TableCell>{formatCurrency(m.capital)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center gap-2 justify-end">
-                        <div className="h-1.5 w-24 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-rose-500"
-                            style={{ width: `${m.intensidade}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-muted-foreground">
+                    <TableCell sx={{ color: "#9A9A9A", fontSize: 13, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>{m.uf}</TableCell>
+                    <TableCell sx={{ color: "#F0F0F0", fontSize: 13, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>{m.empresas}</TableCell>
+                    <TableCell sx={{ color: "#F0F0F0", fontSize: 13, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>{formatCurrency(m.capital)}</TableCell>
+                    <TableCell sx={{ borderBottom: "1px solid rgba(255,255,255,0.05)", textAlign: "right" }}>
+                      <Stack direction="row" alignItems="center" gap={1} justifyContent="flex-end">
+                        <Box sx={{ height: 6, width: 96, borderRadius: "99px", backgroundColor: "rgba(255,255,255,0.08)", overflow: "hidden", flexShrink: 0 }}>
+                          <Box sx={{ height: "100%", borderRadius: "99px", backgroundColor: "#f43f5e", width: `${m.intensidade}%` }} />
+                        </Box>
+                        <Typography variant="caption" sx={{ color: "#9A9A9A", fontSize: 11, flexShrink: 0 }}>
                           {m.intensidade}%
-                        </span>
-                      </div>
+                        </Typography>
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 ))}
                 {municipiosAgg.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-4">
+                    <TableCell colSpan={5} sx={{ textAlign: "center", py: 3, color: "#9A9A9A", fontSize: 12, borderBottom: "none" }}>
                       Nenhuma empresa encontrada para montar a concentração regional.
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
-          </div>
+          </Box>
         </CardContent>
       </Card>
-    </div>
+    </Box>
   );
 }

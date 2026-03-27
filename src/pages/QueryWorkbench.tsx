@@ -1,35 +1,33 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  ArrowRight,
-  BookmarkPlus,
-  Copy,
-  FileJson,
-  Filter,
-  Loader2,
-  Play,
-  RefreshCw,
-  Sparkles,
-  TerminalSquare,
-} from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import TerminalSquareIcon from "@mui/icons-material/Terminal";
+import SparklesIcon from "@mui/icons-material/AutoAwesome";
+import FilterIcon from "@mui/icons-material/FilterAlt";
+import FileJsonIcon from "@mui/icons-material/DataObject";
+import BookmarkPlusIcon from "@mui/icons-material/BookmarkAdd";
+import CopyIcon from "@mui/icons-material/ContentCopy";
+import PlayIcon from "@mui/icons-material/PlayArrow";
+import RefreshCwIcon from "@mui/icons-material/Refresh";
+import ArrowRightIcon from "@mui/icons-material/ArrowForward";
+import CircularProgress from "@mui/material/CircularProgress";
+import LinearProgress from "@mui/material/LinearProgress";
+import Switch from "@mui/material/Switch";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import TextField from "@mui/material/TextField";
+import Chip from "@mui/material/Chip";
+
 import {
   createSavedSearch,
   deleteSavedSearch,
@@ -100,6 +98,13 @@ function formatDate(value?: string | null): string {
     return value;
   }
 }
+
+const STAT_BOX_SX = {
+  borderRadius: "10px",
+  border: "1px solid rgba(255,255,255,0.07)",
+  bgcolor: "rgba(24,24,24,0.7)",
+  p: 1.5,
+};
 
 const QueryWorkbench = () => {
   const navigate = useNavigate();
@@ -325,435 +330,518 @@ const QueryWorkbench = () => {
     }
   };
 
-  return (
-    <div className="space-y-6 p-1">
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10">
-            <TerminalSquare className="h-5 w-5 text-amber-300" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-display tracking-tight">Workbench de Query</h2>
-            <p className="text-sm text-muted-foreground">
-              Monte a query do Hermes de forma tecnica, veja o payload exato e rode a prospeccao com progresso em tempo real.
-            </p>
-          </div>
-        </div>
-      </div>
+  const SECTION_CARD_SX = {
+    border: "1px solid rgba(255,255,255,0.07)",
+    bgcolor: "#181818",
+    borderRadius: "12px",
+  };
 
-      <Card className="border-border bg-card shadow-surface-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Sparkles className="h-4 w-4 text-cyan-300" />
-            Tradutor de Query
-          </CardTitle>
-          <CardDescription>
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3, p: 0.5 }}>
+      {/* Page Header */}
+      <Stack direction="row" alignItems="center" spacing={2}>
+        <Box
+          sx={{
+            width: 44,
+            height: 44,
+            borderRadius: "16px",
+            border: "1px solid rgba(245,158,11,0.3)",
+            bgcolor: "rgba(245,158,11,0.1)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <TerminalSquareIcon sx={{ fontSize: 20, color: "#fcd34d" }} />
+        </Box>
+        <Box>
+          <Typography variant="h5" fontWeight={700} letterSpacing="-0.02em">
+            Workbench de Query
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Monte a query do Hermes de forma tecnica, veja o payload exato e rode a prospeccao com progresso em tempo real.
+          </Typography>
+        </Box>
+      </Stack>
+
+      {/* AI Translator */}
+      <Card sx={SECTION_CARD_SX}>
+        <CardContent sx={{ p: 3 }}>
+          <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+            <SparklesIcon sx={{ fontSize: 16, color: "#67e8f9" }} />
+            <Typography variant="subtitle1" fontWeight={600}>Tradutor de Query</Typography>
+          </Stack>
+          <Typography variant="body2" color="text.secondary" mb={2}>
             Escreva como pensaria a busca e o Hermes converte para os filtros reais da prospeccao.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Textarea
+          </Typography>
+
+          <TextField
             value={aiPrompt}
             onChange={(event) => setAiPrompt(event.target.value)}
             placeholder="Ex.: administradoras de condominios em MG com whatsapp valido, capital acima de 500 mil, 80 leads"
-            className="min-h-[104px] border-border bg-muted/20"
+            multiline
+            minRows={4}
+            fullWidth
+            sx={{ mb: 2 }}
           />
-          <div className="flex flex-wrap gap-2">
+
+          <Stack direction="row" flexWrap="wrap" gap={1.5}>
             <Button
-              type="button"
-              className="bg-cyan-500 text-muted-foreground hover:bg-cyan-400"
+              variant="contained"
               onClick={() => void handleTranslateQuery()}
               disabled={translatingPrompt}
+              startIcon={translatingPrompt ? <CircularProgress size={16} color="inherit" /> : <SparklesIcon />}
+              sx={{ bgcolor: "#06b6d4", color: "#0F0F0F", fontWeight: 600, "&:hover": { bgcolor: "#22d3ee" } }}
             >
-              {translatingPrompt ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
               Aplicar query IA
             </Button>
             <Button
-              type="button"
-              variant="outline"
-              className="border-border bg-muted/20"
-              onClick={() => setAiPrompt("administradoras de condominios em MG com whatsapp valido, capital acima de 500 mil, 80 leads")}
+              variant="outlined"
+              onClick={() =>
+                setAiPrompt(
+                  "administradoras de condominios em MG com whatsapp valido, capital acima de 500 mil, 80 leads",
+                )
+              }
             >
               Exemplo B2B
             </Button>
-          </div>
+          </Stack>
 
           {translationResult && (
-            <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-3">
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
-                  {translationResult.source === "hybrid" ? "IA + heuristica" : "Heuristica"}
-                </Badge>
+            <Box sx={{ mt: 2, borderRadius: "12px", border: "1px solid rgba(255,255,255,0.07)", bgcolor: "rgba(255,255,255,0.03)", p: 2 }}>
+              <Stack direction="row" flexWrap="wrap" gap={1} mb={translationResult.warnings.length > 0 ? 1.5 : 0}>
+                <Chip
+                  label={translationResult.source === "hybrid" ? "IA + heuristica" : "Heuristica"}
+                  size="small"
+                  sx={{ bgcolor: "rgba(6,182,212,0.1)", color: "#67e8f9", border: "1px solid rgba(6,182,212,0.3)", borderRadius: "8px" }}
+                />
                 {translationResult.highlights.map((item) => (
-                  <Badge key={item} variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                    {item}
-                  </Badge>
+                  <Chip
+                    key={item}
+                    label={item}
+                    size="small"
+                    variant="outlined"
+                    sx={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(240,240,240,0.8)", borderRadius: "8px" }}
+                  />
                 ))}
-              </div>
+              </Stack>
               {translationResult.warnings.length > 0 && (
-                <div className="space-y-1 text-xs text-amber-200">
+                <Stack spacing={0.25}>
                   {translationResult.warnings.map((warning) => (
-                    <p key={warning}>{warning}</p>
+                    <Typography key={warning} variant="caption" sx={{ color: "#fde68a" }}>{warning}</Typography>
                   ))}
-                </div>
+                </Stack>
               )}
-            </div>
+            </Box>
           )}
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        <Card className="border-border bg-card shadow-surface-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Filter className="h-4 w-4 text-amber-300" />
-              Montagem da Query
-            </CardTitle>
-            <CardDescription>
+      {/* Query Builder + Payload Preview */}
+      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xl: "1.2fr 0.8fr" } }}>
+        {/* Query Builder */}
+        <Card sx={SECTION_CARD_SX}>
+          <CardContent sx={{ p: 3 }}>
+            <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+              <FilterIcon sx={{ fontSize: 16, color: "#fcd34d" }} />
+              <Typography variant="subtitle1" fontWeight={600}>Montagem da Query</Typography>
+            </Stack>
+            <Typography variant="body2" color="text.secondary" mb={2}>
               Use virgula ou quebra de linha para listas. O preview ao lado mostra exatamente o que sera enviado para a API.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
+            </Typography>
+
+            {/* Presets */}
+            <Stack direction="row" flexWrap="wrap" gap={1} mb={2.5}>
               {PRESETS.map((preset) => (
                 <Button
                   key={preset.label}
-                  type="button"
-                  variant="outline"
-                  className="border-border bg-muted/20"
+                  variant="outlined"
+                  size="small"
                   onClick={() => applyPreset(preset)}
                 >
                   {preset.label}
                 </Button>
               ))}
-            </div>
+            </Stack>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="termo">Termo base</Label>
-                <Input
-                  id="termo"
-                  value={termoBase}
-                  onChange={(e) => setTermoBase(e.target.value)}
-                  className="border-border bg-muted/20"
-                  placeholder="clinicas, hospitais, supermercados..."
+            {/* Form Grid */}
+            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { md: "repeat(2,1fr)" } }}>
+              <TextField
+                label="Termo base"
+                value={termoBase}
+                onChange={(e) => setTermoBase(e.target.value)}
+                placeholder="clinicas, hospitais, supermercados..."
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Limite de empresas"
+                value={limiteEmpresas}
+                onChange={(e) => setLimiteEmpresas(e.target.value.replace(/\D/g, ""))}
+                placeholder="50"
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Cidades"
+                value={cidadesInput}
+                onChange={(e) => setCidadesInput(e.target.value)}
+                placeholder="Belo Horizonte, Contagem"
+                multiline
+                minRows={3}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="UFs"
+                value={ufsInput}
+                onChange={(e) => setUfsInput(e.target.value)}
+                placeholder="MG, SP"
+                multiline
+                minRows={3}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Segmentos"
+                value={segmentosInput}
+                onChange={(e) => setSegmentosInput(e.target.value)}
+                placeholder="Clinicas, Hospitais, Industria"
+                multiline
+                minRows={3}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="Portes"
+                value={portesInput}
+                onChange={(e) => setPortesInput(e.target.value)}
+                placeholder="ME, EPP, Medio/Grande"
+                multiline
+                minRows={3}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="CNAEs"
+                value={cnaesInput}
+                onChange={(e) => setCnaesInput(e.target.value)}
+                placeholder="8640201, 8610101"
+                multiline
+                minRows={3}
+                fullWidth
+                size="small"
+              />
+              <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: "1fr 1fr" }}>
+                <TextField
+                  label="Capital minimo"
+                  value={capitalMinimo}
+                  onChange={(e) => setCapitalMinimo(e.target.value.replace(/[^\d]/g, ""))}
+                  placeholder="0"
+                  fullWidth
+                  size="small"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="limite">Limite de empresas</Label>
-                <Input
-                  id="limite"
-                  value={limiteEmpresas}
-                  onChange={(e) => setLimiteEmpresas(e.target.value.replace(/\D/g, ""))}
-                  className="border-border bg-muted/20"
-                  placeholder="50"
+                <TextField
+                  label="Capital maximo"
+                  value={capitalMaximo}
+                  onChange={(e) => setCapitalMaximo(e.target.value.replace(/[^\d]/g, ""))}
+                  placeholder="2000000"
+                  fullWidth
+                  size="small"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cidades">Cidades</Label>
-                <Textarea
-                  id="cidades"
-                  value={cidadesInput}
-                  onChange={(e) => setCidadesInput(e.target.value)}
-                  className="min-h-24 border-border bg-muted/20"
-                  placeholder="Belo Horizonte, Contagem"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ufs">UFs</Label>
-                <Textarea
-                  id="ufs"
-                  value={ufsInput}
-                  onChange={(e) => setUfsInput(e.target.value)}
-                  className="min-h-24 border-border bg-muted/20"
-                  placeholder="MG, SP"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="segmentos">Segmentos</Label>
-                <Textarea
-                  id="segmentos"
-                  value={segmentosInput}
-                  onChange={(e) => setSegmentosInput(e.target.value)}
-                  className="min-h-24 border-border bg-muted/20"
-                  placeholder="Clinicas, Hospitais, Industria"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="portes">Portes</Label>
-                <Textarea
-                  id="portes"
-                  value={portesInput}
-                  onChange={(e) => setPortesInput(e.target.value)}
-                  className="min-h-24 border-border bg-muted/20"
-                  placeholder="ME, EPP, Medio/Grande"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cnaes">CNAEs</Label>
-                <Textarea
-                  id="cnaes"
-                  value={cnaesInput}
-                  onChange={(e) => setCnaesInput(e.target.value)}
-                  className="min-h-24 border-border bg-muted/20"
-                  placeholder="8640201, 8610101"
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="capitalMin">Capital minimo</Label>
-                  <Input
-                    id="capitalMin"
-                    value={capitalMinimo}
-                    onChange={(e) => setCapitalMinimo(e.target.value.replace(/[^\d]/g, ""))}
-                    className="border-border bg-muted/20"
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="capitalMax">Capital maximo</Label>
-                  <Input
-                    id="capitalMax"
-                    value={capitalMaximo}
-                    onChange={(e) => setCapitalMaximo(e.target.value.replace(/[^\d]/g, ""))}
-                    className="border-border bg-muted/20"
-                    placeholder="2000000"
-                  />
-                </div>
-              </div>
-            </div>
+              </Box>
+            </Box>
 
-            <div className="grid gap-3 md:grid-cols-3">
-              <label className="flex items-center justify-between rounded-2xl border border-border bg-muted/30 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium">Enriquecimento web</p>
-                  <p className="text-xs text-muted-foreground/70">Liga busca externa e enriquecimento.</p>
-                </div>
-                <Switch checked={enriquecimentoWeb} onCheckedChange={setEnriquecimentoWeb} />
-              </label>
-              <label className="flex items-center justify-between rounded-2xl border border-border bg-muted/30 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium">Exigir contato</p>
-                  <p className="text-xs text-muted-foreground/70">Filtra para leads acionaveis.</p>
-                </div>
-                <Switch checked={exigirContato} onCheckedChange={setExigirContato} />
-              </label>
-              <label className="flex items-center justify-between rounded-2xl border border-border bg-muted/30 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium">Priorizar contato</p>
-                  <p className="text-xs text-muted-foreground/70">Ordena quem ja tem canal acionavel.</p>
-                </div>
-                <Switch checked={priorizarContato} onCheckedChange={setPriorizarContato} />
-              </label>
-            </div>
+            {/* Toggle switches */}
+            <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { md: "repeat(3,1fr)" }, mt: 2.5 }}>
+              {[
+                {
+                  label: "Enriquecimento web",
+                  sub: "Liga busca externa e enriquecimento.",
+                  checked: enriquecimentoWeb,
+                  onChange: setEnriquecimentoWeb,
+                },
+                {
+                  label: "Exigir contato",
+                  sub: "Filtra para leads acionaveis.",
+                  checked: exigirContato,
+                  onChange: setExigirContato,
+                },
+                {
+                  label: "Priorizar contato",
+                  sub: "Ordena quem ja tem canal acionavel.",
+                  checked: priorizarContato,
+                  onChange: setPriorizarContato,
+                },
+              ].map((item) => (
+                <Box
+                  key={item.label}
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    borderRadius: "12px",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    bgcolor: "rgba(255,255,255,0.03)",
+                    px: 2,
+                    py: 1.5,
+                  }}
+                >
+                  <Box>
+                    <Typography variant="body2" fontWeight={500}>{item.label}</Typography>
+                    <Typography variant="caption" color="text.secondary">{item.sub}</Typography>
+                  </Box>
+                  <Switch
+                    checked={item.checked}
+                    onChange={(e) => item.onChange(e.target.checked)}
+                    size="small"
+                    sx={{
+                      "& .MuiSwitch-switchBase.Mui-checked": { color: "#F97316" },
+                      "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: "#F97316" },
+                    }}
+                  />
+                </Box>
+              ))}
+            </Box>
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card shadow-surface-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <FileJson className="h-4 w-4 text-cyan-300" />
-              Preview do Payload
-            </CardTitle>
-            <CardDescription>
+        {/* Payload Preview */}
+        <Card sx={SECTION_CARD_SX}>
+          <CardContent sx={{ p: 3 }}>
+            <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+              <FileJsonIcon sx={{ fontSize: 16, color: "#67e8f9" }} />
+              <Typography variant="subtitle1" fontWeight={600}>Preview do Payload</Typography>
+            </Stack>
+            <Typography variant="body2" color="text.secondary" mb={2}>
               Esse JSON e o contrato real enviado para o Hermes.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="border-border text-foreground/80">
-                {payload.cidades?.length ?? 0} cidade(s)
-              </Badge>
-              <Badge variant="outline" className="border-border text-foreground/80">
-                {payload.segmentos.length} segmento(s)
-              </Badge>
-              <Badge variant="outline" className="border-border text-foreground/80">
-                {payload.cnaes?.length ?? 0} CNAE(s)
-              </Badge>
-            </div>
+            </Typography>
 
-            <pre className="max-h-[28rem] overflow-auto rounded-2xl border border-border bg-muted/20/80 p-4 text-xs leading-6 text-foreground/80">
+            <Stack direction="row" flexWrap="wrap" gap={1} mb={2}>
+              {[
+                `${payload.cidades?.length ?? 0} cidade(s)`,
+                `${payload.segmentos.length} segmento(s)`,
+                `${payload.cnaes?.length ?? 0} CNAE(s)`,
+              ].map((label) => (
+                <Chip
+                  key={label}
+                  label={label}
+                  variant="outlined"
+                  size="small"
+                  sx={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(240,240,240,0.8)", borderRadius: "8px" }}
+                />
+              ))}
+            </Stack>
+
+            <Box
+              component="pre"
+              sx={{
+                maxHeight: "28rem",
+                overflow: "auto",
+                borderRadius: "12px",
+                border: "1px solid rgba(255,255,255,0.07)",
+                bgcolor: "rgba(255,255,255,0.02)",
+                p: 2,
+                fontSize: 12,
+                lineHeight: 1.6,
+                color: "rgba(240,240,240,0.8)",
+                fontFamily: "monospace",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-all",
+                mb: 2,
+              }}
+            >
               {JSON.stringify(payload, null, 2)}
-            </pre>
+            </Box>
 
-            <div className="grid gap-3 md:grid-cols-2">
+            <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { md: "1fr 1fr" } }}>
               <Button
-                type="button"
-                variant="outline"
-                className="border-border bg-muted/20"
+                variant="outlined"
                 onClick={() => void handleCopy()}
+                startIcon={<CopyIcon />}
               >
-                <Copy className="mr-2 h-4 w-4" />
                 Copiar JSON
               </Button>
-              <div className="grid gap-3">
+              <Stack spacing={1.5}>
                 <Button
-                  type="button"
-                  className="bg-amber-500 text-muted-foreground hover:bg-amber-400"
+                  variant="contained"
                   onClick={() => void handleRun()}
                   disabled={isRunning}
+                  startIcon={isRunning ? <CircularProgress size={16} color="inherit" /> : <PlayIcon />}
+                  sx={{ bgcolor: "#F97316", color: "#0F0F0F", fontWeight: 600, "&:hover": { bgcolor: "#fb923c" } }}
                 >
-                  {isRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
                   Rodar query
                 </Button>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "1fr 1fr" }}>
                   <Button
-                    type="button"
-                    variant="outline"
-                    className="border-border bg-muted/20"
+                    variant="outlined"
+                    size="small"
                     onClick={() => openSaveDialog("search")}
+                    startIcon={<BookmarkPlusIcon />}
                   >
-                    <BookmarkPlus className="mr-2 h-4 w-4" />
                     Salvar busca
                   </Button>
                   <Button
-                    type="button"
-                    variant="outline"
-                    className="border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
+                    variant="outlined"
+                    size="small"
                     onClick={() => openSaveDialog("dynamic")}
+                    startIcon={<BookmarkPlusIcon />}
+                    sx={{
+                      borderColor: "rgba(16,185,129,0.3)",
+                      bgcolor: "rgba(16,185,129,0.1)",
+                      color: "#bbf7d0",
+                      "&:hover": { bgcolor: "rgba(16,185,129,0.15)" },
+                    }}
                   >
-                    <BookmarkPlus className="mr-2 h-4 w-4" />
                     Lista dinamica
                   </Button>
-                </div>
-              </div>
-            </div>
+                </Box>
+              </Stack>
+            </Box>
 
-            <div className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium">Execucao</p>
-                  <p className="text-xs text-muted-foreground/70">
+            {/* Execution status */}
+            <Box sx={{ mt: 2.5, borderRadius: "12px", border: "1px solid rgba(255,255,255,0.07)", bgcolor: "rgba(255,255,255,0.03)", p: 2 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" gap={2} mb={1.5}>
+                <Box>
+                  <Typography variant="body2" fontWeight={500}>Execucao</Typography>
+                  <Typography variant="caption" color="text.secondary">
                     {progress?.detail || "Pronto para disparar a prospeccao."}
-                  </p>
-                </div>
-                <Sparkles className="h-4 w-4 text-amber-300" />
-              </div>
-              <Progress value={isRunning ? progressPct : ultimoResultado ? 100 : 0} />
+                  </Typography>
+                </Box>
+                <SparklesIcon sx={{ fontSize: 16, color: "#fcd34d" }} />
+              </Stack>
+              <LinearProgress
+                variant="determinate"
+                value={isRunning ? progressPct : ultimoResultado ? 100 : 0}
+                sx={{
+                  borderRadius: 4,
+                  bgcolor: "rgba(255,255,255,0.07)",
+                  "& .MuiLinearProgress-bar": { bgcolor: "#F97316" },
+                  mb: ultimoResultado ? 2 : 0,
+                }}
+              />
               {ultimoResultado && (
-                <div className="space-y-3">
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-xl border border-border bg-card/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Empresas</p>
-                      <p className="mt-2 text-lg font-semibold text-foreground">{ultimoResultado.total_empresas}</p>
-                    </div>
-                    <div className="rounded-xl border border-border bg-card/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Enriquecidas</p>
-                      <p className="mt-2 text-lg font-semibold text-foreground">
-                        {ultimoResultado.enriquecimento_web.total_com_enriquecimento}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-border bg-card/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">Taxa</p>
-                      <p className="mt-2 text-lg font-semibold text-foreground">
-                        {Math.round(ultimoResultado.enriquecimento_web.porcentagem_enriquecida)}%
-                      </p>
-                    </div>
-                  </div>
+                <Stack spacing={1.5} mt={2}>
+                  <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(3,1fr)" }}>
+                    {[
+                      { label: "Empresas", value: ultimoResultado.total_empresas },
+                      { label: "Enriquecidas", value: ultimoResultado.enriquecimento_web.total_com_enriquecimento },
+                      { label: "Taxa", value: `${Math.round(ultimoResultado.enriquecimento_web.porcentagem_enriquecida)}%` },
+                    ].map((item) => (
+                      <Box key={item.label} sx={STAT_BOX_SX}>
+                        <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(240,240,240,0.35)", display: "block" }}>
+                          {item.label}
+                        </Typography>
+                        <Typography variant="subtitle2" fontWeight={700} mt={1}>{item.value}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
                   <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full justify-between border-border bg-card text-foreground shadow-surface-xs hover:bg-accent hover:text-accent-foreground"
+                    variant="outlined"
+                    fullWidth
                     onClick={() => navigate("/results")}
+                    startIcon={<ArrowRightIcon />}
+                    endIcon={<Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.5 }}>latest run</Typography>}
+                    sx={{ justifyContent: "space-between" }}
                   >
-                    <span className="inline-flex items-center gap-2">
-                      <ArrowRight className="h-4 w-4" />
-                      Abrir resultados
-                    </span>
-                    <span className="text-xs uppercase tracking-[0.18em]">latest run</span>
+                    Abrir resultados
                   </Button>
-                </div>
+                </Stack>
               )}
-            </div>
+            </Box>
           </CardContent>
         </Card>
-      </div>
+      </Box>
 
-      <Card className="border-border bg-card shadow-surface-sm">
-        <CardHeader>
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <BookmarkPlus className="h-4 w-4 text-cyan-300" />
-                Buscas salvas e listas dinamicas
-              </CardTitle>
-              <CardDescription>
+      {/* Saved Searches */}
+      <Card sx={SECTION_CARD_SX}>
+        <CardContent sx={{ p: 3 }}>
+          <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" alignItems={{ lg: "center" }} gap={2} mb={2.5}>
+            <Box>
+              <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+                <BookmarkPlusIcon sx={{ fontSize: 16, color: "#67e8f9" }} />
+                <Typography variant="subtitle1" fontWeight={600}>Buscas salvas e listas dinamicas</Typography>
+              </Stack>
+              <Typography variant="body2" color="text.secondary">
                 Reaproveite queries, rode previews de lista dinamica e carregue filtros prontos no Workbench.
-              </CardDescription>
-            </div>
+              </Typography>
+            </Box>
             <Button
-              type="button"
-              variant="outline"
-              className="border-border bg-muted/20"
+              variant="outlined"
               onClick={() => void reloadSavedSearches()}
+              startIcon={<RefreshCwIcon />}
+              sx={{ whiteSpace: "nowrap" }}
             >
-              <RefreshCw className="mr-2 h-4 w-4" />
               Atualizar
             </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
+          </Stack>
+
           {loadingSavedSearches ? (
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Carregando buscas salvas...
-            </div>
+            <Stack direction="row" alignItems="center" gap={1.5} sx={{ borderRadius: "12px", border: "1px solid rgba(255,255,255,0.07)", bgcolor: "rgba(255,255,255,0.03)", p: 2 }}>
+              <CircularProgress size={16} />
+              <Typography variant="body2" color="text.secondary">Carregando buscas salvas...</Typography>
+            </Stack>
           ) : savedSearches.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground/70">
-              Nenhuma busca salva ainda. Monte uma query acima e salve como busca ou lista dinamica.
-            </div>
+            <Box sx={{ borderRadius: "12px", border: "1px dashed rgba(255,255,255,0.14)", bgcolor: "rgba(255,255,255,0.02)", p: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Nenhuma busca salva ainda. Monte uma query acima e salve como busca ou lista dinamica.
+              </Typography>
+            </Box>
           ) : (
-            <div className="grid gap-3 xl:grid-cols-2">
+            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xl: "repeat(2,1fr)" } }}>
               {savedSearches.map((search) => (
-                <div
+                <Box
                   key={search.id}
-                  className="rounded-2xl border border-border bg-muted/20/50 p-4"
+                  sx={{ borderRadius: "12px", border: "1px solid rgba(255,255,255,0.07)", bgcolor: "rgba(255,255,255,0.03)", p: 2 }}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">{search.name}</p>
-                        <Badge
-                          variant="outline"
-                          className={
+                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2} mb={1}>
+                    <Box>
+                      <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
+                        <Typography variant="body2" fontWeight={600}>{search.name}</Typography>
+                        <Chip
+                          label={search.kind === "dynamic" ? "dinamica" : "salva"}
+                          size="small"
+                          sx={
                             search.kind === "dynamic"
-                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                              : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
+                              ? { bgcolor: "rgba(16,185,129,0.1)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px" }
+                              : { bgcolor: "rgba(6,182,212,0.1)", color: "#67e8f9", border: "1px solid rgba(6,182,212,0.3)", borderRadius: "8px" }
                           }
-                        >
-                          {search.kind === "dynamic" ? "dinamica" : "salva"}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground/70">
-                        {search.description || "Sem descricao"} . Ultima execucao: {formatDate(search.last_run_at)}
-                      </p>
-                    </div>
+                        />
+                      </Stack>
+                      <Typography variant="caption" color="text.secondary">
+                        {search.description || "Sem descricao"} · Ultima execucao: {formatDate(search.last_run_at)}
+                      </Typography>
+                    </Box>
                     <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground/70 hover:text-rose-300"
+                      size="small"
                       onClick={() => void handleDeleteSavedSearch(search.id)}
+                      sx={{ color: "rgba(240,240,240,0.4)", minWidth: "auto", px: 1, "&:hover": { color: "#fca5a5", bgcolor: "rgba(239,68,68,0.1)" } }}
                     >
                       Excluir
                     </Button>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                      {(search.config.ufs ?? []).length || (search.config.uf ? 1 : 0)} UF(s)
-                    </Badge>
-                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                      {(search.config.cnaes ?? []).length} CNAE(s)
-                    </Badge>
-                    <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
-                      limite {search.config.limite_empresas}
-                    </Badge>
-                  </div>
-                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  </Stack>
+
+                  <Stack direction="row" flexWrap="wrap" gap={1} mb={2}>
+                    {[
+                      `${(search.config.ufs ?? []).length || (search.config.uf ? 1 : 0)} UF(s)`,
+                      `${(search.config.cnaes ?? []).length} CNAE(s)`,
+                      `limite ${search.config.limite_empresas}`,
+                    ].map((label) => (
+                      <Chip
+                        key={label}
+                        label={label}
+                        variant="outlined"
+                        size="small"
+                        sx={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(240,240,240,0.8)", borderRadius: "8px" }}
+                      />
+                    ))}
+                  </Stack>
+
+                  <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { sm: "1fr 1fr" } }}>
                     <Button
-                      type="button"
-                      variant="outline"
-                      className="border-border bg-muted/20"
+                      variant="outlined"
+                      size="small"
                       onClick={() => {
                         hydrateForm(search.config);
                         toast.success("Busca carregada no Workbench.");
@@ -762,81 +850,79 @@ const QueryWorkbench = () => {
                       Carregar filtros
                     </Button>
                     <Button
-                      type="button"
-                      variant="outline"
-                      className="border-border bg-card text-foreground shadow-surface-xs hover:bg-accent hover:text-accent-foreground"
+                      variant="outlined"
+                      size="small"
                       onClick={() => void handleRunSavedSearch(search)}
                       disabled={runningSavedSearchId === search.id}
+                      startIcon={
+                        runningSavedSearchId === search.id ? <CircularProgress size={14} color="inherit" /> : <PlayIcon />
+                      }
                     >
-                      {runningSavedSearchId === search.id ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Play className="mr-2 h-4 w-4" />
-                      )}
                       Abrir no Results
                     </Button>
-                  </div>
-                </div>
+                  </Box>
+                </Box>
               ))}
-            </div>
+            </Box>
           )}
         </CardContent>
       </Card>
 
-      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-        <DialogContent className="border-border bg-card text-foreground">
-          <DialogHeader>
-            <DialogTitle>
-              {saveKind === "dynamic" ? "Salvar lista dinamica" : "Salvar busca"}
-            </DialogTitle>
-            <DialogDescription>
-              O payload atual sera persistido e podera ser reexecutado sem remontar a query.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="save-name">Nome</Label>
-              <Input
-                id="save-name"
-                value={saveName}
-                onChange={(event) => setSaveName(event.target.value)}
-                className="border-border bg-muted/20"
-                placeholder="Administradoras MG com contato"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="save-description">Descricao</Label>
-              <Textarea
-                id="save-description"
-                value={saveDescription}
-                onChange={(event) => setSaveDescription(event.target.value)}
-                className="min-h-24 border-border bg-muted/20"
-                placeholder="Filtro pronto para campanhas e reruns."
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              className="border-border bg-muted/20"
-              onClick={() => setSaveDialogOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              className="bg-amber-500 text-muted-foreground hover:bg-amber-400"
-              onClick={() => void handleSaveSearch()}
-              disabled={savingSearch}
-            >
-              {savingSearch ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookmarkPlus className="mr-2 h-4 w-4" />}
-              Salvar agora
-            </Button>
-          </DialogFooter>
+      {/* Save Dialog */}
+      <Dialog
+        open={saveDialogOpen}
+        onClose={() => setSaveDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            bgcolor: "#181818",
+            border: "1px solid rgba(255,255,255,0.07)",
+            borderRadius: "12px",
+            minWidth: { sm: 480 },
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {saveKind === "dynamic" ? "Salvar lista dinamica" : "Salvar busca"}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" mb={3}>
+            O payload atual sera persistido e podera ser reexecutado sem remontar a query.
+          </Typography>
+          <Stack spacing={2.5}>
+            <TextField
+              label="Nome"
+              value={saveName}
+              onChange={(event) => setSaveName(event.target.value)}
+              placeholder="Administradoras MG com contato"
+              fullWidth
+            />
+            <TextField
+              label="Descricao"
+              value={saveDescription}
+              onChange={(event) => setSaveDescription(event.target.value)}
+              placeholder="Filtro pronto para campanhas e reruns."
+              multiline
+              minRows={3}
+              fullWidth
+            />
+          </Stack>
         </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button variant="outlined" onClick={() => setSaveDialogOpen(false)}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => void handleSaveSearch()}
+            disabled={savingSearch}
+            startIcon={savingSearch ? <CircularProgress size={16} color="inherit" /> : <BookmarkPlusIcon />}
+            sx={{ bgcolor: "#F97316", color: "#0F0F0F", fontWeight: 600, "&:hover": { bgcolor: "#fb923c" } }}
+          >
+            Salvar agora
+          </Button>
+        </DialogActions>
       </Dialog>
-    </div>
+    </Box>
   );
 };
 

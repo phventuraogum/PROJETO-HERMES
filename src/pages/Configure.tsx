@@ -1,26 +1,64 @@
 // src/pages/Configure.tsx
 import { useState, KeyboardEvent, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input }     from "@/components/ui/input";
-import { Button }    from "@/components/ui/button";
-import { Label }     from "@/components/ui/label";
-import { Switch }    from "@/components/ui/switch";
-import { Badge }     from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
-  Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
-} from "@/components/ui/select";
-import {
-  ChevronDown, ChevronUp, Loader2, Target, MapPin, Building2,
-  Coins, Tag, Zap, Globe, Phone, ArrowRight, CheckCircle2,
-  FlaskConical, Truck, Factory, ShoppingCart, Heart, Stethoscope,
-  Pill, Wrench, RotateCcw, SlidersHorizontal, History, Play, Info,
-  X, Plus,
-} from "lucide-react";
+  Box,
+  Stack,
+  Typography,
+  Button,
+  TextField,
+  Switch,
+  Chip,
+  Grid,
+  Card,
+  CardContent,
+  Divider,
+  CircularProgress,
+  LinearProgress,
+  Collapse,
+  IconButton,
+} from "@mui/material";
+import TargetIcon from "@mui/icons-material/GpsFixed";
+import MapPinIcon from "@mui/icons-material/LocationOn";
+import Building2Icon from "@mui/icons-material/CorporateFare";
+import CoinsIcon from "@mui/icons-material/Toll";
+import TagIcon from "@mui/icons-material/LocalOffer";
+import ZapIcon from "@mui/icons-material/BoltOutlined";
+import GlobeIcon from "@mui/icons-material/Language";
+import PhoneIcon from "@mui/icons-material/Phone";
+import ArrowRightIcon from "@mui/icons-material/ArrowForward";
+import CheckCircle2Icon from "@mui/icons-material/CheckCircle";
+import FlaskIcon from "@mui/icons-material/Science";
+import TruckIcon from "@mui/icons-material/LocalShipping";
+import FactoryIcon from "@mui/icons-material/Factory";
+import CartIcon from "@mui/icons-material/ShoppingCart";
+import HeartIcon from "@mui/icons-material/Favorite";
+import StethoscopeIcon from "@mui/icons-material/MedicalServices";
+import PillIcon from "@mui/icons-material/Medication";
+import WrenchIcon from "@mui/icons-material/Build";
+import ResetIcon from "@mui/icons-material/RotateLeft";
+import SlidersIcon from "@mui/icons-material/Tune";
+import HistoryIcon from "@mui/icons-material/History";
+import PlayIcon from "@mui/icons-material/PlayArrow";
+import InfoIcon from "@mui/icons-material/InfoOutlined";
+import CloseIcon from "@mui/icons-material/Close";
+import AddIcon from "@mui/icons-material/Add";
+import ChevronDownIcon from "@mui/icons-material/ExpandMore";
+import ChevronUpIcon from "@mui/icons-material/ExpandLess";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { runProspeccaoStream, salvarBuscaHistorico, getStorageKey, getPipeline, getKommoIntegration, setKommoIntegration, type KommoIntegration, type ProspeccaoResultado, type Empresa, type ProspeccaoConfig, type ProgressEvent as HermesProgress } from "@/lib/api";
+import {
+  runProspeccaoStream,
+  salvarBuscaHistorico,
+  getStorageKey,
+  getPipeline,
+  getKommoIntegration,
+  setKommoIntegration,
+  type KommoIntegration,
+  type ProspeccaoResultado,
+  type Empresa,
+  type ProspeccaoConfig,
+  type ProgressEvent as HermesProgress,
+} from "@/lib/api";
 import { useOrg } from "@/tenancy/OrgContext";
 
 // ─── constantes ───────────────────────────────────────────────────────────────
@@ -39,14 +77,14 @@ const PORTES: { id: Porte; label: string; desc: string }[] = [
 ];
 
 const SEGMENTOS = [
-  { id: "Hospitais",     label: "Hospitais",    icon: Heart,        color: "border-rose-500/40 bg-rose-50 text-rose-700" },
-  { id: "Clínicas",      label: "Clínicas",     icon: Stethoscope,  color: "border-pink-500/40 bg-pink-50 text-pink-700" },
-  { id: "Laboratórios",  label: "Laboratórios", icon: FlaskConical, color: "border-violet-500/40 bg-violet-50 text-violet-700" },
-  { id: "Farmácias",     label: "Farmácias",    icon: Pill,         color: "border-sky-500/40 bg-sky-50 text-sky-700" },
-  { id: "Supermercados", label: "Supermercados",icon: ShoppingCart, color: "border-amber-500/40 bg-amber-50 text-amber-700" },
-  { id: "Logística",     label: "Logística",    icon: Truck,        color: "border-orange-500/40 bg-orange-50 text-orange-700" },
-  { id: "Indústria",     label: "Indústria",    icon: Factory,      color: "border-blue-500/40 bg-blue-50 text-blue-700" },
-  { id: "Serviços",      label: "Serviços",     icon: Wrench,       color: "border-emerald-500/40 bg-emerald-50 text-emerald-700" },
+  { id: "Hospitais",     label: "Hospitais",    Icon: HeartIcon,       color: "#f43f5e" },
+  { id: "Clínicas",      label: "Clínicas",     Icon: StethoscopeIcon, color: "#ec4899" },
+  { id: "Laboratórios",  label: "Laboratórios", Icon: FlaskIcon,       color: "#a855f7" },
+  { id: "Farmácias",     label: "Farmácias",    Icon: PillIcon,        color: "#0ea5e9" },
+  { id: "Supermercados", label: "Supermercados",Icon: CartIcon,        color: "#f59e0b" },
+  { id: "Logística",     label: "Logística",    Icon: TruckIcon,       color: "#f97316" },
+  { id: "Indústria",     label: "Indústria",    Icon: FactoryIcon,     color: "#3b82f6" },
+  { id: "Serviços",      label: "Serviços",     Icon: WrenchIcon,      color: "#10b981" },
 ] as const;
 
 type BuscaRecente = {
@@ -56,7 +94,7 @@ type BuscaRecente = {
 
 type Preset = {
   label: string;
-  icon: React.FC<{ className?: string }>;
+  Icon: React.ElementType;
   config: {
     termo?: string; cidade: string; uf: string;
     capitalMin: number; capitalMax: number | null;
@@ -65,10 +103,10 @@ type Preset = {
 };
 
 const PRESETS: Preset[] = [
-  { label: "Saúde MG",    icon: Heart,        config: { cidade: "BELO HORIZONTE", uf: "MG", capitalMin: 100_000, capitalMax: 5_000_000, portes: ["EPP","Médio/Grande"], segmentos: ["Hospitais","Clínicas","Laboratórios"], limite: 30 } },
-  { label: "Indústria SP", icon: Factory,      config: { cidade: "SAO PAULO",       uf: "SP", capitalMin: 500_000, capitalMax: null,      portes: ["Médio/Grande"],         segmentos: ["Indústria"],                             limite: 30 } },
-  { label: "Varejo RJ",   icon: ShoppingCart, config: { cidade: "RIO DE JANEIRO",  uf: "RJ", capitalMin: 50_000,  capitalMax: 2_000_000, portes: ["ME","EPP","Médio/Grande"], segmentos: ["Supermercados","Farmácias"],           limite: 25 } },
-  { label: "Logística PR", icon: Truck,        config: { cidade: "CURITIBA",         uf: "PR", capitalMin: 200_000, capitalMax: null,      portes: ["EPP","Médio/Grande"],   segmentos: ["Logística"],                             limite: 25 } },
+  { label: "Saúde MG",    Icon: HeartIcon,   config: { cidade: "BELO HORIZONTE", uf: "MG", capitalMin: 100_000, capitalMax: 5_000_000, portes: ["EPP","Médio/Grande"], segmentos: ["Hospitais","Clínicas","Laboratórios"], limite: 30 } },
+  { label: "Indústria SP", Icon: FactoryIcon, config: { cidade: "SAO PAULO",       uf: "SP", capitalMin: 500_000, capitalMax: null,      portes: ["Médio/Grande"],         segmentos: ["Indústria"],                             limite: 30 } },
+  { label: "Varejo RJ",   Icon: CartIcon,    config: { cidade: "RIO DE JANEIRO",  uf: "RJ", capitalMin: 50_000,  capitalMax: 2_000_000, portes: ["ME","EPP","Médio/Grande"], segmentos: ["Supermercados","Farmácias"],           limite: 25 } },
+  { label: "Logística PR", Icon: TruckIcon,  config: { cidade: "CURITIBA",         uf: "PR", capitalMin: 200_000, capitalMax: null,      portes: ["EPP","Médio/Grande"],   segmentos: ["Logística"],                             limite: 25 } },
 ];
 
 function formatBRL(n: number | null | undefined): string {
@@ -82,40 +120,80 @@ function formatBRL(n: number | null | undefined): string {
 function Section({
   icon: Icon, title, hint, open, onToggle, children,
 }: {
-  icon: React.FC<{ className?: string }>;
+  icon: React.ElementType;
   title: string; hint?: string;
   open?: boolean; onToggle?: () => void;
   children: React.ReactNode;
 }) {
   const collapsible = typeof open === "boolean";
   return (
-    <Card className="border-border bg-card shadow-surface-sm">
+    <Card
+      sx={{
+        border: "1px solid rgba(255,255,255,0.07)",
+        bgcolor: "background.paper",
+        borderRadius: "12px",
+      }}
+    >
       {collapsible ? (
-        <button
+        <Box
+          component="button"
           type="button"
-          className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition-colors"
           onClick={onToggle}
+          sx={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            px: 2.5,
+            py: 2,
+            bgcolor: "transparent",
+            border: "none",
+            cursor: "pointer",
+            textAlign: "left",
+            "&:hover": { bgcolor: "rgba(255,255,255,0.03)" },
+            transition: "background-color 0.15s",
+          }}
         >
-          <div className="flex items-center gap-2">
-            <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</span>
-            {hint && <span className="text-[10px] text-muted-foreground/50 normal-case tracking-normal">{hint}</span>}
-          </div>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Icon sx={{ fontSize: 14, color: "text.secondary" }} />
+            <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.62rem", letterSpacing: 2, fontWeight: 700 }}>
+              {title}
+            </Typography>
+            {hint && (
+              <Typography variant="caption" color="text.disabled" sx={{ textTransform: "none", letterSpacing: 0 }}>
+                {hint}
+              </Typography>
+            )}
+          </Stack>
           {open
-            ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
-            : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
-        </button>
+            ? <ChevronUpIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+            : <ChevronDownIcon sx={{ fontSize: 16, color: "text.secondary" }} />}
+        </Box>
       ) : (
-        <div className="px-5 pt-4 pb-3 border-b border-border">
-          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            <Icon className="w-3.5 h-3.5" />
-            {title}
-            {hint && <span className="text-[10px] font-normal normal-case tracking-normal text-muted-foreground/50">{hint}</span>}
-          </p>
-        </div>
+        <Box sx={{ px: 2.5, pt: 2, pb: 1.5, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Icon sx={{ fontSize: 14, color: "text.secondary" }} />
+            <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.62rem", letterSpacing: 2, fontWeight: 700 }}>
+              {title}
+            </Typography>
+            {hint && (
+              <Typography variant="caption" color="text.disabled" sx={{ textTransform: "none", letterSpacing: 0 }}>
+                {hint}
+              </Typography>
+            )}
+          </Stack>
+        </Box>
       )}
       {(!collapsible || open) && (
-        <CardContent className={cn("px-5 pb-5", collapsible && "border-t border-border pt-4")}>
+        <CardContent
+          sx={{
+            px: 2.5,
+            pb: 2.5,
+            pt: collapsible ? 2 : 2,
+            borderTop: collapsible ? "1px solid rgba(255,255,255,0.07)" : "none",
+            "&:last-child": { pb: 2.5 },
+          }}
+        >
           {children}
         </CardContent>
       )}
@@ -203,7 +281,6 @@ const Configure = () => {
       const empresas: Empresa[] = parsed.resultado?.empresas ?? [];
       if (!empresas.length) return;
 
-      // Filtra pelo recorte atual
       let lista = empresas;
       if (portesSelecionados.length)
         lista = lista.filter(e => !e.porte || portesSelecionados.some(p => e.porte?.includes(p)));
@@ -285,16 +362,16 @@ const Configure = () => {
 
   // ── Resumo das tags ────────────────────────────────────────────────────────
   const tags = useMemo(() => {
-    const t: { label: string; cls: string }[] = [];
-    if (cidades.length > 0) t.push({ label: cidades.join(", "), cls: "border-sky-200 bg-sky-50 text-sky-700" });
-    if (ufs.length > 0) t.push({ label: ufs.join(", "), cls: "border-sky-200 bg-sky-50 text-sky-700" });
-    portesSelecionados.forEach(p => t.push({ label: p, cls: "border-violet-200 bg-violet-50 text-violet-700" }));
-    segmentosSelecionados.forEach(s => t.push({ label: s, cls: "border-primary/20 bg-primary/5 text-primary" }));
-    if (capitalMinimo > 0 || capitalMaximo) t.push({ label: `${formatBRL(capitalMinimo)} → ${capitalMaximo ? formatBRL(capitalMaximo) : "sem limite"}`, cls: "border-amber-200 bg-amber-50 text-amber-700" });
-    if (cnaes.length) t.push({ label: `${cnaes.length} CNAE(s)`, cls: "border-emerald-200 bg-emerald-50 text-emerald-700" });
-    if (exigirContatoAcionavel) t.push({ label: "só com contato", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" });
-    if (priorizarComContato) t.push({ label: "prioriza contato", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" });
-    if (enriquecimentoWeb) t.push({ label: "enriquecimento web", cls: "border-sky-200 bg-sky-50 text-sky-600" });
+    const t: { label: string; color: string; bgcolor: string }[] = [];
+    if (cidades.length > 0) t.push({ label: cidades.join(", "), color: "#0369a1", bgcolor: "rgba(14,165,233,0.1)" });
+    if (ufs.length > 0) t.push({ label: ufs.join(", "), color: "#0369a1", bgcolor: "rgba(14,165,233,0.1)" });
+    portesSelecionados.forEach(p => t.push({ label: p, color: "#7c3aed", bgcolor: "rgba(139,92,246,0.1)" }));
+    segmentosSelecionados.forEach(s => t.push({ label: s, color: "#f97316", bgcolor: "rgba(249,115,22,0.1)" }));
+    if (capitalMinimo > 0 || capitalMaximo) t.push({ label: `${formatBRL(capitalMinimo)} → ${capitalMaximo ? formatBRL(capitalMaximo) : "sem limite"}`, color: "#b45309", bgcolor: "rgba(245,158,11,0.1)" });
+    if (cnaes.length) t.push({ label: `${cnaes.length} CNAE(s)`, color: "#059669", bgcolor: "rgba(16,185,129,0.1)" });
+    if (exigirContatoAcionavel) t.push({ label: "só com contato", color: "#059669", bgcolor: "rgba(16,185,129,0.1)" });
+    if (priorizarComContato) t.push({ label: "prioriza contato", color: "#059669", bgcolor: "rgba(16,185,129,0.1)" });
+    if (enriquecimentoWeb) t.push({ label: "enriquecimento web", color: "#0369a1", bgcolor: "rgba(14,165,233,0.1)" });
     return t;
   }, [cidades, ufs, portesSelecionados, segmentosSelecionados, capitalMinimo, capitalMaximo, cnaes, exigirContatoAcionavel, priorizarComContato, enriquecimentoWeb]);
 
@@ -392,140 +469,213 @@ const Configure = () => {
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-5xl mx-auto py-8 px-4 space-y-5">
+    <Box sx={{ maxWidth: 960, mx: "auto", py: 4, px: 2 }}>
+      <Stack spacing={2.5}>
 
-      {/* ── Cabeçalho ──────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-display text-foreground">
-            <Target className="w-6 h-6 text-primary" />
-            Configurar Prospecção
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Defina o ICP, aplique um preset ou configure os filtros manualmente.
-          </p>
-        </div>
-        <Button variant="ghost" size="sm" onClick={resetForm}
-          className="gap-1.5 text-muted-foreground hover:text-foreground">
-          <RotateCcw className="w-3.5 h-3.5" /> Limpar
-        </Button>
-      </div>
+        {/* ── Cabeçalho ──────────────────────────────────────────────────── */}
+        <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={2}>
+          <Box>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+              <TargetIcon sx={{ fontSize: 22, color: "primary.main" }} />
+              <Typography variant="h5" fontWeight={700}>Configurar Prospecção</Typography>
+            </Stack>
+            <Typography variant="body2" color="text.secondary">
+              Defina o ICP, aplique um preset ou configure os filtros manualmente.
+            </Typography>
+          </Box>
+          <Button
+            variant="text"
+            size="small"
+            startIcon={<ResetIcon sx={{ fontSize: 14 }} />}
+            onClick={resetForm}
+            sx={{ color: "text.secondary", "&:hover": { color: "text.primary" }, flexShrink: 0 }}
+          >
+            Limpar
+          </Button>
+        </Stack>
 
-      {/* ── Kommo por empresa (via n8n) ─────────────────────────────────────── */}
-      <Section
-        icon={SlidersHorizontal}
-        title="Integração Kommo (por empresa)"
-        hint={currentOrg?.name ? `Org: ${currentOrg.name}` : undefined}
-        open={kommoOpen}
-        onToggle={() => setKommoOpen(v => !v)}
-      >
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="md:col-span-2">
-            <Label>Webhook n8n do Kommo</Label>
-            <Input
-              value={kommo.kommo_webhook ?? ""}
-              onChange={(e) => setKommo(k => ({ ...k, kommo_webhook: e.target.value }))}
-              placeholder="https://n8n.seu-dominio/webhook/kommo"
-              disabled={kommoLoading}
-            />
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Cada empresa deve usar o seu próprio workflow no n8n (com as credenciais Kommo dela).
-            </p>
-          </div>
-
-          <div>
-            <Label>Pipeline ID</Label>
-            <Input
-              value={kommo.kommo_pipeline_id ?? ""}
-              onChange={(e) => setKommo(k => ({ ...k, kommo_pipeline_id: e.target.value ? Number(e.target.value) : null }))}
-              placeholder="13230435"
-              disabled={kommoLoading}
-            />
-          </div>
-
-          <div>
-            <Label>Status ID</Label>
-            <Input
-              value={kommo.kommo_status_id ?? ""}
-              onChange={(e) => setKommo(k => ({ ...k, kommo_status_id: e.target.value ? Number(e.target.value) : null }))}
-              placeholder="60307615"
-              disabled={kommoLoading}
-            />
-          </div>
-
-          <div className="md:col-span-3 flex items-center gap-2">
-            <Button onClick={saveKommo} disabled={kommoLoading || kommoSaving}>
-              {kommoSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              Salvar integração
-            </Button>
-            <Badge variant="outline" className="border-zinc-800 text-muted-foreground">
-              Usado em: Pipeline → Enviar pro Kommo
-            </Badge>
-          </div>
-        </div>
-      </Section>
-
-      {/* ── Última busca ───────────────────────────────────────────────────── */}
-      {recentes.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-            <History className="w-3 h-3" /> Última busca
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {recentes.map((r, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs">
-                <div className="space-y-0.5">
-                  <p className="font-medium text-foreground">
-                    {r.cidade} / {r.uf}
-                    {r.segmentos.length > 0 && <span className="ml-2 text-muted-foreground">· {r.segmentos.join(", ")}</span>}
-                  </p>
-                  <p className="text-muted-foreground/70">
-                    {r.total} empresas ·{" "}
-                    {new Date(r.ts).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
-                <Button variant="ghost" size="sm"
-                  className="h-7 gap-1 text-xs text-primary hover:text-primary hover:bg-primary/10"
-                  onClick={() => navigate("/results")}>
-                  <Play className="w-3 h-3" /> Ver
+        {/* ── Integração Kommo ──────────────────────────────────────────── */}
+        <Section
+          icon={SlidersIcon}
+          title="Integração Kommo (por empresa)"
+          hint={currentOrg?.name ? `Org: ${currentOrg.name}` : undefined}
+          open={kommoOpen}
+          onToggle={() => setKommoOpen(v => !v)}
+        >
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={8}>
+              <TextField
+                label="Webhook n8n do Kommo"
+                placeholder="https://n8n.seu-dominio/webhook/kommo"
+                fullWidth
+                size="small"
+                value={kommo.kommo_webhook ?? ""}
+                onChange={(e) => setKommo(k => ({ ...k, kommo_webhook: e.target.value }))}
+                disabled={kommoLoading}
+                helperText="Cada empresa deve usar o seu próprio workflow no n8n (com as credenciais Kommo dela)."
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
+              <TextField
+                label="Pipeline ID"
+                placeholder="13230435"
+                fullWidth
+                size="small"
+                value={kommo.kommo_pipeline_id ?? ""}
+                onChange={(e) => setKommo(k => ({ ...k, kommo_pipeline_id: e.target.value ? Number(e.target.value) : null }))}
+                disabled={kommoLoading}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
+              <TextField
+                label="Status ID"
+                placeholder="60307615"
+                fullWidth
+                size="small"
+                value={kommo.kommo_status_id ?? ""}
+                onChange={(e) => setKommo(k => ({ ...k, kommo_status_id: e.target.value ? Number(e.target.value) : null }))}
+                disabled={kommoLoading}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Stack direction="row" alignItems="center" spacing={1.5}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={saveKommo}
+                  disabled={kommoLoading || kommoSaving}
+                  startIcon={kommoSaving ? <CircularProgress size={14} color="inherit" /> : undefined}
+                >
+                  Salvar integração
                 </Button>
-              </div>
+                <Chip
+                  label="Usado em: Pipeline → Enviar pro Kommo"
+                  size="small"
+                  variant="outlined"
+                  sx={{ borderColor: "rgba(255,255,255,0.14)", color: "text.secondary", fontSize: "0.7rem" }}
+                />
+              </Stack>
+            </Grid>
+          </Grid>
+        </Section>
+
+        {/* ── Última busca ──────────────────────────────────────────────── */}
+        {recentes.length > 0 && (
+          <Box>
+            <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 1 }}>
+              <HistoryIcon sx={{ fontSize: 13, color: "text.secondary" }} />
+              <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.62rem", letterSpacing: 2, fontWeight: 700 }}>
+                Última busca
+              </Typography>
+            </Stack>
+            <Stack direction="row" flexWrap="wrap" gap={1}>
+              {recentes.map((r, i) => (
+                <Box
+                  key={i}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    borderRadius: "8px",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    bgcolor: "rgba(255,255,255,0.03)",
+                    px: 1.5,
+                    py: 1.25,
+                  }}
+                >
+                  <Box>
+                    <Typography variant="caption" fontWeight={600} sx={{ display: "block" }}>
+                      {r.cidade} / {r.uf}
+                      {r.segmentos.length > 0 && (
+                        <Typography component="span" variant="caption" color="text.secondary"> · {r.segmentos.join(", ")}</Typography>
+                      )}
+                    </Typography>
+                    <Typography variant="caption" color="text.disabled">
+                      {r.total} empresas · {new Date(r.ts).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="text"
+                    size="small"
+                    startIcon={<PlayIcon sx={{ fontSize: 12 }} />}
+                    onClick={() => navigate("/results")}
+                    sx={{ color: "primary.main", minWidth: 0, fontSize: "0.72rem", px: 1 }}
+                  >
+                    Ver
+                  </Button>
+                </Box>
+              ))}
+            </Stack>
+          </Box>
+        )}
+
+        {/* ── Presets rápidos ────────────────────────────────────────────── */}
+        <Box>
+          <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 1 }}>
+            <ZapIcon sx={{ fontSize: 13, color: "text.secondary" }} />
+            <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.62rem", letterSpacing: 2, fontWeight: 700 }}>
+              Presets rápidos
+            </Typography>
+          </Stack>
+          <Grid container spacing={1}>
+            {PRESETS.map(p => (
+              <Grid item xs={6} sm={3} key={p.label}>
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={() => applyPreset(p)}
+                  sx={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    borderRadius: "8px",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    bgcolor: "rgba(255,255,255,0.03)",
+                    px: 1.5,
+                    py: 1.25,
+                    fontSize: "0.85rem",
+                    fontWeight: 500,
+                    color: "rgba(240,240,240,0.7)",
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    "&:hover": {
+                      borderColor: "rgba(249,115,22,0.5)",
+                      bgcolor: "rgba(249,115,22,0.07)",
+                      color: "#f97316",
+                    },
+                  }}
+                >
+                  <p.Icon sx={{ fontSize: 16, flexShrink: 0 }} />
+                  {p.label}
+                </Box>
+              </Grid>
             ))}
-          </div>
-        </div>
-      )}
+          </Grid>
+        </Box>
 
-      {/* ── Presets ────────────────────────────────────────────────────────── */}
-      <div className="space-y-2">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-          <Zap className="w-3 h-3" /> Presets rápidos
-        </p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {PRESETS.map(p => (
-            <button key={p.label} type="button" onClick={() => applyPreset(p)}
-              className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm font-medium text-foreground/80 transition-all hover:border-primary/60 hover:bg-primary/10 hover:text-primary">
-              <p.icon className="w-4 h-4 flex-shrink-0" />
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── 1. Localização ─────────────────────────────────────────────────── */}
-      <Section icon={MapPin} title="Localização">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="termo" className="text-xs">Palavra-chave <span className="text-muted-foreground">(opcional)</span></Label>
-            <Input id="termo" placeholder="HOSPITAL, ATACADISTA, FARMÁCIA..."
-              value={termoBase} onChange={e => setTermoBase(e.target.value.toUpperCase())}
-              className="h-9 bg-background border-border focus:border-primary/40" />
-            <p className="text-[10px] text-muted-foreground">Filtro livre na razão social / nome fantasia.</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="cidade" className="text-xs">Cidades <span className="text-muted-foreground/70">(vazio = estado inteiro · digite e Enter)</span></Label>
-            <div className="relative">
-              <MapPin className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground" />
-              <Input id="cidade" placeholder="BH, CONTAGEM, BETIM..."
+        {/* ── 1. Localização ─────────────────────────────────────────────── */}
+        <Section icon={MapPinIcon} title="Localização">
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={4}>
+              <TextField
+                id="termo"
+                label={<>Palavra-chave <Typography component="span" variant="caption" color="text.secondary">(opcional)</Typography></>}
+                placeholder="HOSPITAL, ATACADISTA, FARMÁCIA..."
+                fullWidth
+                size="small"
+                value={termoBase}
+                onChange={e => setTermoBase(e.target.value.toUpperCase())}
+                helperText="Filtro livre na razão social / nome fantasia."
+              />
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <TextField
+                id="cidade"
+                label={<>Cidades <Typography component="span" variant="caption" color="text.secondary">(vazio = estado inteiro · digite e Enter)</Typography></>}
+                placeholder="BH, CONTAGEM, BETIM..."
+                fullWidth
+                size="small"
                 value={cidadeInput}
                 onChange={e => setCidadeInput(e.target.value.toUpperCase())}
                 onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
@@ -536,363 +686,664 @@ const Configure = () => {
                     setCidadeInput("");
                   }
                 }}
-                className="h-9 pl-8 bg-background border-border focus:border-primary/40" />
-            </div>
-            {cidades.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1">
-                {cidades.map(c => (
-                  <Badge key={c} variant="outline"
-                    className="gap-1 text-[11px] border-sky-200 bg-sky-50 text-sky-700 cursor-pointer hover:border-rose-500/50 hover:bg-rose-500/10 hover:text-red-600"
-                    onClick={() => setCidades(prev => prev.filter(x => x !== c))}>
-                    {c} <X className="w-2.5 h-2.5" />
-                  </Badge>
-                ))}
-                <button type="button" onClick={() => setCidades([])}
-                  className="text-[10px] text-muted-foreground/70 hover:text-red-600 ml-1">limpar</button>
-              </div>
-            )}
-            <p className="text-[10px] text-muted-foreground">Vazio = busca em todo(s) o(s) estado(s). Pode adicionar várias cidades.</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Estados (UF) <span className="text-red-600">*</span> <span className="text-muted-foreground/70">· clique para selecionar</span></Label>
-            <div className="flex flex-wrap gap-1">
-              {UFS.map(s => {
-                const on = ufs.includes(s);
-                return (
-                  <button key={s} type="button"
-                    onClick={() => setUfs(prev => on ? prev.filter(x => x !== s) : [...prev, s])}
-                    className={cn(
-                      "h-7 rounded px-2 text-xs font-medium transition-all border",
-                      on ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/50 text-muted-foreground/70 hover:border-border hover:text-foreground/80"
-                    )}>
-                    {s}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-[10px] text-muted-foreground">Selecione 1 ou vários. Multi-estado traz muito mais leads.</p>
-          </div>
-        </div>
-      </Section>
-
-      {/* ── 2. Capital Social ──────────────────────────────────────────────── */}
-      <Section icon={Coins} title="Capital Social" hint="— usado para ranquear e filtrar">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="capMin" className="text-xs">Mínimo (R$)</Label>
-            <Input id="capMin" type="number" value={capitalMinimo}
-              onChange={e => setCapitalMinimo(Number(e.target.value || 0))}
-              className="h-9 bg-background border-border focus:border-primary/40" />
-            <p className="text-[10px] text-muted-foreground font-medium text-amber-600">{formatBRL(capitalMinimo)}</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="capMax" className="text-xs">Máximo (R$) <span className="text-muted-foreground">(opcional)</span></Label>
-            <Input id="capMax" type="number" placeholder="Sem limite"
-              value={capitalMaximo ?? ""}
-              onChange={e => setCapitalMaximo(e.target.value === "" ? null : Number(e.target.value))}
-              className="h-9 bg-background border-border focus:border-primary/40" />
-            <p className="text-[10px] text-muted-foreground font-medium text-amber-600">
-              {capitalMaximo ? formatBRL(capitalMaximo) : "Sem limite superior"}
-            </p>
-          </div>
-        </div>
-      </Section>
-
-      {/* ── 3. Porte ───────────────────────────────────────────────────────── */}
-      <Section icon={Building2} title="Porte da empresa" hint="— nenhum selecionado = todos">
-        <div className="grid grid-cols-3 gap-2">
-          {PORTES.map(p => {
-            const on = portesSelecionados.includes(p.id);
-            return (
-              <button key={p.id} type="button" onClick={() => togglePorte(p.id)}
-                className={cn(
-                  "flex flex-col items-start gap-0.5 rounded-lg border px-3 py-3 transition-all text-left",
-                  on ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-border"
-                )}>
-                <span className="text-sm font-semibold">{p.label}</span>
-                <span className="text-[10px] opacity-70">{p.desc}</span>
-              </button>
-            );
-          })}
-        </div>
-      </Section>
-
-      {/* ── 4. Segmentos ───────────────────────────────────────────────────── */}
-      <Section icon={Tag} title="Segmentos alvo" hint="— nenhum selecionado = todos">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {SEGMENTOS.map(seg => {
-            const on = segmentosSelecionados.includes(seg.id);
-            return (
-              <button key={seg.id} type="button" onClick={() => toggleSegmento(seg.id)}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
-                  on ? `border ${seg.color}` : "border-border bg-muted/30 text-muted-foreground hover:border-border"
-                )}>
-                <seg.icon className={cn("w-4 h-4 flex-shrink-0", !on && "opacity-40")} />
-                {seg.label}
-              </button>
-            );
-          })}
-        </div>
-      </Section>
-
-      {/* ── 5. Avançado ────────────────────────────────────────────────────── */}
-      <Section icon={SlidersHorizontal} title="Configurações avançadas"
-        hint="— CNAEs, nicho, enriquecimento, limites"
-        open={avancadoAberto} onToggle={() => setAvancadoAberto(p => !p)}>
-
-        {/* CNAEs específicos */}
-        <div className="space-y-2 mb-4">
-          <Label className="text-xs flex items-center gap-1.5">
-            <Tag className="w-3 h-3" />
-            CNAEs específicos
-            <span className="text-[10px] text-muted-foreground font-normal">— substitui os segmentos acima quando preenchido</span>
-          </Label>
-          <div className="flex gap-2">
-            <Input placeholder="Ex.: 8610, 4711, 4772..." value={cnaeInput}
-              onChange={e => setCnaeInput(e.target.value)}
-              onKeyDown={handleCNAEKey}
-              className="h-9 bg-background border-border focus:border-primary/40 flex-1 font-mono text-sm" />
-            <Button size="sm" variant="outline" onClick={addCNAE} className="h-9 px-3 gap-1 border-border">
-              <Plus className="w-3.5 h-3.5" /> Adicionar
-            </Button>
-          </div>
-          {cnaes.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {cnaes.map(c => (
-                <Badge key={c} variant="outline"
-                  className="gap-1 font-mono text-[11px] border-border bg-muted cursor-pointer hover:border-rose-500/50 hover:bg-rose-500/10 hover:text-red-600"
-                  onClick={() => setCnaes(prev => prev.filter(x => x !== c))}>
-                  {c} <X className="w-2.5 h-2.5" />
-                </Badge>
-              ))}
-              <button type="button" onClick={() => setCnaes([])}
-                className="text-[10px] text-muted-foreground hover:text-red-600 transition-colors">
-                limpar todos
-              </button>
-            </div>
-          ) : (
-            <p className="text-[10px] text-muted-foreground">
-              Nenhum CNAE adicionado. Os segmentos acima serão usados.
-            </p>
-          )}
-        </div>
-
-        <Separator className="bg-muted my-4" />
-
-        {/* Subsegmento / nicho */}
-        <div className="space-y-1.5 mb-4">
-          <Label htmlFor="subseg" className="text-xs flex items-center gap-1.5">
-            <Info className="w-3 h-3" />
-            Subsegmento / nicho <span className="text-muted-foreground font-normal">(opcional)</span>
-          </Label>
-          <Input id="subseg" placeholder="Ex.: oncologia, diagnóstico por imagem, construção civil pesada..."
-            value={subsegmentoAlvo}
-            onChange={e => setSubsegmentoAlvo(e.target.value)}
-            className="h-9 bg-background border-border focus:border-primary/40" />
-          <p className="text-[10px] text-muted-foreground">
-            O Hermes filtra pelo nome, fantasia e descrição derivada do CNAE.
-          </p>
-        </div>
-
-        <Separator className="bg-muted my-4" />
-
-        {/* Opções booleanas + limite */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-
-          {/* Enriquecimento web */}
-          <div className="rounded-lg border border-border bg-muted/20 p-3 flex items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5 text-xs font-medium">
-                <Globe className="w-3.5 h-3.5 text-sky-600" />
-                Enriquecimento web
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                Busca site, e-mail e WhatsApp via IA. Mais lento (~2 min).
-              </p>
-            </div>
-            <Switch checked={enriquecimentoWeb} onCheckedChange={setEnriquecimentoWeb} />
-          </div>
-
-          {/* Só com contato */}
-          <div className="rounded-lg border border-border bg-muted/20 p-3 flex items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5 text-xs font-medium">
-                <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                Só com contato
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                Filtra no banco: só traz empresas com telefone, WhatsApp ou e-mail.
-              </p>
-            </div>
-            <Switch checked={exigirContatoAcionavel} onCheckedChange={setExigirContatoAcionavel} />
-          </div>
-
-          {/* Priorizar com contato */}
-          <div className="rounded-lg border border-border bg-muted/20 p-3 flex items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5 text-xs font-medium">
-                <Target className="w-3.5 h-3.5 text-emerald-600" />
-                Priorizar quem tem contato
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                Ordena: WhatsApp primeiro, depois telefone, depois email. Maximiza leads acionáveis.
-              </p>
-            </div>
-            <Switch checked={priorizarComContato} onCheckedChange={setPriorizarComContato} />
-          </div>
-
-          {/* Idade da empresa */}
-          <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
-            <Label className="text-xs">Idade da empresa (anos)</Label>
-            <div className="flex gap-2 items-center">
-              <Input type="number" placeholder="Mín" min={0}
-                value={idadeMinima ?? ""}
-                onChange={e => setIdadeMinima(e.target.value === "" ? null : Number(e.target.value))}
-                className="h-7 w-20 bg-background border-border focus:border-primary/40 text-xs px-2" />
-              <span className="text-muted-foreground/70 text-xs">a</span>
-              <Input type="number" placeholder="Máx" min={0}
-                value={idadeMaxima ?? ""}
-                onChange={e => setIdadeMaxima(e.target.value === "" ? null : Number(e.target.value))}
-                className="h-7 w-20 bg-background border-border focus:border-primary/40 text-xs px-2" />
-              <span className="text-muted-foreground/70 text-xs">anos</span>
-            </div>
-            <p className="text-[10px] text-muted-foreground">Ex.: 2 a 10 = empresas abertas entre 2 e 10 anos atrás.</p>
-          </div>
-
-          {/* Limite de empresas */}
-          <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
-            <Label htmlFor="limite" className="text-xs">
-              Limite de empresas
-            </Label>
-            <div className="flex gap-1.5">
-              {[20, 50, 100, 200, 500].map(n => (
-                <button key={n} type="button" onClick={() => setLimiteEmpresas(n)}
-                  className={cn(
-                    "h-7 rounded px-2 text-xs font-medium transition-all border",
-                    limiteEmpresas === n
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-muted/50 text-muted-foreground hover:border-border"
-                  )}>
-                  {n}
-                </button>
-              ))}
-              <Input id="limite" type="number" min={1} max={2000}
-                value={limiteEmpresas}
-                onChange={e => setLimiteEmpresas(Math.max(1, Number(e.target.value || 1)))}
-                className="h-7 w-20 bg-background border-border focus:border-primary/40 text-xs px-2"
+                InputProps={{
+                  startAdornment: <MapPinIcon sx={{ fontSize: 15, color: "text.secondary", mr: 0.75 }} />,
+                }}
+                helperText="Vazio = busca em todo(s) o(s) estado(s). Pode adicionar várias cidades."
               />
-            </div>
-            <p className="text-[10px] text-muted-foreground">
-              Resultado final pode variar após deduplicação.
-            </p>
-          </div>
-        </div>
-      </Section>
-
-      {/* ── Preview de qualidade ──────────────────────────────────────────── */}
-      {preview && (
-        <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-            <Info className="w-3 h-3" /> Preview do lote anterior com esses filtros
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: "Empresas",   value: preview.total.toString(),                                                    cls: "text-foreground" },
-              { label: "Com e-mail", value: `${preview.comEmail} (${preview.total ? Math.round(preview.comEmail/preview.total*100) : 0}%)`, cls: "text-sky-600" },
-              { label: "WhatsApp",   value: `${preview.comWA} (${preview.total ? Math.round(preview.comWA/preview.total*100) : 0}%)`,    cls: "text-emerald-600" },
-              { label: "Score médio",value: `${preview.scoreM.toFixed(1)} pts`,                                          cls: preview.scoreM >= 60 ? "text-emerald-600" : preview.scoreM >= 40 ? "text-amber-400" : "text-red-600" },
-            ].map(m => (
-              <div key={m.label} className="rounded-lg bg-muted/40 px-3 py-2 space-y-0.5">
-                <p className="text-[10px] text-muted-foreground/70">{m.label}</p>
-                <p className={cn("text-sm font-bold", m.cls)}>{m.value}</p>
-              </div>
-            ))}
-          </div>
-          <p className="text-[10px] text-muted-foreground/50">
-            Baseado no último lote executado. Rode novamente para dados atualizados.
-          </p>
-        </div>
-      )}
-
-      {/* ── Resumo + CTA ───────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-4">
-
-        {/* Tags do recorte */}
-        {tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {tags.map((t, i) => (
-              <span key={i}
-                className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium", t.cls)}>
-                {t.label}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Progress bar */}
-        {isLoading && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs">
-              <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />
-              <span className="text-primary font-medium">
-                {loadingStep === 1 && "Consultando base de dados (56M+ empresas)..."}
-                {loadingStep === 2 && "Montando e classificando empresas..."}
-                {loadingStep === 3 && "Enriquecendo dados via web (Scrapling)..."}
-                {loadingStep === 4 && "Buscando redes sociais dos sócios..."}
-                {loadingStep === 5 && "Concluído!"}
-              </span>
-              <span className="ml-auto text-muted-foreground tabular-nums">{progressPct}%</span>
-            </div>
-            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-primary via-primary to-emerald-400 transition-all duration-500 ease-out"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-            {progressDetail && (
-              <p className="text-[11px] text-muted-foreground truncate">{progressDetail}</p>
-            )}
-          </div>
-        )}
-
-        {/* Resultado */}
-        {resultado && !isLoading && (
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
-            <div className="flex items-center gap-2 text-sm">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              <span className="text-emerald-700 font-semibold">{resultado.total_empresas} empresas encontradas</span>
-              {resultado.enriquecimento_web?.total_com_enriquecimento > 0 && (
-                <span className="text-emerald-600/70 text-xs">
-                  · {resultado.enriquecimento_web.total_com_enriquecimento} enriquecidas
-                </span>
+              {cidades.length > 0 && (
+                <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 0.75 }}>
+                  {cidades.map(c => (
+                    <Chip
+                      key={c}
+                      label={c}
+                      size="small"
+                      onDelete={() => setCidades(prev => prev.filter(x => x !== c))}
+                      sx={{
+                        fontSize: "0.68rem",
+                        bgcolor: "rgba(14,165,233,0.1)",
+                        color: "#38bdf8",
+                        border: "1px solid rgba(14,165,233,0.25)",
+                        "& .MuiChip-deleteIcon": { fontSize: 12, color: "#38bdf8" },
+                      }}
+                    />
+                  ))}
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => setCidades([])}
+                    sx={{ fontSize: "0.65rem", color: "text.disabled", bgcolor: "transparent", border: "none", cursor: "pointer", "&:hover": { color: "#ef4444" } }}
+                  >
+                    limpar
+                  </Box>
+                </Stack>
               )}
-            </div>
-            <Button size="sm"
-              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white border-0"
-              onClick={() => navigate("/results", { state: { resultados: resultado.empresas } })}>
-              Ver resultados <ArrowRight className="w-3.5 h-3.5" />
-            </Button>
-          </div>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.75 }}>
+                Estados (UF) <Typography component="span" variant="caption" sx={{ color: "#ef4444" }}>*</Typography>
+                <Typography component="span" variant="caption" color="text.disabled"> · clique para selecionar</Typography>
+              </Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                {UFS.map(s => {
+                  const on = ufs.includes(s);
+                  return (
+                    <Box
+                      key={s}
+                      component="button"
+                      type="button"
+                      onClick={() => setUfs(prev => on ? prev.filter(x => x !== s) : [...prev, s])}
+                      sx={{
+                        height: 28,
+                        borderRadius: "6px",
+                        px: 1,
+                        fontSize: "0.72rem",
+                        fontWeight: 500,
+                        border: "1px solid",
+                        cursor: "pointer",
+                        transition: "all 0.12s",
+                        borderColor: on ? "primary.main" : "rgba(255,255,255,0.14)",
+                        bgcolor: on ? "rgba(249,115,22,0.1)" : "rgba(255,255,255,0.03)",
+                        color: on ? "primary.main" : "text.secondary",
+                        "&:hover": {
+                          borderColor: on ? "primary.main" : "rgba(255,255,255,0.3)",
+                          color: on ? "primary.main" : "text.primary",
+                        },
+                      }}
+                    >
+                      {s}
+                    </Box>
+                  );
+                })}
+              </Box>
+              <Typography variant="caption" color="text.disabled" sx={{ display: "block", mt: 0.5 }}>
+                Selecione 1 ou vários. Multi-estado traz muito mais leads.
+              </Typography>
+            </Grid>
+          </Grid>
+        </Section>
+
+        {/* ── 2. Capital Social ─────────────────────────────────────────── */}
+        <Section icon={CoinsIcon} title="Capital Social" hint="— usado para ranquear e filtrar">
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                id="capMin"
+                label="Mínimo (R$)"
+                type="number"
+                fullWidth
+                size="small"
+                value={capitalMinimo}
+                onChange={e => setCapitalMinimo(Number(e.target.value || 0))}
+                helperText={<Typography variant="caption" sx={{ color: "#f59e0b", fontWeight: 500 }}>{formatBRL(capitalMinimo)}</Typography>}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                id="capMax"
+                label={<>Máximo (R$) <Typography component="span" variant="caption" color="text.secondary">(opcional)</Typography></>}
+                type="number"
+                placeholder="Sem limite"
+                fullWidth
+                size="small"
+                value={capitalMaximo ?? ""}
+                onChange={e => setCapitalMaximo(e.target.value === "" ? null : Number(e.target.value))}
+                helperText={
+                  <Typography variant="caption" sx={{ color: "#f59e0b", fontWeight: 500 }}>
+                    {capitalMaximo ? formatBRL(capitalMaximo) : "Sem limite superior"}
+                  </Typography>
+                }
+              />
+            </Grid>
+          </Grid>
+        </Section>
+
+        {/* ── 3. Porte ──────────────────────────────────────────────────── */}
+        <Section icon={Building2Icon} title="Porte da empresa" hint="— nenhum selecionado = todos">
+          <Grid container spacing={1.5}>
+            {PORTES.map(p => {
+              const on = portesSelecionados.includes(p.id);
+              return (
+                <Grid item xs={12} sm={4} key={p.id}>
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => togglePorte(p.id)}
+                    sx={{
+                      width: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      gap: 0.25,
+                      borderRadius: "8px",
+                      border: "1px solid",
+                      px: 1.5,
+                      py: 1.5,
+                      cursor: "pointer",
+                      textAlign: "left",
+                      transition: "all 0.12s",
+                      borderColor: on ? "primary.main" : "rgba(255,255,255,0.07)",
+                      bgcolor: on ? "rgba(249,115,22,0.08)" : "rgba(255,255,255,0.02)",
+                      color: on ? "primary.main" : "text.secondary",
+                      "&:hover": { borderColor: on ? "primary.main" : "rgba(255,255,255,0.2)" },
+                    }}
+                  >
+                    <Typography variant="body2" fontWeight={600} sx={{ color: "inherit" }}>{p.label}</Typography>
+                    <Typography variant="caption" sx={{ color: "inherit", opacity: 0.7 }}>{p.desc}</Typography>
+                  </Box>
+                </Grid>
+              );
+            })}
+          </Grid>
+        </Section>
+
+        {/* ── 4. Segmentos ─────────────────────────────────────────────── */}
+        <Section icon={TagIcon} title="Segmentos alvo" hint="— nenhum selecionado = todos">
+          <Grid container spacing={1.5}>
+            {SEGMENTOS.map(seg => {
+              const on = segmentosSelecionados.includes(seg.id);
+              return (
+                <Grid item xs={6} sm={3} key={seg.id}>
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => toggleSegmento(seg.id)}
+                    sx={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      borderRadius: "8px",
+                      border: "1px solid",
+                      px: 1.5,
+                      py: 1.25,
+                      cursor: "pointer",
+                      fontSize: "0.85rem",
+                      fontWeight: 500,
+                      transition: "all 0.12s",
+                      borderColor: on ? seg.color : "rgba(255,255,255,0.07)",
+                      bgcolor: on ? `${seg.color}18` : "rgba(255,255,255,0.02)",
+                      color: on ? seg.color : "rgba(240,240,240,0.55)",
+                      "&:hover": { borderColor: on ? seg.color : "rgba(255,255,255,0.2)" },
+                    }}
+                  >
+                    <seg.Icon sx={{ fontSize: 16, flexShrink: 0, opacity: on ? 1 : 0.4 }} />
+                    {seg.label}
+                  </Box>
+                </Grid>
+              );
+            })}
+          </Grid>
+        </Section>
+
+        {/* ── 5. Configurações avançadas ───────────────────────────────── */}
+        <Section
+          icon={SlidersIcon}
+          title="Configurações avançadas"
+          hint="— CNAEs, nicho, enriquecimento, limites"
+          open={avancadoAberto}
+          onToggle={() => setAvancadoAberto(p => !p)}
+        >
+          {/* CNAEs específicos */}
+          <Box sx={{ mb: 2.5 }}>
+            <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 1 }}>
+              <TagIcon sx={{ fontSize: 13, color: "text.secondary" }} />
+              <Typography variant="caption" fontWeight={600}>CNAEs específicos</Typography>
+              <Typography variant="caption" color="text.disabled">— substitui os segmentos acima quando preenchido</Typography>
+            </Stack>
+            <Stack direction="row" spacing={1}>
+              <TextField
+                placeholder="Ex.: 8610, 4711, 4772..."
+                size="small"
+                value={cnaeInput}
+                onChange={e => setCnaeInput(e.target.value)}
+                onKeyDown={handleCNAEKey}
+                sx={{ flex: 1, "& input": { fontFamily: "monospace", fontSize: 13 } }}
+              />
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<AddIcon sx={{ fontSize: 14 }} />}
+                onClick={addCNAE}
+                sx={{ px: 1.5 }}
+              >
+                Adicionar
+              </Button>
+            </Stack>
+            {cnaes.length > 0 ? (
+              <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mt: 1 }}>
+                {cnaes.map(c => (
+                  <Chip
+                    key={c}
+                    label={c}
+                    size="small"
+                    onDelete={() => setCnaes(prev => prev.filter(x => x !== c))}
+                    sx={{
+                      fontFamily: "monospace",
+                      fontSize: "0.68rem",
+                      bgcolor: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.14)",
+                      color: "text.secondary",
+                    }}
+                  />
+                ))}
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={() => setCnaes([])}
+                  sx={{ fontSize: "0.65rem", color: "text.disabled", bgcolor: "transparent", border: "none", cursor: "pointer", "&:hover": { color: "#ef4444" } }}
+                >
+                  limpar todos
+                </Box>
+              </Stack>
+            ) : (
+              <Typography variant="caption" color="text.disabled" sx={{ display: "block", mt: 0.75 }}>
+                Nenhum CNAE adicionado. Os segmentos acima serão usados.
+              </Typography>
+            )}
+          </Box>
+
+          <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", my: 2 }} />
+
+          {/* Subsegmento / nicho */}
+          <Box sx={{ mb: 2.5 }}>
+            <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 1 }}>
+              <InfoIcon sx={{ fontSize: 13, color: "text.secondary" }} />
+              <Typography variant="caption" fontWeight={600}>Subsegmento / nicho</Typography>
+              <Typography variant="caption" color="text.disabled">(opcional)</Typography>
+            </Stack>
+            <TextField
+              id="subseg"
+              placeholder="Ex.: oncologia, diagnóstico por imagem, construção civil pesada..."
+              fullWidth
+              size="small"
+              value={subsegmentoAlvo}
+              onChange={e => setSubsegmentoAlvo(e.target.value)}
+              helperText="O Hermes filtra pelo nome, fantasia e descrição derivada do CNAE."
+            />
+          </Box>
+
+          <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", my: 2 }} />
+
+          {/* Opções booleanas + limite */}
+          <Grid container spacing={1.5}>
+            {/* Enriquecimento web */}
+            <Grid item xs={12} md={4}>
+              <Box
+                sx={{
+                  borderRadius: "8px",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  bgcolor: "rgba(255,255,255,0.02)",
+                  p: 1.5,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 1.5,
+                }}
+              >
+                <Box>
+                  <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.25 }}>
+                    <GlobeIcon sx={{ fontSize: 14, color: "#0ea5e9" }} />
+                    <Typography variant="caption" fontWeight={600}>Enriquecimento web</Typography>
+                  </Stack>
+                  <Typography variant="caption" color="text.disabled">
+                    Busca site, e-mail e WhatsApp via IA. Mais lento (~2 min).
+                  </Typography>
+                </Box>
+                <Switch
+                  checked={enriquecimentoWeb}
+                  onChange={e => setEnriquecimentoWeb(e.target.checked)}
+                  size="small"
+                  color="primary"
+                />
+              </Box>
+            </Grid>
+
+            {/* Só com contato */}
+            <Grid item xs={12} md={4}>
+              <Box
+                sx={{
+                  borderRadius: "8px",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  bgcolor: "rgba(255,255,255,0.02)",
+                  p: 1.5,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 1.5,
+                }}
+              >
+                <Box>
+                  <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.25 }}>
+                    <PhoneIcon sx={{ fontSize: 14, color: "#10b981" }} />
+                    <Typography variant="caption" fontWeight={600}>Só com contato</Typography>
+                  </Stack>
+                  <Typography variant="caption" color="text.disabled">
+                    Filtra no banco: só traz empresas com telefone, WhatsApp ou e-mail.
+                  </Typography>
+                </Box>
+                <Switch
+                  checked={exigirContatoAcionavel}
+                  onChange={e => setExigirContatoAcionavel(e.target.checked)}
+                  size="small"
+                  color="primary"
+                />
+              </Box>
+            </Grid>
+
+            {/* Priorizar com contato */}
+            <Grid item xs={12} md={4}>
+              <Box
+                sx={{
+                  borderRadius: "8px",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  bgcolor: "rgba(255,255,255,0.02)",
+                  p: 1.5,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 1.5,
+                }}
+              >
+                <Box>
+                  <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.25 }}>
+                    <TargetIcon sx={{ fontSize: 14, color: "#10b981" }} />
+                    <Typography variant="caption" fontWeight={600}>Priorizar quem tem contato</Typography>
+                  </Stack>
+                  <Typography variant="caption" color="text.disabled">
+                    Ordena: WhatsApp primeiro, depois telefone, depois email.
+                  </Typography>
+                </Box>
+                <Switch
+                  checked={priorizarComContato}
+                  onChange={e => setPriorizarComContato(e.target.checked)}
+                  size="small"
+                  color="primary"
+                />
+              </Box>
+            </Grid>
+
+            {/* Idade da empresa */}
+            <Grid item xs={12} md={6}>
+              <Box
+                sx={{
+                  borderRadius: "8px",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  bgcolor: "rgba(255,255,255,0.02)",
+                  p: 1.5,
+                }}
+              >
+                <Typography variant="caption" fontWeight={600} sx={{ display: "block", mb: 1 }}>
+                  Idade da empresa (anos)
+                </Typography>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <TextField
+                    type="number"
+                    placeholder="Mín"
+                    size="small"
+                    inputProps={{ min: 0, style: { fontSize: 12, padding: "4px 8px" } }}
+                    sx={{ width: 72 }}
+                    value={idadeMinima ?? ""}
+                    onChange={e => setIdadeMinima(e.target.value === "" ? null : Number(e.target.value))}
+                  />
+                  <Typography variant="caption" color="text.disabled">a</Typography>
+                  <TextField
+                    type="number"
+                    placeholder="Máx"
+                    size="small"
+                    inputProps={{ min: 0, style: { fontSize: 12, padding: "4px 8px" } }}
+                    sx={{ width: 72 }}
+                    value={idadeMaxima ?? ""}
+                    onChange={e => setIdadeMaxima(e.target.value === "" ? null : Number(e.target.value))}
+                  />
+                  <Typography variant="caption" color="text.disabled">anos</Typography>
+                </Stack>
+                <Typography variant="caption" color="text.disabled" sx={{ display: "block", mt: 0.75 }}>
+                  Ex.: 2 a 10 = empresas abertas entre 2 e 10 anos atrás.
+                </Typography>
+              </Box>
+            </Grid>
+
+            {/* Limite de empresas */}
+            <Grid item xs={12} md={6}>
+              <Box
+                sx={{
+                  borderRadius: "8px",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  bgcolor: "rgba(255,255,255,0.02)",
+                  p: 1.5,
+                }}
+              >
+                <Typography variant="caption" fontWeight={600} sx={{ display: "block", mb: 1 }}>
+                  Limite de empresas
+                </Typography>
+                <Stack direction="row" alignItems="center" spacing={0.75} flexWrap="wrap" gap={0.5}>
+                  {[20, 50, 100, 200, 500].map(n => (
+                    <Box
+                      key={n}
+                      component="button"
+                      type="button"
+                      onClick={() => setLimiteEmpresas(n)}
+                      sx={{
+                        height: 28,
+                        borderRadius: "6px",
+                        px: 1,
+                        fontSize: "0.72rem",
+                        fontWeight: 500,
+                        border: "1px solid",
+                        cursor: "pointer",
+                        transition: "all 0.12s",
+                        borderColor: limiteEmpresas === n ? "primary.main" : "rgba(255,255,255,0.14)",
+                        bgcolor: limiteEmpresas === n ? "rgba(249,115,22,0.1)" : "rgba(255,255,255,0.03)",
+                        color: limiteEmpresas === n ? "primary.main" : "text.secondary",
+                      }}
+                    >
+                      {n}
+                    </Box>
+                  ))}
+                  <TextField
+                    id="limite"
+                    type="number"
+                    size="small"
+                    inputProps={{ min: 1, max: 2000, style: { fontSize: 12, padding: "4px 8px" } }}
+                    sx={{ width: 80 }}
+                    value={limiteEmpresas}
+                    onChange={e => setLimiteEmpresas(Math.max(1, Number(e.target.value || 1)))}
+                  />
+                </Stack>
+                <Typography variant="caption" color="text.disabled" sx={{ display: "block", mt: 0.75 }}>
+                  Resultado final pode variar após deduplicação.
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </Section>
+
+        {/* ── Preview de qualidade ─────────────────────────────────────── */}
+        {preview && (
+          <Box
+            sx={{
+              borderRadius: "12px",
+              border: "1px solid rgba(255,255,255,0.07)",
+              bgcolor: "rgba(255,255,255,0.02)",
+              p: 2,
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 1.5 }}>
+              <InfoIcon sx={{ fontSize: 13, color: "text.secondary" }} />
+              <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.62rem", letterSpacing: 2, fontWeight: 700 }}>
+                Preview do lote anterior com esses filtros
+              </Typography>
+            </Stack>
+            <Grid container spacing={1.5}>
+              {[
+                { label: "Empresas",    value: preview.total.toString(),                                                                          color: "text.primary" },
+                { label: "Com e-mail",  value: `${preview.comEmail} (${preview.total ? Math.round(preview.comEmail/preview.total*100) : 0}%)`,    color: "#0ea5e9" },
+                { label: "WhatsApp",    value: `${preview.comWA} (${preview.total ? Math.round(preview.comWA/preview.total*100) : 0}%)`,          color: "#10b981" },
+                { label: "Score médio", value: `${preview.scoreM.toFixed(1)} pts`,                                                                color: preview.scoreM >= 60 ? "#10b981" : preview.scoreM >= 40 ? "#f59e0b" : "#ef4444" },
+              ].map(m => (
+                <Grid item xs={6} sm={3} key={m.label}>
+                  <Box
+                    sx={{
+                      borderRadius: "8px",
+                      bgcolor: "rgba(255,255,255,0.04)",
+                      px: 1.5,
+                      py: 1.25,
+                    }}
+                  >
+                    <Typography variant="caption" color="text.disabled" sx={{ display: "block" }}>{m.label}</Typography>
+                    <Typography variant="body2" fontWeight={700} sx={{ color: m.color }}>{m.value}</Typography>
+                  </Box>
+                </Grid>
+              ))}
+            </Grid>
+            <Typography variant="caption" color="text.disabled" sx={{ display: "block", mt: 1 }}>
+              Baseado no último lote executado. Rode novamente para dados atualizados.
+            </Typography>
+          </Box>
         )}
 
-        {/* Botão principal */}
-        <div className="flex items-center gap-3">
-          <Button onClick={handleExecutar} disabled={isLoading}
-            className="gap-2 px-6" size="default">
-            {isLoading
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Prospectando...</>
-              : <><Target className="w-4 h-4" /> Rodar prospecção</>}
-          </Button>
-          {resultado && !isLoading && (
-            <span className="text-xs text-muted-foreground">
-              {cidades.length > 0 ? cidades.join(", ") : cidade} / {uf} · {resultado.total_empresas} leads
-            </span>
-          )}
-        </div>
-      </div>
+        {/* ── Resumo + CTA ─────────────────────────────────────────────── */}
+        <Box
+          sx={{
+            borderRadius: "12px",
+            border: "1px solid rgba(255,255,255,0.07)",
+            bgcolor: "rgba(255,255,255,0.02)",
+            p: 2.5,
+          }}
+        >
+          <Stack spacing={2}>
+            {/* Tags do recorte */}
+            {tags.length > 0 && (
+              <Stack direction="row" flexWrap="wrap" gap={0.75}>
+                {tags.map((t, i) => (
+                  <Box
+                    key={i}
+                    sx={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      borderRadius: "999px",
+                      border: "1px solid",
+                      borderColor: `${t.color}40`,
+                      bgcolor: t.bgcolor,
+                      px: 1.25,
+                      py: 0.25,
+                      fontSize: "0.68rem",
+                      fontWeight: 500,
+                      color: t.color,
+                    }}
+                  >
+                    {t.label}
+                  </Box>
+                ))}
+              </Stack>
+            )}
 
-    </div>
+            {/* Progress bar */}
+            {isLoading && (
+              <Box>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                  <CircularProgress size={14} sx={{ color: "primary.main", flexShrink: 0 }} />
+                  <Typography variant="caption" color="primary.main" fontWeight={600}>
+                    {loadingStep === 1 && "Consultando base de dados (56M+ empresas)..."}
+                    {loadingStep === 2 && "Montando e classificando empresas..."}
+                    {loadingStep === 3 && "Enriquecendo dados via web (Scrapling)..."}
+                    {loadingStep === 4 && "Buscando redes sociais dos sócios..."}
+                    {loadingStep === 5 && "Concluído!"}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: "auto !important", fontVariantNumeric: "tabular-nums" }}>
+                    {progressPct}%
+                  </Typography>
+                </Stack>
+                <LinearProgress
+                  variant="determinate"
+                  value={progressPct}
+                  sx={{
+                    height: 6,
+                    borderRadius: 3,
+                    bgcolor: "rgba(255,255,255,0.08)",
+                    "& .MuiLinearProgress-bar": {
+                      borderRadius: 3,
+                      background: "linear-gradient(90deg, #f97316, #10b981)",
+                      transition: "transform 0.5s ease-out",
+                    },
+                  }}
+                />
+                {progressDetail && (
+                  <Typography variant="caption" color="text.disabled" sx={{ display: "block", mt: 0.75, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {progressDetail}
+                  </Typography>
+                )}
+              </Box>
+            )}
+
+            {/* Resultado */}
+            {resultado && !isLoading && (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 2,
+                  borderRadius: "8px",
+                  border: "1px solid rgba(34,197,94,0.3)",
+                  bgcolor: "rgba(34,197,94,0.08)",
+                  px: 2,
+                  py: 1.5,
+                }}
+              >
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <CheckCircle2Icon sx={{ fontSize: 16, color: "#22c55e", flexShrink: 0 }} />
+                  <Typography variant="body2" fontWeight={600} sx={{ color: "#4ade80" }}>
+                    {resultado.total_empresas} empresas encontradas
+                  </Typography>
+                  {resultado.enriquecimento_web?.total_com_enriquecimento > 0 && (
+                    <Typography variant="caption" sx={{ color: "rgba(74,222,128,0.7)" }}>
+                      · {resultado.enriquecimento_web.total_com_enriquecimento} enriquecidas
+                    </Typography>
+                  )}
+                </Stack>
+                <Button
+                  variant="contained"
+                  size="small"
+                  endIcon={<ArrowRightIcon sx={{ fontSize: 14 }} />}
+                  onClick={() => navigate("/results", { state: { resultados: resultado.empresas } })}
+                  sx={{
+                    bgcolor: "#16a34a",
+                    "&:hover": { bgcolor: "#15803d" },
+                    flexShrink: 0,
+                  }}
+                >
+                  Ver resultados
+                </Button>
+              </Box>
+            )}
+
+            {/* Botão principal */}
+            <Stack direction="row" alignItems="center" spacing={2}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleExecutar}
+                disabled={isLoading}
+                startIcon={isLoading
+                  ? <CircularProgress size={16} color="inherit" />
+                  : <TargetIcon sx={{ fontSize: 16 }} />}
+                sx={{ px: 3 }}
+              >
+                {isLoading ? "Prospectando..." : "Rodar prospecção"}
+              </Button>
+              {resultado && !isLoading && (
+                <Typography variant="caption" color="text.secondary">
+                  {cidades.length > 0 ? cidades.join(", ") : cidade} / {uf} · {resultado.total_empresas} leads
+                </Typography>
+              )}
+            </Stack>
+          </Stack>
+        </Box>
+
+      </Stack>
+    </Box>
   );
 };
 
