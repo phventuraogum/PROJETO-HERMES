@@ -58,6 +58,17 @@ ALTER TABLE IF EXISTS public.leads
 
 CREATE INDEX IF NOT EXISTS idx_leads_kommo_synced
   ON public.leads (kommo_synced, created_at);
+
+-- ③ Cache de decisores Assertiva por CNPJ
+CREATE TABLE IF NOT EXISTS public.decisores (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cnpj       TEXT NOT NULL,
+  dados      JSONB NOT NULL DEFAULT '{}',
+  buscado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(cnpj)
+);
+
+CREATE INDEX IF NOT EXISTS idx_decisores_cnpj ON public.decisores (cnpj);
 """.strip()
 
 
@@ -102,6 +113,8 @@ class TenantBody(BaseModel):
     supabase_service_key: str
     n8n_outbound_webhook: Optional[str] = None
     n8n_kommo_webhook: Optional[str] = None
+    assertiva_client_id: Optional[str] = None
+    assertiva_client_secret: Optional[str] = None
 
 
 # ─── Endpoints ──────────────────────────────────────────────
@@ -275,6 +288,10 @@ async def admin_set_tenant(org_id: str, body: TenantBody, _user: dict = Depends(
         payload["n8n_outbound_webhook"] = body.n8n_outbound_webhook.strip() or None
     if body.n8n_kommo_webhook is not None:
         payload["n8n_kommo_webhook"] = body.n8n_kommo_webhook.strip() or None
+    if body.assertiva_client_id is not None:
+        payload["assertiva_client_id"] = body.assertiva_client_id.strip() or None
+    if body.assertiva_client_secret is not None:
+        payload["assertiva_client_secret"] = body.assertiva_client_secret.strip() or None
 
     async with httpx.AsyncClient(timeout=10) as c:
         # Verifica se já existe

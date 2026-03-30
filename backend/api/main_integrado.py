@@ -224,6 +224,13 @@ try:
 except Exception as e:
     logger.warning(f"[WARN] Fiscal Public router nao disponivel: {e}")
 
+try:
+    from api.routers.assertiva import router as assertiva_router
+    app.include_router(assertiva_router)
+    logger.info("[OK] Assertiva router carregado")
+except Exception as e:
+    logger.warning(f"[WARN] Assertiva router nao disponivel: {e}")
+
 # ============================================================
 # ENDPOINTS LEGADOS
 # Protegidos com require_auth quando HERMES_AUTH_REQUIRED=true

@@ -36,6 +36,7 @@ type OrgAdmin = {
   supabase_url: string | null;
   n8n_outbound_webhook: string | null;
   n8n_kommo_webhook: string | null;
+  assertiva_client_id: string | null;
   members_count: number;
 };
 
@@ -402,10 +403,12 @@ function TabClientes({
                   </Stack>
                   <Grid container spacing={1.5}>
                     {[
-                      { key: "supabase_url",         label: "Supabase URL *",   placeholder: "https://xxx.supabase.co" },
-                      { key: "supabase_service_key", label: "Service Role Key *", placeholder: "eyJ...", type: "password" },
-                      { key: "n8n_outbound_webhook", label: "n8n Webhook Outbound", placeholder: "https://..." },
-                      { key: "n8n_kommo_webhook",    label: "n8n Webhook Kommo",    placeholder: "https://..." },
+                      { key: "supabase_url",              label: "Supabase URL *",          placeholder: "https://xxx.supabase.co" },
+                      { key: "supabase_service_key",      label: "Service Role Key *",       placeholder: "eyJ...", type: "password" },
+                      { key: "n8n_outbound_webhook",      label: "n8n Webhook Outbound",     placeholder: "https://..." },
+                      { key: "n8n_kommo_webhook",         label: "n8n Webhook Kommo",        placeholder: "https://..." },
+                      { key: "assertiva_client_id",       label: "Assertiva Client ID",      placeholder: "client_id" },
+                      { key: "assertiva_client_secret",   label: "Assertiva Client Secret",  placeholder: "client_secret", type: "password" },
                     ].map(f => (
                       <Grid item xs={12} sm={6} key={f.key}>
                         <TextField
@@ -965,6 +968,8 @@ export default function AdminPanel() {
             supabase_service_key: "",
             n8n_outbound_webhook: org.n8n_outbound_webhook ?? "",
             n8n_kommo_webhook: org.n8n_kommo_webhook ?? "",
+            assertiva_client_id: org.assertiva_client_id ?? "",
+            assertiva_client_secret: "",
           };
         });
         setTenantForms(forms);

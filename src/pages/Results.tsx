@@ -48,6 +48,7 @@ import FacebookIcon from "@mui/icons-material/Facebook";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import LinkIcon from "@mui/icons-material/Link";
 import ChatIcon from "@mui/icons-material/Chat";
+import PersonSearchIcon from "@mui/icons-material/PersonSearch";
 import ShareIcon from "@mui/icons-material/Share";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import MailIcon from "@mui/icons-material/Mail";
@@ -92,6 +93,7 @@ import {
 } from "@/lib/api";
 import { MensagemModal } from "@/components/MensagemModal";
 import { CrmExportModal } from "@/components/CrmExportModal";
+import DecisorModal from "@/components/DecisorModal";
 import { toast } from "sonner";
 
 // ─── CSV ──────────────────────────────────────────────────────────────────────
@@ -393,6 +395,7 @@ function ScoreBar({ score }: { score?: number | null }) {
 
 // ─── Contact action row ──────────────────────────────────────────────────────
 function ContactRow({ emp }: { emp: Empresa }) {
+  const [decisorOpen, setDecisorOpen] = useState(false);
   const wa = emp.whatsapp_enriquecido || emp.whatsapp_publico;
   const email = emp.email_enriquecido || emp.email;
   const tel = emp.telefone_padrao || emp.telefone_receita;
@@ -498,6 +501,29 @@ function ContactRow({ emp }: { emp: Empresa }) {
           </IconButton>
         </Tooltip>
       )}
+
+      {/* Decisores Assertiva */}
+      <Tooltip title="Buscar decisores (Assertiva)">
+        <IconButton
+          size="small"
+          onClick={e => { e.stopPropagation(); setDecisorOpen(true); }}
+          sx={{
+            width: 28, height: 28,
+            border: "1px solid rgba(249,115,22,0.35)",
+            bgcolor: "rgba(249,115,22,0.08)", color: "#F97316",
+            "&:hover": { bgcolor: "rgba(249,115,22,0.15)" },
+          }}
+        >
+          <PersonSearchIcon sx={{ fontSize: 14 }} />
+        </IconButton>
+      </Tooltip>
+
+      <DecisorModal
+        open={decisorOpen}
+        onClose={() => setDecisorOpen(false)}
+        cnpj={emp.cnpj}
+        nomeEmpresa={emp.nome_fantasia || emp.razao_social}
+      />
     </Stack>
   );
 }
