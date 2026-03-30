@@ -1,7 +1,7 @@
 import { useLocation } from "react-router-dom";
 import {
   AppBar, Toolbar, Box, Typography, IconButton, Tooltip,
-  Stack, Avatar, Chip,
+  Stack, Avatar,
 } from "@mui/material";
 import {
   NotificationsNoneRounded,
@@ -37,6 +37,7 @@ function resolvePageMeta(pathname: string) {
 
 const Header = () => {
   const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
   const { pathname } = useLocation();
   const { currentOrg } = useOrg();
   const page = resolvePageMeta(pathname);
@@ -47,9 +48,10 @@ const Header = () => {
       position="sticky"
       elevation={0}
       sx={{
-        backgroundColor: "rgba(15,15,15,0.92)",
+        backgroundColor: isDark ? "rgba(15,15,15,0.92)" : "rgba(247,247,247,0.94)",
         backdropFilter: "blur(16px)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        borderBottom: "1px solid",
+        borderBottomColor: "divider",
         zIndex: 100,
       }}
     >
@@ -57,15 +59,15 @@ const Header = () => {
 
         {/* Breadcrumb */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontSize: "0.625rem", fontWeight: 600, color: "#444", textTransform: "uppercase", letterSpacing: "0.1em", lineHeight: 1 }}>
+          <Typography sx={{ fontSize: "0.625rem", fontWeight: 600, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.1em", lineHeight: 1 }}>
             {page.section}
           </Typography>
           <Stack direction="row" alignItems="center" gap={0.75} mt={0.4}>
-            <Typography sx={{ fontWeight: 800, fontSize: "0.875rem", letterSpacing: "-0.025em", color: "#F0F0F0", lineHeight: 1 }}>
+            <Typography sx={{ fontWeight: 800, fontSize: "0.875rem", letterSpacing: "-0.025em", color: "text.primary", lineHeight: 1 }}>
               Hermes
             </Typography>
-            <Typography sx={{ color: "#333", fontSize: "0.875rem", lineHeight: 1 }}>/</Typography>
-            <Typography sx={{ fontWeight: 500, fontSize: "0.875rem", color: "#909090", lineHeight: 1 }} noWrap>
+            <Typography sx={{ color: "text.disabled", fontSize: "0.875rem", lineHeight: 1 }}>/</Typography>
+            <Typography sx={{ fontWeight: 500, fontSize: "0.875rem", color: "text.secondary", lineHeight: 1 }} noWrap>
               {page.title}
             </Typography>
           </Stack>
@@ -73,28 +75,28 @@ const Header = () => {
 
         {/* Actions */}
         <Stack direction="row" alignItems="center" gap={0.5}>
-          <Tooltip title={theme === "dark" ? "Modo claro" : "Modo escuro"} placement="bottom">
-            <IconButton size="small" onClick={toggleTheme} sx={{ color: "#555", "&:hover": { color: "#A0A0A0" } }}>
-              {theme === "dark"
+          <Tooltip title={isDark ? "Modo claro" : "Modo escuro"} placement="bottom">
+            <IconButton size="small" onClick={toggleTheme} sx={{ color: "text.secondary" }}>
+              {isDark
                 ? <LightModeRounded sx={{ fontSize: 17 }} />
                 : <DarkModeRounded sx={{ fontSize: 17 }} />}
             </IconButton>
           </Tooltip>
 
           <Tooltip title="Ajuda" placement="bottom">
-            <IconButton size="small" sx={{ color: "#555", "&:hover": { color: "#A0A0A0" } }}>
+            <IconButton size="small" sx={{ color: "text.secondary" }}>
               <HelpOutlineRounded sx={{ fontSize: 17 }} />
             </IconButton>
           </Tooltip>
 
           <Tooltip title="Notificações" placement="bottom">
-            <IconButton size="small" sx={{ color: "#555", "&:hover": { color: "#A0A0A0" } }}>
+            <IconButton size="small" sx={{ color: "text.secondary" }}>
               <NotificationsNoneRounded sx={{ fontSize: 17 }} />
             </IconButton>
           </Tooltip>
 
           {/* Divider */}
-          <Box sx={{ width: 1, height: 20, backgroundColor: "rgba(255,255,255,0.07)", mx: 0.5 }} />
+          <Box sx={{ width: 1, height: 20, backgroundColor: "divider", mx: 0.5 }} />
 
           {/* User pill */}
           <Stack
@@ -104,8 +106,9 @@ const Header = () => {
             sx={{
               pl: 0.75, pr: 1.5, py: 0.5,
               borderRadius: "20px",
-              border: "1px solid rgba(255,255,255,0.08)",
-              backgroundColor: "rgba(255,255,255,0.03)",
+              border: "1px solid",
+              borderColor: "divider",
+              backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
               cursor: "default",
             }}
           >
@@ -113,10 +116,10 @@ const Header = () => {
               {initials}
             </Avatar>
             <Box sx={{ display: { xs: "none", sm: "block" }, minWidth: 0 }}>
-              <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: "#D0D0D0", lineHeight: 1 }} noWrap>
+              <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: "text.primary", lineHeight: 1 }} noWrap>
                 {currentOrg?.name ?? "Hermes"}
               </Typography>
-              <Typography sx={{ fontSize: "0.625rem", color: "#555", lineHeight: 1.3 }} noWrap>
+              <Typography sx={{ fontSize: "0.625rem", color: "text.secondary", lineHeight: 1.3 }} noWrap>
                 {currentOrg?.role ?? "member"}
               </Typography>
             </Box>

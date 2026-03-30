@@ -9,7 +9,7 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   return (
-    <Box sx={{ display: "flex", height: "100vh", backgroundColor: "#0F0F0F", overflow: "hidden" }}>
+    <Box sx={{ display: "flex", height: "100vh", backgroundColor: "background.default", overflow: "hidden" }}>
       <Sidebar />
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
         <Header />

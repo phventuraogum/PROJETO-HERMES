@@ -25,6 +25,7 @@ import ShowChartIcon from "@mui/icons-material/ShowChart";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useAuth } from "@/auth/AuthContext";
 import { Toaster } from "sonner";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
 
 type LocationState = { from?: { pathname?: string } };
 
@@ -169,6 +170,8 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { signInWithPassword } = useAuth();
+  const muiTheme = useMuiTheme();
+  const isDark = muiTheme.palette.mode === "dark";
 
   const state = (location.state as LocationState | null) ?? null;
   const redirectTo = state?.from?.pathname && state.from.pathname !== "/login" ? state.from.pathname : "/app";
@@ -212,7 +215,7 @@ const Login = () => {
   return (
     <Box sx={{
       minHeight: "100vh", display: "flex",
-      backgroundColor: "#0F0F0F",
+      backgroundColor: "background.default",
       transition: "opacity 0.3s, transform 0.3s",
       opacity: isExiting ? 0 : 1,
       transform: isExiting ? "scale(1.01)" : "scale(1)",
@@ -279,15 +282,16 @@ const Login = () => {
                 height: 44, width: 44, display: "flex", alignItems: "center", justifyContent: "center",
                 borderRadius: 2.5,
                 background: "linear-gradient(135deg, rgba(249,115,22,0.15), rgba(249,115,22,0.08))",
-                border: "1px solid rgba(255,255,255,0.06)",
+                border: "1px solid",
+                borderColor: "divider",
               }}>
                 <TrackChangesIcon sx={{ fontSize: 20, color: "#F97316" }} />
               </Box>
             </Stack>
-            <Typography sx={{ fontSize: "1.2rem", fontWeight: 600, letterSpacing: "-0.02em", color: "#F0F0F0" }}>
+            <Typography sx={{ fontSize: "1.2rem", fontWeight: 600, letterSpacing: "-0.02em", color: "text.primary" }}>
               Bem-vindo de volta
             </Typography>
-            <Typography sx={{ mt: 0.75, fontSize: "0.8rem", color: "#9A9A9A" }}>
+            <Typography sx={{ mt: 0.75, fontSize: "0.8rem", color: "text.secondary" }}>
               Entre para acessar sua prospeccao.
             </Typography>
           </Box>
@@ -313,7 +317,7 @@ const Login = () => {
           {/* Form */}
           <Box component="form" onSubmit={handleLogin} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <Box>
-              <Typography sx={{ fontSize: "0.72rem", fontWeight: 500, color: "rgba(240,240,240,0.8)", mb: 0.75 }}>
+              <Typography sx={{ fontSize: "0.72rem", fontWeight: 500, color: "text.primary", mb: 0.75 }}>
                 Email
               </Typography>
               <TextField
@@ -330,21 +334,17 @@ const Login = () => {
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <MailOutlineIcon sx={{ fontSize: 16, color: error ? "rgba(239,68,68,0.5)" : "rgba(154,154,154,0.5)" }} />
+                      <MailOutlineIcon sx={{ fontSize: 16, color: error ? "rgba(239,68,68,0.5)" : "text.secondary" }} />
                     </InputAdornment>
                   ),
                 }}
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     height: 44,
-                    backgroundColor: "rgba(255,255,255,0.04)",
                     borderRadius: 1.5,
                     fontSize: "0.85rem",
-                    "& fieldset": { borderColor: error ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.1)" },
-                    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.2)" },
+                    "& fieldset": { borderColor: error ? "rgba(239,68,68,0.3)" : undefined },
                     "&.Mui-focused fieldset": { borderColor: "rgba(249,115,22,0.4)", borderWidth: 1 },
-                    "& input": { color: "#F0F0F0" },
-                    "& input::placeholder": { color: "#9A9A9A", opacity: 1 },
                   },
                 }}
               />
@@ -352,7 +352,7 @@ const Login = () => {
 
             <Box>
               <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.75 }}>
-                <Typography sx={{ fontSize: "0.72rem", fontWeight: 500, color: "rgba(240,240,240,0.8)" }}>Senha</Typography>
+                <Typography sx={{ fontSize: "0.72rem", fontWeight: 500, color: "text.primary" }}>Senha</Typography>
                 <Box component="button" type="button" sx={{
                   background: "none", border: "none", cursor: "pointer",
                   fontSize: "0.68rem", color: "rgba(249,115,22,0.6)",
@@ -374,7 +374,7 @@ const Login = () => {
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <LockOutlinedIcon sx={{ fontSize: 16, color: error ? "rgba(239,68,68,0.5)" : "rgba(154,154,154,0.5)" }} />
+                      <LockOutlinedIcon sx={{ fontSize: 16, color: error ? "rgba(239,68,68,0.5)" : "text.secondary" }} />
                     </InputAdornment>
                   ),
                   endAdornment: (
@@ -384,7 +384,7 @@ const Login = () => {
                         onClick={() => setShowPassword(!showPassword)}
                         edge="end"
                         size="small"
-                        sx={{ color: "rgba(154,154,154,0.5)", "&:hover": { color: "rgba(240,240,240,0.6)" } }}
+                        sx={{ color: "text.secondary" }}
                       >
                         {showPassword ? <VisibilityOffOutlinedIcon sx={{ fontSize: 16 }} /> : <VisibilityOutlinedIcon sx={{ fontSize: 16 }} />}
                       </IconButton>
@@ -394,14 +394,10 @@ const Login = () => {
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     height: 44,
-                    backgroundColor: "rgba(255,255,255,0.04)",
                     borderRadius: 1.5,
                     fontSize: "0.85rem",
-                    "& fieldset": { borderColor: error ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.1)" },
-                    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.2)" },
+                    "& fieldset": { borderColor: error ? "rgba(239,68,68,0.3)" : undefined },
                     "&.Mui-focused fieldset": { borderColor: "rgba(249,115,22,0.4)", borderWidth: 1 },
-                    "& input": { color: "#F0F0F0" },
-                    "& input::placeholder": { color: "#9A9A9A", opacity: 1 },
                   },
                 }}
               />
@@ -420,7 +416,7 @@ const Login = () => {
                 />
               }
               label={
-                <Typography sx={{ fontSize: "0.68rem", color: "rgba(154,154,154,0.7)", userSelect: "none" }}>
+                <Typography sx={{ fontSize: "0.68rem", color: "text.secondary", userSelect: "none" }}>
                   Manter conectado
                 </Typography>
               }
@@ -455,30 +451,30 @@ const Login = () => {
 
           {/* Divider */}
           <Box sx={{ position: "relative", my: 3 }}>
-            <Divider sx={{ borderColor: "rgba(255,255,255,0.06)" }} />
+            <Divider />
             <Box sx={{
               position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-              backgroundColor: "#0F0F0F", px: 1.5,
+              backgroundColor: "background.default", px: 1.5,
             }}>
-              <Typography sx={{ fontSize: "0.68rem", color: "rgba(154,154,154,0.5)" }}>ou</Typography>
+              <Typography sx={{ fontSize: "0.68rem", color: "text.secondary" }}>ou</Typography>
             </Box>
           </Box>
 
           {/* Sign up */}
-          <Typography sx={{ textAlign: "center", fontSize: "0.8rem", color: "rgba(154,154,154,0.45)" }}>
+          <Typography sx={{ textAlign: "center", fontSize: "0.8rem", color: "text.secondary" }}>
             Nao tem conta?{" "}
             <Box component={Link} to="/" sx={{ color: "#F97316", fontWeight: 500, textDecoration: "none", "&:hover": { color: "rgba(249,115,22,0.8)" }, transition: "color 0.2s" }}>
-              Crie gratis
+              Fale conosco
             </Box>
           </Typography>
 
           {/* Footer */}
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 5 }}>
             <Stack direction="row" alignItems="center" gap={0.75}>
-              <ShieldOutlinedIcon sx={{ fontSize: 12, color: "rgba(154,154,154,0.4)" }} />
-              <Typography sx={{ fontSize: "0.62rem", color: "rgba(154,154,154,0.4)" }}>Conexao segura</Typography>
+              <ShieldOutlinedIcon sx={{ fontSize: 12, color: "text.disabled" }} />
+              <Typography sx={{ fontSize: "0.62rem", color: "text.disabled" }}>Conexao segura</Typography>
             </Stack>
-            <Typography sx={{ fontSize: "0.62rem", color: "rgba(154,154,154,0.4)" }}>© 2025 Hermes</Typography>
+            <Typography sx={{ fontSize: "0.62rem", color: "text.disabled" }}>© 2025 Hermes</Typography>
           </Stack>
         </Box>
       </Box>

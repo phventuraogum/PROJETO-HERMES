@@ -76,6 +76,7 @@ export default function Sidebar() {
   const [userEmail, setUserEmail] = useState<string>("");
 
   const { toggleTheme, theme: appTheme } = useAppTheme();
+  const isDark = appTheme === "dark";
   const role = currentOrg?.role ?? "member";
   const isAdmin = role === "admin" || role === "owner";
 
@@ -101,13 +102,14 @@ export default function Sidebar() {
           boxSizing: "border-box",
           display: "flex",
           flexDirection: "column",
-          backgroundColor: "#0F0F0F",
-          borderRight: "1px solid rgba(255,255,255,0.06)",
+          backgroundColor: "background.default",
+          borderRight: "1px solid",
+          borderRightColor: "divider",
         },
       }}
     >
       {/* ── Logo ── */}
-      <Box sx={{ px: 2.5, py: 2, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+      <Box sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderBottomColor: "divider" }}>
         <Stack direction="row" alignItems="center" gap={1.5}>
           <Box
             sx={{
@@ -121,10 +123,10 @@ export default function Sidebar() {
             <Typography sx={{ color: "#fff", fontWeight: 800, fontSize: "0.875rem", letterSpacing: "-0.02em" }}>H</Typography>
           </Box>
           <Box>
-            <Typography sx={{ fontWeight: 700, fontSize: "0.9375rem", letterSpacing: "-0.02em", color: "#F0F0F0", lineHeight: 1.2 }}>
+            <Typography sx={{ fontWeight: 700, fontSize: "0.9375rem", letterSpacing: "-0.02em", color: "text.primary", lineHeight: 1.2 }}>
               Hermes
             </Typography>
-            <Typography sx={{ fontSize: "0.625rem", color: "#555", fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            <Typography sx={{ fontSize: "0.625rem", color: "text.secondary", fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase" }}>
               Pinn Product Builder
             </Typography>
           </Box>
@@ -133,8 +135,8 @@ export default function Sidebar() {
 
       {/* ── Org selector ── */}
       {orgs.length > 1 ? (
-        <Box sx={{ px: 1.5, py: 1.5, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <Typography sx={{ fontSize: "0.625rem", fontWeight: 600, color: "#444", textTransform: "uppercase", letterSpacing: "0.08em", mb: 0.75, px: 0.5 }}>
+        <Box sx={{ px: 1.5, py: 1.5, borderBottom: "1px solid", borderBottomColor: "divider" }}>
+          <Typography sx={{ fontSize: "0.625rem", fontWeight: 600, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.08em", mb: 0.75, px: 0.5 }}>
             Organização
           </Typography>
           <FormControl size="small" fullWidth>
@@ -142,14 +144,8 @@ export default function Sidebar() {
               value={orgId ?? ""}
               onChange={e => setOrgId(e.target.value)}
               displayEmpty
-              sx={{
-                fontSize: "0.8125rem",
-                backgroundColor: "#181818",
-                "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.08)" },
-                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.16)" },
-                "& .MuiSelect-icon": { color: "#555" },
-              }}
-              startAdornment={<BusinessRounded sx={{ fontSize: 14, color: "#555", mr: 0.75 }} />}
+              sx={{ fontSize: "0.8125rem" }}
+              startAdornment={<BusinessRounded sx={{ fontSize: 14, color: "text.secondary", mr: 0.75 }} />}
             >
               {orgs.map(o => (
                 <MenuItem key={o.id} value={o.id} sx={{ fontSize: "0.8125rem" }}>{o.name}</MenuItem>
@@ -158,9 +154,9 @@ export default function Sidebar() {
           </FormControl>
         </Box>
       ) : currentOrg && (
-        <Box sx={{ px: 2, py: 1.25, borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 1 }}>
-          <BusinessRounded sx={{ fontSize: 13, color: "#444" }} />
-          <Typography sx={{ fontSize: "0.75rem", color: "#666", fontWeight: 500 }} noWrap>{currentOrg.name}</Typography>
+        <Box sx={{ px: 2, py: 1.25, borderBottom: "1px solid", borderBottomColor: "divider", display: "flex", alignItems: "center", gap: 1 }}>
+          <BusinessRounded sx={{ fontSize: 13, color: "text.secondary" }} />
+          <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", fontWeight: 500 }} noWrap>{currentOrg.name}</Typography>
         </Box>
       )}
 
@@ -177,7 +173,7 @@ export default function Sidebar() {
           return (
             <Box key={group.section} sx={{ mb: 0.5 }}>
               <Typography sx={{
-                fontSize: "0.625rem", fontWeight: 600, color: "#3A3A3A",
+                fontSize: "0.625rem", fontWeight: 600, color: isDark ? "#3A3A3A" : "#888",
                 textTransform: "uppercase", letterSpacing: "0.08em",
                 px: 2.5, py: 0.75, mt: 0.5,
               }}>
@@ -200,12 +196,12 @@ export default function Sidebar() {
                       },
                     }}
                   >
-                    <ListItemIcon sx={{ minWidth: 32, color: isActive(item.path) ? "#F97316" : "#444" }}>
+                    <ListItemIcon sx={{ minWidth: 32, color: isActive(item.path) ? "#F97316" : "text.secondary" }}>
                       <item.icon sx={{ fontSize: 17 }} />
                     </ListItemIcon>
                     <ListItemText
                       primary={item.label}
-                      primaryTypographyProps={{ fontSize: "0.8125rem", fontWeight: 500, color: isActive(item.path) ? "#F97316" : "#A0A0A0" }}
+                      primaryTypographyProps={{ fontSize: "0.8125rem", fontWeight: 500, color: isActive(item.path) ? "#F97316" : "text.secondary" }}
                     />
                   </ListItemButton>
                 ))}
@@ -242,12 +238,12 @@ export default function Sidebar() {
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 32, color: isActive(item.path) ? "#F97316" : "#444" }}>
+                  <ListItemIcon sx={{ minWidth: 32, color: isActive(item.path) ? "#F97316" : "text.secondary" }}>
                     <item.icon sx={{ fontSize: 17 }} />
                   </ListItemIcon>
                   <ListItemText
                     primary={item.label}
-                    primaryTypographyProps={{ fontSize: "0.8125rem", fontWeight: 500, color: isActive(item.path) ? "#F97316" : "#A0A0A0" }}
+                    primaryTypographyProps={{ fontSize: "0.8125rem", fontWeight: 500, color: isActive(item.path) ? "#F97316" : "text.secondary" }}
                   />
                 </ListItemButton>
               ))}
@@ -257,19 +253,19 @@ export default function Sidebar() {
       </Box>
 
       {/* ── Footer ── */}
-      <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.06)", p: 1.5 }}>
+      <Box sx={{ borderTop: "1px solid", borderTopColor: "divider", p: 1.5 }}>
         <Stack direction="row" alignItems="center" gap={1.5} sx={{
           px: 1, py: 1, borderRadius: "10px",
-          "&:hover": { backgroundColor: "rgba(255,255,255,0.03)" },
+          "&:hover": { backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" },
         }}>
           <Avatar sx={{ width: 30, height: 30, backgroundColor: "rgba(249,115,22,0.15)", color: "#F97316", fontSize: "0.75rem", fontWeight: 700 }}>
             {(userEmail?.[0] ?? "U").toUpperCase()}
           </Avatar>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: "#D0D0D0" }} noWrap>
+            <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: "text.primary" }} noWrap>
               {currentOrg?.name ?? "Hermes"}
             </Typography>
-            <Typography sx={{ fontSize: "0.6875rem", color: "#555" }} noWrap>
+            <Typography sx={{ fontSize: "0.6875rem", color: "text.secondary" }} noWrap>
               {userEmail}
             </Typography>
           </Box>
