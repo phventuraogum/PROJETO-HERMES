@@ -1,7 +1,7 @@
 """
 Serviço de integração com a API Assertiva v3.
 Autenticação OAuth2 (client_credentials) com cache de token.
-Consulta de CNPJ para prospecção e enriquecimento de leads.
+Consulta de CNPJ (PJ) e CPF (PF) via Assertiva Localize.
 """
 import logging
 import time
@@ -12,7 +12,8 @@ import httpx
 logger = logging.getLogger(__name__)
 
 ASSERTIVA_TOKEN_URL = "https://api.assertivasolucoes.com.br/oauth2/v3/token"
-ASSERTIVA_CNPJ_URL = "https://api.assertivasolucoes.com.br/localize/v3/cnpj"
+ASSERTIVA_CNPJ_URL  = "https://api.assertivasolucoes.com.br/localize/v3/cnpj"
+ASSERTIVA_CPF_URL   = "https://api.assertivasolucoes.com.br/localize/v3/cpf"
 
 
 class AssertivaCNPJService:
@@ -109,6 +110,120 @@ class AssertivaCNPJService:
 
         raw = resp.json()
         return self._normalizar(cnpj_limpo, raw)
+
+    # ------------------------------------------------------------------
+    # Consulta CPF (Pessoa Física)
+    # ------------------------------------------------------------------
+
+    async def consultar_cpf(
+        self,
+        cpf: str,
+        id_finalidade: int = 5,
+    ) -> Dict[str, Any]:
+        """
+        Consulta dados de uma Pessoa Física por CPF via Assertiva Localize.
+        Mesmo token OAuth2 usado para CNPJ — sem credenciais extras.
+
+        Retorna dict normalizado com telefones (WhatsApp), e-mails,
+        empresas vinculadas e histórico profissional.
+        """
+        cpf_limpo = "".join(filter(str.isdigit, cpf))
+        if len(cpf_limpo) != 11:
+            raise ValueError(f"CPF inválido: '{cpf}'")
+
+        token = await self._get_token()
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                ASSERTIVA_CPF_URL,
+                params={"cpf": cpf_limpo, "idFinalidade": id_finalidade},
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+        if resp.status_code == 404:
+            logger.info("CPF %s não encontrado na Assertiva", cpf_limpo)
+            return {"encontrado": False, "cpf": cpf_limpo}
+
+        if resp.status_code != 200:
+            logger.error(
+                "Assertiva CPF %s falhou: %s — %s",
+                cpf_limpo,
+                resp.status_code,
+                resp.text[:300],
+            )
+            raise RuntimeError(
+                f"Assertiva retornou HTTP {resp.status_code} para CPF {cpf_limpo}"
+            )
+
+        raw = resp.json()
+        return self._normalizar_pf(cpf_limpo, raw)
+
+    # ------------------------------------------------------------------
+    # Normalização da resposta PF
+    # ------------------------------------------------------------------
+
+    def _normalizar_pf(self, cpf: str, raw: Dict[str, Any]) -> Dict[str, Any]:
+        """Mapeia payload bruto da Assertiva PF para schema interno."""
+        cabecalho = raw.get("cabecalho", {})
+        resposta  = raw.get("resposta", raw)
+
+        dados    = resposta.get("dadosCadastrais", {})
+        tel_raw  = resposta.get("telefones", {})
+        emails_r = resposta.get("emails", [])
+        empresas = resposta.get("empresas", [])
+        redes    = resposta.get("redesSociais", [])
+
+        telefones: list = []
+        for t in tel_raw.get("fixos", []):
+            telefones.append({
+                "numero":        t.get("numero"),
+                "tipo":          "fixo",
+                "whatsapp":      t.get("aplicativos", {}).get("whatsAppBusiness", False),
+                "nao_perturbe":  t.get("naoPerturbe", False),
+                "ultimo_contato": t.get("ultimoContato"),
+            })
+        for t in tel_raw.get("moveis", []):
+            telefones.append({
+                "numero": t.get("numero"),
+                "tipo":   "movel",
+                "whatsapp": (
+                    t.get("aplicativos", {}).get("whatsApp", False)
+                    or t.get("aplicativos", {}).get("whatsAppBusiness", False)
+                ),
+                "nao_perturbe":  t.get("naoPerturbe", False),
+                "ultimo_contato": t.get("ultimoContato"),
+            })
+
+        return {
+            "encontrado":    True,
+            "fonte":         "assertiva",
+            "protocolo":     cabecalho.get("protocolo"),
+            "cpf":           cpf,
+            "nome":          dados.get("nome"),
+            "data_nascimento": dados.get("dataNascimento"),
+            "sexo":          dados.get("sexo"),
+            "obito":         dados.get("obito", False),
+            "telefones":     telefones,
+            "emails": [
+                {
+                    "email": e.get("email") if isinstance(e, dict) else e,
+                    "tipo":  e.get("tipo")  if isinstance(e, dict) else None,
+                }
+                for e in emails_r
+            ],
+            "empresas": [
+                {
+                    "cnpj":          emp.get("cnpj"),
+                    "razao_social":  emp.get("razaoSocial"),
+                    "cargo":         emp.get("cargo") or emp.get("qualificacao"),
+                    "data_entrada":  emp.get("dataEntrada"),
+                    "situacao":      emp.get("situacaoCadastral"),
+                }
+                for emp in empresas
+            ],
+            "redes_sociais": redes,
+            "raw": raw,
+        }
 
     # ------------------------------------------------------------------
     # Normalização da resposta

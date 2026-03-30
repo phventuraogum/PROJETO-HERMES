@@ -223,6 +223,108 @@ async def get_decisores(
     return {"fonte": "assertiva", "dados": dados}
 
 
+# ── Cache pessoa_fisica no tenant ─────────────────────────────────────────
+
+async def _check_cache_pf(
+    supa_url: str, supa_key: str, cpf: str, max_age_days: int = 7
+) -> Optional[dict]:
+    if not supa_url or not supa_key:
+        return None
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=max_age_days)).isoformat()
+    try:
+        async with httpx.AsyncClient(timeout=8) as c:
+            r = await c.get(
+                f"{supa_url}/rest/v1/pessoa_fisica",
+                headers=_tenant_headers(supa_key),
+                params={
+                    "select": "dados,buscado_em",
+                    "cpf": f"eq.{cpf}",
+                    "buscado_em": f"gte.{cutoff}",
+                    "limit": "1",
+                },
+            )
+        if r.status_code == 200 and r.content:
+            rows = r.json()
+            if rows:
+                raw = rows[0].get("dados")
+                return raw if isinstance(raw, dict) else json.loads(raw)
+    except Exception as e:
+        logger.warning("Erro ao checar cache pessoa_fisica: %s", e)
+    return None
+
+
+async def _save_cache_pf(supa_url: str, supa_key: str, cpf: str, dados: dict) -> None:
+    if not supa_url or not supa_key:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=8) as c:
+            await c.post(
+                f"{supa_url}/rest/v1/pessoa_fisica",
+                headers={
+                    **_tenant_headers(supa_key),
+                    "Prefer": "resolution=merge-duplicates,return=minimal",
+                },
+                json={
+                    "cpf": cpf,
+                    "dados": dados,
+                    "buscado_em": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+    except Exception as e:
+        logger.warning("Erro ao salvar cache pessoa_fisica: %s", e)
+
+
+# ── Endpoint CPF ───────────────────────────────────────────────────────────
+
+@router.get("/pessoa/{cpf}")
+async def get_pessoa(
+    cpf: str,
+    refresh: bool = False,
+    user: dict = Depends(require_auth),
+) -> dict[str, Any]:
+    """
+    Busca dados pessoais (telefones/WhatsApp, e-mails, empresas) de uma
+    Pessoa Física por CPF via Assertiva Localize.
+
+    - Cache de 7 dias no Supabase do tenant.
+    - Use ?refresh=true para forçar nova consulta (gasta cota).
+    - Retorna { fonte: "cache"|"assertiva", dados: {...} }
+    """
+    cpf_clean = "".join(filter(str.isdigit, cpf))
+    if len(cpf_clean) != 11:
+        raise HTTPException(status_code=400, detail="CPF inválido — informe 11 dígitos")
+
+    org_id = user.get("org_id") or user.get("sub") or ""
+    if not org_id:
+        raise HTTPException(status_code=401, detail="Organização não identificada no token")
+
+    client_id, client_secret, supa_url, supa_key = await _get_org_assertiva_creds(org_id)
+
+    if not refresh:
+        cached = await _check_cache_pf(supa_url, supa_key, cpf_clean)
+        if cached:
+            await _log_consulta(org_id, cpf_clean, cache_hit=True)
+            return {"fonte": "cache", "dados": cached}
+
+    client = _get_client(org_id, client_id, client_secret)
+
+    try:
+        dados = await client.consultar_cpf(cpf_clean)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        await _log_consulta(org_id, cpf_clean, cache_hit=False, resultado="error")
+        raise HTTPException(status_code=502, detail=str(e))
+
+    resultado = "not_found" if not dados.get("encontrado") else "success"
+    await _log_consulta(org_id, cpf_clean, cache_hit=False, resultado=resultado)
+
+    if dados.get("encontrado"):
+        await _save_cache_pf(supa_url, supa_key, cpf_clean, dados)
+
+    return {"fonte": "assertiva", "dados": dados}
+
+
 @router.get("/consumo")
 async def get_consumo(user: dict = Depends(require_auth)) -> dict[str, Any]:
     """

@@ -69,6 +69,17 @@ CREATE TABLE IF NOT EXISTS public.decisores (
 );
 
 CREATE INDEX IF NOT EXISTS idx_decisores_cnpj ON public.decisores (cnpj);
+
+-- ④ Cache de pessoa física Assertiva por CPF
+CREATE TABLE IF NOT EXISTS public.pessoa_fisica (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cpf        TEXT NOT NULL,
+  dados      JSONB NOT NULL DEFAULT '{}',
+  buscado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(cpf)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pessoa_fisica_cpf ON public.pessoa_fisica (cpf);
 """.strip()
 
 
