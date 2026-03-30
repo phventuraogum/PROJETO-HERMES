@@ -102,7 +102,7 @@ function statusColor(status?: string | null): { color: string; bgcolor: string; 
     case "invalid":
       return { color: "#fca5a5", bgcolor: "rgba(239,68,68,0.1)", borderColor: "rgba(239,68,68,0.3)" };
     default:
-      return { color: "#F0F0F0", bgcolor: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.14)" };
+      return { color: "text.primary", bgcolor: "action.hover", borderColor: "divider" };
   }
 }
 
@@ -121,7 +121,7 @@ function signalColors(signalType?: string | null): { color: string; bgcolor: str
     case "news_signal":
       return { color: "#c4b5fd", bgcolor: "rgba(139,92,246,0.1)", borderColor: "rgba(139,92,246,0.3)" };
     default:
-      return { color: "#F0F0F0", bgcolor: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.14)" };
+      return { color: "text.primary", bgcolor: "action.hover", borderColor: "divider" };
   }
 }
 
@@ -550,7 +550,7 @@ const EnriquecerCnpj = () => {
       </Stack>
 
       {/* Search Card */}
-      <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+      <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
         <CardContent sx={{ p: 3 }}>
           <Stack spacing={0.5} mb={2.5}>
             <Stack direction="row" alignItems="center" spacing={1}>
@@ -592,7 +592,7 @@ const EnriquecerCnpj = () => {
               startIcon={isEnriching ? <CircularProgress size={16} color="inherit" /> : <SparklesIcon />}
               sx={{
                 bgcolor: "#0ea5e9",
-                color: "#0F0F0F",
+                color: "grey.900",
                 fontWeight: 600,
                 whiteSpace: "nowrap",
                 minWidth: 160,
@@ -621,7 +621,7 @@ const EnriquecerCnpj = () => {
         <>
           {/* Company Header + Actions */}
           <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xl: "1.5fr 1fr" } }}>
-            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+            <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
               <CardContent sx={{ p: 3 }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2} mb={2.5}>
                   <Box>
@@ -668,7 +668,7 @@ const EnriquecerCnpj = () => {
               </CardContent>
             </Card>
 
-            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+            <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
               <CardContent sx={{ p: 3 }}>
                 <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
                   <TargetIcon sx={{ fontSize: 16, color: "#fcd34d" }} />
@@ -746,36 +746,37 @@ const EnriquecerCnpj = () => {
                 label: "Site",
                 value: empresa.site || "Nao encontrado",
                 Icon: GlobeIcon,
-                color: empresa.site ? "#7dd3fc" : "rgba(240,240,240,0.4)",
+                color: empresa.site ? "#7dd3fc" : "text.disabled",
               },
               {
                 label: "Email final",
                 value: empresa.email_final || empresa.email || "Nao encontrado",
                 Icon: MailIcon,
-                color: empresa.email_final || empresa.email ? "#7dd3fc" : "rgba(240,240,240,0.4)",
+                color: empresa.email_final || empresa.email ? "#7dd3fc" : "text.disabled",
               },
               {
                 label: "Telefone final",
                 value: empresa.telefone_final || empresa.telefone_padrao || "Nao encontrado",
                 Icon: PhoneIcon,
-                color: empresa.telefone_final || empresa.telefone_padrao ? "#F0F0F0" : "rgba(240,240,240,0.4)",
+                color: empresa.telefone_final || empresa.telefone_padrao ? "text.primary" : "text.disabled",
               },
               {
                 label: "WhatsApp final",
                 value: empresa.whatsapp_final || empresa.whatsapp_publico || "Nao encontrado",
                 Icon: Building2Icon,
-                color: empresa.whatsapp_final || empresa.whatsapp_publico ? "#6ee7b7" : "rgba(240,240,240,0.4)",
+                color: empresa.whatsapp_final || empresa.whatsapp_publico ? "#6ee7b7" : "text.disabled",
               },
             ].map((item) => (
-              <Card key={item.label} sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+              <Card key={item.label} sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
                 <CardContent sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, p: 2, "&:last-child": { pb: 2 } }}>
                   <Box
                     sx={{
                       mt: 0.25,
                       p: 1,
                       borderRadius: "10px",
-                      border: "1px solid rgba(255,255,255,0.07)",
-                      bgcolor: "rgba(255,255,255,0.03)",
+                      border: "1px solid",
+                      borderColor: "divider",
+                      bgcolor: "action.hover",
                     }}
                   >
                     <item.Icon sx={{ fontSize: 16, color: item.color }} />
@@ -795,7 +796,7 @@ const EnriquecerCnpj = () => {
 
           {/* Quick Read + Scores */}
           <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xl: "1.3fr 1fr" } }}>
-            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+            <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
               <CardContent sx={{ p: 3 }}>
                 <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
                   <BrainIcon sx={{ fontSize: 16, color: "#c4b5fd" }} />
@@ -826,7 +827,7 @@ const EnriquecerCnpj = () => {
               </CardContent>
             </Card>
 
-            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+            <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="subtitle1" fontWeight={600} mb={0.5}>Scores</Typography>
                 <Typography variant="body2" color="text.secondary" mb={2}>
@@ -857,7 +858,7 @@ const EnriquecerCnpj = () => {
 
           {/* Similar Companies + External Signals */}
           <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xl: "1.05fr 1fr" } }}>
-            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+            <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
               <CardContent sx={{ p: 3 }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2} mb={2}>
                   <Box>
@@ -923,7 +924,7 @@ const EnriquecerCnpj = () => {
               </CardContent>
             </Card>
 
-            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+            <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
               <CardContent sx={{ p: 3 }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2} mb={2}>
                   <Box>
@@ -1016,7 +1017,7 @@ const EnriquecerCnpj = () => {
           {/* Contact Intelligence */}
           {contactIntel ? (
             <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xl: "1.15fr 1fr" } }}>
-              <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+              <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
                 <CardContent sx={{ p: 3 }}>
                   <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
                     <ShieldCheckIcon sx={{ fontSize: 16, color: "#c4b5fd" }} />
@@ -1094,7 +1095,7 @@ const EnriquecerCnpj = () => {
                 </CardContent>
               </Card>
 
-              <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+              <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
                 <CardContent sx={{ p: 3 }}>
                   <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
                     <UsersIcon sx={{ fontSize: 16, color: "#7dd3fc" }} />
@@ -1217,7 +1218,7 @@ const EnriquecerCnpj = () => {
 
           {/* Mobile Waterfall */}
           {mobileWaterfall ? (
-            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+            <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
               <CardContent sx={{ p: 3 }}>
                 <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" alignItems={{ lg: "center" }} gap={2} mb={2}>
                   <Box>

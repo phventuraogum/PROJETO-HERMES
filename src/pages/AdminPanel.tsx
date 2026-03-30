@@ -166,7 +166,7 @@ function KpiCard({ label, value, sub, accent = false }: {
       <Typography sx={labelSx}>{label}</Typography>
       <Typography sx={{
         fontSize: "2rem", fontWeight: 800, letterSpacing: "-0.03em",
-        color: accent ? "#F97316" : "#F0F0F0", lineHeight: 1.1, mt: 0.75,
+        color: accent ? "primary.main" : "text.primary", lineHeight: 1.1, mt: 0.75,
       }}>
         {value}
       </Typography>
@@ -222,7 +222,7 @@ function TabOverview({ orgs, stats }: { orgs: OrgAdmin[]; stats: SystemStats | n
                   </Stack>
                 </Box>
                 <Box component="td" sx={{ py: 1.5, px: 2 }}>
-                  <Typography sx={{ fontSize: "0.75rem", fontFamily: "monospace", color: "#666" }}>{org.slug}</Typography>
+                  <Typography sx={{ fontSize: "0.75rem", fontFamily: "monospace", color: "text.secondary" }}>{org.slug}</Typography>
                 </Box>
                 <Box component="td" sx={{ py: 1.5, px: 2 }}>
                   <Chip
@@ -318,7 +318,7 @@ function TabClientes({
                         ? e.target.value.toLowerCase().replace(/\s/g, "")
                         : e.target.value,
                     }))}
-                    sx={{ "& .MuiOutlinedInput-root": { fontSize: "0.8125rem", bgcolor: "#181818" } }}
+                    sx={{ "& .MuiOutlinedInput-root": { fontSize: "0.8125rem", bgcolor: "background.paper" } }}
                   />
                 </Grid>
               ))}
@@ -387,7 +387,7 @@ function TabClientes({
               <Tooltip title="Remover org">
                 <IconButton size="small"
                   onClick={e => { e.stopPropagation(); handleDelete(org); }}
-                  sx={{ color: "#444", "&:hover": { color: "#ef4444" } }}>
+                  sx={{ color: "text.secondary", "&:hover": { color: "#ef4444" } }}>
                   <DeleteOutlineRoundedIcon sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
@@ -421,7 +421,7 @@ function TabClientes({
                             ...prev,
                             [org.id]: { ...prev[org.id], [f.key]: e.target.value },
                           }))}
-                          sx={{ "& .MuiOutlinedInput-root": { fontSize: "0.75rem", bgcolor: "#181818" } }}
+                          sx={{ "& .MuiOutlinedInput-root": { fontSize: "0.75rem", bgcolor: "background.paper" } }}
                         />
                       </Grid>
                     ))}
@@ -617,14 +617,14 @@ function TabMembros({ orgs }: { orgs: OrgAdmin[] }) {
                       <Tooltip title="Editar papel">
                         <IconButton size="small"
                           onClick={() => { setEditMember(m); setEditRole(m.role); }}
-                          sx={{ color: "#444", "&:hover": { color: "#A0A0A0" } }}>
+                          sx={{ color: "text.secondary", "&:hover": { color: "#A0A0A0" } }}>
                           <EditRoundedIcon sx={{ fontSize: 14 }} />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Remover">
                         <IconButton size="small"
                           onClick={() => handleRemove(m)}
-                          sx={{ color: "#444", "&:hover": { color: "#ef4444" } }}>
+                          sx={{ color: "text.secondary", "&:hover": { color: "#ef4444" } }}>
                           <DeleteOutlineRoundedIcon sx={{ fontSize: 14 }} />
                         </IconButton>
                       </Tooltip>
@@ -647,7 +647,7 @@ function TabMembros({ orgs }: { orgs: OrgAdmin[] }) {
       {/* add dialog */}
       <Dialog open={addOpen} onClose={() => setAddOpen(false)}
         PaperProps={{ sx: { bgcolor: "#141414", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", minWidth: 380 } }}>
-        <DialogTitle sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0", pb: 1 }}>
+        <DialogTitle sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary", pb: 1 }}>
           Adicionar membro
         </DialogTitle>
         <DialogContent sx={{ pt: "8px !important" }}>
@@ -655,12 +655,12 @@ function TabMembros({ orgs }: { orgs: OrgAdmin[] }) {
             <TextField
               size="small" label="E-mail" type="email" fullWidth
               value={addEmail} onChange={e => setAddEmail(e.target.value)}
-              sx={{ "& .MuiOutlinedInput-root": { bgcolor: "#181818", fontSize: "0.8125rem" } }}
+              sx={{ "& .MuiOutlinedInput-root": { bgcolor: "background.paper", fontSize: "0.8125rem" } }}
             />
             <TextField
               select size="small" label="Papel" fullWidth
               value={addRole} onChange={e => setAddRole(e.target.value)}
-              sx={{ "& .MuiOutlinedInput-root": { bgcolor: "#181818", fontSize: "0.8125rem" } }}
+              sx={{ "& .MuiOutlinedInput-root": { bgcolor: "background.paper", fontSize: "0.8125rem" } }}
             >
               {["owner", "admin", "member"].map(r => (
                 <MenuItem key={r} value={r} sx={{ fontSize: "0.8125rem" }}>{r}</MenuItem>
@@ -683,7 +683,7 @@ function TabMembros({ orgs }: { orgs: OrgAdmin[] }) {
       {/* edit role dialog */}
       <Dialog open={!!editMember} onClose={() => setEditMember(null)}
         PaperProps={{ sx: { bgcolor: "#141414", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", minWidth: 320 } }}>
-        <DialogTitle sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0", pb: 1 }}>
+        <DialogTitle sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary", pb: 1 }}>
           Alterar papel
           <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>{editMember?.email}</Typography>
         </DialogTitle>
@@ -691,7 +691,7 @@ function TabMembros({ orgs }: { orgs: OrgAdmin[] }) {
           <TextField
             select size="small" label="Papel" fullWidth
             value={editRole} onChange={e => setEditRole(e.target.value)}
-            sx={{ "& .MuiOutlinedInput-root": { bgcolor: "#181818", fontSize: "0.8125rem" } }}
+            sx={{ "& .MuiOutlinedInput-root": { bgcolor: "background.paper", fontSize: "0.8125rem" } }}
           >
             {["owner", "admin", "member"].map(r => (
               <MenuItem key={r} value={r} sx={{ fontSize: "0.8125rem" }}>{r}</MenuItem>
@@ -769,11 +769,11 @@ function TabSaude({ orgs }: { orgs: OrgAdmin[] }) {
                       <Box sx={{ width: 15, height: 15, borderRadius: "50%", bgcolor: "rgba(255,255,255,0.08)" }} />
                     )}
                     <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#D0D0D0" }}>{org.name}</Typography>
-                    <Typography sx={{ fontSize: "0.6875rem", fontFamily: "monospace", color: "#444" }}>{org.slug}</Typography>
+                    <Typography sx={{ fontSize: "0.6875rem", fontFamily: "monospace", color: "text.secondary" }}>{org.slug}</Typography>
                   </Stack>
 
                   {h?.supabase_url && (
-                    <Typography sx={{ fontSize: "0.6875rem", color: "#444", ml: 3 }}>{h.supabase_url}</Typography>
+                    <Typography sx={{ fontSize: "0.6875rem", color: "text.secondary", ml: 3 }}>{h.supabase_url}</Typography>
                   )}
 
                   {h && !h.reachable && h.error && (
@@ -812,7 +812,7 @@ function TabSaude({ orgs }: { orgs: OrgAdmin[] }) {
                   startIcon={isChecking ? <CircularProgress size={11} color="inherit" /> : undefined}
                   sx={{
                     fontSize: "0.75rem", textTransform: "none", flexShrink: 0,
-                    borderColor: "rgba(255,255,255,0.08)", color: "#666",
+                    borderColor: "rgba(255,255,255,0.08)", color: "text.secondary",
                     "&:hover": { borderColor: "rgba(255,255,255,0.15)", color: "#A0A0A0" },
                   }}
                 >
@@ -1042,7 +1042,7 @@ export default function AdminPanel() {
         {/* header */}
         <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
           <Box>
-            <Typography sx={{ fontSize: "1.25rem", fontWeight: 700, color: "#F0F0F0", letterSpacing: "-0.01em" }}>
+            <Typography sx={{ fontSize: "1.25rem", fontWeight: 700, color: "text.primary", letterSpacing: "-0.01em" }}>
               Central de Controle
             </Typography>
             <Typography sx={{ fontSize: "0.8125rem", color: "#555", mt: 0.25 }}>
@@ -1081,7 +1081,7 @@ export default function AdminPanel() {
               "& .MuiTab-root": {
                 fontSize: "0.8125rem", textTransform: "none", minHeight: 42,
                 color: "#555", gap: 0.75, py: 1,
-                "&.Mui-selected": { color: "#F0F0F0" },
+                "&.Mui-selected": { color: "text.primary" },
               },
               "& .MuiTabs-indicator": { backgroundColor: "#F97316", height: 2 },
             }}

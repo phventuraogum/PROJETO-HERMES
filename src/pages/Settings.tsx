@@ -9,6 +9,7 @@ import KeyIcon from "@mui/icons-material/Key";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import { alpha, useTheme } from "@mui/material/styles";
 import { getCrmKeys, setCrmKey } from "@/lib/api";
 
 const CRM_PROVIDERS = [
@@ -17,13 +18,17 @@ const CRM_PROVIDERS = [
   { id: "rdstation", label: "RD Station", hint: "Access Token — Integrações › API", dot: "#3B82F6", url: "https://app.rdstation.com.br/integrations" },
 ];
 
-const CARD_SX = {
-  borderRadius: 2,
-  border: "1px solid rgba(255,255,255,0.07)",
-  backgroundColor: "#181818",
-};
-
 export default function Settings() {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
+  const cardSx = {
+    borderRadius: 2,
+    border: "1px solid",
+    borderColor: "pinn.border",
+    backgroundColor: "background.paper",
+  };
+
   const [keys, setKeys] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
   const [dirty, setDirty] = useState(false);
@@ -57,43 +62,46 @@ export default function Settings() {
       {/* Page Header */}
       <Box>
         <Typography sx={{
-          fontSize: "0.625rem", fontWeight: 600, color: "#444",
+          fontSize: "0.625rem", fontWeight: 600, color: "text.secondary",
           textTransform: "uppercase", letterSpacing: "0.24em", mb: 0.5,
         }}>
           Conta
         </Typography>
-        <Typography variant="h5" fontWeight={700} sx={{ color: "#F0F0F0", letterSpacing: "-0.02em" }}>
+        <Typography variant="h5" fontWeight={700} sx={{ color: "text.primary", letterSpacing: "-0.02em" }}>
           Configurações
         </Typography>
-        <Typography sx={{ fontSize: "0.85rem", color: "#9A9A9A", mt: 0.5 }}>
+        <Typography sx={{ fontSize: "0.85rem", color: "text.secondary", mt: 0.5 }}>
           Integrações e chaves de API por organização.
         </Typography>
       </Box>
 
       {/* CRM Integrations Card */}
-      <Card sx={{ ...CARD_SX, overflow: "hidden" }}>
+      <Card sx={{ ...cardSx, overflow: "hidden" }}>
         {/* Card header */}
         <Box sx={{
           px: 3, py: 2.5,
-          background: "linear-gradient(135deg, rgba(249,115,22,0.06), rgba(249,115,22,0.02))",
-          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          background: isDark
+            ? "linear-gradient(135deg, rgba(249,115,22,0.06), rgba(249,115,22,0.02))"
+            : "linear-gradient(135deg, rgba(249,115,22,0.1), rgba(249,115,22,0.03))",
+          borderBottom: "1px solid",
+          borderBottomColor: "divider",
         }}>
           <Stack direction="row" alignItems="flex-start" gap={1.5}>
             <Box sx={{
               height: 40, width: 40,
               display: "flex", alignItems: "center", justifyContent: "center",
               borderRadius: 2,
-              backgroundColor: "rgba(249,115,22,0.12)",
-              color: "#F97316",
+              backgroundColor: alpha(theme.palette.primary.main, isDark ? 0.12 : 0.14),
+              color: "primary.main",
               flexShrink: 0,
             }}>
               <KeyIcon sx={{ fontSize: 18 }} />
             </Box>
             <Box>
-              <Typography sx={{ fontSize: "1rem", fontWeight: 600, color: "#F0F0F0" }}>
+              <Typography sx={{ fontSize: "1rem", fontWeight: 600, color: "text.primary" }}>
                 Integrações CRM
               </Typography>
-              <Typography sx={{ mt: 0.5, fontSize: "0.82rem", color: "#9A9A9A" }}>
+              <Typography sx={{ mt: 0.5, fontSize: "0.82rem", color: "text.secondary" }}>
                 Conecte provedores e exporte leads do pipeline com menos atrito.
               </Typography>
             </Box>
@@ -101,22 +109,22 @@ export default function Settings() {
         </Box>
 
         {/* Provider rows */}
-        <Box sx={{ backgroundColor: "#181818" }}>
+        <Box sx={{ backgroundColor: "background.paper" }}>
           {CRM_PROVIDERS.map((provider, idx) => (
             <Box key={provider.id}>
-              {idx > 0 && <Divider sx={{ borderColor: "rgba(255,255,255,0.07)" }} />}
+              {idx > 0 && <Divider sx={{ borderColor: "divider" }} />}
               <Box sx={{ px: 3, py: 2.5 }}>
                 {/* Row header */}
                 <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={2} sx={{ mb: 1 }}>
                   <Stack direction="row" alignItems="center" gap={1}>
                     <Box sx={{ height: 8, width: 8, borderRadius: "50%", backgroundColor: provider.dot, flexShrink: 0 }} />
-                    <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#F0F0F0" }}>
+                    <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "text.primary" }}>
                       {provider.label}
                     </Typography>
                     {saved[provider.id] && keys[provider.id] && (
                       <Stack direction="row" alignItems="center" gap={0.5}>
-                        <CheckCircleIcon sx={{ fontSize: 12, color: "#10b981" }} />
-                        <Typography sx={{ fontSize: "0.68rem", fontWeight: 600, color: "#10b981" }}>
+                        <CheckCircleIcon sx={{ fontSize: 12, color: "success.main" }} />
+                        <Typography sx={{ fontSize: "0.68rem", fontWeight: 600, color: "success.main" }}>
                           Conectado
                         </Typography>
                       </Stack>
@@ -129,9 +137,9 @@ export default function Settings() {
                     underline="none"
                     sx={{
                       display: "inline-flex", alignItems: "center", gap: 0.5,
-                      fontSize: "0.68rem", color: "#9A9A9A",
+                      fontSize: "0.68rem", color: "text.secondary",
                       transition: "color 0.2s",
-                      "&:hover": { color: "#F97316" },
+                      "&:hover": { color: "primary.main" },
                       flexShrink: 0,
                     }}
                   >
@@ -141,7 +149,7 @@ export default function Settings() {
                 </Stack>
 
                 {/* Hint */}
-                <Typography sx={{ mb: 1.5, fontSize: "0.68rem", color: "#9A9A9A" }}>
+                <Typography sx={{ mb: 1.5, fontSize: "0.68rem", color: "text.secondary" }}>
                   {provider.hint}
                 </Typography>
 
@@ -156,15 +164,19 @@ export default function Settings() {
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       height: 40,
-                      backgroundColor: "rgba(255,255,255,0.03)",
+                      backgroundColor: isDark ? alpha("#fff", 0.03) : alpha(theme.palette.common.black, 0.04),
                       borderRadius: 2,
                       fontFamily: "monospace",
                       fontSize: "0.82rem",
-                      "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
-                      "&:hover fieldset": { borderColor: "rgba(255,255,255,0.18)" },
-                      "&.Mui-focused fieldset": { borderColor: "rgba(249,115,22,0.4)", borderWidth: 1 },
-                      "& input": { color: "#F0F0F0" },
-                      "& input::placeholder": { color: "#9A9A9A", opacity: 1 },
+                      "& fieldset": {
+                        borderColor: isDark ? alpha("#fff", 0.1) : alpha(theme.palette.common.black, 0.12),
+                      },
+                      "&:hover fieldset": {
+                        borderColor: isDark ? alpha("#fff", 0.18) : alpha(theme.palette.common.black, 0.2),
+                      },
+                      "&.Mui-focused fieldset": { borderColor: alpha(theme.palette.primary.main, 0.45), borderWidth: 1 },
+                      "& input": { color: "text.primary" },
+                      "& input::placeholder": { color: "text.secondary", opacity: 1 },
                     },
                   }}
                 />
@@ -177,8 +189,9 @@ export default function Settings() {
         <Box sx={{
           display: "flex", justifyContent: "flex-end",
           px: 3, py: 2,
-          borderTop: "1px solid rgba(255,255,255,0.07)",
-          backgroundColor: "rgba(255,255,255,0.02)",
+          borderTop: "1px solid",
+          borderTopColor: "divider",
+          backgroundColor: isDark ? alpha("#fff", 0.02) : alpha(theme.palette.common.black, 0.02),
         }}>
           <Button
             onClick={handleSave}
@@ -187,10 +200,10 @@ export default function Settings() {
             variant="contained"
             startIcon={<SaveIcon sx={{ fontSize: 14 }} />}
             sx={{
-              backgroundColor: "#F97316",
-              "&:hover": { backgroundColor: "#ea6a0a" },
-              "&:disabled": { backgroundColor: "rgba(249,115,22,0.3)", color: "rgba(255,255,255,0.4)" },
-              color: "#fff",
+              backgroundColor: "primary.main",
+              "&:hover": { backgroundColor: "primary.dark" },
+              "&:disabled": { backgroundColor: alpha(theme.palette.primary.main, 0.3), color: alpha(theme.palette.common.white, 0.4) },
+              color: "primary.contrastText",
               fontWeight: 600,
               fontSize: "0.8rem",
               borderRadius: 1.5,

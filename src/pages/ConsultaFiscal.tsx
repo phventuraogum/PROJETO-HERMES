@@ -257,7 +257,7 @@ const ConsultaFiscal = () => {
       </Stack>
 
       {/* Lookup Card */}
-      <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+      <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
         <CardContent sx={{ p: 3 }}>
           <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
             <SearchIcon sx={{ fontSize: 16, color: "#fcd34d" }} />
@@ -288,7 +288,7 @@ const ConsultaFiscal = () => {
               startIcon={isLookingUp ? <CircularProgress size={16} color="inherit" /> : <SearchIcon />}
               sx={{
                 bgcolor: "#eab308",
-                color: "#0F0F0F",
+                color: "grey.900",
                 fontWeight: 600,
                 whiteSpace: "nowrap",
                 minWidth: 180,
@@ -373,7 +373,7 @@ const ConsultaFiscal = () => {
       </Card>
 
       {/* Import Card */}
-      <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+      <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
         <CardContent sx={{ p: 3 }}>
           <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
             <UploadIcon sx={{ fontSize: 16, color: "#67e8f9" }} />
@@ -425,7 +425,7 @@ const ConsultaFiscal = () => {
                 onClick={() => void handleImportFile()}
                 disabled={isImportingFile}
                 startIcon={isImportingFile ? <CircularProgress size={16} color="inherit" /> : <UploadIcon />}
-                sx={{ bgcolor: "#06b6d4", color: "#0F0F0F", fontWeight: 600, "&:hover": { bgcolor: "#22d3ee" } }}
+                sx={{ bgcolor: "#06b6d4", color: "grey.900", fontWeight: 600, "&:hover": { bgcolor: "#22d3ee" } }}
               >
                 Importar arquivo
               </Button>
@@ -513,7 +513,7 @@ const ConsultaFiscal = () => {
         <>
           <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xl: "1.3fr 1fr" } }}>
             {/* Public Reading */}
-            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+            <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
               <CardContent sx={{ p: 3 }}>
                 <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
                   <ShieldCheckIcon sx={{ fontSize: 16, color: "#fcd34d" }} />
@@ -587,7 +587,7 @@ const ConsultaFiscal = () => {
             </Card>
 
             {/* Totals Card */}
-            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+            <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="subtitle1" fontWeight={600} mb={0.5}>Totais</Typography>
                 <Typography variant="body2" color="text.secondary" mb={2}>
@@ -615,7 +615,7 @@ const ConsultaFiscal = () => {
 
           {/* Records */}
           {lookup.records.length > 0 && (
-            <Card sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+            <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="subtitle1" fontWeight={600} mb={0.5}>Inscricoes encontradas</Typography>
                 <Typography variant="body2" color="text.secondary" mb={2}>

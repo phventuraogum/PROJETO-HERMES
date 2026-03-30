@@ -190,18 +190,18 @@ export default function Sidebar() {
                       px: 1.5, py: 0.875,
                       "&.Mui-selected": {
                         backgroundColor: "rgba(249,115,22,0.1)",
-                        "& .MuiListItemText-primary": { color: "#F97316", fontWeight: 600 },
-                        "& .MuiListItemIcon-root": { color: "#F97316" },
+                        "& .MuiListItemText-primary": { color: "primary.main", fontWeight: 600 },
+                        "& .MuiListItemIcon-root": { color: "primary.main" },
                         "&:hover": { backgroundColor: "rgba(249,115,22,0.15)" },
                       },
                     }}
                   >
-                    <ListItemIcon sx={{ minWidth: 32, color: isActive(item.path) ? "#F97316" : "text.secondary" }}>
+                    <ListItemIcon sx={{ minWidth: 32, color: isActive(item.path) ? "primary.main" : "text.secondary" }}>
                       <item.icon sx={{ fontSize: 17 }} />
                     </ListItemIcon>
                     <ListItemText
                       primary={item.label}
-                      primaryTypographyProps={{ fontSize: "0.8125rem", fontWeight: 500, color: isActive(item.path) ? "#F97316" : "text.secondary" }}
+                      primaryTypographyProps={{ fontSize: "0.8125rem", fontWeight: 500, color: isActive(item.path) ? "primary.main" : "text.secondary" }}
                     />
                   </ListItemButton>
                 ))}
@@ -233,17 +233,17 @@ export default function Sidebar() {
                     px: 1.5, py: 0.875,
                     "&.Mui-selected": {
                       backgroundColor: "rgba(249,115,22,0.1)",
-                      "& .MuiListItemText-primary": { color: "#F97316", fontWeight: 600 },
-                      "& .MuiListItemIcon-root": { color: "#F97316" },
+                      "& .MuiListItemText-primary": { color: "primary.main", fontWeight: 600 },
+                      "& .MuiListItemIcon-root": { color: "primary.main" },
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 32, color: isActive(item.path) ? "#F97316" : "text.secondary" }}>
+                  <ListItemIcon sx={{ minWidth: 32, color: isActive(item.path) ? "primary.main" : "text.secondary" }}>
                     <item.icon sx={{ fontSize: 17 }} />
                   </ListItemIcon>
                   <ListItemText
                     primary={item.label}
-                    primaryTypographyProps={{ fontSize: "0.8125rem", fontWeight: 500, color: isActive(item.path) ? "#F97316" : "text.secondary" }}
+                    primaryTypographyProps={{ fontSize: "0.8125rem", fontWeight: 500, color: isActive(item.path) ? "primary.main" : "text.secondary" }}
                   />
                 </ListItemButton>
               ))}
@@ -258,7 +258,7 @@ export default function Sidebar() {
           px: 1, py: 1, borderRadius: "10px",
           "&:hover": { backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)" },
         }}>
-          <Avatar sx={{ width: 30, height: 30, backgroundColor: "rgba(249,115,22,0.15)", color: "#F97316", fontSize: "0.75rem", fontWeight: 700 }}>
+          <Avatar sx={{ width: 30, height: 30, backgroundColor: "rgba(249,115,22,0.15)", color: "primary.main", fontSize: "0.75rem", fontWeight: 700 }}>
             {(userEmail?.[0] ?? "U").toUpperCase()}
           </Avatar>
           <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -272,15 +272,15 @@ export default function Sidebar() {
           <Tooltip title={appTheme === "dark" ? "Modo claro" : "Modo escuro"} placement="top">
             <Box component="span" onClick={toggleTheme} sx={{ cursor: "pointer", display: "flex", alignItems: "center" }}>
               {appTheme === "dark"
-                ? <LightModeRounded sx={{ fontSize: 15, color: "#444", "&:hover": { color: "#F97316" }, transition: "color 0.15s" }} />
-                : <DarkModeRounded  sx={{ fontSize: 15, color: "#888", "&:hover": { color: "#F97316" }, transition: "color 0.15s" }} />
+                ? <LightModeRounded sx={{ fontSize: 15, color: "text.secondary", "&:hover": { color: "primary.main" }, transition: "color 0.15s" }} />
+                : <DarkModeRounded  sx={{ fontSize: 15, color: "text.secondary", "&:hover": { color: "primary.main" }, transition: "color 0.15s" }} />
               }
             </Box>
           </Tooltip>
           <Tooltip title="Sair" placement="top">
             <LogoutRounded
               onClick={handleLogout}
-              sx={{ fontSize: 15, color: "#444", cursor: "pointer", "&:hover": { color: "#EF4444" }, transition: "color 0.15s" }}
+              sx={{ fontSize: 15, color: "text.secondary", cursor: "pointer", "&:hover": { color: "error.main" }, transition: "color 0.15s" }}
             />
           </Tooltip>
         </Stack>

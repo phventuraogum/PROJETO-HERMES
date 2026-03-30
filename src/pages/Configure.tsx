@@ -60,6 +60,8 @@ import {
   type ProgressEvent as HermesProgress,
 } from "@/lib/api";
 import { useOrg } from "@/tenancy/OrgContext";
+import { alpha, useTheme } from "@mui/material/styles";
+import { subtleRowBg } from "@/theme/themeSx";
 
 // ─── constantes ───────────────────────────────────────────────────────────────
 
@@ -129,7 +131,8 @@ function Section({
   return (
     <Card
       sx={{
-        border: "1px solid rgba(255,255,255,0.07)",
+        border: "1px solid",
+        borderColor: "divider",
         bgcolor: "background.paper",
         borderRadius: "12px",
       }}
@@ -150,7 +153,7 @@ function Section({
             border: "none",
             cursor: "pointer",
             textAlign: "left",
-            "&:hover": { bgcolor: "rgba(255,255,255,0.03)" },
+            "&:hover": { bgcolor: "action.hover" },
             transition: "background-color 0.15s",
           }}
         >
@@ -170,7 +173,7 @@ function Section({
             : <ChevronDownIcon sx={{ fontSize: 16, color: "text.secondary" }} />}
         </Box>
       ) : (
-        <Box sx={{ px: 2.5, pt: 2, pb: 1.5, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+        <Box sx={{ px: 2.5, pt: 2, pb: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
           <Stack direction="row" alignItems="center" spacing={1}>
             <Icon sx={{ fontSize: 14, color: "text.secondary" }} />
             <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.62rem", letterSpacing: 2, fontWeight: 700 }}>
@@ -190,7 +193,8 @@ function Section({
             px: 2.5,
             pb: 2.5,
             pt: collapsible ? 2 : 2,
-            borderTop: collapsible ? "1px solid rgba(255,255,255,0.07)" : "none",
+            borderTop: collapsible ? "1px solid" : "none",
+            borderColor: collapsible ? "divider" : undefined,
             "&:last-child": { pb: 2.5 },
           }}
         >
@@ -205,6 +209,17 @@ function Section({
 const Configure = () => {
   const { orgId, currentOrg } = useOrg();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const surfacePanel = subtleRowBg(theme);
+  const surfaceInner = isDark ? alpha(theme.palette.common.white, 0.04) : alpha(theme.palette.common.black, 0.04);
+  const chipOutline = isDark ? alpha(theme.palette.common.white, 0.14) : alpha(theme.palette.common.black, 0.14);
+  const outlineHover = isDark ? alpha(theme.palette.common.white, 0.2) : alpha(theme.palette.common.black, 0.22);
+  const primaryTint10 = alpha(theme.palette.primary.main, 0.1);
+  const primaryTint08 = alpha(theme.palette.primary.main, 0.08);
+  const primaryBorder50 = alpha(theme.palette.primary.main, 0.5);
+  const linearTrackBg = isDark ? alpha(theme.palette.common.white, 0.08) : alpha(theme.palette.common.black, 0.08);
+  const cnaeChipBg = isDark ? alpha(theme.palette.common.white, 0.05) : alpha(theme.palette.common.black, 0.05);
 
   // ── TODOS os estados declarados primeiro ──────────────────────────────────
   const [kommoOpen, setKommoOpen] = useState(true);
@@ -363,15 +378,16 @@ const Configure = () => {
   // ── Resumo das tags ────────────────────────────────────────────────────────
   const tags = useMemo(() => {
     const t: { label: string; color: string; bgcolor: string }[] = [];
-    if (cidades.length > 0) t.push({ label: cidades.join(", "), color: "#0369a1", bgcolor: "rgba(14,165,233,0.1)" });
-    if (ufs.length > 0) t.push({ label: ufs.join(", "), color: "#0369a1", bgcolor: "rgba(14,165,233,0.1)" });
-    portesSelecionados.forEach(p => t.push({ label: p, color: "#7c3aed", bgcolor: "rgba(139,92,246,0.1)" }));
-    segmentosSelecionados.forEach(s => t.push({ label: s, color: "#f97316", bgcolor: "rgba(249,115,22,0.1)" }));
-    if (capitalMinimo > 0 || capitalMaximo) t.push({ label: `${formatBRL(capitalMinimo)} → ${capitalMaximo ? formatBRL(capitalMaximo) : "sem limite"}`, color: "#b45309", bgcolor: "rgba(245,158,11,0.1)" });
-    if (cnaes.length) t.push({ label: `${cnaes.length} CNAE(s)`, color: "#059669", bgcolor: "rgba(16,185,129,0.1)" });
-    if (exigirContatoAcionavel) t.push({ label: "só com contato", color: "#059669", bgcolor: "rgba(16,185,129,0.1)" });
-    if (priorizarComContato) t.push({ label: "prioriza contato", color: "#059669", bgcolor: "rgba(16,185,129,0.1)" });
-    if (enriquecimentoWeb) t.push({ label: "enriquecimento web", color: "#0369a1", bgcolor: "rgba(14,165,233,0.1)" });
+    const a = (hex: string) => alpha(hex, 0.1);
+    if (cidades.length > 0) t.push({ label: cidades.join(", "), color: "#0369a1", bgcolor: a("#0ea5e9") });
+    if (ufs.length > 0) t.push({ label: ufs.join(", "), color: "#0369a1", bgcolor: a("#0ea5e9") });
+    portesSelecionados.forEach(p => t.push({ label: p, color: "#7c3aed", bgcolor: a("#8b5cf6") }));
+    segmentosSelecionados.forEach(s => t.push({ label: s, color: "#f97316", bgcolor: a("#f97316") }));
+    if (capitalMinimo > 0 || capitalMaximo) t.push({ label: `${formatBRL(capitalMinimo)} → ${capitalMaximo ? formatBRL(capitalMaximo) : "sem limite"}`, color: "#b45309", bgcolor: a("#f59e0b") });
+    if (cnaes.length) t.push({ label: `${cnaes.length} CNAE(s)`, color: "#059669", bgcolor: a("#10b981") });
+    if (exigirContatoAcionavel) t.push({ label: "só com contato", color: "#059669", bgcolor: a("#10b981") });
+    if (priorizarComContato) t.push({ label: "prioriza contato", color: "#059669", bgcolor: a("#10b981") });
+    if (enriquecimentoWeb) t.push({ label: "enriquecimento web", color: "#0369a1", bgcolor: a("#0ea5e9") });
     return t;
   }, [cidades, ufs, portesSelecionados, segmentosSelecionados, capitalMinimo, capitalMaximo, cnaes, exigirContatoAcionavel, priorizarComContato, enriquecimentoWeb]);
 
@@ -552,7 +568,7 @@ const Configure = () => {
                   label="Usado em: Pipeline → Enviar pro Kommo"
                   size="small"
                   variant="outlined"
-                  sx={{ borderColor: "rgba(255,255,255,0.14)", color: "text.secondary", fontSize: "0.7rem" }}
+                  sx={{ borderColor: chipOutline, color: "text.secondary", fontSize: "0.7rem" }}
                 />
               </Stack>
             </Grid>
@@ -577,8 +593,9 @@ const Configure = () => {
                     alignItems: "center",
                     gap: 1.5,
                     borderRadius: "8px",
-                    border: "1px solid rgba(255,255,255,0.07)",
-                    bgcolor: "rgba(255,255,255,0.03)",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    bgcolor: surfacePanel,
                     px: 1.5,
                     py: 1.25,
                   }}
@@ -630,19 +647,20 @@ const Configure = () => {
                     alignItems: "center",
                     gap: 1,
                     borderRadius: "8px",
-                    border: "1px solid rgba(255,255,255,0.07)",
-                    bgcolor: "rgba(255,255,255,0.03)",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    bgcolor: surfacePanel,
                     px: 1.5,
                     py: 1.25,
                     fontSize: "0.85rem",
                     fontWeight: 500,
-                    color: "rgba(240,240,240,0.7)",
+                    color: "text.secondary",
                     cursor: "pointer",
                     transition: "all 0.15s",
                     "&:hover": {
-                      borderColor: "rgba(249,115,22,0.5)",
-                      bgcolor: "rgba(249,115,22,0.07)",
-                      color: "#f97316",
+                      borderColor: primaryBorder50,
+                      bgcolor: primaryTint08,
+                      color: "primary.main",
                     },
                   }}
                 >
@@ -701,10 +719,11 @@ const Configure = () => {
                       onDelete={() => setCidades(prev => prev.filter(x => x !== c))}
                       sx={{
                         fontSize: "0.68rem",
-                        bgcolor: "rgba(14,165,233,0.1)",
-                        color: "#38bdf8",
-                        border: "1px solid rgba(14,165,233,0.25)",
-                        "& .MuiChip-deleteIcon": { fontSize: 12, color: "#38bdf8" },
+                        bgcolor: alpha("#0ea5e9", 0.12),
+                        color: isDark ? "#38bdf8" : "#0369a1",
+                        border: "1px solid",
+                        borderColor: alpha("#0ea5e9", 0.35),
+                        "& .MuiChip-deleteIcon": { fontSize: 12, color: isDark ? "#38bdf8" : "#0369a1" },
                       }}
                     />
                   ))}
@@ -742,11 +761,11 @@ const Configure = () => {
                         border: "1px solid",
                         cursor: "pointer",
                         transition: "all 0.12s",
-                        borderColor: on ? "primary.main" : "rgba(255,255,255,0.14)",
-                        bgcolor: on ? "rgba(249,115,22,0.1)" : "rgba(255,255,255,0.03)",
+                        borderColor: on ? "primary.main" : chipOutline,
+                        bgcolor: on ? primaryTint10 : surfacePanel,
                         color: on ? "primary.main" : "text.secondary",
                         "&:hover": {
-                          borderColor: on ? "primary.main" : "rgba(255,255,255,0.3)",
+                          borderColor: on ? "primary.main" : outlineHover,
                           color: on ? "primary.main" : "text.primary",
                         },
                       }}
@@ -822,10 +841,10 @@ const Configure = () => {
                       cursor: "pointer",
                       textAlign: "left",
                       transition: "all 0.12s",
-                      borderColor: on ? "primary.main" : "rgba(255,255,255,0.07)",
-                      bgcolor: on ? "rgba(249,115,22,0.08)" : "rgba(255,255,255,0.02)",
+                      borderColor: on ? "primary.main" : "divider",
+                      bgcolor: on ? primaryTint08 : surfacePanel,
                       color: on ? "primary.main" : "text.secondary",
-                      "&:hover": { borderColor: on ? "primary.main" : "rgba(255,255,255,0.2)" },
+                      "&:hover": { borderColor: on ? "primary.main" : outlineHover },
                     }}
                   >
                     <Typography variant="body2" fontWeight={600} sx={{ color: "inherit" }}>{p.label}</Typography>
@@ -861,10 +880,10 @@ const Configure = () => {
                       fontSize: "0.85rem",
                       fontWeight: 500,
                       transition: "all 0.12s",
-                      borderColor: on ? seg.color : "rgba(255,255,255,0.07)",
-                      bgcolor: on ? `${seg.color}18` : "rgba(255,255,255,0.02)",
-                      color: on ? seg.color : "rgba(240,240,240,0.55)",
-                      "&:hover": { borderColor: on ? seg.color : "rgba(255,255,255,0.2)" },
+                      borderColor: on ? seg.color : "divider",
+                      bgcolor: on ? alpha(seg.color, 0.14) : surfacePanel,
+                      color: on ? seg.color : "text.secondary",
+                      "&:hover": { borderColor: on ? seg.color : outlineHover },
                     }}
                   >
                     <seg.Icon sx={{ fontSize: 16, flexShrink: 0, opacity: on ? 1 : 0.4 }} />
@@ -921,8 +940,9 @@ const Configure = () => {
                     sx={{
                       fontFamily: "monospace",
                       fontSize: "0.68rem",
-                      bgcolor: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.14)",
+                      bgcolor: cnaeChipBg,
+                      border: "1px solid",
+                      borderColor: chipOutline,
                       color: "text.secondary",
                     }}
                   />
@@ -943,7 +963,7 @@ const Configure = () => {
             )}
           </Box>
 
-          <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", my: 2 }} />
+          <Divider sx={{ borderColor: "divider", my: 2 }} />
 
           {/* Subsegmento / nicho */}
           <Box sx={{ mb: 2.5 }}>
@@ -963,7 +983,7 @@ const Configure = () => {
             />
           </Box>
 
-          <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", my: 2 }} />
+          <Divider sx={{ borderColor: "divider", my: 2 }} />
 
           {/* Opções booleanas + limite */}
           <Grid container spacing={1.5}>
@@ -972,8 +992,9 @@ const Configure = () => {
               <Box
                 sx={{
                   borderRadius: "8px",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  bgcolor: "rgba(255,255,255,0.02)",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: surfacePanel,
                   p: 1.5,
                   display: "flex",
                   alignItems: "center",
@@ -1004,8 +1025,9 @@ const Configure = () => {
               <Box
                 sx={{
                   borderRadius: "8px",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  bgcolor: "rgba(255,255,255,0.02)",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: surfacePanel,
                   p: 1.5,
                   display: "flex",
                   alignItems: "center",
@@ -1036,8 +1058,9 @@ const Configure = () => {
               <Box
                 sx={{
                   borderRadius: "8px",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  bgcolor: "rgba(255,255,255,0.02)",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: surfacePanel,
                   p: 1.5,
                   display: "flex",
                   alignItems: "center",
@@ -1068,8 +1091,9 @@ const Configure = () => {
               <Box
                 sx={{
                   borderRadius: "8px",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  bgcolor: "rgba(255,255,255,0.02)",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: surfacePanel,
                   p: 1.5,
                 }}
               >
@@ -1109,8 +1133,9 @@ const Configure = () => {
               <Box
                 sx={{
                   borderRadius: "8px",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  bgcolor: "rgba(255,255,255,0.02)",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: surfacePanel,
                   p: 1.5,
                 }}
               >
@@ -1133,8 +1158,8 @@ const Configure = () => {
                         border: "1px solid",
                         cursor: "pointer",
                         transition: "all 0.12s",
-                        borderColor: limiteEmpresas === n ? "primary.main" : "rgba(255,255,255,0.14)",
-                        bgcolor: limiteEmpresas === n ? "rgba(249,115,22,0.1)" : "rgba(255,255,255,0.03)",
+                        borderColor: limiteEmpresas === n ? "primary.main" : chipOutline,
+                        bgcolor: limiteEmpresas === n ? primaryTint10 : surfacePanel,
                         color: limiteEmpresas === n ? "primary.main" : "text.secondary",
                       }}
                     >
@@ -1164,8 +1189,9 @@ const Configure = () => {
           <Box
             sx={{
               borderRadius: "12px",
-              border: "1px solid rgba(255,255,255,0.07)",
-              bgcolor: "rgba(255,255,255,0.02)",
+              border: "1px solid",
+              borderColor: "divider",
+              bgcolor: surfacePanel,
               p: 2,
             }}
           >
@@ -1186,7 +1212,7 @@ const Configure = () => {
                   <Box
                     sx={{
                       borderRadius: "8px",
-                      bgcolor: "rgba(255,255,255,0.04)",
+                      bgcolor: surfaceInner,
                       px: 1.5,
                       py: 1.25,
                     }}
@@ -1207,8 +1233,9 @@ const Configure = () => {
         <Box
           sx={{
             borderRadius: "12px",
-            border: "1px solid rgba(255,255,255,0.07)",
-            bgcolor: "rgba(255,255,255,0.02)",
+            border: "1px solid",
+            borderColor: "divider",
+            bgcolor: surfacePanel,
             p: 2.5,
           }}
         >
@@ -1261,7 +1288,7 @@ const Configure = () => {
                   sx={{
                     height: 6,
                     borderRadius: 3,
-                    bgcolor: "rgba(255,255,255,0.08)",
+                    bgcolor: linearTrackBg,
                     "& .MuiLinearProgress-bar": {
                       borderRadius: 3,
                       background: "linear-gradient(90deg, #f97316, #10b981)",
@@ -1286,19 +1313,20 @@ const Configure = () => {
                   justifyContent: "space-between",
                   gap: 2,
                   borderRadius: "8px",
-                  border: "1px solid rgba(34,197,94,0.3)",
-                  bgcolor: "rgba(34,197,94,0.08)",
+                  border: "1px solid",
+                  borderColor: alpha(theme.palette.success.main, 0.35),
+                  bgcolor: alpha(theme.palette.success.main, 0.1),
                   px: 2,
                   py: 1.5,
                 }}
               >
                 <Stack direction="row" alignItems="center" spacing={1}>
-                  <CheckCircle2Icon sx={{ fontSize: 16, color: "#22c55e", flexShrink: 0 }} />
-                  <Typography variant="body2" fontWeight={600} sx={{ color: "#4ade80" }}>
+                  <CheckCircle2Icon sx={{ fontSize: 16, color: "success.main", flexShrink: 0 }} />
+                  <Typography variant="body2" fontWeight={600} sx={{ color: "success.light" }}>
                     {resultado.total_empresas} empresas encontradas
                   </Typography>
                   {resultado.enriquecimento_web?.total_com_enriquecimento > 0 && (
-                    <Typography variant="caption" sx={{ color: "rgba(74,222,128,0.7)" }}>
+                    <Typography variant="caption" sx={{ color: "success.main", opacity: 0.85 }}>
                       · {resultado.enriquecimento_web.total_com_enriquecimento} enriquecidas
                     </Typography>
                   )}

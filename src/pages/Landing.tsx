@@ -18,7 +18,7 @@ import {
   LightModeRounded, DarkModeRounded,
 } from "@mui/icons-material";
 import { useTheme as useAppTheme } from "@/theme/ThemeContext";
-import { useTheme as useMuiTheme } from "@mui/material/styles";
+import { alpha, useTheme as useMuiTheme } from "@mui/material/styles";
 import HermesLogo from "@/components/HermesLogo";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { toast, Toaster } from "sonner";
@@ -132,8 +132,9 @@ function SpotlightCard({ children, sx = {} }: { children: React.ReactNode; sx?: 
       onMouseLeave={() => setInside(false)}
       sx={{
         position: "relative", overflow: "hidden", borderRadius: "14px",
-        border: `1px solid ${isLight ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.06)"}`,
-        backgroundColor: isLight ? "#FFFFFF" : "#141414",
+        border: "1px solid",
+        borderColor: isLight ? "rgba(0,0,0,0.07)" : "divider",
+        backgroundColor: isLight ? "background.paper" : "pinn.surface1",
         transition: "border-color 0.2s, box-shadow 0.2s",
         "&:hover": {
           borderColor: "rgba(249,115,22,0.22)",
@@ -183,7 +184,7 @@ function Marquee({ items }: { items: string[] }) {
             }}
           >
             <HubRounded sx={{ fontSize: 14, color: "rgba(249,115,22,0.5)" }} />
-            <Typography sx={{ fontSize: "0.8125rem", color: isLight ? "#666" : "#666" }}>{name}</Typography>
+            <Typography sx={{ fontSize: "0.8125rem", color: "text.secondary" }}>{name}</Typography>
           </Stack>
         ))}
       </Stack>
@@ -194,6 +195,8 @@ function Marquee({ items }: { items: string[] }) {
 /* ── Product demo ───────────────────────────────────────────────────────────── */
 
 function ProductDemo() {
+  const muiTheme = useMuiTheme();
+  const isLight = muiTheme.palette.mode === "light";
   const [activeTab, setActiveTab] = useState(0);
   const tabs = [
     { label: "Prospecção",  Icon: TuneRounded      },
@@ -205,26 +208,38 @@ function ProductDemo() {
       <Box sx={{ position: "absolute", inset: -16, borderRadius: "24px", background: "radial-gradient(ellipse at center, rgba(249,115,22,0.08) 0%, transparent 70%)", filter: "blur(20px)" }} />
       <Box sx={{
         position: "relative", borderRadius: "14px",
-        border: "1px solid rgba(255,255,255,0.08)",
-        backgroundColor: "rgba(20,20,20,0.9)",
+        border: isLight ? "1px solid rgba(0,0,0,0.1)" : "1px solid rgba(255,255,255,0.08)",
+        backgroundColor: isLight ? "background.paper" : "rgba(20,20,20,0.92)",
         overflow: "hidden",
-        boxShadow: "0 40px 100px -30px rgba(0,0,0,0.9)",
+        boxShadow: isLight ? "0 24px 64px -24px rgba(0,0,0,0.12)" : "0 40px 100px -30px rgba(0,0,0,0.9)",
       }}>
         {/* Chrome */}
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 2, py: 1.25, borderBottom: "1px solid rgba(255,255,255,0.07)", backgroundColor: "#0F0F0F" }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{
+          px: 2, py: 1.25,
+          borderBottom: "1px solid",
+          borderColor: isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.07)",
+          backgroundColor: isLight ? "grey.100" : "#0F0F0F",
+        }}>
           <Stack direction="row" gap={0.75}>
             <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#ff5f57" }} />
             <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#febc2e" }} />
             <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#28c840" }} />
           </Stack>
-          <Stack direction="row" alignItems="center" gap={0.75} sx={{ backgroundColor: "rgba(255,255,255,0.04)", borderRadius: "6px", px: 1.5, py: 0.5 }}>
-            <LockRounded sx={{ fontSize: 10, color: "rgba(34,197,94,0.5)" }} />
-            <Typography sx={{ fontSize: "0.6rem", color: "#555", fontFamily: "monospace" }}>hermes.app</Typography>
+          <Stack direction="row" alignItems="center" gap={0.75} sx={{
+            backgroundColor: isLight ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.04)",
+            borderRadius: "6px", px: 1.5, py: 0.5,
+          }}>
+            <LockRounded sx={{ fontSize: 10, color: "rgba(34,197,94,0.55)" }} />
+            <Typography sx={{ fontSize: "0.6rem", color: isLight ? "text.secondary" : "#888", fontFamily: "monospace" }}>hermes.app</Typography>
           </Stack>
           <Box sx={{ width: 64 }} />
         </Stack>
         {/* Tabs */}
-        <Stack direction="row" sx={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <Stack direction="row" sx={{
+          borderBottom: "1px solid",
+          borderColor: isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.06)",
+          backgroundColor: isLight ? "grey.50" : "transparent",
+        }}>
           {tabs.map((t, i) => (
             <Box
               key={i}
@@ -235,9 +250,9 @@ function ProductDemo() {
                 px: 2.5, py: 1.25,
                 fontSize: "0.75rem", fontWeight: 500, cursor: "pointer",
                 borderBottom: "2px solid",
-                borderColor: activeTab === i ? "#F97316" : "transparent",
-                color: activeTab === i ? "#F97316" : "#666",
-                backgroundColor: activeTab === i ? "rgba(249,115,22,0.04)" : "transparent",
+                borderColor: activeTab === i ? "primary.main" : "transparent",
+                color: activeTab === i ? "primary.main" : (isLight ? "text.secondary" : "#888"),
+                backgroundColor: activeTab === i ? "rgba(249,115,22,0.06)" : "transparent",
                 transition: "all 0.15s",
                 mb: "-1px",
               }}
@@ -248,17 +263,27 @@ function ProductDemo() {
           ))}
         </Stack>
         {/* Content */}
-        <Box sx={{ p: { xs: 2.5, md: 3 }, minHeight: 320 }}>
-          {activeTab === 0 && <DemoProspeccao />}
-          {activeTab === 1 && <DemoDashboard />}
-          {activeTab === 2 && <DemoPipeline />}
+        <Box sx={{
+          p: { xs: 2.5, md: 3 }, minHeight: 320,
+          bgcolor: isLight ? "background.paper" : "transparent",
+        }}>
+          {activeTab === 0 && <DemoProspeccao isLight={isLight} />}
+          {activeTab === 1 && <DemoDashboard isLight={isLight} />}
+          {activeTab === 2 && <DemoPipeline isLight={isLight} />}
         </Box>
       </Box>
     </Box>
   );
 }
 
-function DemoProspeccao() {
+function DemoProspeccao({ isLight }: { isLight: boolean }) {
+  const cardBorder = isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.07)";
+  const cardBg = isLight ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.02)";
+  const rowBg = isLight ? "grey.50" : "#0F0F0F";
+  const rowHover = isLight ? "action.hover" : "rgba(255,255,255,0.02)";
+  const titleC = isLight ? "text.primary" : "#E0E0E0";
+  const subC = isLight ? "text.secondary" : "#888";
+  const iconC = isLight ? "text.secondary" : "#666";
   return (
     <Box sx={{ animation: "fadeIn 0.5s ease" }}>
       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1.5, mb: 2 }}>
@@ -268,9 +293,9 @@ function DemoProspeccao() {
           { l: "Score médio", v: "7.4",   c: "#F59E0B" },
           { l: "Enriquecidas", v: "2.219", c: "#38BDF8" },
         ].map((s, i) => (
-          <Box key={i} sx={{ borderRadius: "8px", border: "1px solid rgba(255,255,255,0.07)", backgroundColor: "rgba(255,255,255,0.02)", p: 1.5, textAlign: "center" }}>
+          <Box key={i} sx={{ borderRadius: "8px", border: `1px solid ${cardBorder}`, backgroundColor: cardBg, p: 1.5, textAlign: "center" }}>
             <Typography sx={{ fontSize: "1.125rem", fontWeight: 700, color: s.c }}>{s.v}</Typography>
-            <Typography sx={{ fontSize: "0.6rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.1em", mt: 0.5 }}>{s.l}</Typography>
+            <Typography sx={{ fontSize: "0.6rem", color: subC, textTransform: "uppercase", letterSpacing: "0.1em", mt: 0.5 }}>{s.l}</Typography>
           </Box>
         ))}
       </Box>
@@ -281,15 +306,19 @@ function DemoProspeccao() {
           { n: "EMPRESA GAMA LTDA",  s: 8.1, c: "Curitiba - PR",          seg: "Indústria",  cap: "R$ 1,8M" },
           { n: "EMPRESA DELTA LTDA", s: 7.6, c: "Florianópolis - SC",     seg: "Logística",  cap: "R$ 890K" },
         ].map((r, i) => (
-          <Stack key={i} direction="row" alignItems="center" justifyContent="space-between" sx={{ borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)", backgroundColor: "#0F0F0F", px: 2, py: 1.5, "&:hover": { backgroundColor: "rgba(255,255,255,0.02)" }, transition: "0.15s" }}>
+          <Stack key={i} direction="row" alignItems="center" justifyContent="space-between" sx={{
+            borderRadius: "8px",
+            border: `1px solid ${isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.06)"}`,
+            backgroundColor: rowBg, px: 2, py: 1.5, "&:hover": { backgroundColor: rowHover }, transition: "0.15s",
+          }}>
             <Stack direction="row" alignItems="center" gap={1.5}>
               <Box sx={{ width: 32, height: 32, borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6875rem", fontWeight: 700, backgroundColor: r.s >= 8.5 ? "rgba(34,197,94,0.1)" : "rgba(249,115,22,0.1)", color: r.s >= 8.5 ? "#22C55E" : "#F97316", flexShrink: 0 }}>{r.s}</Box>
               <Box>
-                <Typography sx={{ fontSize: "0.8125rem", fontWeight: 600, color: "#E0E0E0" }}>{r.n}</Typography>
-                <Typography sx={{ fontSize: "0.6rem", color: "#555" }}>{r.c} · {r.seg} · {r.cap}</Typography>
+                <Typography sx={{ fontSize: "0.8125rem", fontWeight: 600, color: titleC }}>{r.n}</Typography>
+                <Typography sx={{ fontSize: "0.6rem", color: subC }}>{r.c} · {r.seg} · {r.cap}</Typography>
               </Box>
             </Stack>
-            <Stack direction="row" gap={0.5} sx={{ color: "#444" }}>
+            <Stack direction="row" gap={0.5} sx={{ color: iconC }}>
               <EmailRounded sx={{ fontSize: 12 }} />
               <MessageRounded sx={{ fontSize: 12 }} />
             </Stack>
@@ -300,8 +329,14 @@ function DemoProspeccao() {
   );
 }
 
-function DemoDashboard() {
+function DemoDashboard({ isLight }: { isLight: boolean }) {
   const bars = [72, 58, 91, 45, 83, 67, 38];
+  const cardBorder = isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.07)";
+  const cardBg = isLight ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.02)";
+  const labelC = isLight ? "text.secondary" : "#555";
+  const axisC = isLight ? "text.secondary" : "#444";
+  const barTrack = isLight ? "rgba(249,115,22,0.25)" : "rgba(249,115,22,0.2)";
+  const barTop = isLight ? "rgba(249,115,22,0.75)" : "rgba(249,115,22,0.6)";
   return (
     <Box sx={{ animation: "fadeIn 0.5s ease" }}>
       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1.5, mb: 2 }}>
@@ -310,19 +345,19 @@ function DemoDashboard() {
           { l: "Taxa WhatsApp", v: "41%", c: "#22C55E" },
           { l: "Com LinkedIn",  v: "28%", c: "#38BDF8" },
         ].map((s, i) => (
-          <Box key={i} sx={{ borderRadius: "8px", border: "1px solid rgba(255,255,255,0.07)", backgroundColor: "rgba(255,255,255,0.02)", p: 1.5, textAlign: "center" }}>
+          <Box key={i} sx={{ borderRadius: "8px", border: `1px solid ${cardBorder}`, backgroundColor: cardBg, p: 1.5, textAlign: "center" }}>
             <Typography sx={{ fontSize: "1.125rem", fontWeight: 700, color: s.c }}>{s.v}</Typography>
-            <Typography sx={{ fontSize: "0.6rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.1em", mt: 0.5 }}>{s.l}</Typography>
+            <Typography sx={{ fontSize: "0.6rem", color: labelC, textTransform: "uppercase", letterSpacing: "0.1em", mt: 0.5 }}>{s.l}</Typography>
           </Box>
         ))}
       </Box>
-      <Box sx={{ borderRadius: "8px", border: "1px solid rgba(255,255,255,0.07)", backgroundColor: "rgba(255,255,255,0.02)", p: 2 }}>
-        <Typography sx={{ fontSize: "0.625rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.1em", mb: 2 }}>Empresas por segmento</Typography>
+      <Box sx={{ borderRadius: "8px", border: `1px solid ${cardBorder}`, backgroundColor: cardBg, p: 2 }}>
+        <Typography sx={{ fontSize: "0.625rem", color: labelC, textTransform: "uppercase", letterSpacing: "0.1em", mb: 2 }}>Empresas por segmento</Typography>
         <Stack direction="row" alignItems="flex-end" gap={1.5} sx={{ height: 80 }}>
           {bars.map((h, i) => (
             <Box key={i} sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5, height: "100%" }}>
-              <Box sx={{ width: "100%", borderRadius: "2px", background: "linear-gradient(to top, rgba(249,115,22,0.6), rgba(249,115,22,0.2))", height: `${h}%`, transition: "height 1s ease", mt: "auto" }} />
-              <Typography sx={{ fontSize: "0.55rem", color: "#444" }}>{["Tec","Sau","Ind","Log","Srv","Var","Out"][i]}</Typography>
+              <Box sx={{ width: "100%", borderRadius: "2px", background: `linear-gradient(to top, ${barTop}, ${barTrack})`, height: `${h}%`, transition: "height 1s ease", mt: "auto" }} />
+              <Typography sx={{ fontSize: "0.55rem", color: axisC }}>{["Tec","Sau","Ind","Log","Srv","Var","Out"][i]}</Typography>
             </Box>
           ))}
         </Stack>
@@ -331,25 +366,30 @@ function DemoDashboard() {
   );
 }
 
-function DemoPipeline() {
+function DemoPipeline({ isLight }: { isLight: boolean }) {
   const cols = [
     { title: "Novo",        count: 12, color: "#60A5FA", bg: "rgba(96,165,250,0.1)"  },
     { title: "Contactado",  count: 8,  color: "#F59E0B", bg: "rgba(245,158,11,0.1)"  },
     { title: "Qualificado", count: 5,  color: "#22C55E", bg: "rgba(34,197,94,0.1)"   },
   ];
+  const colTitle = isLight ? "text.secondary" : "#888";
+  const cardBorder = isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.06)";
+  const cardBg = isLight ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.02)";
+  const sk1 = isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.07)";
+  const sk2 = isLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.04)";
   return (
     <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2, animation: "fadeIn 0.5s ease" }}>
       {cols.map((col, i) => (
         <Box key={i}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
-            <Typography sx={{ fontSize: "0.6875rem", fontWeight: 500, color: "#888" }}>{col.title}</Typography>
+            <Typography sx={{ fontSize: "0.6875rem", fontWeight: 500, color: colTitle }}>{col.title}</Typography>
             <Chip label={col.count} size="small" sx={{ fontSize: "0.5625rem", height: 16, backgroundColor: col.bg, color: col.color, border: "none" }} />
           </Stack>
           <Stack gap={0.75}>
             {Array.from({ length: Math.min(col.count, 3) }).map((_, j) => (
-              <Box key={j} sx={{ borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)", p: 1.5 }}>
-                <Box sx={{ height: 8, width: "75%", borderRadius: 1, backgroundColor: "rgba(255,255,255,0.07)", mb: 1 }} />
-                <Box sx={{ height: 6, width: "50%", borderRadius: 1, backgroundColor: "rgba(255,255,255,0.04)" }} />
+              <Box key={j} sx={{ borderRadius: "6px", border: `1px solid ${cardBorder}`, backgroundColor: cardBg, p: 1.5 }}>
+                <Box sx={{ height: 8, width: "75%", borderRadius: 1, backgroundColor: sk1, mb: 1 }} />
+                <Box sx={{ height: 6, width: "50%", borderRadius: 1, backgroundColor: sk2 }} />
               </Box>
             ))}
           </Stack>
@@ -369,7 +409,7 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
     <Box sx={{
       borderRadius: "10px",
       border: `1px solid ${isLight ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.07)"}`,
-      backgroundColor: isLight ? "#FFFFFF" : "#141414",
+      backgroundColor: isLight ? "background.paper" : "pinn.surface1",
       overflow: "hidden",
     }}>
       <Stack
@@ -397,13 +437,15 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
 /* ── Stat counter ───────────────────────────────────────────────────────────── */
 
 function StatCounter({ end, suffix, label }: { end: number; suffix: string; label: string }) {
+  const muiTheme = useMuiTheme();
+  const isLight = muiTheme.palette.mode === "light";
   const { count, ref } = useCountUp(end);
   return (
     <Box ref={ref} sx={{ textAlign: "center" }}>
-      <Typography sx={{ fontSize: { xs: "1.75rem", md: "2.25rem" }, fontWeight: 800, color: "#F0F0F0", letterSpacing: "-0.02em" }}>
-        {count}<Box component="span" sx={{ color: "#F97316" }}>{suffix}</Box>
+      <Typography sx={{ fontSize: { xs: "1.75rem", md: "2.25rem" }, fontWeight: 800, color: "text.primary", letterSpacing: "-0.02em" }}>
+        {count}<Box component="span" sx={{ color: "primary.main" }}>{suffix}</Box>
       </Typography>
-      <Typography sx={{ fontSize: "0.6875rem", color: "#555", mt: 0.5, textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</Typography>
+      <Typography sx={{ fontSize: "0.6875rem", color: isLight ? "#888" : "#555", mt: 0.5, textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</Typography>
     </Box>
   );
 }
@@ -492,7 +534,12 @@ function SignupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     }
   };
 
-  const fieldSx = { "& .MuiOutlinedInput-root": { backgroundColor: isLight ? "#F5F5F5" : "#181818", fontSize: "0.875rem" } };
+  const fieldSx = {
+    "& .MuiOutlinedInput-root": {
+      backgroundColor: isLight ? "grey.100" : alpha(muiTheme.palette.common.white, 0.04),
+      fontSize: "0.875rem",
+    },
+  };
 
   return (
     <Box sx={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", px: 2 }}>
@@ -501,19 +548,19 @@ function SignupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
         position: "relative", width: "100%", maxWidth: 420,
         borderRadius: "16px",
         border: `1px solid ${isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)"}`,
-        backgroundColor: isLight ? "#FFFFFF" : "#0F0F0F",
+        backgroundColor: isLight ? "background.paper" : "background.default",
         p: 3,
         boxShadow: isLight ? "0 20px 60px rgba(0,0,0,0.15)" : "0 30px 80px -20px rgba(0,0,0,0.95)",
       }}>
-        <IconButton onClick={onClose} size="small" sx={{ position: "absolute", top: 12, right: 12, color: "#888" }}>
+        <IconButton onClick={onClose} size="small" sx={{ position: "absolute", top: 12, right: 12, color: "text.secondary" }}>
           <CloseRounded sx={{ fontSize: 16 }} />
         </IconButton>
 
         <Stack direction="row" alignItems="center" gap={1.5} mb={3}>
           <HermesLogo size={36} />
           <Box>
-            <Typography sx={{ fontWeight: 700, fontSize: "0.9375rem", color: isLight ? "#0A0A0A" : "#F0F0F0" }}>Criar conta</Typography>
-            <Typography sx={{ fontSize: "0.6875rem", color: "#888" }}>Acesso à plataforma Hermes</Typography>
+            <Typography sx={{ fontWeight: 700, fontSize: "0.9375rem", color: "text.primary" }}>Criar conta</Typography>
+            <Typography sx={{ fontSize: "0.6875rem", color: "text.secondary" }}>Acesso à plataforma Hermes</Typography>
           </Box>
         </Stack>
 
@@ -521,18 +568,18 @@ function SignupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
           <Stack gap={1.5}>
             <TextField size="small" label="Nome *" value={name} onChange={e => setName(e.target.value)}
               placeholder="Seu nome" required fullWidth
-              InputProps={{ startAdornment: <PersonRounded sx={{ fontSize: 16, color: "#888", mr: 1 }} /> }}
+              InputProps={{ startAdornment: <PersonRounded sx={{ fontSize: 16, color: "text.secondary", mr: 1 }} /> }}
               sx={fieldSx} />
             <TextField size="small" type="email" label="E-mail *" value={email} onChange={e => setEmail(e.target.value)}
               placeholder="seu@email.com" required fullWidth
-              InputProps={{ startAdornment: <EmailRounded sx={{ fontSize: 16, color: "#888", mr: 1 }} /> }}
+              InputProps={{ startAdornment: <EmailRounded sx={{ fontSize: 16, color: "text.secondary", mr: 1 }} /> }}
               sx={fieldSx} />
             <TextField size="small" type={showPw ? "text" : "password"} label="Senha *" value={password} onChange={e => setPassword(e.target.value)}
               placeholder="Mínimo 6 caracteres" required fullWidth
               InputProps={{
-                startAdornment: <LockRounded sx={{ fontSize: 16, color: "#888", mr: 1 }} />,
+                startAdornment: <LockRounded sx={{ fontSize: 16, color: "text.secondary", mr: 1 }} />,
                 endAdornment: (
-                  <IconButton size="small" onClick={() => setShowPw(!showPw)} sx={{ color: "#888" }}>
+                  <IconButton size="small" onClick={() => setShowPw(!showPw)} sx={{ color: "text.secondary" }}>
                     {showPw ? <VisibilityOffRounded sx={{ fontSize: 16 }} /> : <VisibilityRounded sx={{ fontSize: 16 }} />}
                   </IconButton>
                 ),
@@ -540,7 +587,7 @@ function SignupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               sx={fieldSx} />
             <TextField size="small" label="Empresa" value={orgName} onChange={e => setOrgName(e.target.value)}
               placeholder="Opcional" fullWidth
-              InputProps={{ startAdornment: <BusinessRounded sx={{ fontSize: 16, color: "#888", mr: 1 }} /> }}
+              InputProps={{ startAdornment: <BusinessRounded sx={{ fontSize: 16, color: "text.secondary", mr: 1 }} /> }}
               sx={fieldSx} />
 
             <Button type="submit" variant="contained" fullWidth disabled={loading}
@@ -549,10 +596,10 @@ function SignupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               {loading ? "Criando conta..." : "Criar conta"}
             </Button>
 
-            <Typography sx={{ textAlign: "center", fontSize: "0.6875rem", color: "#888" }}>
+            <Typography sx={{ textAlign: "center", fontSize: "0.6875rem", color: "text.secondary" }}>
               Já tem conta?{" "}
               <Box component="button" type="button" onClick={() => { onClose(); window.location.href = "/login"; }}
-                sx={{ color: "#F97316", fontWeight: 600, cursor: "pointer", background: "none", border: "none", p: 0, "&:hover": { textDecoration: "underline" } }}>
+                sx={{ color: "primary.main", fontWeight: 600, cursor: "pointer", background: "none", border: "none", p: 0, "&:hover": { textDecoration: "underline" } }}>
                 Entrar
               </Box>
             </Typography>
@@ -770,12 +817,12 @@ export default function Landing() {
                     <Box sx={{ width: 40, height: 40, borderRadius: "10px", background: s.gradient, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <s.Icon sx={{ fontSize: 19, color: "#fff" }} />
                     </Box>
-                    <Typography sx={{ fontSize: "1.75rem", fontWeight: 900, color: "rgba(255,255,255,0.05)", letterSpacing: "-0.04em", lineHeight: 1, fontFamily: "monospace" }}>
+                    <Typography sx={{ fontSize: "1.75rem", fontWeight: 900, color: isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.05)", letterSpacing: "-0.04em", lineHeight: 1, fontFamily: "monospace" }}>
                       {s.num}
                     </Typography>
                   </Stack>
-                  <Typography sx={{ fontWeight: 700, fontSize: "0.9375rem", color: "#E0E0E0", mb: 1.5 }}>{s.title}</Typography>
-                  <Typography sx={{ fontSize: "0.8125rem", color: "#555", lineHeight: 1.75 }}>{s.desc}</Typography>
+                  <Typography sx={{ fontWeight: 700, fontSize: "0.9375rem", color: lp.text2, mb: 1.5 }}>{s.title}</Typography>
+                  <Typography sx={{ fontSize: "0.8125rem", color: isLight ? "#666" : "#555", lineHeight: 1.75 }}>{s.desc}</Typography>
                 </SpotlightCard>
               </FadeIn>
             ))}
@@ -802,8 +849,8 @@ export default function Landing() {
                   <Box sx={{ width: 36, height: 36, borderRadius: "9px", backgroundColor: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.1)", display: "flex", alignItems: "center", justifyContent: "center", mb: 2 }}>
                     <f.Icon sx={{ fontSize: 17, color: "#F97316" }} />
                   </Box>
-                  <Typography sx={{ fontSize: "0.875rem", fontWeight: 700, color: "#E0E0E0", mb: 0.75 }}>{f.title}</Typography>
-                  <Typography sx={{ fontSize: "0.7875rem", color: "#555", lineHeight: 1.7 }}>{f.desc}</Typography>
+                  <Typography sx={{ fontSize: "0.875rem", fontWeight: 700, color: lp.text2, mb: 0.75 }}>{f.title}</Typography>
+                  <Typography sx={{ fontSize: "0.7875rem", color: isLight ? "#666" : "#555", lineHeight: 1.7 }}>{f.desc}</Typography>
                 </SpotlightCard>
               </FadeIn>
             ))}
@@ -829,8 +876,8 @@ export default function Landing() {
                   <Box sx={{ width: 44, height: 44, borderRadius: "12px", backgroundColor: "rgba(249,115,22,0.07)", border: "1px solid rgba(249,115,22,0.1)", display: "flex", alignItems: "center", justifyContent: "center", mb: 2.5 }}>
                     <p.Icon sx={{ fontSize: 20, color: "#F97316" }} />
                   </Box>
-                  <Typography sx={{ fontWeight: 700, fontSize: "0.9375rem", color: "#E0E0E0", mb: 1.5 }}>{p.role}</Typography>
-                  <Typography sx={{ fontSize: "0.8125rem", color: "#555", lineHeight: 1.75 }}>{p.desc}</Typography>
+                  <Typography sx={{ fontWeight: 700, fontSize: "0.9375rem", color: lp.text2, mb: 1.5 }}>{p.role}</Typography>
+                  <Typography sx={{ fontSize: "0.8125rem", color: isLight ? "#666" : "#555", lineHeight: 1.75 }}>{p.desc}</Typography>
                 </SpotlightCard>
               </FadeIn>
             ))}
@@ -854,16 +901,16 @@ export default function Landing() {
               <FadeIn key={i} delay={i * 100}>
                 <SpotlightCard sx={{ p: 3.5, height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                   <Box>
-                    <Typography sx={{ fontSize: "2.5rem", fontWeight: 900, color: "rgba(249,115,22,0.15)", lineHeight: 0.8, mb: 2, fontFamily: "Georgia, serif" }}>"</Typography>
-                    <Typography sx={{ fontSize: "0.875rem", color: "#777", lineHeight: 1.8, fontStyle: "italic" }}>{t.text}</Typography>
+                    <Typography sx={{ fontSize: "2.5rem", fontWeight: 900, color: "rgba(249,115,22,0.2)", lineHeight: 0.8, mb: 2, fontFamily: "Georgia, serif" }}>"</Typography>
+                    <Typography sx={{ fontSize: "0.875rem", color: isLight ? "#555" : "#888", lineHeight: 1.8, fontStyle: "italic" }}>{t.text}</Typography>
                   </Box>
-                  <Stack direction="row" alignItems="center" gap={1.5} sx={{ borderTop: "1px solid rgba(255,255,255,0.05)", pt: 2.5, mt: 3 }}>
+                  <Stack direction="row" alignItems="center" gap={1.5} sx={{ borderTop: `1px solid ${isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.05)"}`, pt: 2.5, mt: 3 }}>
                     <Box sx={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg, rgba(249,115,22,0.25), rgba(245,158,11,0.25))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6875rem", fontWeight: 700, color: "#F97316", flexShrink: 0 }}>
                       {t.name[0]}
                     </Box>
                     <Box>
-                      <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: "#C8C8C8" }}>{t.name}</Typography>
-                      <Typography sx={{ fontSize: "0.625rem", color: "#444", letterSpacing: "0.04em" }}>{t.role}</Typography>
+                      <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: isLight ? "#1A1A1A" : "#C8C8C8" }}>{t.name}</Typography>
+                      <Typography sx={{ fontSize: "0.625rem", color: isLight ? "#888" : "#555", letterSpacing: "0.04em" }}>{t.role}</Typography>
                     </Box>
                   </Stack>
                 </SpotlightCard>

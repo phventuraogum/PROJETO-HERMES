@@ -112,7 +112,7 @@ const Header = () => {
               cursor: "default",
             }}
           >
-            <Avatar sx={{ width: 26, height: 26, backgroundColor: "rgba(249,115,22,0.2)", color: "#F97316", fontSize: "0.6875rem", fontWeight: 700 }}>
+            <Avatar sx={{ width: 26, height: 26, backgroundColor: "rgba(249,115,22,0.2)", color: "primary.main", fontSize: "0.6875rem", fontWeight: 700 }}>
               {initials}
             </Avatar>
             <Box sx={{ display: { xs: "none", sm: "block" }, minWidth: 0 }}>

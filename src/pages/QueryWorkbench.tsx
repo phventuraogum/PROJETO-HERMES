@@ -332,7 +332,7 @@ const QueryWorkbench = () => {
 
   const SECTION_CARD_SX = {
     border: "1px solid rgba(255,255,255,0.07)",
-    bgcolor: "#181818",
+    bgcolor: "background.paper",
     borderRadius: "12px",
   };
 
@@ -392,7 +392,7 @@ const QueryWorkbench = () => {
               onClick={() => void handleTranslateQuery()}
               disabled={translatingPrompt}
               startIcon={translatingPrompt ? <CircularProgress size={16} color="inherit" /> : <SparklesIcon />}
-              sx={{ bgcolor: "#06b6d4", color: "#0F0F0F", fontWeight: 600, "&:hover": { bgcolor: "#22d3ee" } }}
+              sx={{ bgcolor: "#06b6d4", color: "grey.900", fontWeight: 600, "&:hover": { bgcolor: "#22d3ee" } }}
             >
               Aplicar query IA
             </Button>
@@ -669,7 +669,7 @@ const QueryWorkbench = () => {
                   onClick={() => void handleRun()}
                   disabled={isRunning}
                   startIcon={isRunning ? <CircularProgress size={16} color="inherit" /> : <PlayIcon />}
-                  sx={{ bgcolor: "#F97316", color: "#0F0F0F", fontWeight: 600, "&:hover": { bgcolor: "#fb923c" } }}
+                  sx={{ bgcolor: "#F97316", color: "grey.900", fontWeight: 600, "&:hover": { bgcolor: "#fb923c" } }}
                 >
                   Rodar query
                 </Button>
@@ -874,7 +874,7 @@ const QueryWorkbench = () => {
         onClose={() => setSaveDialogOpen(false)}
         PaperProps={{
           sx: {
-            bgcolor: "#181818",
+            bgcolor: "background.paper",
             border: "1px solid rgba(255,255,255,0.07)",
             borderRadius: "12px",
             minWidth: { sm: 480 },
@@ -916,7 +916,7 @@ const QueryWorkbench = () => {
             onClick={() => void handleSaveSearch()}
             disabled={savingSearch}
             startIcon={savingSearch ? <CircularProgress size={16} color="inherit" /> : <BookmarkPlusIcon />}
-            sx={{ bgcolor: "#F97316", color: "#0F0F0F", fontWeight: 600, "&:hover": { bgcolor: "#fb923c" } }}
+            sx={{ bgcolor: "#F97316", color: "grey.900", fontWeight: 600, "&:hover": { bgcolor: "#fb923c" } }}
           >
             Salvar agora
           </Button>

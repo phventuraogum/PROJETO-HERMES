@@ -29,6 +29,7 @@ import {
 import { MensagemModal } from "@/components/MensagemModal";
 import { CrmExportModal } from "@/components/CrmExportModal";
 import { toast } from "sonner";
+import { alpha, useTheme } from "@mui/material/styles";
 
 /* ── Colunas ─────────────────────────────────────────────────────────────── */
 type Coluna = {
@@ -71,13 +72,14 @@ function LeadCard({ lead, onMove, onRemove, onDetail, isDragging, onDragStart, o
       onClick={() => onDetail(lead)}
       sx={{
         borderRadius: "10px",
-        border: "1px solid rgba(255,255,255,0.07)",
-        backgroundColor: "#202020",
+        border: "1px solid",
+        borderColor: "divider",
+        backgroundColor: "background.paper",
         cursor: "pointer",
         opacity: isDragging ? 0.4 : 1,
         transform: isDragging ? "rotate(1deg) scale(0.95)" : "none",
         transition: "all 0.15s",
-        "&:hover": { borderColor: "rgba(255,255,255,0.14)", backgroundColor: "#242424" },
+        "&:hover": { borderColor: "divider", backgroundColor: "action.hover" },
         mb: 0,
       }}
     >
@@ -90,14 +92,14 @@ function LeadCard({ lead, onMove, onRemove, onDetail, isDragging, onDragStart, o
               fontWeight={500}
               sx={{
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                color: "#F0F0F0", lineHeight: 1.3, fontSize: 13,
+                color: "text.primary", lineHeight: 1.3, fontSize: 13,
               }}
             >
               {emp.nome_fantasia || emp.razao_social}
             </Typography>
             <Stack direction="row" alignItems="center" gap={0.5} sx={{ mt: 0.25 }}>
-              <LocationOnIcon sx={{ fontSize: 10, color: "#9A9A9A", flexShrink: 0 }} />
-              <Typography variant="caption" sx={{ color: "#9A9A9A", fontSize: 10 }}>
+              <LocationOnIcon sx={{ fontSize: 10, color: "text.secondary", flexShrink: 0 }} />
+              <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 10 }}>
                 {emp.cidade || "—"} / {emp.uf || "—"}
               </Typography>
             </Stack>
@@ -122,7 +124,7 @@ function LeadCard({ lead, onMove, onRemove, onDetail, isDragging, onDragStart, o
               open={Boolean(menuAnchor)}
               onClose={() => setMenuAnchor(null)}
               onClick={e => e.stopPropagation()}
-              PaperProps={{ sx: { backgroundColor: "#282828", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 1.5, minWidth: 160 } }}
+              PaperProps={{ sx: { backgroundColor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: 1.5, minWidth: 160 } }}
             >
               <MenuItem onClick={() => { setMenuAnchor(null); onDetail(lead); }} sx={{ fontSize: 12 }}>Ver detalhes</MenuItem>
               {COLUNAS.filter(c => c.id !== lead.estagio).map(c => (
@@ -130,7 +132,7 @@ function LeadCard({ lead, onMove, onRemove, onDetail, isDragging, onDragStart, o
                   Mover: {c.label}
                 </MenuItem>
               ))}
-              <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", my: 0.5 }} />
+              <Divider sx={{ borderColor: "divider", my: 0.5 }} />
               <MenuItem
                 onClick={() => { setMenuAnchor(null); onRemove(lead.id); }}
                 sx={{ fontSize: 12, color: "#f87171" }}
@@ -146,14 +148,14 @@ function LeadCard({ lead, onMove, onRemove, onDetail, isDragging, onDragStart, o
           <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 1 }}>
             {emp.segmento && (
               <Chip label={emp.segmento} size="small" variant="outlined" sx={{
-                fontSize: 9, height: 16, borderColor: "rgba(255,255,255,0.10)",
-                color: "#9A9A9A", "& .MuiChip-label": { px: 0.75 },
+                fontSize: 9, height: 16, borderColor: "divider",
+                color: "text.secondary", "& .MuiChip-label": { px: 0.75 },
               }} />
             )}
             {emp.porte && (
               <Chip label={emp.porte} size="small" variant="outlined" sx={{
-                fontSize: 9, height: 16, borderColor: "rgba(255,255,255,0.10)",
-                color: "#9A9A9A", "& .MuiChip-label": { px: 0.75 },
+                fontSize: 9, height: 16, borderColor: "divider",
+                color: "text.secondary", "& .MuiChip-label": { px: 0.75 },
               }} />
             )}
           </Stack>
@@ -173,8 +175,8 @@ function LeadCard({ lead, onMove, onRemove, onDetail, isDragging, onDragStart, o
               </Box>
             )}
             {(emp.telefone_padrao || emp.telefone_receita) && (
-              <Box sx={{ width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 0.75, backgroundColor: "#202020", border: "1px solid rgba(255,255,255,0.10)" }}>
-                <PhoneIcon sx={{ fontSize: 10, color: "#9A9A9A" }} />
+              <Box sx={{ width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 0.75, backgroundColor: "action.hover", border: "1px solid", borderColor: "divider" }}>
+                <PhoneIcon sx={{ fontSize: 10, color: "text.secondary" }} />
               </Box>
             )}
             {emp.site && (
@@ -206,10 +208,10 @@ function LeadCard({ lead, onMove, onRemove, onDetail, isDragging, onDragStart, o
         {/* Nota */}
         {lead.nota && (
           <Typography variant="caption" sx={{
-            display: "-webkit-box", color: "#9A9A9A", mt: 1, fontStyle: "italic",
+            display: "-webkit-box", color: "text.secondary", mt: 1, fontStyle: "italic",
             overflow: "hidden", WebkitLineClamp: 2,
             WebkitBoxOrient: "vertical", fontSize: 10,
-            borderTop: "1px solid rgba(255,255,255,0.07)", pt: 1,
+            borderTop: "1px solid", borderColor: "divider", pt: 1,
           }}>
             {lead.nota}
           </Typography>
@@ -226,6 +228,8 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
   onNotaChange: (id: string, nota: string) => void;
   onEnviarSDR: (id: string) => void; sdrLoading: boolean;
 }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const [nota, setNota] = useState(lead?.nota ?? "");
   const [mensagemOpen, setMensagemOpen] = useState(false);
   const [crmOpen, setCrmOpen] = useState(false);
@@ -243,17 +247,17 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
         onClose={onClose}
         PaperProps={{
           sx: {
-            width: { xs: "100%", sm: 420 }, backgroundColor: "#181818",
-            border: "1px solid rgba(255,255,255,0.07)", overflowY: "auto",
+            width: { xs: "100%", sm: 420 }, backgroundColor: "background.paper",
+            border: "1px solid", borderColor: "divider", overflowY: "auto",
           },
         }}
       >
         {/* Header */}
-        <Box sx={{ p: 2.5, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ color: "#F0F0F0", lineHeight: 1.3 }}>
+        <Box sx={{ p: 2.5, borderBottom: "1px solid", borderColor: "divider" }}>
+          <Typography variant="subtitle1" fontWeight={700} sx={{ color: "text.primary", lineHeight: 1.3 }}>
             {emp.nome_fantasia || emp.razao_social}
           </Typography>
-          <Typography variant="caption" sx={{ color: "#9A9A9A", fontFamily: "monospace" }}>
+          <Typography variant="caption" sx={{ color: "text.secondary", fontFamily: "monospace" }}>
             {emp.cnpj}
           </Typography>
         </Box>
@@ -274,9 +278,9 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
                       borderRadius: "99px", border: "1px solid",
                       cursor: "pointer", transition: "all 0.15s",
                       backgroundColor: active ? c.badgeBg : "transparent",
-                      borderColor: active ? c.dotColor : "rgba(255,255,255,0.12)",
-                      color: active ? c.badgeColor : "#9A9A9A",
-                      "&:hover": { borderColor: active ? c.dotColor : "rgba(249,115,22,0.4)", color: "#F0F0F0" },
+                      borderColor: active ? c.dotColor : "divider",
+                      color: active ? c.badgeColor : "text.secondary",
+                      "&:hover": { borderColor: active ? c.dotColor : "primary.main", color: "text.primary" },
                     }}
                   >
                     {c.label}
@@ -305,7 +309,7 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
             )}
 
             {/* Dados */}
-            <Card sx={{ borderRadius: 2, border: "1px solid rgba(255,255,255,0.07)", backgroundColor: "#202020" }}>
+            <Card sx={{ borderRadius: 2, border: "1px solid", borderColor: "divider", backgroundColor: "background.paper" }}>
               <CardContent sx={{ p: "14px !important" }}>
                 <Stack spacing={1}>
                   {[
@@ -319,10 +323,10 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
                     ["Sócios", emp.socios_resumo],
                   ].filter(([, v]) => v).map(([k, v]) => (
                     <Stack key={k as string} direction="row" gap={1.5}>
-                      <Typography variant="caption" sx={{ color: "#9A9A9A", minWidth: 90, flexShrink: 0, fontSize: 11 }}>
+                      <Typography variant="caption" sx={{ color: "text.secondary", minWidth: 90, flexShrink: 0, fontSize: 11 }}>
                         {k}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#F0F0F0", wordBreak: "break-all", fontSize: 11 }}>
+                      <Typography variant="caption" sx={{ color: "text.primary", wordBreak: "break-all", fontSize: 11 }}>
                         {v as string}
                       </Typography>
                     </Stack>
@@ -332,11 +336,11 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
             </Card>
 
             {/* Contatos */}
-            <Card sx={{ borderRadius: 2, border: "1px solid rgba(255,255,255,0.07)", backgroundColor: "#202020" }}>
+            <Card sx={{ borderRadius: 2, border: "1px solid", borderColor: "divider", backgroundColor: "background.paper" }}>
               <CardContent sx={{ p: "14px !important" }}>
                 <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 1.5 }}>
                   <SendIcon sx={{ fontSize: 13, color: "#a78bfa" }} />
-                  <Typography variant="caption" fontWeight={700} sx={{ color: "#9A9A9A", textTransform: "uppercase", letterSpacing: 0.5, fontSize: 10 }}>
+                  <Typography variant="caption" fontWeight={700} sx={{ color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5, fontSize: 10 }}>
                     Contatos disponíveis
                   </Typography>
                 </Stack>
@@ -351,16 +355,16 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
                   ].filter(c => c.value).map(c => (
                     <Stack key={c.label} direction="row" alignItems="center" gap={1}>
                       <c.IconComp sx={{ fontSize: 13, color: c.color, flexShrink: 0 }} />
-                      <Typography variant="caption" sx={{ color: "#9A9A9A", minWidth: 130, flexShrink: 0, fontSize: 11 }}>
+                      <Typography variant="caption" sx={{ color: "text.secondary", minWidth: 130, flexShrink: 0, fontSize: 11 }}>
                         {c.label}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "#F0F0F0", wordBreak: "break-all", fontSize: 11 }}>
+                      <Typography variant="caption" sx={{ color: "text.primary", wordBreak: "break-all", fontSize: 11 }}>
                         {c.value}
                       </Typography>
                     </Stack>
                   ))}
                   {!temContatoSDR && (
-                    <Typography variant="caption" sx={{ color: "rgba(154,154,154,0.6)", fontStyle: "italic", fontSize: 11 }}>
+                    <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic", fontSize: 11 }}>
                       Nenhum contato disponível
                     </Typography>
                   )}
@@ -370,7 +374,7 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
 
             {/* Nota */}
             <Box>
-              <Typography variant="caption" fontWeight={700} sx={{ color: "#9A9A9A", display: "block", mb: 0.75, textTransform: "uppercase", letterSpacing: 0.5, fontSize: 10 }}>
+              <Typography variant="caption" fontWeight={700} sx={{ color: "text.secondary", display: "block", mb: 0.75, textTransform: "uppercase", letterSpacing: 0.5, fontSize: 10 }}>
                 Notas internas
               </Typography>
               <TextField
@@ -384,20 +388,21 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
                 size="small"
                 sx={{
                   "& .MuiOutlinedInput-root": {
-                    fontSize: 12, backgroundColor: "rgba(255,255,255,0.03)",
-                    "& fieldset": { borderColor: "rgba(255,255,255,0.10)" },
-                    "&:hover fieldset": { borderColor: "rgba(255,255,255,0.20)" },
-                    "&.Mui-focused fieldset": { borderColor: "rgba(249,115,22,0.4)" },
+                    fontSize: 12,
+                    backgroundColor: isDark ? alpha(theme.palette.common.white, 0.04) : alpha(theme.palette.common.black, 0.04),
+                    "& fieldset": { borderColor: isDark ? alpha(theme.palette.common.white, 0.12) : alpha(theme.palette.common.black, 0.14) },
+                    "&:hover fieldset": { borderColor: isDark ? alpha(theme.palette.common.white, 0.22) : alpha(theme.palette.common.black, 0.22) },
+                    "&.Mui-focused fieldset": { borderColor: alpha(theme.palette.primary.main, 0.45) },
                   },
-                  "& .MuiInputBase-input": { color: "#F0F0F0" },
-                  "& .MuiInputBase-input::placeholder": { color: "rgba(154,154,154,0.5)", opacity: 1 },
+                  "& .MuiInputBase-input": { color: "text.primary" },
+                  "& .MuiInputBase-input::placeholder": { color: "text.secondary", opacity: 0.7 },
                 }}
               />
             </Box>
 
             {/* Ações */}
             <Box>
-              <Typography variant="caption" fontWeight={700} sx={{ color: "#9A9A9A", display: "block", mb: 1, textTransform: "uppercase", letterSpacing: 0.5, fontSize: 10 }}>
+              <Typography variant="caption" fontWeight={700} sx={{ color: "text.secondary", display: "block", mb: 1, textTransform: "uppercase", letterSpacing: 0.5, fontSize: 10 }}>
                 Ações
               </Typography>
               <Stack direction="row" flexWrap="wrap" gap={1}>
@@ -454,6 +459,8 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
 
 /* ── PRINCIPAL ────────────────────────────────────────────────────────────── */
 const Pipeline = () => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const navigate = useNavigate();
   const [leads, setLeads] = useState<LeadPipeline[]>([]);
   const [loading, setLoading] = useState(true);
@@ -527,7 +534,7 @@ const Pipeline = () => {
     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", py: 16 }}>
       <Stack direction="row" alignItems="center" gap={1.5}>
         <CircularProgress size={16} sx={{ color: "#F97316" }} />
-        <Typography variant="body2" sx={{ color: "#9A9A9A" }}>Carregando pipeline...</Typography>
+        <Typography variant="body2" sx={{ color: "text.secondary" }}>Carregando pipeline...</Typography>
       </Stack>
     </Box>
   );
@@ -536,14 +543,14 @@ const Pipeline = () => {
     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", py: 16, gap: 2.5 }}>
       <Box sx={{
         width: 64, height: 64, borderRadius: 3,
-        backgroundColor: "#202020", border: "1px solid rgba(255,255,255,0.07)",
+        backgroundColor: "background.paper", border: "1px solid", borderColor: "divider",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        <TrackChangesIcon sx={{ fontSize: 32, color: "#9A9A9A" }} />
+        <TrackChangesIcon sx={{ fontSize: 32, color: "text.secondary" }} />
       </Box>
       <Box sx={{ textAlign: "center" }}>
-        <Typography variant="h6" fontWeight={700} sx={{ color: "#F0F0F0" }}>Pipeline vazio</Typography>
-        <Typography variant="body2" sx={{ color: "#9A9A9A", mt: 0.5, maxWidth: 320 }}>
+        <Typography variant="h6" fontWeight={700} sx={{ color: "text.primary" }}>Pipeline vazio</Typography>
+        <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5, maxWidth: 320 }}>
           Adicione empresas da tela de Resultados para começar.
         </Typography>
       </Box>
@@ -565,8 +572,8 @@ const Pipeline = () => {
       {/* Header */}
       <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={2}>
         <Box>
-          <Typography variant="h5" fontWeight={700} sx={{ color: "#F0F0F0" }}>Pipeline de Leads</Typography>
-          <Typography variant="body2" sx={{ color: "#9A9A9A", mt: 0.5 }}>
+          <Typography variant="h5" fontWeight={700} sx={{ color: "text.primary" }}>Pipeline de Leads</Typography>
+          <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
             {leads.length} lead{leads.length !== 1 ? "s" : ""} · Arraste para mover entre estágios
           </Typography>
         </Box>
@@ -588,7 +595,7 @@ const Pipeline = () => {
             variant="outlined"
             startIcon={<AddIcon sx={{ fontSize: "14px !important" }} />}
             onClick={() => navigate("/results")}
-            sx={{ fontSize: 12, borderColor: "rgba(255,255,255,0.12)", color: "#F0F0F0", "&:hover": { borderColor: "rgba(255,255,255,0.25)", backgroundColor: "rgba(255,255,255,0.04)" } }}
+            sx={{ fontSize: 12, borderColor: "divider", color: "text.primary", "&:hover": { borderColor: "text.secondary", backgroundColor: "action.hover" } }}
           >
             Adicionar leads
           </Button>
@@ -600,13 +607,13 @@ const Pipeline = () => {
         {COLUNAS.map(c => {
           const count = leads.filter(l => l.estagio === c.id).length;
           return (
-            <Card key={c.id} sx={{ borderRadius: 2, border: "1px solid rgba(255,255,255,0.07)", backgroundColor: "#181818", textAlign: "center" }}>
+            <Card key={c.id} sx={{ borderRadius: 2, border: "1px solid", borderColor: "divider", backgroundColor: "background.paper", textAlign: "center" }}>
               <CardContent sx={{ py: "10px !important", px: "8px !important" }}>
                 <Stack direction="row" alignItems="center" justifyContent="center" gap={0.75} sx={{ mb: 0.25 }}>
                   <Box sx={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: c.dotColor, flexShrink: 0 }} />
-                  <Typography variant="caption" sx={{ color: "#9A9A9A", fontWeight: 500, fontSize: 10 }}>{c.label}</Typography>
+                  <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 500, fontSize: 10 }}>{c.label}</Typography>
                 </Stack>
-                <Typography variant="h6" fontWeight={600} sx={{ color: "#F0F0F0", fontVariantNumeric: "tabular-nums" }}>{count}</Typography>
+                <Typography variant="h6" fontWeight={600} sx={{ color: "text.primary", fontVariantNumeric: "tabular-nums" }}>{count}</Typography>
               </CardContent>
             </Card>
           );
@@ -628,16 +635,18 @@ const Pipeline = () => {
                 minWidth: 240, width: 240, flexShrink: 0,
                 borderRadius: 2.5, border: "1px solid",
                 p: 1.25, transition: "all 0.15s",
-                borderColor: isOver ? "rgba(249,115,22,0.3)" : "rgba(255,255,255,0.07)",
-                backgroundColor: isOver ? "rgba(249,115,22,0.04)" : "rgba(255,255,255,0.02)",
+                borderColor: isOver ? "rgba(249,115,22,0.35)" : "divider",
+                backgroundColor: isOver
+                  ? "rgba(249,115,22,0.06)"
+                  : (isDark ? alpha(theme.palette.common.white, 0.03) : alpha(theme.palette.common.black, 0.03)),
                 boxShadow: isOver ? "0 0 0 2px rgba(249,115,22,0.15)" : "none",
               }}
             >
               {/* Column header */}
-              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 0.5, pb: 1, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 0.5, pb: 1, borderBottom: "1px solid", borderColor: "divider" }}>
                 <Stack direction="row" alignItems="center" gap={1}>
                   <Box sx={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: col.dotColor }} />
-                  <Typography variant="caption" fontWeight={700} sx={{ color: "#F0F0F0", fontSize: 12 }}>{col.label}</Typography>
+                  <Typography variant="caption" fontWeight={700} sx={{ color: "text.primary", fontSize: 12 }}>{col.label}</Typography>
                 </Stack>
                 <Box sx={{
                   fontSize: 10, fontWeight: 700, px: 1, py: 0.25, borderRadius: "99px",
@@ -660,10 +669,10 @@ const Pipeline = () => {
                     display: "flex", alignItems: "center", justifyContent: "center",
                     height: 80, borderRadius: 2, border: "2px dashed",
                     transition: "all 0.15s",
-                    borderColor: isOver ? "rgba(249,115,22,0.3)" : "rgba(255,255,255,0.08)",
+                    borderColor: isOver ? "rgba(249,115,22,0.35)" : "divider",
                     backgroundColor: isOver ? "rgba(249,115,22,0.04)" : "transparent",
                   }}>
-                    <Typography variant="caption" sx={{ color: isOver ? "#F97316" : "rgba(154,154,154,0.4)", fontSize: 11 }}>
+                    <Typography variant="caption" sx={{ color: isOver ? "primary.main" : "text.disabled", fontSize: 11 }}>
                       Arraste aqui
                     </Typography>
                   </Box>
@@ -682,11 +691,11 @@ const Pipeline = () => {
       <Dialog
         open={!!confirmRemove}
         onClose={() => setConfirmRemove(null)}
-        PaperProps={{ sx: { backgroundColor: "#181818", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 2 } }}
+        PaperProps={{ sx: { backgroundColor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: 2 } }}
       >
-        <DialogTitle sx={{ color: "#F0F0F0", fontWeight: 700, fontSize: 16 }}>Remover do pipeline?</DialogTitle>
+        <DialogTitle sx={{ color: "text.primary", fontWeight: 700, fontSize: 16 }}>Remover do pipeline?</DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ color: "#9A9A9A", fontSize: 14 }}>
+          <DialogContentText sx={{ color: "text.secondary", fontSize: 14 }}>
             Esta ação remove o lead do board. Ele continuará disponível nos Resultados.
           </DialogContentText>
         </DialogContent>
@@ -695,7 +704,7 @@ const Pipeline = () => {
             onClick={() => setConfirmRemove(null)}
             variant="outlined"
             size="small"
-            sx={{ borderColor: "rgba(255,255,255,0.12)", color: "#F0F0F0", fontSize: 12 }}
+            sx={{ borderColor: "divider", color: "text.primary", fontSize: 12 }}
           >
             Cancelar
           </Button>

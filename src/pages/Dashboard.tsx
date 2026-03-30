@@ -1,6 +1,7 @@
 // src/pages/Dashboard.tsx — Hermes Design System v2 (MUI)
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { alpha, useTheme as useMuiTheme } from "@mui/material/styles";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, RadarChart,
@@ -44,25 +45,17 @@ function scoreColor(s: number): string {
 
 const SEG_COLORS = ["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#f97316","#ec4899"];
 
-const TOOLTIP_STYLE = {
-  backgroundColor: "#1e1e1e",
-  border: "1px solid rgba(255,255,255,0.12)",
-  borderRadius: "8px",
-  fontSize: "12px",
-  boxShadow: "0 4px 6px -1px rgba(0,0,0,0.4)",
-  color: "#F0F0F0",
-};
-
 const CARD_SX = {
   borderRadius: 2,
-  border: "1px solid rgba(255,255,255,0.07)",
-  backgroundColor: "#181818",
+  border: "1px solid",
+  borderColor: "divider",
+  backgroundColor: "background.paper",
 };
 
 const SECTION_LABEL_SX = {
   fontSize: "0.625rem",
   fontWeight: 600,
-  color: "#444",
+  color: "text.secondary",
   textTransform: "uppercase" as const,
   letterSpacing: "0.08em",
 };
@@ -72,22 +65,23 @@ function KpiCard({ icon: Icon, label, value, sub }: {
   icon: React.ElementType;
   label: string; value: string; sub?: string;
 }) {
+  const theme = useMuiTheme();
   return (
     <Card sx={CARD_SX}>
       <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
         <Box sx={{
           height: 32, width: 32, borderRadius: 1.5,
           display: "flex", alignItems: "center", justifyContent: "center",
-          backgroundColor: "rgba(249,115,22,0.12)", mb: 1.5,
+          backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.12 : 0.14), mb: 1.5,
         }}>
-          <Icon sx={{ fontSize: 16, color: "#F97316" }} />
+          <Icon sx={{ fontSize: 16, color: "primary.main" }} />
         </Box>
-        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.1rem", fontVariantNumeric: "tabular-nums", color: "#F0F0F0" }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.1rem", fontVariantNumeric: "tabular-nums", color: "text.primary" }}>
           {value}
         </Typography>
-        <Typography sx={{ fontSize: "0.72rem", color: "#9A9A9A", mt: 0.25 }}>{label}</Typography>
+        <Typography sx={{ fontSize: "0.72rem", color: "text.secondary", mt: 0.25 }}>{label}</Typography>
         {sub && (
-          <Typography sx={{ fontSize: "0.66rem", color: "rgba(154,154,154,0.6)", mt: 0.25 }}>{sub}</Typography>
+          <Typography sx={{ fontSize: "0.66rem", color: "text.secondary", mt: 0.25 }}>{sub}</Typography>
         )}
       </CardContent>
     </Card>
@@ -99,19 +93,21 @@ function CanalBar({ canal, total, pct, color, icon: Icon }: {
   canal: string; total: number; pct: number; color: string;
   icon: React.ElementType;
 }) {
+  const theme = useMuiTheme();
+  const track = theme.palette.mode === "dark" ? alpha("#fff", 0.06) : alpha("#000", 0.08);
   return (
     <Box sx={{ mb: 1.5 }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
         <Stack direction="row" alignItems="center" gap={0.75}>
           <Icon sx={{ fontSize: 14, color }} />
-          <Typography sx={{ fontSize: "0.72rem", color: "rgba(240,240,240,0.8)" }}>{canal}</Typography>
+          <Typography sx={{ fontSize: "0.72rem", color: "text.primary" }}>{canal}</Typography>
         </Stack>
         <Stack direction="row" alignItems="center" gap={1}>
-          <Typography sx={{ fontSize: "0.72rem", color: "#9A9A9A", fontVariantNumeric: "tabular-nums" }}>{total}</Typography>
+          <Typography sx={{ fontSize: "0.72rem", color: "text.secondary", fontVariantNumeric: "tabular-nums" }}>{total}</Typography>
           <Typography sx={{ fontSize: "0.72rem", fontWeight: 600, color, fontVariantNumeric: "tabular-nums" }}>{pct.toFixed(0)}%</Typography>
         </Stack>
       </Stack>
-      <Box sx={{ height: 6, width: "100%", borderRadius: 1, backgroundColor: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+      <Box sx={{ height: 6, width: "100%", borderRadius: 1, backgroundColor: track, overflow: "hidden" }}>
         <Box sx={{ height: "100%", borderRadius: 1, backgroundColor: color, width: `${Math.min(100, pct)}%`, transition: "width 0.7s ease" }} />
       </Box>
     </Box>
@@ -120,10 +116,12 @@ function CanalBar({ canal, total, pct, color, icon: Icon }: {
 
 /* ── Score chip ───────────────────────────────────────────────────────────── */
 function ScoreChip({ score }: { score: number }) {
+  const theme = useMuiTheme();
   const color = scoreColor(score);
+  const track = theme.palette.mode === "dark" ? alpha("#fff", 0.06) : alpha("#000", 0.08);
   return (
     <Stack direction="row" alignItems="center" gap={1}>
-      <Box sx={{ height: 6, width: 56, borderRadius: 1, backgroundColor: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+      <Box sx={{ height: 6, width: 56, borderRadius: 1, backgroundColor: track, overflow: "hidden" }}>
         <Box sx={{ height: "100%", borderRadius: 1, backgroundColor: color, width: `${Math.min(100, score)}%` }} />
       </Box>
       <Typography sx={{ fontSize: "0.72rem", fontWeight: 600, color, fontVariantNumeric: "tabular-nums" }}>{score.toFixed(0)}</Typography>
@@ -134,21 +132,24 @@ function ScoreChip({ score }: { score: number }) {
 /* ── Empty State ──────────────────────────────────────────────────────────── */
 function EmptyDashboard() {
   const nav = useNavigate();
+  const theme = useMuiTheme();
+  const isDark = theme.palette.mode === "dark";
   return (
     <Stack alignItems="center" justifyContent="center" sx={{ py: 16, gap: 2.5 }}>
       <Box sx={{
         height: 64, width: 64, borderRadius: 3,
-        border: "1px solid rgba(255,255,255,0.07)",
-        backgroundColor: "rgba(255,255,255,0.04)",
+        border: "1px solid",
+        borderColor: "divider",
+        backgroundColor: isDark ? alpha("#fff", 0.04) : alpha("#000", 0.04),
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        <TrackChangesIcon sx={{ fontSize: 32, color: "#9A9A9A" }} />
+        <TrackChangesIcon sx={{ fontSize: 32, color: "text.secondary" }} />
       </Box>
       <Box sx={{ textAlign: "center" }}>
-        <Typography sx={{ fontSize: "1.1rem", fontWeight: 600, color: "#F0F0F0", mb: 0.5 }}>
+        <Typography sx={{ fontSize: "1.1rem", fontWeight: 600, color: "text.primary", mb: 0.5 }}>
           Nenhuma prospecção ainda
         </Typography>
-        <Typography sx={{ fontSize: "0.85rem", color: "#9A9A9A", maxWidth: 280 }}>
+        <Typography sx={{ fontSize: "0.85rem", color: "text.secondary", maxWidth: 280 }}>
           Execute sua primeira busca para ver os analytics da sua base de leads.
         </Typography>
       </Box>
@@ -156,7 +157,7 @@ function EmptyDashboard() {
         variant="contained"
         startIcon={<BoltIcon />}
         onClick={() => nav("/app")}
-        sx={{ backgroundColor: "#F97316", "&:hover": { backgroundColor: "#ea6a0a" }, color: "#fff", fontWeight: 600 }}
+        sx={{ backgroundColor: "primary.main", "&:hover": { backgroundColor: "primary.dark" }, color: "primary.contrastText", fontWeight: 600 }}
       >
         Configurar prospecção
       </Button>
@@ -167,6 +168,22 @@ function EmptyDashboard() {
 /* ── PRINCIPAL ────────────────────────────────────────────────────────────── */
 const Dashboard = () => {
   const navigate = useNavigate();
+  const muiTheme = useMuiTheme();
+  const isDark = muiTheme.palette.mode === "dark";
+  const tooltipStyle = useMemo(() => ({
+    backgroundColor: muiTheme.palette.background.paper,
+    border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)"}`,
+    borderRadius: "8px",
+    fontSize: "12px",
+    boxShadow: isDark ? "0 4px 6px -1px rgba(0,0,0,0.4)" : "0 4px 6px -1px rgba(0,0,0,0.1)",
+    color: muiTheme.palette.text.primary,
+  }), [muiTheme, isDark]);
+  const gridStroke = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)";
+  const axisTick = { fontSize: 11, fill: muiTheme.palette.text.secondary } as const;
+  const axisTickSm = { fontSize: 10, fill: muiTheme.palette.text.secondary } as const;
+  const polarStroke = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)";
+  const paperBg = muiTheme.palette.background.paper;
+
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -191,8 +208,8 @@ const Dashboard = () => {
     return (
       <Stack alignItems="center" justifyContent="center" sx={{ py: 16 }}>
         <Stack direction="row" alignItems="center" gap={1.5}>
-          <CircularProgress size={16} sx={{ color: "#F97316" }} />
-          <Typography sx={{ fontSize: "0.85rem", color: "#9A9A9A" }}>Carregando dashboard...</Typography>
+          <CircularProgress size={16} sx={{ color: "primary.main" }} />
+          <Typography sx={{ fontSize: "0.85rem", color: "text.secondary" }}>Carregando dashboard...</Typography>
         </Stack>
       </Stack>
     );
@@ -228,20 +245,20 @@ const Dashboard = () => {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={2}>
         <Box>
-          <Typography variant="h5" fontWeight={700} sx={{ color: "#F0F0F0", letterSpacing: "-0.02em" }}>
+          <Typography variant="h5" fontWeight={700} sx={{ color: "text.primary", letterSpacing: "-0.02em" }}>
             Dashboard de Prospecção
           </Typography>
           <Stack direction="row" alignItems="center" gap={0.5} sx={{ mt: 0.5 }}>
             {data.execucao_cidade && (
               <>
-                <LocationOnIcon sx={{ fontSize: 14, color: "#9A9A9A" }} />
-                <Typography sx={{ fontSize: "0.8rem", color: "#9A9A9A" }}>
+                <LocationOnIcon sx={{ fontSize: 14, color: "text.secondary" }} />
+                <Typography sx={{ fontSize: "0.8rem", color: "text.secondary" }}>
                   {data.execucao_cidade} / {data.execucao_uf} ·{" "}
                 </Typography>
               </>
             )}
             {data.execucao_ts && (
-              <Typography sx={{ fontSize: "0.8rem", color: "#9A9A9A" }}>
+              <Typography sx={{ fontSize: "0.8rem", color: "text.secondary" }}>
                 {new Date(data.execucao_ts).toLocaleString("pt-BR", {
                   day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
                 })}
@@ -255,10 +272,13 @@ const Dashboard = () => {
           endIcon={<ArrowForwardIcon sx={{ fontSize: 14 }} />}
           onClick={() => navigate("/results")}
           sx={{
-            borderColor: "rgba(255,255,255,0.14)",
-            color: "#F0F0F0",
+            borderColor: "divider",
+            color: "text.primary",
             fontSize: "0.78rem",
-            "&:hover": { borderColor: "rgba(255,255,255,0.28)", backgroundColor: "rgba(255,255,255,0.04)" },
+            "&:hover": {
+              borderColor: isDark ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)",
+              backgroundColor: isDark ? alpha("#fff", 0.04) : alpha("#000", 0.04),
+            },
           }}
         >
           Ver resultados
@@ -285,7 +305,7 @@ const Dashboard = () => {
         <Card sx={CARD_SX}>
           <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
             <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 2 }}>
-              <PhoneIcon sx={{ fontSize: 14, color: "#444" }} />
+              <PhoneIcon sx={{ fontSize: 14, color: "text.secondary" }} />
               <Typography sx={SECTION_LABEL_SX}>Canais de contato</Typography>
             </Stack>
             {data.canais_contato.map(c => (
@@ -298,14 +318,14 @@ const Dashboard = () => {
                 icon={canalIcons[c.canal] ?? PhoneIcon}
               />
             ))}
-            <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.07)" }} />
+            <Divider sx={{ my: 2, borderColor: "divider" }} />
             <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
-              <Box sx={{ borderRadius: 1.5, backgroundColor: "rgba(255,255,255,0.04)", p: 1.25 }}>
-                <Typography sx={{ fontSize: "0.66rem", color: "#9A9A9A" }}>Com LinkedIn</Typography>
+              <Box sx={{ borderRadius: 1.5, backgroundColor: isDark ? alpha("#fff", 0.04) : alpha("#000", 0.04), p: 1.25 }}>
+                <Typography sx={{ fontSize: "0.66rem", color: "text.secondary" }}>Com LinkedIn</Typography>
                 <Typography sx={{ fontSize: "0.85rem", fontWeight: 600, color: "#3b82f6", fontVariantNumeric: "tabular-nums" }}>{data.com_linkedin}</Typography>
               </Box>
-              <Box sx={{ borderRadius: 1.5, backgroundColor: "rgba(255,255,255,0.04)", p: 1.25 }}>
-                <Typography sx={{ fontSize: "0.66rem", color: "#9A9A9A" }}>Com site</Typography>
+              <Box sx={{ borderRadius: 1.5, backgroundColor: isDark ? alpha("#fff", 0.04) : alpha("#000", 0.04), p: 1.25 }}>
+                <Typography sx={{ fontSize: "0.66rem", color: "text.secondary" }}>Com site</Typography>
                 <Typography sx={{ fontSize: "0.85rem", fontWeight: 600, color: "#8b5cf6", fontVariantNumeric: "tabular-nums" }}>{data.com_site}</Typography>
               </Box>
             </Box>
@@ -316,16 +336,16 @@ const Dashboard = () => {
         <Card sx={CARD_SX}>
           <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
             <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 1 }}>
-              <TrackChangesIcon sx={{ fontSize: 14, color: "#444" }} />
+              <TrackChangesIcon sx={{ fontSize: 14, color: "text.secondary" }} />
               <Typography sx={SECTION_LABEL_SX}>Radar ICP</Typography>
             </Stack>
             <ResponsiveContainer width="100%" height={220}>
               <RadarChart data={radarData}>
-                <PolarGrid stroke="rgba(255,255,255,0.08)" />
-                <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11, fill: "#9A9A9A" }} />
+                <PolarGrid stroke={polarStroke} />
+                <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11, fill: muiTheme.palette.text.secondary }} />
                 <Radar name="Cobertura %" dataKey="val"
                   stroke="#F97316" fill="#F97316" fillOpacity={0.15} strokeWidth={2} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [`${v.toFixed(1)}%`, "Cobertura"]} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v.toFixed(1)}%`, "Cobertura"]} />
               </RadarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -335,21 +355,21 @@ const Dashboard = () => {
         <Card sx={CARD_SX}>
           <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
             <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 2 }}>
-              <BarChartIcon sx={{ fontSize: 14, color: "#444" }} />
+              <BarChartIcon sx={{ fontSize: 14, color: "text.secondary" }} />
               <Typography sx={SECTION_LABEL_SX}>Distribuição de Score</Typography>
             </Stack>
             {data.score_distribuicao.map(f => (
               <Box key={f.label} sx={{ mb: 1.5 }}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                  <Typography sx={{ fontSize: "0.72rem", color: "rgba(154,154,154,0.8)" }}>Score {f.label}</Typography>
+                  <Typography sx={{ fontSize: "0.72rem", color: "text.secondary" }}>Score {f.label}</Typography>
                   <Stack direction="row" alignItems="center" gap={1}>
-                    <Typography sx={{ fontSize: "0.72rem", color: "#9A9A9A", fontVariantNumeric: "tabular-nums" }}>{f.count}</Typography>
+                    <Typography sx={{ fontSize: "0.72rem", color: "text.secondary", fontVariantNumeric: "tabular-nums" }}>{f.count}</Typography>
                     <Typography sx={{ fontSize: "0.72rem", fontWeight: 600, color: f.color, fontVariantNumeric: "tabular-nums" }}>
                       {data.total_empresas > 0 ? ((f.count / data.total_empresas) * 100).toFixed(0) : 0}%
                     </Typography>
                   </Stack>
                 </Stack>
-                <Box sx={{ height: 6, width: "100%", borderRadius: 1, backgroundColor: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                <Box sx={{ height: 6, width: "100%", borderRadius: 1, backgroundColor: isDark ? alpha("#fff", 0.06) : alpha("#000", 0.08), overflow: "hidden" }}>
                   <Box sx={{
                     height: "100%", borderRadius: 1,
                     width: `${data.total_empresas > 0 ? (f.count / data.total_empresas) * 100 : 0}%`,
@@ -358,14 +378,14 @@ const Dashboard = () => {
                 </Box>
               </Box>
             ))}
-            <Box sx={{ mt: 2, borderRadius: 1.5, backgroundColor: "rgba(255,255,255,0.04)", p: 1.5 }}>
+            <Box sx={{ mt: 2, borderRadius: 1.5, backgroundColor: isDark ? alpha("#fff", 0.04) : alpha("#000", 0.04), p: 1.5 }}>
               <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.75 }}>
-                <Typography sx={{ fontSize: "0.72rem", color: "#9A9A9A" }}>Score médio do lote</Typography>
+                <Typography sx={{ fontSize: "0.72rem", color: "text.secondary" }}>Score médio do lote</Typography>
                 <Typography sx={{ fontSize: "0.72rem", fontWeight: 700, color: scoreColor(data.score_medio) }}>
                   {data.score_medio.toFixed(1)} pts
                 </Typography>
               </Stack>
-              <Box sx={{ height: 6, width: "100%", borderRadius: 1, backgroundColor: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+              <Box sx={{ height: 6, width: "100%", borderRadius: 1, backgroundColor: isDark ? alpha("#fff", 0.06) : alpha("#000", 0.08), overflow: "hidden" }}>
                 <Box sx={{ height: "100%", borderRadius: 1, backgroundColor: scoreColor(data.score_medio), width: `${Math.min(100, data.score_medio)}%` }} />
               </Box>
             </Box>
@@ -385,13 +405,13 @@ const Dashboard = () => {
                 <PieChart>
                   <Pie
                     data={data.empresas_por_segmento.map((s, i) => ({ name: s.segmento, value: s.total, fill: SEG_COLORS[i % SEG_COLORS.length] }))}
-                    cx="50%" cy="50%" innerRadius={44} outerRadius={72} dataKey="value" strokeWidth={2} stroke="#181818"
+                    cx="50%" cy="50%" innerRadius={44} outerRadius={72} dataKey="value" strokeWidth={2} stroke={paperBg}
                   >
                     {data.empresas_por_segmento.map((_, i) => (
                       <Cell key={i} fill={SEG_COLORS[i % SEG_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <Tooltip contentStyle={tooltipStyle} />
                 </PieChart>
               </ResponsiveContainer>
               <Box sx={{ flex: 1 }}>
@@ -399,11 +419,11 @@ const Dashboard = () => {
                   <Stack key={s.segmento} direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
                     <Stack direction="row" alignItems="center" gap={0.75}>
                       <Box sx={{ height: 8, width: 8, borderRadius: "50%", flexShrink: 0, backgroundColor: SEG_COLORS[i % SEG_COLORS.length] }} />
-                      <Typography sx={{ fontSize: "0.72rem", color: "rgba(240,240,240,0.8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 100 }}>
+                      <Typography sx={{ fontSize: "0.72rem", color: "text.primary", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 100 }}>
                         {s.segmento}
                       </Typography>
                     </Stack>
-                    <Typography sx={{ fontSize: "0.72rem", color: "#9A9A9A", ml: 1, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
+                    <Typography sx={{ fontSize: "0.72rem", color: "text.secondary", ml: 1, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
                       {s.total} ({((s.total / data.total_empresas) * 100).toFixed(0)}%)
                     </Typography>
                   </Stack>
@@ -425,11 +445,11 @@ const Dashboard = () => {
                   <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
                     <Typography sx={{ fontSize: "0.72rem", fontWeight: 500, color: style.text }}>{p.porte}</Typography>
                     <Stack direction="row" alignItems="center" gap={1}>
-                      <Typography sx={{ fontSize: "0.72rem", color: "#9A9A9A", fontVariantNumeric: "tabular-nums" }}>{p.total}</Typography>
+                      <Typography sx={{ fontSize: "0.72rem", color: "text.secondary", fontVariantNumeric: "tabular-nums" }}>{p.total}</Typography>
                       <Typography sx={{ fontSize: "0.72rem", fontWeight: 600, color: style.text, fontVariantNumeric: "tabular-nums" }}>{pct.toFixed(0)}%</Typography>
                     </Stack>
                   </Stack>
-                  <Box sx={{ height: 6, width: "100%", borderRadius: 1, backgroundColor: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                  <Box sx={{ height: 6, width: "100%", borderRadius: 1, backgroundColor: isDark ? alpha("#fff", 0.06) : alpha("#000", 0.08), overflow: "hidden" }}>
                     <Box sx={{ height: "100%", borderRadius: 1, backgroundColor: style.bar, width: `${pct}%`, transition: "width 0.7s ease" }} />
                   </Box>
                 </Box>
@@ -444,10 +464,10 @@ const Dashboard = () => {
             <Typography sx={{ ...SECTION_LABEL_SX, mb: 1.5 }}>Estados (Top 8)</Typography>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={data.empresas_por_uf.slice(0, 8)} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-                <XAxis dataKey="uf" tick={{ fontSize: 11, fill: "#9A9A9A" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#9A9A9A" }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v.toLocaleString("pt-BR"), "Empresas"]} />
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                <XAxis dataKey="uf" tick={axisTick} axisLine={false} tickLine={false} />
+                <YAxis tick={axisTickSm} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [v.toLocaleString("pt-BR"), "Empresas"]} />
                 <Bar dataKey="total" fill="#F97316" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -460,10 +480,10 @@ const Dashboard = () => {
             <Typography sx={{ ...SECTION_LABEL_SX, mb: 1.5 }}>Faixas de capital social</Typography>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={data.capital_faixas} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#9A9A9A" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#9A9A9A" }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v.toLocaleString("pt-BR"), "Empresas"]} />
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                <XAxis dataKey="label" tick={axisTickSm} axisLine={false} tickLine={false} />
+                <YAxis tick={axisTickSm} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [v.toLocaleString("pt-BR"), "Empresas"]} />
                 <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -474,7 +494,7 @@ const Dashboard = () => {
       {/* ── Top leads ──────────────────────────────────────────────────────── */}
       <Card sx={{ ...CARD_SX, overflow: "hidden", p: 0 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between"
-          sx={{ px: 2.5, py: 2, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+          sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderBottomColor: "divider" }}>
           <Stack direction="row" alignItems="center" gap={1}>
             <BoltIcon sx={{ fontSize: 14, color: "#f59e0b" }} />
             <Typography sx={SECTION_LABEL_SX}>Top leads por Score ICP</Typography>
@@ -484,7 +504,7 @@ const Dashboard = () => {
             variant="text"
             endIcon={<ArrowForwardIcon sx={{ fontSize: 12 }} />}
             onClick={() => navigate("/results")}
-            sx={{ fontSize: "0.72rem", color: "#F97316", minWidth: 0, px: 1, py: 0.5, height: 28 }}
+            sx={{ fontSize: "0.72rem", color: "primary.main", minWidth: 0, px: 1, py: 0.5, height: 28 }}
           >
             Ver todos
           </Button>
@@ -492,8 +512,8 @@ const Dashboard = () => {
 
         {data.top_empresas.map((emp, i) => {
           const temContato = emp.telefone_padrao || emp.email || emp.whatsapp_publico || emp.whatsapp_enriquecido;
-          const rankBg = i === 0 ? "rgba(245,158,11,0.15)" : i === 1 ? "rgba(100,116,139,0.15)" : i === 2 ? "rgba(249,115,22,0.12)" : "rgba(255,255,255,0.04)";
-          const rankColor = i === 0 ? "#f59e0b" : i === 1 ? "#94a3b8" : i === 2 ? "#f97316" : "#9A9A9A";
+          const rankBg = i === 0 ? "rgba(245,158,11,0.15)" : i === 1 ? "rgba(100,116,139,0.15)" : i === 2 ? "rgba(249,115,22,0.12)" : (isDark ? alpha("#fff", 0.04) : alpha("#000", 0.05));
+          const rankColor = i === 0 ? "#f59e0b" : i === 1 ? "#94a3b8" : i === 2 ? "#f97316" : muiTheme.palette.text.secondary;
 
           return (
             <Stack
@@ -503,9 +523,10 @@ const Dashboard = () => {
               gap={1.5}
               sx={{
                 px: 2.5, py: 1.5,
-                borderBottom: "1px solid rgba(255,255,255,0.05)",
+                borderBottom: "1px solid",
+                borderBottomColor: isDark ? alpha("#fff", 0.05) : alpha("#000", 0.06),
                 "&:last-child": { borderBottom: "none" },
-                "&:hover": { backgroundColor: "rgba(255,255,255,0.03)" },
+                "&:hover": { backgroundColor: isDark ? alpha("#fff", 0.03) : alpha("#000", 0.03) },
                 transition: "background-color 0.15s",
               }}
             >
@@ -518,12 +539,12 @@ const Dashboard = () => {
               </Box>
 
               <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography sx={{ fontSize: "0.85rem", fontWeight: 500, color: "#F0F0F0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <Typography sx={{ fontSize: "0.85rem", fontWeight: 500, color: "text.primary", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {emp.nome_fantasia || emp.razao_social}
                 </Typography>
                 <Stack direction="row" alignItems="center" gap={0.75}>
-                  <LocationOnIcon sx={{ fontSize: 10, color: "#9A9A9A" }} />
-                  <Typography sx={{ fontSize: "0.66rem", color: "#9A9A9A" }}>
+                  <LocationOnIcon sx={{ fontSize: 10, color: "text.secondary" }} />
+                  <Typography sx={{ fontSize: "0.66rem", color: "text.secondary" }}>
                     {emp.cidade || "—"} / {emp.uf || "—"}
                   </Typography>
                   {emp.segmento && (
@@ -533,8 +554,8 @@ const Dashboard = () => {
                       variant="outlined"
                       sx={{
                         height: 16, fontSize: "0.6rem",
-                        borderColor: "rgba(255,255,255,0.12)",
-                        color: "#9A9A9A",
+                        borderColor: "divider",
+                        color: "text.secondary",
                         "& .MuiChip-label": { px: 0.75 },
                       }}
                     />
@@ -558,11 +579,11 @@ const Dashboard = () => {
                   </Box>
                 )}
                 {emp.telefone_padrao && (
-                  <Box sx={{ height: 24, width: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 1, backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                    <PhoneIcon sx={{ fontSize: 12, color: "#9A9A9A" }} />
+                  <Box sx={{ height: 24, width: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 1, backgroundColor: isDark ? alpha("#fff", 0.04) : alpha("#000", 0.04), border: "1px solid", borderColor: "divider" }}>
+                    <PhoneIcon sx={{ fontSize: 12, color: "text.secondary" }} />
                   </Box>
                 )}
-                {!temContato && <ErrorOutlineIcon sx={{ fontSize: 14, color: "rgba(154,154,154,0.4)" }} />}
+                {!temContato && <ErrorOutlineIcon sx={{ fontSize: 14, color: "text.disabled" }} />}
               </Stack>
             </Stack>
           );

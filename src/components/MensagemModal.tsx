@@ -13,6 +13,8 @@ import {
 import {
   gerarMensagemAbordagem, type Empresa, type CanalMensagem,
 } from "@/lib/api";
+import { useTheme } from "@mui/material/styles";
+import { denseOutlinedInput } from "@/theme/themeSx";
 
 // LinkedIn icon not in @mui/icons-material standard — use a simple SVG chip
 function LinkedInSvg({ size = 14 }: { size?: number }) {
@@ -38,8 +40,9 @@ const CANAIS: CanalConfig[] = [
 ];
 
 const paperSx = {
-  backgroundColor: "#141414",
-  border: "1px solid rgba(255,255,255,0.08)",
+  backgroundColor: "background.paper",
+  border: "1px solid",
+  borderColor: "divider",
   borderRadius: "12px",
   minWidth: { xs: 340, sm: 500 },
   maxWidth: 560,
@@ -54,6 +57,8 @@ export function MensagemModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const theme = useTheme();
+  const inputDenseSx = denseOutlinedInput(theme);
   const [canal, setCanal]     = useState<CanalMensagem>("whatsapp");
   const [produto, setProduto] = useState("");
   const [corpo, setCorpo]     = useState("");
@@ -88,11 +93,11 @@ export function MensagemModal({
       <DialogTitle sx={{ pb: 1 }}>
         <Stack direction="row" alignItems="center" gap={1}>
           <AutoAwesomeRounded sx={{ fontSize: 17, color: "#F59E0B" }} />
-          <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>
+          <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary" }}>
             Gerar mensagem de abordagem
           </Typography>
         </Stack>
-        <Typography sx={{ fontSize: "0.75rem", color: "#666", mt: 0.25 }}>
+        <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", mt: 0.25 }}>
           {empresa.nome_fantasia || empresa.razao_social} · {empresa.cidade} / {empresa.uf}
         </Typography>
       </DialogTitle>
@@ -111,12 +116,12 @@ export function MensagemModal({
                   sx={{
                     display: "flex", alignItems: "center", gap: 0.75,
                     px: 1.5, py: 0.75, borderRadius: "8px",
-                    border: `1px solid ${active ? c.activeBorder : "rgba(255,255,255,0.08)"}`,
+                    border: `1px solid ${active ? c.activeBorder : theme.palette.divider}`,
                     backgroundColor: active ? c.activeBg : "transparent",
-                    color: active ? c.activeColor : "#666",
+                    color: active ? c.activeColor : "text.secondary",
                     fontSize: "0.75rem", fontWeight: 500, cursor: "pointer",
                     transition: "all 0.15s",
-                    "&:hover": { borderColor: active ? c.activeBorder : "rgba(255,255,255,0.15)", color: active ? c.activeColor : "#A0A0A0" },
+                    "&:hover": { borderColor: active ? c.activeBorder : "text.secondary", color: active ? c.activeColor : "text.primary" },
                   }}
                 >
                   {c.id === "whatsapp" && <MessageRounded sx={{ fontSize: 14 }} />}
@@ -136,7 +141,7 @@ export function MensagemModal({
             onChange={e => setProduto(e.target.value)}
             placeholder="ex: consultoria fiscal, software ERP, logística..."
             fullWidth
-            sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }}
+            sx={inputDenseSx}
           />
 
           {/* Gerar button */}
@@ -159,15 +164,15 @@ export function MensagemModal({
                   {canalAtual.id === "whatsapp" && <MessageRounded sx={{ fontSize: 14, color: canalAtual.activeColor }} />}
                   {canalAtual.id === "email"    && <EmailRounded    sx={{ fontSize: 14, color: canalAtual.activeColor }} />}
                   {canalAtual.id === "linkedin" && <Box sx={{ color: canalAtual.activeColor, display: "flex" }}><LinkedInSvg size={14} /></Box>}
-                  <Typography sx={{ fontSize: "0.75rem", fontWeight: 500, color: "#D0D0D0" }}>{canalAtual.label}</Typography>
+                  <Typography sx={{ fontSize: "0.75rem", fontWeight: 500, color: "text.primary" }}>{canalAtual.label}</Typography>
                   <Chip
                     label={iaUsada ? "✦ IA" : "template"}
                     size="small"
                     sx={{
                       fontSize: "0.625rem", height: 18,
-                      backgroundColor: iaUsada ? "rgba(245,158,11,0.1)" : "rgba(255,255,255,0.05)",
-                      color: iaUsada ? "#F59E0B" : "#666",
-                      border: `1px solid ${iaUsada ? "rgba(245,158,11,0.25)" : "rgba(255,255,255,0.08)"}`,
+                      backgroundColor: iaUsada ? "rgba(245,158,11,0.1)" : "action.hover",
+                      color: iaUsada ? "#F59E0B" : "text.secondary",
+                      border: `1px solid ${iaUsada ? "rgba(245,158,11,0.25)" : theme.palette.divider}`,
                     }}
                   />
                 </Stack>
@@ -177,8 +182,8 @@ export function MensagemModal({
                   onClick={copiar}
                   sx={{
                     fontSize: "0.6875rem", textTransform: "none",
-                    color: copiado ? "#22C55E" : "#666",
-                    "&:hover": { color: copiado ? "#22C55E" : "#A0A0A0" },
+                    color: copiado ? "#22C55E" : "text.secondary",
+                    "&:hover": { color: copiado ? "#22C55E" : "text.primary" },
                   }}
                 >
                   {copiado ? "Copiado!" : "Copiar"}
@@ -186,9 +191,9 @@ export function MensagemModal({
               </Stack>
 
               {assunto && (
-                <Box sx={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", px: 2, py: 1.5 }}>
-                  <Typography sx={{ fontSize: "0.6875rem", color: "#555", display: "block", mb: 0.5 }}>Assunto</Typography>
-                  <Typography sx={{ fontSize: "0.875rem", color: "#E0E0E0" }}>{assunto}</Typography>
+                <Box sx={{ backgroundColor: "action.hover", border: "1px solid", borderColor: "divider", borderRadius: "8px", px: 2, py: 1.5 }}>
+                  <Typography sx={{ fontSize: "0.6875rem", color: "text.secondary", display: "block", mb: 0.5 }}>Assunto</Typography>
+                  <Typography sx={{ fontSize: "0.875rem", color: "text.primary" }}>{assunto}</Typography>
                 </Box>
               )}
 
@@ -199,15 +204,12 @@ export function MensagemModal({
                 onChange={e => setCorpo(e.target.value)}
                 fullWidth
                 sx={{
-                  "& .MuiOutlinedInput-root": {
-                    backgroundColor: "#181818",
-                    fontSize: "0.8125rem",
-                    lineHeight: 1.6,
-                  },
+                  ...inputDenseSx,
+                  "& .MuiInputBase-input": { lineHeight: 1.6 },
                 }}
               />
 
-              <Typography sx={{ fontSize: "0.6875rem", color: "#444" }}>
+              <Typography sx={{ fontSize: "0.6875rem", color: "text.secondary" }}>
                 Personalize antes de enviar. Substitua os [colchetes] pelos dados reais.
               </Typography>
             </Stack>

@@ -1036,7 +1036,7 @@ function EmpresaCard({
   return (
     <Card sx={{
       border: selected ? "1px solid rgba(249,115,22,0.6)" : "1px solid rgba(255,255,255,0.07)",
-      bgcolor: selected ? "rgba(249,115,22,0.05)" : "#181818",
+      bgcolor: selected ? "rgba(249,115,22,0.05)" : "background.paper",
       borderRadius: "12px",
       position: "relative",
       transition: "border-color 0.15s, box-shadow 0.15s",
@@ -1135,7 +1135,7 @@ function EmpresaCard({
         anchor="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        PaperProps={{ sx: { width: 440, maxWidth: "100vw", bgcolor: "#0F0F0F", borderLeft: "1px solid rgba(255,255,255,0.07)", overflowY: "auto" } }}
+        PaperProps={{ sx: { width: 440, maxWidth: "100vw", bgcolor: "background.default", borderLeft: "1px solid", borderColor: "divider", overflowY: "auto" } }}
       >
         <Box sx={{ p: 3 }}>
           <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", display: "block", mb: 0.5 }}>Visão detalhada</Typography>
@@ -1738,7 +1738,7 @@ const ResultsPage = () => {
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             <strong>{execucao.termo || "Sem termo"}</strong>
             {" · "}{execucao.cidade} / {execucao.uf}
-            {" · "}<strong style={{ color: "#F0F0F0" }}>{execucao.total_empresas}</strong> empresas
+            {" · "}<strong>{execucao.total_empresas}</strong> empresas
           </Typography>
         )}
       </Box>
@@ -1747,12 +1747,12 @@ const ResultsPage = () => {
       {stats && (
         <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 1.5 }}>
           {[
-            { Icon: BusinessIcon, label: "Total", value: stats.t, fmt: (v: number) => String(v), color: "#F0F0F0" },
+            { Icon: BusinessIcon, label: "Total", value: stats.t, fmt: (v: number) => String(v), color: "text.primary" },
             { Icon: MailIcon, label: "Com e-mail", value: stats.comEmail, fmt: (v: number) => `${v} (${Math.round(v/stats.t*100)}%)`, color: "#0ea5e9" },
             { Icon: ChatIcon, label: "WhatsApp", value: stats.comWa, fmt: (v: number) => `${v} (${Math.round(v/stats.t*100)}%)`, color: "#10b981" },
             { Icon: TrendingUpIcon, label: "Score médio", value: stats.scoreAvg, fmt: (v: number) => v.toFixed(1), color: "#f59e0b" },
           ].map(s => (
-            <Card key={s.label} sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px" }}>
+            <Card key={s.label} sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
               <CardContent sx={{ p: 2, display: "flex", alignItems: "center", gap: 1.5, "&:last-child": { pb: 2 } }}>
                 <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <s.Icon sx={{ fontSize: 18, color: s.color }} />
@@ -2012,7 +2012,7 @@ const ResultsPage = () => {
       ) : (
 
         /* ─── TABLE ─────────────────────────────────────────────────────── */
-        <Paper sx={{ border: "1px solid rgba(255,255,255,0.07)", bgcolor: "#181818", borderRadius: "12px", overflow: "hidden" }}>
+        <Paper sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px", overflow: "hidden" }}>
           <Box sx={{ px: 2, py: 1.5, borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 1.5 }}>
             <Checkbox
               size="small"
@@ -2108,7 +2108,7 @@ const ResultsPage = () => {
         anchor="right"
         open={Boolean(detailDrawerEmp)}
         onClose={() => setDetailDrawerEmp(null)}
-        PaperProps={{ sx: { width: 440, maxWidth: "100vw", bgcolor: "#0F0F0F", borderLeft: "1px solid rgba(255,255,255,0.07)", overflowY: "auto" } }}
+        PaperProps={{ sx: { width: 440, maxWidth: "100vw", bgcolor: "background.default", borderLeft: "1px solid", borderColor: "divider", overflowY: "auto" } }}
       >
         {detailDrawerEmp && (
           <Box sx={{ p: 3 }}>
@@ -2125,7 +2125,7 @@ const ResultsPage = () => {
       </Drawer>
 
       {/* Dialog: Salvar em lista */}
-      <Dialog open={saveListOpen} onClose={() => setSaveListOpen(false)} PaperProps={{ sx: { bgcolor: "#181818", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "12px", minWidth: 420 } }}>
+      <Dialog open={saveListOpen} onClose={() => setSaveListOpen(false)} PaperProps={{ sx: { bgcolor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: "12px", minWidth: 420 } }}>
         <DialogTitle>Salvar selecao em lista</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
@@ -2186,7 +2186,7 @@ const ResultsPage = () => {
       </Dialog>
 
       {/* Dialog: Suprimir */}
-      <Dialog open={suppressSelectionOpen} onClose={() => setSuppressSelectionOpen(false)} PaperProps={{ sx: { bgcolor: "#181818", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "12px", minWidth: 420 } }}>
+      <Dialog open={suppressSelectionOpen} onClose={() => setSuppressSelectionOpen(false)} PaperProps={{ sx: { bgcolor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: "12px", minWidth: 420 } }}>
         <DialogTitle>Suprimir selecao</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>

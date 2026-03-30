@@ -20,6 +20,8 @@ import {
   DeleteRounded,
 } from "@mui/icons-material";
 import { toast } from "sonner";
+import { alpha, useTheme } from "@mui/material/styles";
+import { denseOutlinedInput } from "@/theme/themeSx";
 import {
   createLeadRefreshJob,
   createLeadList,
@@ -66,41 +68,50 @@ function formatDate(value?: string | null): string {
 
 // ── Shared style helpers ──────────────────────────────────────────────────────
 const cardSx = {
-  backgroundColor: "#141414",
-  border: "1px solid rgba(255,255,255,0.06)",
+  backgroundColor: "background.paper",
+  border: "1px solid",
+  borderColor: "divider",
   borderRadius: "12px",
 };
 
 const rowSx = {
-  backgroundColor: "rgba(255,255,255,0.02)",
-  border: "1px solid rgba(255,255,255,0.06)",
+  backgroundColor: (theme: import("@mui/material/styles").Theme) =>
+    theme.palette.mode === "dark" ? alpha(theme.palette.common.white, 0.02) : alpha(theme.palette.common.black, 0.03),
+  border: "1px solid",
+  borderColor: "divider",
   borderRadius: "10px",
   p: 2,
 };
 
 const emptyBoxSx = {
-  border: "1px dashed rgba(255,255,255,0.1)",
+  border: "1px dashed",
+  borderColor: "divider",
   borderRadius: "10px",
   p: 2.5,
-  color: "#555",
+  color: "text.secondary",
   fontSize: "0.8125rem",
 };
 
 const sectionLabelSx = {
   fontSize: "0.625rem",
   fontWeight: 600,
-  color: "#444",
+  color: "text.secondary",
   textTransform: "uppercase" as const,
   letterSpacing: "0.12em",
 };
 
 function StatusChip({ label, tone }: { label: string; tone: "success" | "warning" | "error" | "info" | "default" }) {
+  const theme = useTheme();
   const colors: Record<string, { bg: string; color: string; border: string }> = {
     success: { bg: "rgba(34,197,94,0.1)", color: "#22C55E", border: "rgba(34,197,94,0.2)" },
     warning: { bg: "rgba(245,158,11,0.1)", color: "#F59E0B", border: "rgba(245,158,11,0.2)" },
     error:   { bg: "rgba(239,68,68,0.1)",  color: "#EF4444",  border: "rgba(239,68,68,0.2)"  },
     info:    { bg: "rgba(56,189,248,0.1)", color: "#38BDF8", border: "rgba(56,189,248,0.2)" },
-    default: { bg: "rgba(255,255,255,0.05)", color: "#888", border: "rgba(255,255,255,0.1)" },
+    default: {
+      bg: theme.palette.mode === "dark" ? alpha(theme.palette.common.white, 0.05) : alpha(theme.palette.common.black, 0.06),
+      color: theme.palette.text.secondary,
+      border: typeof theme.palette.divider === "string" ? theme.palette.divider : "rgba(0,0,0,0.12)",
+    },
   };
   const c = colors[tone] ?? colors.default;
   return (
@@ -121,6 +132,15 @@ function StatusChip({ label, tone }: { label: string; tone: "success" | "warning
 
 // ── Component ─────────────────────────────────────────────────────────────────
 const LeadLists = () => {
+  const theme = useTheme();
+  const inputDenseSx = denseOutlinedInput(theme);
+  const chipMutedSx = {
+    fontSize: "0.6875rem",
+    backgroundColor: theme.palette.mode === "dark" ? alpha(theme.palette.common.white, 0.04) : alpha(theme.palette.common.black, 0.05),
+    color: "text.secondary",
+    border: "1px solid",
+    borderColor: "divider",
+  };
   const navigate = useNavigate();
   const [lists, setLists] = useState<LeadListSummary[]>([]);
   const [selectedListId, setSelectedListId] = useState("");
@@ -515,10 +535,10 @@ const LeadLists = () => {
       {/* Header */}
       <Stack direction="row" alignItems="flex-end" justifyContent="space-between" gap={2} flexWrap="wrap">
         <Box>
-          <Typography sx={{ fontWeight: 700, fontSize: "1.375rem", letterSpacing: "-0.02em", color: "#F0F0F0" }}>
+          <Typography sx={{ fontWeight: 700, fontSize: "1.375rem", letterSpacing: "-0.02em", color: "text.primary" }}>
             Listas, buscas e signals
           </Typography>
-          <Typography sx={{ fontSize: "0.8125rem", color: "#666", mt: 0.5 }}>
+          <Typography sx={{ fontSize: "0.8125rem", color: "text.secondary", mt: 0.5 }}>
             Organize listas estaticas, rode buscas salvas, acompanhe empresas e bloqueie contatos improdutivos.
           </Typography>
         </Box>
@@ -539,16 +559,16 @@ const LeadLists = () => {
             <Box>
               <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
                 <TrackChangesRounded sx={{ fontSize: 16, color: "#38BDF8" }} />
-                <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>Data Health Center</Typography>
+                <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary" }}>Data Health Center</Typography>
               </Stack>
-              <Typography sx={{ fontSize: "0.8125rem", color: "#666" }}>
+              <Typography sx={{ fontSize: "0.8125rem", color: "text.secondary" }}>
                 Leitura Apollo-style da watchlist para detectar gaps de mobile e WhatsApp acionavel antes do outreach.
               </Typography>
             </Box>
             <Chip
               label={`Watchlist ${companyDataHealth?.summary.watchlist_total ?? 0}`}
               size="small"
-              sx={{ fontSize: "0.75rem", backgroundColor: "rgba(255,255,255,0.05)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }}
+              sx={{ ...chipMutedSx, fontSize: "0.75rem" }}
             />
           </Stack>
 
@@ -586,10 +606,10 @@ const LeadLists = () => {
                   <Box key={item.cnpj} sx={rowSx}>
                     <Stack direction={{ xs: "column", lg: "row" }} alignItems={{ lg: "flex-start" }} justifyContent="space-between" gap={1.5}>
                       <Box>
-                        <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>
+                        <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "text.primary" }}>
                           {item.nome_fantasia || item.razao_social || item.cnpj}
                         </Typography>
-                        <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                        <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", mt: 0.25 }}>
                           {item.cnpj} · {[item.cidade, item.uf].filter(Boolean).join(" / ") || "Sem localizacao"}
                         </Typography>
                       </Box>
@@ -599,12 +619,12 @@ const LeadLists = () => {
                       />
                     </Stack>
                     <Stack direction="row" flexWrap="wrap" gap={0.75} mt={1.5}>
-                      <Chip label={`Mobiles ${item.mobile_candidates}`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
-                      <Chip label={`WhatsApps validados ${item.verified_whatsapp_candidates}`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
-                      <Chip label={`Mobiles decisor ${item.decision_maker_mobile_candidates}`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
+                      <Chip label={`Mobiles ${item.mobile_candidates}`} size="small" sx={chipMutedSx} />
+                      <Chip label={`WhatsApps validados ${item.verified_whatsapp_candidates}`} size="small" sx={chipMutedSx} />
+                      <Chip label={`Mobiles decisor ${item.decision_maker_mobile_candidates}`} size="small" sx={chipMutedSx} />
                       {item.stale && <StatusChip label="Snapshot stale" tone="warning" />}
                     </Stack>
-                    <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 1.5 }}>
+                    <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", mt: 1.5 }}>
                       Ultimo snapshot: {formatDate(item.generated_at)}
                     </Typography>
                   </Box>
@@ -623,9 +643,9 @@ const LeadLists = () => {
           <CardContent sx={{ p: 2.5 }}>
             <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
               <RefreshRounded sx={{ fontSize: 16, color: "#38BDF8" }} />
-              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>Bulk center e reverificacao</Typography>
+              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary" }}>Bulk center e reverificacao</Typography>
             </Stack>
-            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
+            <Typography sx={{ fontSize: "0.8125rem", color: "text.secondary", mb: 2 }}>
               Reenriquece listas, watchlist e buscas salvas em background para manter contatos frescos.
             </Typography>
 
@@ -644,7 +664,7 @@ const LeadLists = () => {
                 startIcon={queueingRefreshKey === `list:${selectedList?.id || ""}` ? <CircularProgress size={14} color="inherit" /> : <ArchiveRounded sx={{ fontSize: 16 }} />}
                 onClick={() => void handleQueueSelectedListRefresh()}
                 disabled={queueingRefreshKey === `list:${selectedList?.id || ""}` || !selectedList}
-                sx={{ fontWeight: 600, fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", borderColor: "rgba(255,255,255,0.12)", color: "#A0A0A0", "&:hover": { borderColor: "rgba(255,255,255,0.2)", backgroundColor: "rgba(255,255,255,0.04)" } }}
+                sx={{ fontWeight: 600, fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", borderColor: "divider", color: "text.secondary", "&:hover": { borderColor: "text.secondary", backgroundColor: "action.hover" } }}
               >
                 Reverificar lista ativa
               </Button>
@@ -658,10 +678,10 @@ const LeadLists = () => {
               ].map((stat) => (
                 <Box key={stat.label} sx={rowSx}>
                   <Typography sx={sectionLabelSx}>{stat.label}</Typography>
-                  <Typography sx={{ fontSize: stat.small ? "0.9375rem" : "1.375rem", fontWeight: 700, color: "#E0E0E0", mt: 1, lineHeight: 1.2 }}>
+                  <Typography sx={{ fontSize: stat.small ? "0.9375rem" : "1.375rem", fontWeight: 700, color: "text.primary", mt: 1, lineHeight: 1.2 }}>
                     {stat.value}
                   </Typography>
-                  <Typography sx={{ fontSize: "0.6875rem", color: "#555", mt: 0.75 }}>{stat.sub}</Typography>
+                  <Typography sx={{ fontSize: "0.6875rem", color: "text.secondary", mt: 0.75 }}>{stat.sub}</Typography>
                 </Box>
               ))}
             </Box>
@@ -674,8 +694,8 @@ const LeadLists = () => {
                     <Box key={entry.id} sx={rowSx}>
                       <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5}>
                         <Box>
-                          <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>{entry.cnpj}</Typography>
-                          <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                          <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "text.primary" }}>{entry.cnpj}</Typography>
+                          <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", mt: 0.25 }}>
                             Proximo refresh: {formatDate(entry.next_refresh_at)} · Ultimo: {formatDate(entry.last_refresh_at)}
                           </Typography>
                         </Box>
@@ -697,14 +717,14 @@ const LeadLists = () => {
           <CardContent sx={{ p: 2.5 }}>
             <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
               <AccessTimeRounded sx={{ fontSize: 16, color: "#22C55E" }} />
-              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>Jobs recentes</Typography>
+              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary" }}>Jobs recentes</Typography>
             </Stack>
-            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
+            <Typography sx={{ fontSize: "0.8125rem", color: "text.secondary", mb: 2 }}>
               Acompanhe refresh de listas, buscas salvas e watchlist sem travar o frontend.
             </Typography>
 
             {loading ? (
-              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "text.secondary" }}>
                 <CircularProgress size={14} color="inherit" />
                 <Typography sx={{ fontSize: "0.8125rem" }}>Carregando jobs de refresh...</Typography>
               </Stack>
@@ -722,15 +742,18 @@ const LeadLists = () => {
                         sx={{
                           ...rowSx,
                           cursor: "pointer",
-                          border: isSelected ? "1px solid rgba(34,197,94,0.35)" : "1px solid rgba(255,255,255,0.06)",
-                          backgroundColor: isSelected ? "rgba(34,197,94,0.07)" : "rgba(255,255,255,0.02)",
+                          border: "1px solid",
+                          borderColor: isSelected ? "rgba(34,197,94,0.45)" : "divider",
+                          backgroundColor: isSelected
+                            ? "rgba(34,197,94,0.07)"
+                            : (theme.palette.mode === "dark" ? alpha(theme.palette.common.white, 0.02) : alpha(theme.palette.common.black, 0.03)),
                           transition: "all 0.15s",
                         }}
                       >
                         <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5}>
                           <Box>
-                            <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>{job.name}</Typography>
-                            <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                            <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "text.primary" }}>{job.name}</Typography>
+                            <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", mt: 0.25 }}>
                               {job.source_label || job.source_kind} · {job.processed_targets}/{job.total_targets} alvo(s)
                             </Typography>
                           </Box>
@@ -753,15 +776,15 @@ const LeadLists = () => {
                   <Box sx={rowSx}>
                     <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5} mb={1}>
                       <Box>
-                        <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>{selectedRefreshJob.name}</Typography>
-                        <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                        <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "text.primary" }}>{selectedRefreshJob.name}</Typography>
+                        <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", mt: 0.25 }}>
                           {selectedRefreshJob.source_label || selectedRefreshJob.source_kind} · Atualizado {formatDate(selectedRefreshJob.updated_at)}
                         </Typography>
                       </Box>
                       <Chip
                         label={`SMTP ${selectedRefreshJob.options.probe_smtp ? "on" : "off"}`}
                         size="small"
-                        sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }}
+                        sx={chipMutedSx}
                       />
                     </Stack>
                     {selectedRefreshJob.error && (
@@ -769,7 +792,7 @@ const LeadLists = () => {
                     )}
                     <Typography sx={{ ...sectionLabelSx, mb: 1.5 }}>Alvos recentes</Typography>
                     {loadingRefreshTargets ? (
-                      <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+                      <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "text.secondary" }}>
                         <CircularProgress size={14} color="inherit" />
                         <Typography sx={{ fontSize: "0.8125rem" }}>Carregando alvos...</Typography>
                       </Stack>
@@ -781,12 +804,12 @@ const LeadLists = () => {
                           <Box key={target.id} sx={{ ...rowSx, py: 1.5 }}>
                             <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5}>
                               <Box>
-                                <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>{target.cnpj}</Typography>
-                                <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                                <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "text.primary" }}>{target.cnpj}</Typography>
+                                <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", mt: 0.25 }}>
                                   {target.stage || "queued"} · {formatDate(target.updated_at)}
                                 </Typography>
                               </Box>
-                              <Chip label={target.status} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
+                              <Chip label={target.status} size="small" sx={chipMutedSx} />
                             </Stack>
                             {target.error && <Typography sx={{ fontSize: "0.75rem", color: "#EF4444", mt: 1 }}>{target.error}</Typography>}
                           </Box>
@@ -809,14 +832,14 @@ const LeadLists = () => {
           <CardContent sx={{ p: 2.5 }}>
             <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
               <ArchiveRounded sx={{ fontSize: 16, color: "#38BDF8" }} />
-              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>Listas salvas</Typography>
+              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary" }}>Listas salvas</Typography>
             </Stack>
-            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
+            <Typography sx={{ fontSize: "0.8125rem", color: "text.secondary", mb: 2 }}>
               Use estas listas para separar segmentos, campanhas e lotes prontos para outreach.
             </Typography>
 
             {loading ? (
-              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "text.secondary" }}>
                 <CircularProgress size={14} color="inherit" />
                 <Typography sx={{ fontSize: "0.8125rem" }}>Carregando listas...</Typography>
               </Stack>
@@ -833,27 +856,30 @@ const LeadLists = () => {
                       sx={{
                         ...rowSx,
                         cursor: "pointer",
-                        border: isSelected ? "1px solid rgba(56,189,248,0.35)" : "1px solid rgba(255,255,255,0.06)",
-                        backgroundColor: isSelected ? "rgba(56,189,248,0.06)" : "rgba(255,255,255,0.02)",
+                        border: "1px solid",
+                        borderColor: isSelected ? "rgba(56,189,248,0.45)" : "divider",
+                        backgroundColor: isSelected
+                          ? "rgba(56,189,248,0.06)"
+                          : (theme.palette.mode === "dark" ? alpha(theme.palette.common.white, 0.02) : alpha(theme.palette.common.black, 0.03)),
                         transition: "all 0.15s",
                       }}
                     >
                       <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5}>
                         <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }} noWrap>{list.name}</Typography>
-                          <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }} noWrap>{list.description || "Sem descricao"}</Typography>
+                          <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "text.primary" }} noWrap>{list.name}</Typography>
+                          <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", mt: 0.25 }} noWrap>{list.description || "Sem descricao"}</Typography>
                         </Box>
                         <IconButton
                           size="small"
                           onClick={(e) => { e.stopPropagation(); void handleDeleteList(list.id); }}
-                          sx={{ color: "#444", "&:hover": { color: "#EF4444" } }}
+                          sx={{ color: "text.secondary", "&:hover": { color: "error.main" } }}
                         >
                           <DeleteRounded sx={{ fontSize: 15 }} />
                         </IconButton>
                       </Stack>
                       <Stack direction="row" alignItems="center" gap={1} mt={1.5}>
-                        <Chip label={`${list.item_count} leads`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
-                        <Typography sx={{ fontSize: "0.75rem", color: "#555" }}>Atualizada em {formatDate(list.updated_at)}</Typography>
+                        <Chip label={`${list.item_count} leads`} size="small" sx={chipMutedSx} />
+                        <Typography sx={{ fontSize: "0.75rem", color: "text.secondary" }}>Atualizada em {formatDate(list.updated_at)}</Typography>
                       </Stack>
                     </Box>
                   );
@@ -866,17 +892,17 @@ const LeadLists = () => {
         {/* Itens da Lista */}
         <Card sx={cardSx} elevation={0}>
           <CardContent sx={{ p: 2.5 }}>
-            <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0", mb: 0.5 }}>
+            <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary", mb: 0.5 }}>
               {selectedList ? selectedList.name : "Itens da lista"}
             </Typography>
-            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
+            <Typography sx={{ fontSize: "0.8125rem", color: "text.secondary", mb: 2 }}>
               Snapshot operacional dos leads salvos, pronto para reuso em campanhas e revisoes.
             </Typography>
 
             {!selectedListId ? (
               <Box sx={emptyBoxSx}>Selecione uma lista para visualizar os leads armazenados.</Box>
             ) : loadingItems ? (
-              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "text.secondary" }}>
                 <CircularProgress size={14} color="inherit" />
                 <Typography sx={{ fontSize: "0.8125rem" }}>Carregando leads da lista...</Typography>
               </Stack>
@@ -893,17 +919,17 @@ const LeadLists = () => {
                     <Box key={`${item.id}-${item.cnpj}`} sx={rowSx}>
                       <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5}>
                         <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }} noWrap>
+                          <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "text.primary" }} noWrap>
                             {emp.nome_fantasia || emp.razao_social}
                           </Typography>
-                          <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                          <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", mt: 0.25 }}>
                             {emp.cnpj} · {emp.cidade || "-"} / {emp.uf || "-"}
                           </Typography>
                         </Box>
                         <IconButton
                           size="small"
                           onClick={() => void handleRemoveItem(item.cnpj)}
-                          sx={{ color: "#444", "&:hover": { color: "#EF4444" } }}
+                          sx={{ color: "text.secondary", "&:hover": { color: "error.main" } }}
                         >
                           <DeleteRounded sx={{ fontSize: 15 }} />
                         </IconButton>
@@ -922,7 +948,7 @@ const LeadLists = () => {
                             icon={<PhoneRounded sx={{ fontSize: 12 }} />}
                             label={telefone}
                             size="small"
-                            sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }}
+                            sx={chipMutedSx}
                           />
                         )}
                         {whatsapp && (
@@ -949,14 +975,14 @@ const LeadLists = () => {
           <CardContent sx={{ p: 2.5 }}>
             <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
               <BookmarkAddRounded sx={{ fontSize: 16, color: "#38BDF8" }} />
-              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>Buscas salvas e listas dinamicas</Typography>
+              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary" }}>Buscas salvas e listas dinamicas</Typography>
             </Stack>
-            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
+            <Typography sx={{ fontSize: "0.8125rem", color: "text.secondary", mb: 2 }}>
               Reexecute queries com 1 clique e abra o resultado direto no fluxo operacional do Hermes.
             </Typography>
 
             {loading ? (
-              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "text.secondary" }}>
                 <CircularProgress size={14} color="inherit" />
                 <Typography sx={{ fontSize: "0.8125rem" }}>Carregando buscas salvas...</Typography>
               </Stack>
@@ -969,25 +995,25 @@ const LeadLists = () => {
                     <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5} mb={1}>
                       <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Stack direction="row" alignItems="center" gap={1} mb={0.5} flexWrap="wrap">
-                          <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>{search.name}</Typography>
+                          <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "text.primary" }}>{search.name}</Typography>
                           <StatusChip label={search.kind === "dynamic" ? "dinamica" : "salva"} tone={search.kind === "dynamic" ? "success" : "info"} />
                         </Stack>
-                        <Typography sx={{ fontSize: "0.75rem", color: "#555" }}>
+                        <Typography sx={{ fontSize: "0.75rem", color: "text.secondary" }}>
                           {search.description || "Sem descricao"} · Ultima execucao: {formatDate(search.last_run_at)}
                         </Typography>
                       </Box>
                       <IconButton
                         size="small"
                         onClick={() => void handleDeleteSavedSearch(search.id)}
-                        sx={{ color: "#444", "&:hover": { color: "#EF4444" } }}
+                        sx={{ color: "text.secondary", "&:hover": { color: "error.main" } }}
                       >
                         <DeleteRounded sx={{ fontSize: 15 }} />
                       </IconButton>
                     </Stack>
                     <Stack direction="row" flexWrap="wrap" gap={0.75} mb={2}>
-                      <Chip label={`${(search.config.ufs ?? []).length || (search.config.uf ? 1 : 0)} UF(s)`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
-                      <Chip label={`${(search.config.cnaes ?? []).length} CNAE(s)`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
-                      <Chip label={`limite ${search.config.limite_empresas}`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
+                      <Chip label={`${(search.config.ufs ?? []).length || (search.config.uf ? 1 : 0)} UF(s)`} size="small" sx={chipMutedSx} />
+                      <Chip label={`${(search.config.cnaes ?? []).length} CNAE(s)`} size="small" sx={chipMutedSx} />
+                      <Chip label={`limite ${search.config.limite_empresas}`} size="small" sx={chipMutedSx} />
                     </Stack>
                     <Stack gap={1}>
                       <Button
@@ -1006,7 +1032,7 @@ const LeadLists = () => {
                         startIcon={queueingRefreshKey === `search:${search.id}` ? <CircularProgress size={14} color="inherit" /> : <RefreshRounded sx={{ fontSize: 16 }} />}
                         onClick={() => void handleQueueSavedSearchRefresh(search)}
                         disabled={queueingRefreshKey === `search:${search.id}`}
-                        sx={{ fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", borderColor: "rgba(255,255,255,0.08)", color: "#666", "&:hover": { borderColor: "rgba(255,255,255,0.14)", backgroundColor: "rgba(255,255,255,0.03)" } }}
+                        sx={{ fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", borderColor: "divider", color: "text.secondary", "&:hover": { borderColor: "text.secondary", backgroundColor: "action.hover" } }}
                       >
                         Reverificar leads desta busca
                       </Button>
@@ -1023,9 +1049,9 @@ const LeadLists = () => {
           <CardContent sx={{ p: 2.5 }}>
             <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
               <TrackChangesRounded sx={{ fontSize: 16, color: "#22C55E" }} />
-              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>Watchlist e refresh</Typography>
+              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary" }}>Watchlist e refresh</Typography>
             </Stack>
-            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
+            <Typography sx={{ fontSize: "0.8125rem", color: "text.secondary", mb: 2 }}>
               Acompanhe empresas, gere sinais internos e monitore WhatsApp acionavel.
             </Typography>
 
@@ -1036,7 +1062,7 @@ const LeadLists = () => {
                 onChange={(e) => setManualWatchCnpj(e.target.value)}
                 placeholder="CNPJ para acompanhar"
                 fullWidth
-                sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }}
+                sx={inputDenseSx}
               />
               <TextField
                 size="small"
@@ -1046,7 +1072,7 @@ const LeadLists = () => {
                 onChange={(e) => setManualWatchReason(e.target.value)}
                 placeholder="Motivo do acompanhamento"
                 fullWidth
-                sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }}
+                sx={inputDenseSx}
               />
               <Button
                 fullWidth
@@ -1062,7 +1088,7 @@ const LeadLists = () => {
             </Stack>
 
             {loading ? (
-              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "text.secondary" }}>
                 <CircularProgress size={14} color="inherit" />
                 <Typography sx={{ fontSize: "0.8125rem" }}>Carregando watchlist...</Typography>
               </Stack>
@@ -1074,23 +1100,23 @@ const LeadLists = () => {
                   <Box key={entry.id} sx={rowSx}>
                     <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5} mb={1}>
                       <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }} noWrap>
+                        <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "text.primary" }} noWrap>
                           {entry.nome_fantasia || entry.razao_social || entry.cnpj}
                         </Typography>
-                        <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                        <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", mt: 0.25 }}>
                           {entry.cnpj} · {entry.cidade || "-"} / {entry.uf || "-"}
                         </Typography>
                       </Box>
                       <IconButton
                         size="small"
                         onClick={() => void handleUnfollowCompany(entry.cnpj)}
-                        sx={{ color: "#444", "&:hover": { color: "#EF4444" } }}
+                        sx={{ color: "text.secondary", "&:hover": { color: "error.main" } }}
                       >
                         <DeleteRounded sx={{ fontSize: 15 }} />
                       </IconButton>
                     </Stack>
                     <Stack direction="row" flexWrap="wrap" gap={0.75} mb={1.5}>
-                      <Chip label={`${entry.signal_count} signal(s)`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
+                      <Chip label={`${entry.signal_count} signal(s)`} size="small" sx={chipMutedSx} />
                       <Chip label={`${entry.snapshot.decision_makers ?? 0} decisor(es)`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(56,189,248,0.08)", color: "#38BDF8", border: "1px solid rgba(56,189,248,0.2)" }} />
                       <Chip label={`${entry.snapshot.deliverable_emails ?? 0} email(s)`} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(56,189,248,0.06)", color: "#60A5FA", border: "1px solid rgba(56,189,248,0.15)" }} />
                       <StatusChip
@@ -1098,7 +1124,7 @@ const LeadLists = () => {
                         tone={entry.snapshot.has_whatsapp_validated ? "success" : "default"}
                       />
                     </Stack>
-                    <Typography sx={{ fontSize: "0.75rem", color: "#555", mb: 1.5 }}>
+                    <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", mb: 1.5 }}>
                       Padrao: {entry.snapshot.email_pattern || "nao resolvido"} · Ultimo refresh: {formatDate(entry.last_refresh_at)}
                     </Typography>
                     <Button
@@ -1107,7 +1133,7 @@ const LeadLists = () => {
                       startIcon={refreshingWatchCnpj === entry.cnpj ? <CircularProgress size={14} color="inherit" /> : <RefreshRounded sx={{ fontSize: 16 }} />}
                       onClick={() => void handleRefreshWatch(entry.cnpj)}
                       disabled={refreshingWatchCnpj === entry.cnpj}
-                      sx={{ fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", borderColor: "rgba(255,255,255,0.08)", color: "#666", "&:hover": { borderColor: "rgba(255,255,255,0.14)", backgroundColor: "rgba(255,255,255,0.03)" } }}
+                      sx={{ fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", borderColor: "divider", color: "text.secondary", "&:hover": { borderColor: "text.secondary", backgroundColor: "action.hover" } }}
                     >
                       Atualizar sinais
                     </Button>
@@ -1127,23 +1153,23 @@ const LeadLists = () => {
           <CardContent sx={{ p: 2.5 }}>
             <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
               <BlockRounded sx={{ fontSize: 16, color: "#F59E0B" }} />
-              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0" }}>Nova supressao</Typography>
+              <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary" }}>Nova supressao</Typography>
             </Stack>
-            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
+            <Typography sx={{ fontSize: "0.8125rem", color: "text.secondary", mb: 2 }}>
               Bloqueie CNPJs, e-mails ou dominios para que nao retornem nas proximas prospeccoes.
             </Typography>
             <Stack gap={1.5}>
-              <TextField size="small" value={manualCnpj} onChange={(e) => setManualCnpj(e.target.value)} placeholder="CNPJs separados por virgula" fullWidth sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }} />
-              <TextField size="small" value={manualEmail} onChange={(e) => setManualEmail(e.target.value)} placeholder="E-mails separados por virgula" fullWidth sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }} />
-              <TextField size="small" value={manualDomain} onChange={(e) => setManualDomain(e.target.value)} placeholder="Dominios separados por virgula" fullWidth sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }} />
-              <TextField size="small" multiline rows={3} value={manualReason} onChange={(e) => setManualReason(e.target.value)} placeholder="Motivo da supressao" fullWidth sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }} />
+              <TextField size="small" value={manualCnpj} onChange={(e) => setManualCnpj(e.target.value)} placeholder="CNPJs separados por virgula" fullWidth sx={inputDenseSx} />
+              <TextField size="small" value={manualEmail} onChange={(e) => setManualEmail(e.target.value)} placeholder="E-mails separados por virgula" fullWidth sx={inputDenseSx} />
+              <TextField size="small" value={manualDomain} onChange={(e) => setManualDomain(e.target.value)} placeholder="Dominios separados por virgula" fullWidth sx={inputDenseSx} />
+              <TextField size="small" multiline rows={3} value={manualReason} onChange={(e) => setManualReason(e.target.value)} placeholder="Motivo da supressao" fullWidth sx={inputDenseSx} />
               <Button
                 fullWidth
                 variant="contained"
                 startIcon={savingSuppression ? <CircularProgress size={14} color="inherit" /> : <SpeakerNotesOffRounded sx={{ fontSize: 16 }} />}
                 onClick={() => void handleManualSuppression()}
                 disabled={savingSuppression}
-                sx={{ fontWeight: 600, fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", backgroundColor: "#F59E0B", color: "#0F0F0F", "&:hover": { backgroundColor: "#D97706" } }}
+                sx={{ fontWeight: 600, fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", backgroundColor: "warning.main", color: "warning.contrastText", "&:hover": { backgroundColor: "warning.dark" } }}
               >
                 Registrar supressao
               </Button>
@@ -1154,13 +1180,13 @@ const LeadLists = () => {
         {/* Signals Recentes */}
         <Card sx={cardSx} elevation={0}>
           <CardContent sx={{ p: 2.5 }}>
-            <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0", mb: 0.5 }}>Signals recentes</Typography>
-            <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
+            <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary", mb: 0.5 }}>Signals recentes</Typography>
+            <Typography sx={{ fontSize: "0.8125rem", color: "text.secondary", mb: 2 }}>
               Eventos internos do Hermes para timing de abordagem e cobertura de contato.
             </Typography>
 
             {loading ? (
-              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+              <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "text.secondary" }}>
                 <CircularProgress size={14} color="inherit" />
                 <Typography sx={{ fontSize: "0.8125rem" }}>Carregando sinais...</Typography>
               </Stack>
@@ -1172,20 +1198,22 @@ const LeadLists = () => {
                   <Box key={signal.id} sx={rowSx}>
                     <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5} mb={0.5}>
                       <Box>
-                        <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>{signal.title}</Typography>
-                        <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                        <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "text.primary" }}>{signal.title}</Typography>
+                        <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", mt: 0.25 }}>
                           {signal.cnpj} · {formatDate(signal.created_at)}
                         </Typography>
                       </Box>
-                      <Chip label={signal.signal_type} size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />
+                      <Chip label={signal.signal_type} size="small" sx={chipMutedSx} />
                     </Stack>
                     {signal.payload && Object.keys(signal.payload).length > 0 && (
                       <Box
                         component="pre"
                         sx={{
                           mt: 1.5, p: 1.5, overflow: "auto", borderRadius: "8px",
-                          backgroundColor: "#0D0D0D", border: "1px solid rgba(255,255,255,0.06)",
-                          fontSize: "0.6875rem", lineHeight: 1.7, color: "#888", fontFamily: "monospace",
+                          backgroundColor: "action.hover",
+                          border: "1px solid",
+                          borderColor: "divider",
+                          fontSize: "0.6875rem", lineHeight: 1.7, color: "text.secondary", fontFamily: "monospace",
                         }}
                       >
                         {JSON.stringify(signal.payload, null, 2)}
@@ -1202,13 +1230,13 @@ const LeadLists = () => {
       {/* ── Registro de Supressao ──────────────────────────────────────────── */}
       <Card sx={cardSx} elevation={0}>
         <CardContent sx={{ p: 2.5 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0", mb: 0.5 }}>Registro de supressao</Typography>
-          <Typography sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
+          <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary", mb: 0.5 }}>Registro de supressao</Typography>
+          <Typography sx={{ fontSize: "0.8125rem", color: "text.secondary", mb: 2 }}>
             Itens bloqueados da prospeccao automatica para evitar retrabalho e contato indevido.
           </Typography>
 
           {loading ? (
-            <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "#666" }}>
+            <Stack direction="row" alignItems="center" gap={1.5} sx={{ ...rowSx, color: "text.secondary" }}>
               <CircularProgress size={14} color="inherit" />
               <Typography sx={{ fontSize: "0.8125rem" }}>Carregando supressoes...</Typography>
             </Stack>
@@ -1219,14 +1247,14 @@ const LeadLists = () => {
               {suppressions.map((entry) => (
                 <Stack key={entry.id} direction="row" alignItems="flex-start" justifyContent="space-between" gap={1.5} sx={rowSx}>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#E0E0E0" }}>
+                    <Typography sx={{ fontSize: "0.875rem", fontWeight: 600, color: "text.primary" }}>
                       {entry.cnpj || entry.email || entry.domain || "Registro"}
                     </Typography>
-                    <Typography sx={{ fontSize: "0.75rem", color: "#555", mt: 0.25 }}>
+                    <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", mt: 0.25 }}>
                       {entry.reason || "Sem motivo informado"} · {formatDate(entry.updated_at || entry.created_at)}
                     </Typography>
                     <Stack direction="row" flexWrap="wrap" gap={0.75} mt={1}>
-                      {entry.cnpj && <Chip label="CNPJ" size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(255,255,255,0.04)", color: "#888", border: "1px solid rgba(255,255,255,0.08)" }} />}
+                      {entry.cnpj && <Chip label="CNPJ" size="small" sx={chipMutedSx} />}
                       {entry.email && <Chip label="E-mail" size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(56,189,248,0.08)", color: "#38BDF8", border: "1px solid rgba(56,189,248,0.2)" }} />}
                       {entry.domain && <Chip label="Dominio" size="small" sx={{ fontSize: "0.6875rem", backgroundColor: "rgba(56,189,248,0.06)", color: "#60A5FA", border: "1px solid rgba(56,189,248,0.15)" }} />}
                     </Stack>
@@ -1234,7 +1262,7 @@ const LeadLists = () => {
                   <IconButton
                     size="small"
                     onClick={() => void handleRemoveSuppression(entry.id)}
-                    sx={{ color: "#444", "&:hover": { color: "#EF4444" } }}
+                    sx={{ color: "text.secondary", "&:hover": { color: "error.main" } }}
                   >
                     <DeleteRounded sx={{ fontSize: 15 }} />
                   </IconButton>
@@ -1249,13 +1277,13 @@ const LeadLists = () => {
       <Dialog
         open={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
-        PaperProps={{ sx: { backgroundColor: "#141414", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", minWidth: 420 } }}
+        PaperProps={{ sx: { backgroundColor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: "12px", minWidth: 420 } }}
       >
-        <DialogTitle sx={{ fontWeight: 600, fontSize: "1rem", color: "#F0F0F0", pb: 1 }}>
+        <DialogTitle sx={{ fontWeight: 600, fontSize: "1rem", color: "text.primary", pb: 1 }}>
           Criar nova lista
         </DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ fontSize: "0.8125rem", color: "#666", mb: 2 }}>
+          <DialogContentText sx={{ fontSize: "0.8125rem", color: "text.secondary", mb: 2 }}>
             De um nome para a lista e use Results para alimentar os leads selecionados.
           </DialogContentText>
           <Stack gap={1.5}>
@@ -1266,7 +1294,7 @@ const LeadLists = () => {
               placeholder="Ex.: Imobiliarias SP - rodada 1"
               fullWidth
               autoFocus
-              sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }}
+              sx={inputDenseSx}
             />
             <TextField
               size="small"
@@ -1276,7 +1304,7 @@ const LeadLists = () => {
               onChange={(e) => setCreateDescription(e.target.value)}
               placeholder="Descricao opcional"
               fullWidth
-              sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "#181818", fontSize: "0.8125rem" } }}
+              sx={inputDenseSx}
             />
           </Stack>
         </DialogContent>
@@ -1284,7 +1312,7 @@ const LeadLists = () => {
           <Button
             variant="outlined"
             onClick={() => setCreateDialogOpen(false)}
-            sx={{ fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", borderColor: "rgba(255,255,255,0.1)", color: "#888" }}
+            sx={{ fontSize: "0.8125rem", textTransform: "none", borderRadius: "8px", borderColor: "divider", color: "text.secondary" }}
           >
             Cancelar
           </Button>

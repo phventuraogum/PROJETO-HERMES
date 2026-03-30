@@ -10,6 +10,8 @@ import {
 } from "@mui/icons-material";
 import { exportToCrm, getCrmKeys, setCrmKey, type Empresa, type LeadExportPayload } from "@/lib/api";
 import { toast } from "sonner";
+import { useTheme } from "@mui/material/styles";
+import { denseOutlinedInput } from "@/theme/themeSx";
 
 type Provider = "ploomes" | "pipedrive" | "hubspot" | "rdstation" | "kommo";
 
@@ -54,17 +56,11 @@ function isKommoConfigured(): boolean {
 }
 
 const paperSx = {
-  backgroundColor: "#141414",
-  border: "1px solid rgba(255,255,255,0.08)",
+  backgroundColor: "background.paper",
+  border: "1px solid",
+  borderColor: "divider",
   borderRadius: "12px",
   minWidth: 420,
-};
-
-const inputSx = {
-  "& .MuiOutlinedInput-root": {
-    backgroundColor: "#181818",
-    fontSize: "0.8125rem",
-  },
 };
 
 export function CrmExportModal({
@@ -76,6 +72,8 @@ export function CrmExportModal({
   onClose: () => void;
   empresa: Empresa | null;
 }) {
+  const theme = useTheme();
+  const inputDenseSx = denseOutlinedInput(theme);
   const [provider, setProvider]           = useState<Provider>("ploomes");
   const [apiKey, setApiKey]               = useState("");
   const [kommoSubdomain, setKommoSubdomain] = useState("");
@@ -146,7 +144,7 @@ export function CrmExportModal({
 
   return (
     <Dialog open={open} onClose={() => handleOpenChange(false)} PaperProps={{ sx: paperSx }}>
-      <DialogTitle sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "#F0F0F0", pb: 0.5 }}>
+      <DialogTitle sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary", pb: 0.5 }}>
         Enviar lead para CRM
         {empresa && (
           <Typography sx={{ fontSize: "0.75rem", color: "#666", mt: 0.25 }} noWrap>
@@ -165,7 +163,7 @@ export function CrmExportModal({
             value={provider}
             onChange={e => handleProviderChange(e.target.value as Provider)}
             fullWidth
-            sx={inputSx}
+            sx={inputDenseSx}
           >
             {PROVIDERS.map(p => (
               <MenuItem key={p.id} value={p.id} sx={{ fontSize: "0.8125rem" }}>{p.label}</MenuItem>
@@ -183,7 +181,7 @@ export function CrmExportModal({
                 placeholder="sua-empresa"
                 disabled={isKommoLocked}
                 fullWidth
-                sx={inputSx}
+                sx={inputDenseSx}
               />
               <Typography sx={{ fontSize: "0.75rem", color: "#666", whiteSpace: "nowrap" }}>.kommo.com</Typography>
             </Stack>
@@ -208,7 +206,7 @@ export function CrmExportModal({
               placeholder={savedKeys[provider] ? "•••••••• (salvo)" : "Cole aqui"}
               disabled={isKommoLocked}
               fullWidth
-              sx={inputSx}
+              sx={inputDenseSx}
             />
           </Box>
 
