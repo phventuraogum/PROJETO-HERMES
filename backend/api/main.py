@@ -1,7 +1,21 @@
 from typing import Any, Dict, List, Optional
 
 # Alias para compatibilidade com código legado que usa _as_opt_str
-_as_opt_str = lambda v: str(v).strip() if v is not None and str(v).strip() else None
+def _as_opt_str(v):
+    if v is None:
+        return None
+    try:
+        import math
+        if isinstance(v, float) and math.isnan(v):
+            return None
+    except Exception:
+        pass
+    s = str(v).strip()
+    if not s:
+        return None
+    if s.lower() in {"nan", "none", "null", "n/a", "na", "<na>"}:
+        return None
+    return s
 import re
 import math
 import os
@@ -1433,9 +1447,10 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
         )
 
         segmento = classificar_segmento_por_cnae(row.get("cnae_principal"))
+        razao_social_val = _as_opt_str(row.get("razao_social")) or _as_opt_str(row.get("nome_fantasia")) or cnpj_str
         subsegmento = classificar_subsegmento_por_cnae_e_nome(
             row.get("cnae_principal"),
-            row.get("razao_social") or row["razao_social"],
+            razao_social_val,
             row.get("nome_fantasia"),
         )
         porte_rotulo = mapear_porte(row.get("porte_codigo"))
@@ -1453,7 +1468,7 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
             Empresa(
                 # identificação
                 cnpj=cnpj_str,
-                razao_social=row["razao_social"],
+                razao_social=razao_social_val,
                 nome_fantasia=_as_opt_str(row.get("nome_fantasia")),
                 natureza_juridica=natureza,
                 data_abertura=data_ab,

@@ -213,7 +213,7 @@ def rodar_prospeccao_otimizada(
     for _, row in df.iterrows():
         cnpj_str = str(row["cnpj"])
         base = cnpj_str[:8]
-        razao = str(row["razao_social"])
+        razao = as_opt_str(row.get("razao_social")) or as_opt_str(row.get("nome_fantasia")) or cnpj_str
         fantasia = as_opt_str(row.get("nome_fantasia"))
         cnae = as_opt_str(row.get("cnae_principal"))
         uf_val = as_opt_str(row.get("uf"))

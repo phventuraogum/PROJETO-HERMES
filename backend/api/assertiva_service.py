@@ -4,8 +4,11 @@ Autenticação OAuth2 (client_credentials) com cache de token.
 Consulta de CNPJ (PJ) e CPF (PF) via Assertiva Localize.
 """
 import logging
+import re
 import time
+import unicodedata
 from typing import Optional, Dict, Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -14,6 +17,128 @@ logger = logging.getLogger(__name__)
 ASSERTIVA_TOKEN_URL = "https://api.assertivasolucoes.com.br/oauth2/v3/token"
 ASSERTIVA_CNPJ_URL  = "https://api.assertivasolucoes.com.br/localize/v3/cnpj"
 ASSERTIVA_CPF_URL   = "https://api.assertivasolucoes.com.br/localize/v3/cpf"
+
+# Fontes genéricas comuns (não representam canal oficial da empresa consultada)
+_GENERIC_CONTACT_MARKERS = (
+    "informecadastral",
+    "consulta cadastral",
+    "consultacadastral",
+    "situação cadastral",
+    "situacao cadastral",
+    "consulta cnpj",
+    "consultacnpj",
+)
+
+_SUSPICIOUS_DOMAIN_MARKERS = (
+    "cadastral",
+    "consulta",
+    "consultacnpj",
+    "consultacpf",
+    "informecadastral",
+    "dados",
+)
+
+_COMPANY_STOPWORDS = {
+    "ltda", "me", "epp", "eireli", "sa", "s", "a", "de", "da", "do", "das", "dos",
+    "e", "comercio", "servicos", "industria", "empresa", "grupo", "holding", "brasil",
+}
+
+
+def _text_has_generic_marker(value: Optional[str]) -> bool:
+    if not value:
+        return False
+    txt = str(value).strip().lower()
+    if not txt:
+        return False
+    return any(marker in txt for marker in _GENERIC_CONTACT_MARKERS)
+
+
+def _normalize_text(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    txt = unicodedata.normalize("NFKD", str(value).lower())
+    txt = "".join(ch for ch in txt if not unicodedata.combining(ch))
+    return txt
+
+
+def _extract_domain(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    raw = str(value).strip().lower()
+    if not raw:
+        return ""
+    candidate = raw if "://" in raw else f"https://{raw}"
+    try:
+        host = urlparse(candidate).netloc.lower()
+    except Exception:
+        host = ""
+    if not host:
+        return raw
+    if host.startswith("www."):
+        host = host[4:]
+    return host
+
+
+def _company_tokens(razao_social: Optional[str], nome_fantasia: Optional[str]) -> set[str]:
+    base = f"{_normalize_text(razao_social)} {_normalize_text(nome_fantasia)}"
+    parts = re.findall(r"[a-z0-9]+", base)
+    tokens = {p for p in parts if len(p) >= 4 and p not in _COMPANY_STOPWORDS}
+    return tokens
+
+
+def _has_company_domain_signal(domains: list[str], company_tokens: set[str]) -> bool:
+    if not domains or not company_tokens:
+        return False
+    for domain in domains:
+        dom = _normalize_text(domain)
+        if any(tok in dom for tok in company_tokens):
+            return True
+    return False
+
+
+def _is_generic_contact_source(
+    site: Optional[str],
+    emails: list,
+    razao_social: Optional[str],
+    nome_fantasia: Optional[str],
+    has_whatsapp: bool = False,
+) -> bool:
+    if _text_has_generic_marker(razao_social) or _text_has_generic_marker(nome_fantasia):
+        return True
+
+    site_domain = _extract_domain(site)
+    if _text_has_generic_marker(site_domain):
+        return True
+
+    email_domains: list[str] = []
+    for e in emails or []:
+        if isinstance(e, dict):
+            email = (e.get("email") or "").strip().lower()
+        else:
+            email = str(e or "").strip().lower()
+        if not email:
+            continue
+        if _text_has_generic_marker(email):
+            return True
+        if "@" in email:
+            email_domain = email.split("@", 1)[1]
+            email_domains.append(email_domain)
+            if _text_has_generic_marker(email_domain):
+                return True
+
+    # Heurística extra: se houver WhatsApp, mas domínio/e-mail não têm
+    # qualquer sinal de vínculo com a marca e o domínio parece "agregador",
+    # trata como contato genérico.
+    domains = [d for d in [site_domain, *email_domains] if d]
+    company_tokens = _company_tokens(razao_social, nome_fantasia)
+    has_brand_signal = _has_company_domain_signal(domains, company_tokens)
+    domain_looks_suspicious = any(
+        marker in _normalize_text(d) for d in domains for marker in _SUSPICIOUS_DOMAIN_MARKERS
+    )
+    if has_whatsapp and domains and not has_brand_signal and domain_looks_suspicious:
+        return True
+
+    return False
 
 
 class AssertivaCNPJService:
@@ -267,6 +392,19 @@ class AssertivaCNPJService:
                 "ultimo_contato": t.get("ultimoContato"),
             })
 
+        # Se a Assertiva trouxe fonte genérica de consulta cadastral,
+        # descartamos contatos para evitar falso WhatsApp da empresa.
+        source_is_generic = _is_generic_contact_source(
+            site=dados.get("site"),
+            emails=emails_raw,
+            razao_social=dados.get("razaoSocial"),
+            nome_fantasia=dados.get("nomeFantasia"),
+            has_whatsapp=any(bool(t.get("whatsapp")) for t in telefones),
+        )
+        if source_is_generic:
+            telefones = []
+            emails_raw = []
+
         # Endereço principal
         endereco_principal = enderecos[0] if enderecos else {}
 
@@ -327,6 +465,7 @@ class AssertivaCNPJService:
             ],
             "redes_sociais": redes_sociais,
             "raw": raw,
+            "contatos_filtrados": source_is_generic,
         }
         return normalizado
 

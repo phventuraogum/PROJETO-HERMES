@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase, SUPABASE_STORAGE_KEY } from "@/lib/supabase";
 
 type AuthCtx = {
   accessToken: string | null;
@@ -11,6 +11,15 @@ type AuthCtx = {
 const Ctx = createContext<AuthCtx | null>(null);
 const DEV_TOKEN_KEY = "hermes_token";
 
+function clearBrokenSupabaseSession(): void {
+  try {
+    localStorage.removeItem(SUPABASE_STORAGE_KEY);
+    sessionStorage.removeItem(SUPABASE_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -20,11 +29,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // --- Supabase (produção) ---
     if (isSupabaseConfigured && supabase) {
-      supabase.auth.getSession().then(({ data }) => {
-        if (!mounted) return;
-        setAccessToken(data.session?.access_token ?? null);
-        setLoading(false);
-      });
+      supabase.auth
+        .getSession()
+        .then(({ data }) => {
+          if (!mounted) return;
+          setAccessToken(data.session?.access_token ?? null);
+          setLoading(false);
+        })
+        .catch(async () => {
+          if (!mounted) return;
+          clearBrokenSupabaseSession();
+          try {
+            await supabase.auth.signOut();
+          } catch {
+            // ignore
+          }
+          setAccessToken(null);
+          setLoading(false);
+        });
 
       const { data } = supabase.auth.onAuthStateChange((_event, newSession) => {
         setAccessToken(newSession?.access_token ?? null);

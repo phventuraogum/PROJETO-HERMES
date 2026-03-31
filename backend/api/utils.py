@@ -187,9 +187,17 @@ def as_opt_str(value: Any) -> Optional[str]:
         pass
     if isinstance(value, str):
         s = value.strip()
-        return s or None
+        if not s:
+            return None
+        if s.lower() in {"nan", "none", "null", "n/a", "na", "<na>"}:
+            return None
+        return s
     s = str(value).strip()
-    return s or None
+    if not s:
+        return None
+    if s.lower() in {"nan", "none", "null", "n/a", "na", "<na>"}:
+        return None
+    return s
 
 
 def montar_contexto_sidra(

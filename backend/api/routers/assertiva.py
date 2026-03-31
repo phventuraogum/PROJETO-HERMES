@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from config import settings
 from middleware.auth import require_auth
@@ -23,6 +23,19 @@ router = APIRouter(prefix="/assertiva", tags=["Assertiva"])
 
 # ── Cache de instâncias por org_id ─────────────────────────────────────────
 _clients: dict[str, AssertivaCNPJService] = {}
+
+
+def _resolve_org_id(request: Request, user: dict) -> str:
+    """
+    Resolve org_id priorizando o contexto multi-tenant do request.
+    Ordem:
+      1) X-Org-Id (padrão do app)
+      2) claims comuns do token (org_id / sub / id)
+    """
+    header_org = (request.headers.get("X-Org-Id") or "").strip()
+    if header_org:
+        return header_org
+    return (user.get("org_id") or user.get("sub") or user.get("id") or "").strip()
 
 
 def _get_client(org_id: str, client_id: str, client_secret: str) -> AssertivaCNPJService:
@@ -228,6 +241,7 @@ async def _log_consulta(
 
 @router.get("/decisores/{cnpj}")
 async def get_decisores(
+    request: Request,
     cnpj: str,
     refresh: bool = False,
     user: dict = Depends(require_auth),
@@ -243,9 +257,9 @@ async def get_decisores(
     if len(cnpj_clean) != 14:
         raise HTTPException(status_code=400, detail="CNPJ inválido — informe 14 dígitos")
 
-    org_id = user.get("org_id") or user.get("sub") or ""
+    org_id = _resolve_org_id(request, user)
     if not org_id:
-        raise HTTPException(status_code=401, detail="Organização não identificada no token")
+        raise HTTPException(status_code=401, detail="Organização não identificada")
 
     # Credenciais do tenant
     client_id, client_secret, supa_url, supa_key = await _get_org_assertiva_creds(org_id)
@@ -332,6 +346,7 @@ async def _save_cache_pf(supa_url: str, supa_key: str, cpf: str, dados: dict) ->
 
 @router.get("/pessoa/{cpf}")
 async def get_pessoa(
+    request: Request,
     cpf: str,
     refresh: bool = False,
     user: dict = Depends(require_auth),
@@ -348,9 +363,9 @@ async def get_pessoa(
     if len(cpf_clean) != 11:
         raise HTTPException(status_code=400, detail="CPF inválido — informe 11 dígitos")
 
-    org_id = user.get("org_id") or user.get("sub") or ""
+    org_id = _resolve_org_id(request, user)
     if not org_id:
-        raise HTTPException(status_code=401, detail="Organização não identificada no token")
+        raise HTTPException(status_code=401, detail="Organização não identificada")
 
     client_id, client_secret, supa_url, supa_key = await _get_org_assertiva_creds(org_id)
 
@@ -380,11 +395,11 @@ async def get_pessoa(
 
 
 @router.get("/consumo")
-async def get_consumo(user: dict = Depends(require_auth)) -> dict[str, Any]:
+async def get_consumo(request: Request, user: dict = Depends(require_auth)) -> dict[str, Any]:
     """
     Retorna resumo de consumo Assertiva da organização no mês corrente.
     """
-    org_id = user.get("org_id") or user.get("sub") or ""
+    org_id = _resolve_org_id(request, user)
     if not org_id:
         raise HTTPException(status_code=401, detail="Organização não identificada")
 

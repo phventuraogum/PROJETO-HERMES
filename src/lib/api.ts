@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase, SUPABASE_STORAGE_KEY } from "@/lib/supabase";
 import { loadLatestResult, saveLatestResult } from "@/lib/latestResultStorage";
 
 // URL base do Hermes (FastAPI)
@@ -311,6 +311,15 @@ async function lerResultadoLocal(): Promise<ResultadoSalvo | null> {
 
 type HermesFetchOptions = RequestInit;
 
+function clearBrokenSupabaseSession(): void {
+  try {
+    localStorage.removeItem(SUPABASE_STORAGE_KEY);
+    sessionStorage.removeItem(SUPABASE_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 async function getAuthToken(): Promise<string | null> {
   if (isSupabaseConfigured && supabase) {
     try {
@@ -325,6 +334,7 @@ async function getAuthToken(): Promise<string | null> {
         return token;
       }
     } catch {
+      clearBrokenSupabaseSession();
       // ignore and continue to dev fallback
     }
   }
