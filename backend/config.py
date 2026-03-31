@@ -164,6 +164,25 @@ class Settings(BaseSettings):
     )
 
     # ============================================================
+    # KOMMO CRM — funil padrão (quando org_integrations não define)
+    # URL do funil: https://{sub}.kommo.com/leads/pipeline/{pipeline_id}/
+    # ============================================================
+    KOMMO_DEFAULT_SUBDOMAIN: str = Field(
+        default="",
+        description="Subdomínio Kommo (ex.: bfcompanypinn) para aplicar KOMMO_DEFAULT_PIPELINE_ID",
+    )
+
+    KOMMO_DEFAULT_PIPELINE_ID: Optional[int] = Field(
+        default=None,
+        description="ID do funil Kommo para novos leads (ex.: 13230435)",
+    )
+
+    KOMMO_DEFAULT_STATUS_ID: Optional[int] = Field(
+        default=None,
+        description="ID da etapa inicial no funil; se vazio, usa a 1ª etapa retornada pela API",
+    )
+
+    # ============================================================
     # N8N SDR INTEGRATION
     # ============================================================
     N8N_SDR_API_KEY: str = Field(

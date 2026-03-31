@@ -206,8 +206,163 @@ def _export_ploomes(api_key: str, lead: LeadExportPayload, funnel_id: int | None
 
 
 # ─── KOMMO (AmoCRM) ─────────────────────────────────────────
+# Docs: https://developers.kommo.com/reference/add-contacts
+# Campos multitext (EMAIL/PHONE) exigem enum_id numérico vindo do schema da conta — não enum_code string.
 
-_SUBDOMAIN_RE = re.compile(r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$')
+_SUBDOMAIN_RE = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$")
+
+
+def _normalize_kommo_subdomain(raw: str) -> str:
+    """Aceita 'minhaempresa', 'https://minhaempresa.kommo.com', etc."""
+    s = (raw or "").strip()
+    s = re.sub(r"^https?://", "", s, flags=re.IGNORECASE)
+    s = s.rstrip("/")
+    s = re.sub(r"\.kommo\.com.*$", "", s, flags=re.IGNORECASE)
+    s = re.sub(r"\.amocrm\.(ru|com).*$", "", s, flags=re.IGNORECASE)
+    return s.strip().lower()
+
+
+def _kommo_auth_headers(access_token: str) -> dict:
+    t = (access_token or "").strip()
+    if t.lower().startswith("bearer "):
+        t = t[7:].strip()
+    return {
+        "Authorization": f"Bearer {t}",
+        "Content-Type": "application/json",
+    }
+
+
+def _kommo_fetch_contact_fields(base: str, headers: dict) -> list[dict]:
+    r = requests.get(f"{base}/contacts/fields", headers=headers, timeout=20)
+    if r.status_code >= 300:
+        return []
+    data = r.json() or {}
+    return (data.get("_embedded") or {}).get("fields") or []
+
+
+def _kommo_pick_enum_id(field: dict, prefer: tuple[str, ...] = ("WORK", "COMERCIAL", "PRINCIPAL")) -> int | None:
+    for e in field.get("enums") or []:
+        lab = str(e.get("value") or "").upper()
+        if any(p in lab for p in prefer):
+            return e.get("id")
+    enums = field.get("enums") or []
+    if enums:
+        return enums[0].get("id")
+    return None
+
+
+def _kommo_build_contact_custom_fields(fields: list[dict], lead: LeadExportPayload) -> list[dict]:
+    """Monta custom_fields_values com field_id + enum_id (API v4)."""
+    by_code = {str(f.get("code") or "").upper(): f for f in fields if f.get("code")}
+    out: list[dict] = []
+
+    if lead.email:
+        f = by_code.get("EMAIL")
+        if f and f.get("id") is not None:
+            eid = _kommo_pick_enum_id(f, ("WORK", "COMERCIAL", "PRINCIPAL", "PRIVATE"))
+            val: dict = {"value": lead.email.strip()}
+            if eid is not None:
+                val["enum_id"] = eid
+            out.append({"field_id": int(f["id"]), "values": [val]})
+
+    phone = (lead.telefone or lead.whatsapp or "").strip()
+    if phone:
+        f = by_code.get("PHONE") or by_code.get("MOB")
+        if f and f.get("id") is not None:
+            eid = _kommo_pick_enum_id(f, ("WORK", "MOB", "CEL", "OTHER"))
+            val = {"value": phone}
+            if eid is not None:
+                val["enum_id"] = eid
+            out.append({"field_id": int(f["id"]), "values": [val]})
+
+    return out
+
+
+def _kommo_fetch_pipelines(base: str, headers: dict) -> list[dict]:
+    r = requests.get(f"{base}/leads/pipelines", headers=headers, timeout=20)
+    if r.status_code >= 300:
+        return []
+    data = r.json() or {}
+    return (data.get("_embedded") or {}).get("pipelines") or []
+
+
+def _as_opt_int(v: object) -> int | None:
+    if v is None or v == "":
+        return None
+    try:
+        return int(v)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def _kommo_resolve_pipeline_status(
+    base: str,
+    headers: dict,
+    org_pipeline_id: int | None,
+    org_status_id: int | None,
+    account_subdomain: str,
+) -> tuple[int, int]:
+    """
+    Garante pipeline_id + status_id. A maioria das contas Kommo exige ambos para criar lead.
+
+    Ordem: (1) org_integrations; (2) funil padrão do deploy (KOMMO_DEFAULT_* + subdomínio);
+    (3) primeiro funil da conta.
+    """
+    pipelines = _kommo_fetch_pipelines(base, headers)
+    if not pipelines:
+        raise HTTPException(
+            status_code=502,
+            detail="Kommo: não foi possível ler funis (pipelines). Verifique o token e as permissões da integração.",
+        )
+
+    op = _as_opt_int(org_pipeline_id)
+    osid = _as_opt_int(org_status_id)
+
+    if op is not None and osid is not None:
+        return op, osid
+
+    if op is not None and osid is None:
+        pid = op
+        for p in pipelines:
+            if int(p.get("id") or 0) == pid:
+                sts = (p.get("_embedded") or {}).get("statuses") or []
+                if sts:
+                    return pid, int(sts[0]["id"])
+        raise HTTPException(
+            status_code=400,
+            detail="Kommo: kommo_status_id não encontrado para o pipeline configurado. Ajuste em org_integrations ou deixe em branco para usar o funil padrão.",
+        )
+
+    # Deploy: funil fixo (ex. PINN) — só se org não definiu e env bate com o subdomínio da conta
+    env_sub = (getattr(settings, "KOMMO_DEFAULT_SUBDOMAIN", "") or "").strip().lower()
+    env_pid = _as_opt_int(getattr(settings, "KOMMO_DEFAULT_PIPELINE_ID", None))
+    env_sid = _as_opt_int(getattr(settings, "KOMMO_DEFAULT_STATUS_ID", None))
+    sub_norm = (account_subdomain or "").strip().lower()
+
+    if env_pid is not None:
+        if not env_sub or env_sub == sub_norm:
+            if env_sid is not None:
+                return env_pid, env_sid
+            for p in pipelines:
+                if int(p.get("id") or 0) == env_pid:
+                    sts = (p.get("_embedded") or {}).get("statuses") or []
+                    if sts:
+                        return env_pid, int(sts[0]["id"])
+            raise HTTPException(
+                status_code=502,
+                detail=f"Kommo: funil {env_pid} não encontrado na conta ou sem etapas. Confira KOMMO_DEFAULT_PIPELINE_ID.",
+            )
+
+    # Padrão: primeiro pipeline e primeiro status (entrada / não arquivado)
+    p0 = pipelines[0]
+    pid = int(p0["id"])
+    sts = (p0.get("_embedded") or {}).get("statuses") or []
+    if not sts:
+        raise HTTPException(
+            status_code=502,
+            detail="Kommo: o primeiro funil não possui etapas (status). Configure um funil no Kommo.",
+        )
+    return pid, int(sts[0]["id"])
 
 
 def _export_kommo(
@@ -217,54 +372,52 @@ def _export_kommo(
     pipeline_id: int | None = None,
     status_id: int | None = None,
 ) -> dict:
-    # Valida subdomínio para evitar injeção de URL
-    if not _SUBDOMAIN_RE.match(subdomain):
-        raise HTTPException(status_code=400, detail="Subdomínio Kommo inválido. Use apenas letras, números e hífens.")
+    sub = _normalize_kommo_subdomain(subdomain)
+    if not sub or not _SUBDOMAIN_RE.match(sub):
+        raise HTTPException(
+            status_code=400,
+            detail="Subdomínio Kommo inválido. Informe só o nome (ex.: minhaempresa) ou URL sem path.",
+        )
 
-    base = f"https://{subdomain}.kommo.com/api/v4"
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-    }
+    base = f"https://{sub}.kommo.com/api/v4"
+    headers = _kommo_auth_headers(access_token)
 
-    # 1. Criar contato
-    contact_body: dict = {"name": lead.razao_social, "custom_fields_values": []}
+    schema_fields = _kommo_fetch_contact_fields(base, headers)
+    custom_fields = _kommo_build_contact_custom_fields(schema_fields, lead)
 
-    if lead.email:
-        contact_body["custom_fields_values"].append({
-            "field_code": "EMAIL",
-            "values": [{"value": lead.email, "enum_code": "WORK"}],
-        })
-    phone = lead.telefone or lead.whatsapp
-    if phone:
-        contact_body["custom_fields_values"].append({
-            "field_code": "PHONE",
-            "values": [{"value": phone, "enum_code": "WORK"}],
-        })
+    # 1. Contato — tenta com e-mail/telefone; se falhar, só nome (sempre aceito)
+    contact_body: dict = {"name": lead.razao_social or "Lead Hermes"}
+    if custom_fields:
+        contact_body["custom_fields_values"] = custom_fields
 
-    cr = requests.post(f"{base}/contacts", headers=headers, json=[contact_body], timeout=15)
+    cr = requests.post(f"{base}/contacts", headers=headers, json=[contact_body], timeout=20)
+    if cr.status_code >= 300 and custom_fields:
+        contact_body = {"name": lead.razao_social or "Lead Hermes"}
+        cr = requests.post(f"{base}/contacts", headers=headers, json=[contact_body], timeout=20)
+
     if cr.status_code >= 300:
-        raise HTTPException(status_code=cr.status_code, detail=f"Kommo Contacts: {cr.text}")
+        raise HTTPException(status_code=cr.status_code, detail=f"Kommo Contacts: {cr.text[:800]}")
 
     contact_id = (cr.json().get("_embedded", {}).get("contacts") or [{}])[0].get("id")
 
-    # 2. Criar lead vinculado ao contato (com pipeline/status se fornecidos)
-    lead_body: dict = {"name": lead.nome_fantasia or lead.razao_social}
-    if pipeline_id:
-        lead_body["pipeline_id"] = pipeline_id
-    if status_id:
-        lead_body["status_id"] = status_id
+    rp, rs = _kommo_resolve_pipeline_status(base, headers, pipeline_id, status_id, sub)
+
+    # 2. Lead (sempre com pipeline + status)
+    lead_body: dict = {
+        "name": (lead.nome_fantasia or lead.razao_social or "Lead Hermes")[:250],
+        "pipeline_id": rp,
+        "status_id": rs,
+    }
     if contact_id:
         lead_body["_embedded"] = {"contacts": [{"id": contact_id, "is_main": True}]}
 
-    lr = requests.post(f"{base}/leads", headers=headers, json=[lead_body], timeout=15)
+    lr = requests.post(f"{base}/leads", headers=headers, json=[lead_body], timeout=20)
     if lr.status_code >= 300:
-        raise HTTPException(status_code=lr.status_code, detail=f"Kommo Leads: {lr.text}")
+        raise HTTPException(status_code=lr.status_code, detail=f"Kommo Leads: {lr.text[:800]}")
 
     lead_id = (lr.json().get("_embedded", {}).get("leads") or [{}])[0].get("id")
 
-    # 3. Adicionar nota com dados enriquecidos
-    # Endpoint correto da API v4: POST /api/v4/notes com entity_id + entity_type
+    # 3. Nota com contexto Hermes
     if lead_id:
         parts = [
             "Origem: Hermes Prospecção",
@@ -276,17 +429,22 @@ def _export_kommo(
         ]
         if lead.capital_social:
             parts.append(f"Capital Social: R$ {lead.capital_social:,.2f}")
-        requests.post(
+        nr = requests.post(
             f"{base}/notes",
             headers=headers,
-            json=[{
-                "entity_id": lead_id,
-                "entity_type": "leads",
-                "note_type": "common",
-                "params": {"text": "\n".join(parts)},
-            }],
+            json=[
+                {
+                    "entity_id": lead_id,
+                    "entity_type": "leads",
+                    "note_type": "common",
+                    "params": {"text": "\n".join(parts)},
+                }
+            ],
             timeout=15,
         )
+        if nr.status_code >= 300:
+            # Lead já criado; não falha o fluxo inteiro
+            pass
 
     return {
         "success": True,
@@ -362,7 +520,11 @@ class BatchExportRequest(BaseModel):
 
 
 @router.post("/export/batch")
-def export_batch_to_crm(payload: BatchExportRequest, _user: dict = Depends(require_auth)):
+def export_batch_to_crm(
+    payload: BatchExportRequest,
+    _user: dict = Depends(require_auth),
+    x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
+):
     provider = payload.provider.lower()
     api_key = payload.api_key.strip()
 
@@ -370,6 +532,12 @@ def export_batch_to_crm(payload: BatchExportRequest, _user: dict = Depends(requi
         raise HTTPException(status_code=400, detail="API key obrigatória")
     if provider == "kommo" and not payload.kommo_subdomain:
         raise HTTPException(status_code=400, detail="kommo_subdomain é obrigatório para o Kommo")
+
+    org = (x_org_id or "").strip() or "default"
+    komm_pipeline_id: int | None = None
+    komm_status_id: int | None = None
+    if provider == "kommo":
+        komm_pipeline_id, komm_status_id = _get_kommo_pipeline_config(org)
 
     results = []
     for lead in payload.leads:
@@ -383,7 +551,13 @@ def export_batch_to_crm(payload: BatchExportRequest, _user: dict = Depends(requi
             elif provider == "ploomes":
                 r = _export_ploomes(api_key, lead, payload.funnel_id, payload.create_deal)
             elif provider == "kommo":
-                r = _export_kommo(api_key, payload.kommo_subdomain.strip(), lead)  # type: ignore[arg-type]
+                r = _export_kommo(
+                    api_key,
+                    payload.kommo_subdomain.strip(),
+                    lead,
+                    komm_pipeline_id,
+                    komm_status_id,
+                )
             else:
                 raise ValueError(f"Provider '{provider}' não suportado")
             results.append({"razao_social": lead.razao_social, **r})

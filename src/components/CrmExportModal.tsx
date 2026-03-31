@@ -172,19 +172,25 @@ export function CrmExportModal({
 
           {/* Kommo subdomain */}
           {provider === "kommo" && (
-            <Stack direction="row" alignItems="center" gap={1}>
-              <TextField
-                size="small"
-                label="Subdomínio da conta"
-                value={isKommoLocked ? savedKeys[SUBDOMAIN_STORAGE_KEY] || "" : kommoSubdomain}
-                onChange={e => setKommoSubdomain(e.target.value)}
-                placeholder="sua-empresa"
-                disabled={isKommoLocked}
-                fullWidth
-                sx={inputDenseSx}
-              />
-              <Typography sx={{ fontSize: "0.75rem", color: "#666", whiteSpace: "nowrap" }}>.kommo.com</Typography>
-            </Stack>
+            <>
+              <Stack direction="row" alignItems="center" gap={1}>
+                <TextField
+                  size="small"
+                  label="Subdomínio da conta"
+                  value={isKommoLocked ? savedKeys[SUBDOMAIN_STORAGE_KEY] || "" : kommoSubdomain}
+                  onChange={e => setKommoSubdomain(e.target.value)}
+                  placeholder="sua-empresa"
+                  disabled={isKommoLocked}
+                  fullWidth
+                  sx={inputDenseSx}
+                />
+                <Typography sx={{ fontSize: "0.75rem", color: "#666", whiteSpace: "nowrap" }}>.kommo.com</Typography>
+              </Stack>
+              <Typography sx={{ fontSize: "0.7rem", color: "#888", lineHeight: 1.35 }}>
+                Use o <strong>token de longa duração</strong> (Kommo → Configurações → Integrações) e o subdomínio da URL
+                (apenas o nome, sem https://).
+              </Typography>
+            </>
           )}
 
           {/* API key */}

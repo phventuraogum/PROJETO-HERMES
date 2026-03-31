@@ -168,6 +168,41 @@ O `CORS_ORIGINS` no `.env` deve incluir a URL que os usuários usam (ex.: `http:
 
 ---
 
+## Atualizar o front e o sistema (depois de push no GitHub)
+
+Para o site e o sistema refletirem o código novo (ex.: redesign do front):
+
+**Opção A — Do seu PC (PowerShell), com SSH configurado:**
+
+```powershell
+cd C:\Users\ventu\Desktop\PROJETO-HERMES-redesign
+.\scripts\update_production.ps1
+```
+
+Se a VPS usar outro usuário/host, passe o parâmetro: `.\scripts\update_production.ps1 -HostVps "usuario@srv887957.hstgr.cloud"`
+
+**Opção B — Diretamente na VPS (SSH + comandos):**
+
+Se na VPS aparecer erro de "local changes would be overwritten" no `git pull`, use o script que descarta alterações locais e puxa o main:
+
+```bash
+ssh root@31.97.241.171
+cd /opt/hermes
+sudo bash scripts/pull_and_deploy_vps.sh
+```
+
+Se não houver conflitos, pode usar só:
+
+```bash
+cd /opt/hermes
+git pull origin main
+sudo bash scripts/deploy.sh
+```
+
+O `deploy.sh` faz build das imagens (incluindo o front) e sobe os containers de novo. O front e a API passam a servir a versão atual do repositório.
+
+---
+
 ## Comandos úteis em produção
 
 | Comando | Uso |
