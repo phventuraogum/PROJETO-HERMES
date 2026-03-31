@@ -113,6 +113,7 @@ from api.routers import (
     empresas_router,
     webhooks_router,
     integrations_router,
+    orgs_router,
     sdr_router,
     admin_router,
 )
@@ -125,6 +126,8 @@ app.include_router(empresas_router)
 app.include_router(webhooks_router)
 # /integrations — integrações com CRM e outros sistemas
 app.include_router(integrations_router)
+# /orgs — contexto organizacional + flag is_master
+app.include_router(orgs_router)
 # /sdr — endpoints para automações n8n/SDR
 app.include_router(sdr_router)
 # /admin — gerenciamento de orgs e tenants (master only)

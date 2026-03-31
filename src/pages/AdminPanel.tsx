@@ -81,10 +81,10 @@ const api = {
     apiFetch("/admin/orgs", { skipOrgHeader: true }),
 
   createOrg: (body: Record<string, string>): Promise<{ success: boolean; slug: string }> =>
-    apiFetch("/admin/orgs", { method: "POST", body, skipOrgHeader: true }),
+    apiFetch("/admin/orgs", { method: "POST", body: JSON.stringify(body), skipOrgHeader: true }),
 
   setTenant: (orgId: string, body: Record<string, string>): Promise<{ success: boolean }> =>
-    apiFetch(`/admin/orgs/${orgId}/tenant`, { method: "PUT", body, skipOrgHeader: true }),
+    apiFetch(`/admin/orgs/${orgId}/tenant`, { method: "PUT", body: JSON.stringify(body), skipOrgHeader: true }),
 
   provision: (orgId: string): Promise<ProvisionResult> =>
     apiFetch(`/admin/orgs/${orgId}/provision`, { method: "POST", skipOrgHeader: true }),
@@ -99,10 +99,18 @@ const api = {
     apiFetch(`/admin/orgs/${orgId}/members`, { skipOrgHeader: true }),
 
   addMember: (orgId: string, email: string, role: string): Promise<{ success: boolean }> =>
-    apiFetch(`/admin/orgs/${orgId}/members`, { method: "POST", body: { user_email: email, role }, skipOrgHeader: true }),
+    apiFetch(`/admin/orgs/${orgId}/members`, {
+      method: "POST",
+      body: JSON.stringify({ user_email: email, role }),
+      skipOrgHeader: true,
+    }),
 
   updateMember: (orgId: string, userId: string, role: string): Promise<{ success: boolean }> =>
-    apiFetch(`/admin/orgs/${orgId}/members/${userId}`, { method: "PATCH", body: { role }, skipOrgHeader: true }),
+    apiFetch(`/admin/orgs/${orgId}/members/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+      skipOrgHeader: true,
+    }),
 
   removeMember: (orgId: string, userId: string): Promise<{ success: boolean }> =>
     apiFetch(`/admin/orgs/${orgId}/members/${userId}`, { method: "DELETE", skipOrgHeader: true }),

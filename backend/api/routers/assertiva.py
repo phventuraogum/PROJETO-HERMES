@@ -55,10 +55,51 @@ def _tenant_headers(service_key: str) -> dict[str, str]:
 
 # ── Helpers de tenant ──────────────────────────────────────────────────────
 
+async def _get_assertiva_creds_from_tenant(
+    supa_url: str,
+    supa_key: str,
+    org_id: str,
+) -> tuple[str, str]:
+    """
+    Busca credenciais Assertiva dentro do próprio tenant (preferencial).
+    Espera tabela `org_integrations_private` com colunas:
+      - org_id
+      - assertiva_client_id
+      - assertiva_client_secret
+    """
+    if not supa_url or not supa_key:
+        return "", ""
+
+    try:
+        async with httpx.AsyncClient(timeout=8) as c:
+            r = await c.get(
+                f"{supa_url}/rest/v1/org_integrations_private",
+                headers=_tenant_headers(supa_key),
+                params={
+                    "select": "assertiva_client_id,assertiva_client_secret",
+                    "org_id": f"eq.{org_id}",
+                    "limit": "1",
+                },
+            )
+        if r.status_code == 200 and r.content:
+            rows = r.json()
+            if rows:
+                t = rows[0]
+                return (
+                    (t.get("assertiva_client_id") or "").strip(),
+                    (t.get("assertiva_client_secret") or "").strip(),
+                )
+    except Exception as e:
+        logger.warning("Falha ao ler credenciais Assertiva no tenant: %s", e)
+
+    return "", ""
+
+
 async def _get_org_assertiva_creds(org_id: str) -> tuple[str, str, str, str]:
     """
     Retorna (assertiva_client_id, assertiva_client_secret, supabase_url, supabase_service_key).
-    Lança HTTPException se credenciais não estiverem configuradas.
+    Prioriza credenciais do tenant (isolamento por cliente).
+    Fallback para org_tenants no master (retrocompatibilidade).
     """
     async with httpx.AsyncClient(timeout=8) as c:
         r = await c.get(
@@ -76,16 +117,29 @@ async def _get_org_assertiva_creds(org_id: str) -> tuple[str, str, str, str]:
         raise HTTPException(status_code=404, detail="Tenant não encontrado para esta organização")
 
     t = rows[0]
-    client_id     = (t.get("assertiva_client_id") or "").strip()
-    client_secret = (t.get("assertiva_client_secret") or "").strip()
+    fallback_client_id = (t.get("assertiva_client_id") or "").strip()
+    fallback_client_secret = (t.get("assertiva_client_secret") or "").strip()
     supa_url      = (t.get("supabase_url") or "").strip().rstrip("/")
     supa_key      = (t.get("supabase_service_key") or "").strip()
 
+    # 1) fonte preferencial: tenant da própria organização
+    tenant_client_id, tenant_client_secret = await _get_assertiva_creds_from_tenant(
+        supa_url=supa_url,
+        supa_key=supa_key,
+        org_id=org_id,
+    )
+    if tenant_client_id and tenant_client_secret:
+        return tenant_client_id, tenant_client_secret, supa_url, supa_key
+
+    # 2) fallback legado: chaves no master.org_tenants
+    client_id = fallback_client_id
+    client_secret = fallback_client_secret
     if not client_id or not client_secret:
         raise HTTPException(
             status_code=402,
             detail="Credenciais Assertiva não configuradas para esta organização. "
-                   "Acesse o Painel Admin → Clientes e preencha os campos Assertiva.",
+                   "Configure no tenant em org_integrations_private "
+                   "ou no Painel Admin → Clientes (fallback legado).",
         )
 
     return client_id, client_secret, supa_url, supa_key

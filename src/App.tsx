@@ -24,6 +24,7 @@ import NotFound from "./pages/NotFound";
 import { RequireAuth } from "./auth/RequireAuth";
 import { RequireRole } from "./auth/RequireRole";
 import { RequireMaster } from "./auth/RequireMaster";
+import { RequirePowerUser } from "./auth/RequirePowerUser";
 
 const queryClient = new QueryClient();
 
@@ -134,9 +135,9 @@ const App = () => (
           path="/cnpj"
           element={
             <AuthedLayout>
-              <RequireMaster>
+              <RequirePowerUser>
                 <EnriquecerCnpj />
-              </RequireMaster>
+              </RequirePowerUser>
             </AuthedLayout>
           }
         />
@@ -144,9 +145,9 @@ const App = () => (
           path="/consulta-fiscal"
           element={
             <AuthedLayout>
-              <RequireMaster>
+              <RequirePowerUser>
                 <ConsultaFiscal />
-              </RequireMaster>
+              </RequirePowerUser>
             </AuthedLayout>
           }
         />
@@ -154,9 +155,9 @@ const App = () => (
           path="/query-workbench"
           element={
             <AuthedLayout>
-              <RequireMaster>
+              <RequirePowerUser>
                 <QueryWorkbench />
-              </RequireMaster>
+              </RequirePowerUser>
             </AuthedLayout>
           }
         />
@@ -164,9 +165,9 @@ const App = () => (
           path="/lead-lists"
           element={
             <AuthedLayout>
-              <RequireMaster>
+              <RequirePowerUser>
                 <LeadLists />
-              </RequireMaster>
+              </RequirePowerUser>
             </AuthedLayout>
           }
         />

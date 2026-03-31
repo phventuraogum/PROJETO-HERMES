@@ -231,6 +231,13 @@ try:
 except Exception as e:
     logger.warning(f"[WARN] Assertiva router nao disponivel: {e}")
 
+try:
+    from api.routers.admin import router as admin_router
+    app.include_router(admin_router)
+    logger.info("[OK] Admin router carregado")
+except Exception as e:
+    logger.warning(f"[WARN] Admin router nao disponivel: {e}")
+
 # ============================================================
 # ENDPOINTS LEGADOS
 # Protegidos com require_auth quando HERMES_AUTH_REQUIRED=true
@@ -529,15 +536,6 @@ try:
             "enriquecimento_web": resultado_base.enriquecimento_web,
             "empresas_com_insights": empresas_com_insights,
         }
-
-    @app.get("/admin/orgs", tags=["Admin"])
-    async def list_orgs_legacy(
-        request: Request,
-        user: dict = Depends(require_auth),
-    ):
-        """Lista organizações do tenant. Requer autenticação."""
-        org_id = get_org_id(request)
-        return [{"id": org_id, "name": "Minha Organização", "slug": org_id, "role": "admin"}]
 
     logger.info("[OK] Endpoints legados carregados com autenticação")
 

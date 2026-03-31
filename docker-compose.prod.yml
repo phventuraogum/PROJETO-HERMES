@@ -62,6 +62,7 @@ services:
       - EVOLUTION_API_URL=${EVOLUTION_API_URL:-}
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY:-}
       - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-}
+    command: ["python", "-m", "uvicorn", "api.main_integrado:app", "--host", "0.0.0.0", "--port", "8000"]
     volumes:
       - duckdb_data:/data
     expose:

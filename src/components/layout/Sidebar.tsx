@@ -66,7 +66,7 @@ const MASTER_NAV = [
   { icon: SearchRounded,    label: "Enriquecer CNPJ",    path: "/cnpj" },
   { icon: BalanceRounded,   label: "Consulta Fiscal",    path: "/consulta-fiscal" },
   { icon: TerminalRounded,  label: "Query Workbench",    path: "/query-workbench" },
-  { icon: ShieldRounded,    label: "Painel Admin",       path: "/admin" },
+  { icon: ShieldRounded,    label: "Painel Admin",       path: "/admin", masterOnly: true },
 ];
 
 export default function Sidebar() {
@@ -79,6 +79,7 @@ export default function Sidebar() {
   const isDark = appTheme === "dark";
   const role = currentOrg?.role ?? "member";
   const isAdmin = role === "admin" || role === "owner";
+  const isPowerUser = isMaster || role === "owner";
 
   useEffect(() => {
     supabase?.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? ""));
@@ -165,7 +166,7 @@ export default function Sidebar() {
       <Box sx={{ flex: 1, overflowY: "auto", py: 1 }}>
         {NAV.map(group => {
           const visibleItems = group.items.filter(item => {
-            if (item.masterOnly && !isMaster) return false;
+            if (item.masterOnly && !isPowerUser) return false;
             if (item.adminOnly && !isAdmin && !isMaster) return false;
             return true;
           });
@@ -211,7 +212,7 @@ export default function Sidebar() {
         })}
 
         {/* ── Master section ── */}
-        {isMaster && (
+        {isPowerUser && (
           <Box sx={{ mt: 1 }}>
             <Divider sx={{ mx: 2, mb: 1, borderColor: "rgba(249,115,22,0.15)" }} />
             <Typography sx={{
@@ -220,10 +221,10 @@ export default function Sidebar() {
               textTransform: "uppercase", letterSpacing: "0.08em",
               px: 2.5, py: 0.75,
             }}>
-              Master
+              Avançado
             </Typography>
             <List dense disablePadding>
-              {MASTER_NAV.map(item => (
+              {MASTER_NAV.filter(item => !item.masterOnly || isMaster).map(item => (
                 <ListItemButton
                   key={item.path}
                   selected={isActive(item.path)}
