@@ -89,54 +89,123 @@ def _needs_background_enrichment(empresa: Dict[str, Any]) -> bool:
     )
 
 
-def _enriquecer_empresa_sync(empresa: Dict[str, Any]) -> Dict[str, Any]:
+def _enriquecer_homepage_rapido(empresa: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Chama o enriquecimento completo para uma empresa e retorna os dados extras.
-    Roda em thread separada via ThreadPoolExecutor.
+    Enriquecimento rápido via homepage — termina em segundos por empresa.
+
+    Busca:
+    - Links wa.me / api.whatsapp.com / web.whatsapp.com
+    - Números de telefone no HTML
+    - Endereços de e-mail no HTML
+
+    Não faz Google, LinkedIn, OpenAI nem nada pesado.
+    Ideal para enriquecimento síncrono durante a prospecção.
     """
+    import re
+    import requests
+
     cnpj = empresa.get("cnpj", "")
-    if not cnpj:
-        return {}
+    site = empresa.get("site", "")
+    resultado: Dict[str, Any] = {"cnpj": cnpj}
+
+    if not site:
+        return resultado
+
+    # Garante protocolo
+    url = site if site.startswith("http") else f"https://{site}"
+
     try:
-        from api.jobs_enhanced import enrich_company_by_cnpj_enhanced
-        resultado = enrich_company_by_cnpj_enhanced(cnpj)
-        return {"cnpj": cnpj, **resultado}
-    except Exception as e:
-        logger.debug(f"[ENRICH_SYNC] falhou para {cnpj}: {e}")
-        return {"cnpj": cnpj}
+        resp = requests.get(
+            url,
+            timeout=8,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; HermesBot/1.0)"},
+            allow_redirects=True,
+        )
+        html = resp.text
+    except Exception:
+        # Tenta http se https falhou
+        try:
+            url_http = url.replace("https://", "http://", 1)
+            resp = requests.get(url_http, timeout=6,
+                                headers={"User-Agent": "Mozilla/5.0"})
+            html = resp.text
+        except Exception:
+            return resultado
+
+    # ── WhatsApp ────────────────────────────────────────────────────────────
+    wa_patterns = [
+        r'wa\.me/(\d{10,15})',
+        r'api\.whatsapp\.com/send\?phone=(\d{10,15})',
+        r'web\.whatsapp\.com/send\?phone=(\d{10,15})',
+        r'whatsapp\.com/send/?\?phone=(\d{10,15})',
+    ]
+    for pat in wa_patterns:
+        m = re.search(pat, html, re.IGNORECASE)
+        if m:
+            numero = m.group(1)
+            # Normaliza para 55XXXXXXXXXXX
+            if not numero.startswith("55"):
+                numero = "55" + numero
+            resultado["whatsapp"] = numero
+            break
+
+    # ── Telefone (fallback se não achou WhatsApp) ────────────────────────────
+    if not resultado.get("whatsapp"):
+        tel_pat = re.findall(
+            r'(?:\+55\s?|55\s?)?(?:\(?\d{2}\)?\s?)(?:9\s?)?\d{4}[\s\-]?\d{4}',
+            html,
+        )
+        for tel_raw in tel_pat:
+            digits = re.sub(r'\D', '', tel_raw)
+            if len(digits) in (10, 11, 12, 13):
+                resultado["telefone"] = digits
+                break
+
+    # ── E-mail ──────────────────────────────────────────────────────────────
+    email_pat = re.findall(
+        r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}',
+        html,
+    )
+    BLACKLIST = {"example", "sentry", "noreply", "no-reply", "teste", "test",
+                 "support@sentry", "email@", "user@", "name@"}
+    for email in email_pat:
+        if not any(b in email.lower() for b in BLACKLIST):
+            resultado["email"] = email
+            break
+
+    return resultado
 
 
 def _enriquecer_lote_paralelo(
     empresas: List[Dict[str, Any]],
-    max_workers: int = 20,
-    timeout_total: int = 90,
+    max_workers: int = 30,
+    timeout_total: int = 25,
     progress_callback=None,
 ) -> List[Dict[str, Any]]:
     """
-    Enriquece todas as empresas em paralelo com orçamento de tempo.
+    Enriquecimento rápido paralelo — raspa homepage de cada empresa buscando
+    WhatsApp (wa.me), telefone e e-mail. Termina em ~10-20s para qualquer lote.
 
-    - max_workers: threads simultâneas (default 20 = 20 empresas ao mesmo tempo)
-    - timeout_total: tempo máximo em segundos para aguardar enriquecimentos (default 90s)
-    - Empresas que terminam dentro do timeout saem enriquecidas.
-    - Empresas que excedem o timeout saem com os dados do banco (sem perda).
+    Não faz Google, LinkedIn nem nada pesado — isso fica para o worker background.
     """
     import concurrent.futures
 
-    if not empresas:
+    # Só enriquece empresas que têm site mas não têm WhatsApp ainda
+    candidatas = [e for e in empresas if e.get("site") and not e.get("whatsapp_final")]
+    if not candidatas:
         return empresas
 
-    # Indexa empresas por CNPJ para merge rápido
     idx = {emp["cnpj"]: i for i, emp in enumerate(empresas) if emp.get("cnpj")}
-    total = len(idx)
+    total = len(candidatas)
     concluidos = 0
 
     if progress_callback:
-        progress_callback("enriquecimento", 0, total, f"Enriquecendo {total} empresas em paralelo...")
+        progress_callback("enriquecimento", 0, total, f"Buscando contatos em {total} sites...")
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(max_workers, total)) as executor:
         futures = {
-            executor.submit(_enriquecer_empresa_sync, emp): emp["cnpj"]
-            for emp in empresas
+            executor.submit(_enriquecer_homepage_rapido, emp): emp["cnpj"]
+            for emp in candidatas
             if emp.get("cnpj")
         }
 
@@ -144,47 +213,40 @@ def _enriquecer_lote_paralelo(
             for future in concurrent.futures.as_completed(futures, timeout=timeout_total):
                 cnpj = futures[future]
                 try:
-                    resultado = future.result(timeout=5)
+                    resultado = future.result(timeout=3)
                     i = idx.get(cnpj)
                     if i is not None and resultado:
                         emp = empresas[i]
-                        # Merge: dados enriquecidos têm prioridade sobre os do banco
-                        if resultado.get("whatsapp"):
+                        if resultado.get("whatsapp") and not emp.get("whatsapp_final"):
                             emp["whatsapp_final"] = resultado["whatsapp"]
-                        if resultado.get("email"):
-                            emp["email_final"] = resultado["email"]
-                        if resultado.get("telefone"):
+                        if resultado.get("telefone") and not emp.get("telefone_final"):
                             emp["telefone_final"] = resultado["telefone"]
-                        if resultado.get("site") and not emp.get("site"):
-                            emp["site"] = resultado["site"]
-                        # Recalcula scores com dados novos
+                        if resultado.get("email") and not emp.get("email_final"):
+                            emp["email_final"] = resultado["email"]
+                        # Recalcula score com dados novos
                         emp["scores"] = calcular_score_priorizacao(emp)
                         emp["confiabilidade"] = calcular_score_confiabilidade(
                             email=emp.get("email_final"),
                             telefone=emp.get("telefone_final"),
                             whatsapp=emp.get("whatsapp_final"),
                             cnpj=cnpj,
-                            fonte_dados="enriquecido" if emp.get("site") else "receita",
+                            fonte_dados="enriquecido",
                         )
                 except Exception as e:
-                    logger.debug(f"[ENRICH_PARALELO] {cnpj}: {e}")
+                    logger.debug(f"[ENRICH_RAPIDO] {cnpj}: {e}")
 
                 concluidos += 1
                 if progress_callback:
                     progress_callback(
-                        "enriquecimento",
-                        concluidos,
-                        total,
-                        f"Enriquecidas {concluidos}/{total} empresas...",
+                        "enriquecimento", concluidos, total,
+                        f"Contatos: {concluidos}/{total} sites verificados...",
                     )
 
         except concurrent.futures.TimeoutError:
-            logger.info(
-                f"[ENRICH_PARALELO] Timeout {timeout_total}s — {concluidos}/{total} enriquecidas"
-            )
+            logger.info(f"[ENRICH_RAPIDO] Timeout {timeout_total}s — {concluidos}/{total} concluídas")
 
     if progress_callback:
-        progress_callback("enriquecimento", total, total, "Enriquecimento concluído.")
+        progress_callback("enriquecimento", total, total, "Contatos coletados.")
 
     return empresas
 
@@ -237,8 +299,8 @@ def rodar_prospeccao_otimizada(
     limite: int = 500,
     enriquecer_background: bool = True,
     enriquecer_sincrono: bool = True,
-    enriquecer_sincrono_max_workers: int = 20,
-    enriquecer_sincrono_timeout: int = 90,
+    enriquecer_sincrono_max_workers: int = 30,
+    enriquecer_sincrono_timeout: int = 25,
     priorizar_contato: bool = True,
     excluir_cnpjs: Optional[List[str]] = None,
     apenas_ativas: bool = True,
