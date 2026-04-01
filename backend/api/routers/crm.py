@@ -248,6 +248,20 @@ def _kommo_fetch_company_fields(base: str, headers: dict) -> list[dict]:
     return (data.get("_embedded") or {}).get("fields") or []
 
 
+def _kommo_fetch_lead_fields(base: str, headers: dict) -> list[dict]:
+    """Schema de campos do lead (cards costumam ler estes CFs, ex.: EMAIL LEAD, CNPJ)."""
+    for path in ("/leads/custom_fields", "/leads/fields"):
+        r = requests.get(f"{base}{path}", headers=headers, timeout=20)
+        if r.status_code >= 300:
+            continue
+        data = r.json() or {}
+        emb = data.get("_embedded") or {}
+        fields = emb.get("custom_fields") or emb.get("fields") or []
+        if fields:
+            return fields
+    return []
+
+
 def _kommo_find_field_by_hints(fields: list[dict], code_hints: tuple[str, ...], name_hints: tuple[str, ...]) -> dict | None:
     by_code = {str(f.get("code") or "").upper(): f for f in fields if f.get("code")}
     for hint in code_hints:
@@ -260,6 +274,20 @@ def _kommo_find_field_by_hints(fields: list[dict], code_hints: tuple[str, ...], 
     return None
 
 
+def _kommo_best_name_match_field(fields: list[dict], needles: tuple[str, ...]) -> dict | None:
+    """Escolhe campo cujo nome contenha a substring mais longa (desempata pelo id)."""
+    best: dict | None = None
+    best_len = 0
+    for f in fields:
+        nm = str(f.get("name") or "").upper()
+        for needle in needles:
+            n = needle.upper()
+            if n in nm and len(n) >= best_len:
+                best_len = len(n)
+                best = f
+    return best
+
+
 def _kommo_pick_enum_id(field: dict, prefer: tuple[str, ...] = ("WORK", "COMERCIAL", "PRINCIPAL")) -> int | None:
     for e in field.get("enums") or []:
         lab = str(e.get("value") or "").upper()
@@ -269,6 +297,71 @@ def _kommo_pick_enum_id(field: dict, prefer: tuple[str, ...] = ("WORK", "COMERCI
     if enums:
         return enums[0].get("id")
     return None
+
+
+def _kommo_values_for_field_type(field: dict, raw: str) -> list[dict]:
+    ftype = str(field.get("type") or "").lower()
+    if ftype in ("multitext",):
+        eid = _kommo_pick_enum_id(field, ("WORK", "MOB", "CEL", "OTHER", "PRINCIPAL", "COMERCIAL", "PRIVATE"))
+        val: dict = {"value": raw}
+        if eid is not None:
+            val["enum_id"] = eid
+        return [val]
+    return [{"value": raw}]
+
+
+def _kommo_build_lead_custom_fields(fields: list[dict], lead: LeadExportPayload) -> list[dict]:
+    """
+    Preenche campos customizados do card do lead no Kommo (ex.: EMAIL LEAD, NOME EMPRESA).
+    """
+    if not fields:
+        return []
+
+    out: list[dict] = []
+
+    def push(field: dict | None, text: str | None) -> None:
+        if not field or field.get("id") is None or not (text or "").strip():
+            return
+        out.append(
+            {
+                "field_id": int(field["id"]),
+                "values": _kommo_values_for_field_type(field, text.strip()),
+            }
+        )
+
+    phone = (lead.telefone or lead.whatsapp or "").strip()
+    email = (lead.email or "").strip()
+    site = (lead.site or "").strip()
+    cnpj = (lead.cnpj or "").strip()
+    razao = (lead.razao_social or "").strip()
+    fantasia = (lead.nome_fantasia or "").strip()
+    cidade = " - ".join(p for p in (lead.cidade or "", lead.uf or "") if p).strip()
+    resumo_parts = [
+        f"Origem: Hermes",
+        f"Razão social: {razao}" if razao else None,
+        f"Segmento: {lead.segmento}" if lead.segmento else None,
+        f"Porte: {lead.porte}" if lead.porte else None,
+    ]
+    resumo = "\n".join(p for p in resumo_parts if p)
+
+    fe = _kommo_best_name_match_field(fields, ("EMAIL LEAD", "E-MAIL LEAD", "EMAIL DO LEAD"))
+    if fe is not None:
+        push(fe, email)
+    elif email:
+        push(_kommo_find_field_by_hints(fields, ("EMAIL",), ("E-MAIL", "EMAIL")), email)
+
+    push(_kommo_best_name_match_field(fields, ("CNPJ OU CPF", "CPF CNPJ", "CNPJ")), cnpj)
+    push(_kommo_best_name_match_field(fields, ("NOME EMPRESA", "NOME DA EMPRESA")), razao or fantasia)
+    push(_kommo_best_name_match_field(fields, ("CIDADE LEAD", "CIDADE DO LEAD", "CIDADE")), cidade)
+    push(_kommo_best_name_match_field(fields, ("LINK", "SITE", "WEBSITE", "URL")), site)
+    push(_kommo_best_name_match_field(fields, ("TEL. COMERCIAL", "TELEFONE", "WHATSAPP", "CELULAR")), phone)
+    push(_kommo_best_name_match_field(fields, ("RESUMO", "OBSERV")), resumo or lead.observacoes)
+
+    # Um field_id só uma vez (último push prevalece)
+    by_id: dict[int, dict] = {}
+    for item in out:
+        by_id[int(item["field_id"])] = item
+    return list(by_id.values())
 
 
 def _kommo_build_contact_custom_fields(fields: list[dict], lead: LeadExportPayload) -> list[dict]:
@@ -436,36 +529,42 @@ def _export_kommo(
     base = f"https://{sub}.kommo.com/api/v4"
     headers = _kommo_auth_headers(access_token)
 
-    schema_fields = _kommo_fetch_contact_fields(base, headers)
-    custom_fields = _kommo_build_contact_custom_fields(schema_fields, lead)
+    lead_schema = _kommo_fetch_lead_fields(base, headers)
+    lead_custom_fields = _kommo_build_lead_custom_fields(lead_schema, lead)
+
     company_fields = _kommo_fetch_company_fields(base, headers)
     company_custom_fields = _kommo_build_company_custom_fields(company_fields, lead)
 
-    # 1. Contato — tenta com e-mail/telefone; se falhar, só nome (sempre aceito)
-    contact_body: dict = {"name": lead.razao_social or "Lead Hermes"}
+    # 1. Empresa primeiro — permite vincular contato com company_id (Kommo mostra bloco Contato/Empresa)
+    company_id = None
+    company_body: dict = {"name": lead.razao_social or "Empresa Hermes"}
+    if company_custom_fields:
+        company_body["custom_fields_values"] = company_custom_fields
+    comp_r = requests.post(f"{base}/companies", headers=headers, json=[company_body], timeout=20)
+    if comp_r.status_code < 300:
+        company_id = (comp_r.json().get("_embedded", {}).get("companies") or [{}])[0].get("id")
+
+    schema_fields = _kommo_fetch_contact_fields(base, headers)
+    custom_fields = _kommo_build_contact_custom_fields(schema_fields, lead)
+
+    contact_display_name = (lead.nome_fantasia or lead.razao_social or "Contato Hermes").strip()[:250]
+    contact_body: dict = {"name": contact_display_name}
+    if company_id:
+        contact_body["company_id"] = company_id
     if custom_fields:
         contact_body["custom_fields_values"] = custom_fields
 
     cr = requests.post(f"{base}/contacts", headers=headers, json=[contact_body], timeout=20)
     if cr.status_code >= 300 and custom_fields:
-        contact_body = {"name": lead.razao_social or "Lead Hermes"}
+        contact_body = {"name": contact_display_name}
+        if company_id:
+            contact_body["company_id"] = company_id
         cr = requests.post(f"{base}/contacts", headers=headers, json=[contact_body], timeout=20)
 
     if cr.status_code >= 300:
         raise HTTPException(status_code=cr.status_code, detail=f"Kommo Contacts: {cr.text[:800]}")
 
     contact_id = (cr.json().get("_embedded", {}).get("contacts") or [{}])[0].get("id")
-
-    # 1.1 Empresa vinculada ao lead (melhora visualização dos campos no card de empresa do Kommo)
-    company_id = None
-    company_body: dict = {"name": lead.razao_social or "Empresa Hermes"}
-    if company_custom_fields:
-        company_body["custom_fields_values"] = company_custom_fields
-    if contact_id:
-        company_body["_embedded"] = {"contacts": [{"id": contact_id}]}
-    comp_r = requests.post(f"{base}/companies", headers=headers, json=[company_body], timeout=20)
-    if comp_r.status_code < 300:
-        company_id = (comp_r.json().get("_embedded", {}).get("companies") or [{}])[0].get("id")
 
     rp, rs = _kommo_resolve_pipeline_status(base, headers, pipeline_id, status_id, sub)
 
@@ -476,6 +575,8 @@ def _export_kommo(
         "pipeline_id": rp,
         "status_id": rs,
     }
+    if lead_custom_fields:
+        lead_body["custom_fields_values"] = lead_custom_fields
     if contact_id:
         lead_body["_embedded"] = {"contacts": [{"id": contact_id, "is_main": True}]}
     if company_id:
@@ -486,6 +587,8 @@ def _export_kommo(
     if lr.status_code >= 300:
         # Algumas contas rejeitam status específico embora aceitem pipeline.
         lead_body_wo_status = {"name": lead_name, "pipeline_id": rp}
+        if lead_custom_fields:
+            lead_body_wo_status["custom_fields_values"] = lead_custom_fields
         if contact_id:
             lead_body_wo_status["_embedded"] = {"contacts": [{"id": contact_id, "is_main": True}]}
         if company_id:
@@ -497,6 +600,8 @@ def _export_kommo(
         else:
             # Último fallback: deixa Kommo decidir funil/etapa padrão da conta.
             lead_body_min = {"name": lead_name}
+            if lead_custom_fields:
+                lead_body_min["custom_fields_values"] = lead_custom_fields
             if contact_id:
                 lead_body_min["_embedded"] = {"contacts": [{"id": contact_id, "is_main": True}]}
             if company_id:
@@ -509,6 +614,15 @@ def _export_kommo(
                 raise HTTPException(status_code=lr3.status_code, detail=f"Kommo Leads: {lr3.text[:800]}")
 
     lead_id = (lr.json().get("_embedded", {}).get("leads") or [{}])[0].get("id")
+
+    if lead_id and lead_custom_fields:
+        # API v4: PATCH em lote em /leads (id no corpo, não na URL)
+        requests.patch(
+            f"{base}/leads",
+            headers=headers,
+            json=[{"id": int(lead_id), "custom_fields_values": lead_custom_fields}],
+            timeout=20,
+        )
 
     # 3. Nota com contexto Hermes
     if lead_id:
