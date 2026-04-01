@@ -270,7 +270,11 @@ try:
         _rodar_otimizada = None
         _USE_OTIMIZADA = False
 
-    def _config_to_otimizada_kwargs(config: ProspeccaoConfig, excluir_cnpjs: list = None) -> dict:
+    def _config_to_otimizada_kwargs(
+        config: ProspeccaoConfig,
+        excluir_cnpjs: list = None,
+        progress_callback=None,
+    ) -> dict:
         """Mapeia ProspeccaoConfig para kwargs de rodar_prospeccao_otimizada."""
         cidades = list(config.cidades or [])
         if config.cidade and config.cidade not in cidades:
@@ -286,11 +290,14 @@ try:
             "segmentos": config.segmentos or None,
             "portes": config.portes or None,
             "limite": config.limite_empresas,
-            "enriquecer_background": config.enriquecer_web,
+            "enriquecer_background": True,
+            "enriquecer_sincrono": True,
             "priorizar_contato": config.priorizar_com_contato,
         }
         if excluir_cnpjs:
             kwargs["excluir_cnpjs"] = excluir_cnpjs
+        if progress_callback:
+            kwargs["progress_callback"] = progress_callback
         return kwargs
 
     # ── Anti-repetição: Redis "seen CNPJs" por org ──────────────────────────
@@ -524,7 +531,11 @@ try:
                 if _USE_OTIMIZADA:
                     seen = _load_seen_cnpjs(org_id)
                     raw = _rodar_otimizada(
-                        **_config_to_otimizada_kwargs(effective_config, excluir_cnpjs=seen)
+                        **_config_to_otimizada_kwargs(
+                            effective_config,
+                            excluir_cnpjs=seen,
+                            progress_callback=on_progress,
+                        )
                     )
                     result = _build_resultado_from_otimizada(raw, effective_config)
                     _save_seen_cnpjs(org_id, [e.cnpj for e in result.empresas if e.cnpj])

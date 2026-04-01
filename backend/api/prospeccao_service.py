@@ -89,6 +89,106 @@ def _needs_background_enrichment(empresa: Dict[str, Any]) -> bool:
     )
 
 
+def _enriquecer_empresa_sync(empresa: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Chama o enriquecimento completo para uma empresa e retorna os dados extras.
+    Roda em thread separada via ThreadPoolExecutor.
+    """
+    cnpj = empresa.get("cnpj", "")
+    if not cnpj:
+        return {}
+    try:
+        from api.jobs_enhanced import enrich_company_by_cnpj_enhanced
+        resultado = enrich_company_by_cnpj_enhanced(cnpj)
+        return {"cnpj": cnpj, **resultado}
+    except Exception as e:
+        logger.debug(f"[ENRICH_SYNC] falhou para {cnpj}: {e}")
+        return {"cnpj": cnpj}
+
+
+def _enriquecer_lote_paralelo(
+    empresas: List[Dict[str, Any]],
+    max_workers: int = 20,
+    timeout_total: int = 90,
+    progress_callback=None,
+) -> List[Dict[str, Any]]:
+    """
+    Enriquece todas as empresas em paralelo com orçamento de tempo.
+
+    - max_workers: threads simultâneas (default 20 = 20 empresas ao mesmo tempo)
+    - timeout_total: tempo máximo em segundos para aguardar enriquecimentos (default 90s)
+    - Empresas que terminam dentro do timeout saem enriquecidas.
+    - Empresas que excedem o timeout saem com os dados do banco (sem perda).
+    """
+    import concurrent.futures
+
+    if not empresas:
+        return empresas
+
+    # Indexa empresas por CNPJ para merge rápido
+    idx = {emp["cnpj"]: i for i, emp in enumerate(empresas) if emp.get("cnpj")}
+    total = len(idx)
+    concluidos = 0
+
+    if progress_callback:
+        progress_callback("enriquecimento", 0, total, f"Enriquecendo {total} empresas em paralelo...")
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(max_workers, total)) as executor:
+        futures = {
+            executor.submit(_enriquecer_empresa_sync, emp): emp["cnpj"]
+            for emp in empresas
+            if emp.get("cnpj")
+        }
+
+        try:
+            for future in concurrent.futures.as_completed(futures, timeout=timeout_total):
+                cnpj = futures[future]
+                try:
+                    resultado = future.result(timeout=5)
+                    i = idx.get(cnpj)
+                    if i is not None and resultado:
+                        emp = empresas[i]
+                        # Merge: dados enriquecidos têm prioridade sobre os do banco
+                        if resultado.get("whatsapp"):
+                            emp["whatsapp_final"] = resultado["whatsapp"]
+                        if resultado.get("email"):
+                            emp["email_final"] = resultado["email"]
+                        if resultado.get("telefone"):
+                            emp["telefone_final"] = resultado["telefone"]
+                        if resultado.get("site") and not emp.get("site"):
+                            emp["site"] = resultado["site"]
+                        # Recalcula scores com dados novos
+                        emp["scores"] = calcular_score_priorizacao(emp)
+                        emp["confiabilidade"] = calcular_score_confiabilidade(
+                            email=emp.get("email_final"),
+                            telefone=emp.get("telefone_final"),
+                            whatsapp=emp.get("whatsapp_final"),
+                            cnpj=cnpj,
+                            fonte_dados="enriquecido" if emp.get("site") else "receita",
+                        )
+                except Exception as e:
+                    logger.debug(f"[ENRICH_PARALELO] {cnpj}: {e}")
+
+                concluidos += 1
+                if progress_callback:
+                    progress_callback(
+                        "enriquecimento",
+                        concluidos,
+                        total,
+                        f"Enriquecidas {concluidos}/{total} empresas...",
+                    )
+
+        except concurrent.futures.TimeoutError:
+            logger.info(
+                f"[ENRICH_PARALELO] Timeout {timeout_total}s — {concluidos}/{total} enriquecidas"
+            )
+
+    if progress_callback:
+        progress_callback("enriquecimento", total, total, "Enriquecimento concluído.")
+
+    return empresas
+
+
 def _diversificar_geograficamente(
     empresas: List[Dict],
     limite: int,
@@ -136,9 +236,13 @@ def rodar_prospeccao_otimizada(
     portes: Optional[List[str]] = None,
     limite: int = 500,
     enriquecer_background: bool = True,
+    enriquecer_sincrono: bool = True,
+    enriquecer_sincrono_max_workers: int = 20,
+    enriquecer_sincrono_timeout: int = 90,
     priorizar_contato: bool = True,
     excluir_cnpjs: Optional[List[str]] = None,
     apenas_ativas: bool = True,
+    progress_callback=None,
 ) -> Dict[str, Any]:
     """
     Executa prospecção otimizada com cache e views.
@@ -490,22 +594,42 @@ def rodar_prospeccao_otimizada(
     else:
         empresas = empresas_raw[:limite]
 
-    # ── Enriquecimento em background ─────────────────────────────────────────
-    if enriquecer_background and cnpjs_para_enriquecer:
-        try:
-            from redis import Redis
-            from rq import Queue
-            redis_conn = Redis.from_url(settings.REDIS_URL)
-            queue = Queue("hermes", connection=redis_conn)
-            for cnpj in cnpjs_para_enriquecer[:50]:
-                queue.enqueue(
-                    BACKGROUND_ENRICH_JOB,
-                    cnpj,
-                    job_timeout=BACKGROUND_ENRICH_TIMEOUT,
-                )
-            logger.info(f"Enfileirados {len(cnpjs_para_enriquecer[:50])} jobs de enriquecimento")
-        except Exception as e:
-            logger.error(f"Erro ao enfileirar enriquecimento: {e}")
+    # ── Enriquecimento síncrono (paralelo, com timeout) ───────────────────────
+    # Roda ANTES de retornar — o usuário recebe leads já enriquecidos.
+    # Empresas que já têm site+contato completo são puladas automaticamente.
+    if enriquecer_sincrono:
+        empresas_sem_contato = [e for e in empresas if _needs_background_enrichment(e)]
+        if empresas_sem_contato:
+            logger.info(
+                f"[ENRICH_SYNC] Enriquecendo {len(empresas_sem_contato)} empresas "
+                f"(timeout={enriquecer_sincrono_timeout}s, workers={enriquecer_sincrono_max_workers})"
+            )
+            empresas = _enriquecer_lote_paralelo(
+                empresas,
+                max_workers=enriquecer_sincrono_max_workers,
+                timeout_total=enriquecer_sincrono_timeout,
+                progress_callback=progress_callback,
+            )
+
+    # ── Enriquecimento em background (empresas que ainda ficaram sem contato) ──
+    # Serve para re-processar em segundo plano e enriquecer o DuckDB para buscas futuras.
+    if enriquecer_background:
+        ainda_sem_contato = [e["cnpj"] for e in empresas if _needs_background_enrichment(e) and e.get("cnpj")]
+        if ainda_sem_contato:
+            try:
+                from redis import Redis
+                from rq import Queue
+                redis_conn = Redis.from_url(settings.REDIS_URL)
+                queue = Queue("hermes", connection=redis_conn)
+                for cnpj in ainda_sem_contato[:50]:
+                    queue.enqueue(
+                        BACKGROUND_ENRICH_JOB,
+                        cnpj,
+                        job_timeout=BACKGROUND_ENRICH_TIMEOUT,
+                    )
+                logger.info(f"Enfileirados {len(ainda_sem_contato[:50])} jobs de enriquecimento residual")
+            except Exception as e:
+                logger.error(f"Erro ao enfileirar enriquecimento residual: {e}")
 
     # ── Monta resultado ───────────────────────────────────────────────────────
     resultado = {
