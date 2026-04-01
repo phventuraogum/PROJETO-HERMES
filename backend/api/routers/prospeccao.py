@@ -3,7 +3,7 @@ Endpoints de Prospecção
 Otimizados para integração com n8n, Kommo, etc.
 Todos os endpoints requerem autenticação.
 """
-from fastapi import APIRouter, HTTPException, Query, Body, Depends
+from fastapi import APIRouter, HTTPException, Query, Body, Depends, Request
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
@@ -36,13 +36,16 @@ class ProspeccaoRequest(BaseModel):
     """Request padronizado para prospecção"""
     termo: Optional[str] = Field(None, description="Termo de busca (nome/razão social)")
     uf: Optional[str] = Field(None, description="UF (ex: SP, RJ)")
-    municipio: Optional[str] = Field(None, description="Município")
+    municipio: Optional[str] = Field(None, description="Município único (compat)")
+    municipios: Optional[List[str]] = Field(None, description="Lista de municípios (multi-cidade)")
     capital_minima: Optional[float] = Field(None, ge=0, description="Capital social mínimo")
+    capital_maxima: Optional[float] = Field(None, ge=0, description="Capital social máximo")
     cnaes: Optional[List[str]] = Field(None, description="Lista de CNAEs")
     segmentos: Optional[List[str]] = Field(None, description="Lista de segmentos")
     portes: Optional[List[str]] = Field(None, description="Lista de portes (ME, EPP, Médio, Grande)")
-    limite: int = Field(200, ge=1, le=1000, description="Limite de resultados")
+    limite: int = Field(500, ge=1, le=2000, description="Limite de resultados (máx 2000)")
     enriquecer_background: bool = Field(True, description="Enriquecer em background")
+    priorizar_contato: bool = Field(True, description="Priorizar empresas com contato disponível")
     incluir_score: bool = Field(True, description="Incluir scores de qualidade e priorização")
     formato: str = Field("padrao", description="Formato de resposta: padrao, kommo, n8n")
 
@@ -65,6 +68,7 @@ class QueryTranslateRequest(BaseModel):
 
 @router.post("", response_model=ProspeccaoResponse)
 async def prospeccao(
+    http_request: Request,
     request: ProspeccaoRequest = Body(...),
     _user: dict = Depends(require_auth),
 ) -> ProspeccaoResponse:
@@ -88,19 +92,52 @@ async def prospeccao(
     """
     try:
         filtros_aplicados: Dict[str, Any] = {}
+        org_id = (http_request.headers.get("X-Org-Id") or "").strip() or None
 
         if USE_OTIMIZADA:
+            # Anti-repetição: exclui CNPJs já retornados para esta org
+            seen_cnpjs: List[str] = []
+            if org_id:
+                try:
+                    from redis import Redis
+                    from config import settings as _cfg
+                    _r = Redis.from_url(_cfg.REDIS_URL, socket_connect_timeout=2)
+                    _members = _r.smembers(f"hermes:seen_cnpjs:{org_id}")
+                    seen_cnpjs = [m.decode() if isinstance(m, bytes) else m for m in _members]
+                except Exception:
+                    pass
+
             resultado = rodar_prospeccao_otimizada(
                 termo=request.termo,
                 uf=request.uf,
                 municipio=request.municipio,
+                municipios=request.municipios,
                 capital_minima=request.capital_minima,
+                capital_maxima=request.capital_maxima,
                 cnaes=request.cnaes,
                 segmentos=request.segmentos,
                 portes=request.portes,
                 limite=request.limite,
                 enriquecer_background=request.enriquecer_background,
+                priorizar_contato=request.priorizar_contato,
+                excluir_cnpjs=seen_cnpjs or None,
             )
+
+            # Persiste CNPJs retornados para próximas buscas
+            if org_id:
+                try:
+                    from redis import Redis
+                    from config import settings as _cfg
+                    _r = Redis.from_url(_cfg.REDIS_URL, socket_connect_timeout=2)
+                    _novos = [e.get("cnpj") for e in resultado.get("empresas", []) if e.get("cnpj")]
+                    if _novos:
+                        _key = f"hermes:seen_cnpjs:{org_id}"
+                        _pipe = _r.pipeline()
+                        _pipe.sadd(_key, *_novos)
+                        _pipe.expire(_key, 7 * 24 * 3600)
+                        _pipe.execute()
+                except Exception:
+                    pass
             empresas = resultado.get("empresas", [])
             filtros_aplicados = resultado.get("filtros_aplicados", {})
         else:
@@ -178,6 +215,7 @@ async def translate_query_prompt(
 
 @router.get("")
 async def prospeccao_get(
+    http_request: Request,
     _user: dict = Depends(require_auth),
     termo: Optional[str] = Query(None, description="Termo de busca"),
     uf: Optional[str] = Query(None, description="UF"),
@@ -202,8 +240,7 @@ async def prospeccao_get(
         limite=limite,
         formato=formato,
     )
-    # Passa _user explicitamente para reutilizar o endpoint POST sem duplicar auth
-    return await prospeccao(request, _user)
+    return await prospeccao(http_request, request, _user)
 
 
 def _formatar_kommo(empresas: List[Dict]) -> List[Dict]:

@@ -237,7 +237,7 @@ class ProspeccaoConfig(BaseModel):
     ufs: Optional[List[str]] = None
     capital_minima: int = Field(0, alias="capital_minimo")
     capital_maxima: Optional[int] = Field(None, alias="capital_maximo")
-    limite_empresas: int = 50
+    limite_empresas: int = 500
     portes: Optional[List[str]] = None
     segmentos: Optional[List[str]] = None
     cnaes: Optional[List[str]] = None
@@ -318,9 +318,20 @@ class Empresa(BaseModel):
 
     # ── score / metadados ─────────────────────────────────────────────────────
     score_icp: Optional[float] = None
+    scores: Optional[Dict[str, Any]] = None
+    confiabilidade: Optional[Dict[str, Any]] = None
     registro_dono: Optional[str] = None
     registro_email: Optional[str] = None
     fonte_dados_prioritaria: Optional[str] = None
+
+    # ── campos extras (v3) ────────────────────────────────────────────────────
+    cnae_descricao: Optional[str] = None
+    natureza_juridica: Optional[str] = None
+    situacao_cadastral: Optional[str] = None
+    data_abertura: Optional[str] = None
+    bairro: Optional[str] = None
+    complemento: Optional[str] = None
+    subsegmento: Optional[str] = None
 
 
 class FiltrosICP(BaseModel):

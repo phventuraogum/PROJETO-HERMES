@@ -252,6 +252,9 @@ try:
         gerar_insights_prospeccao_ia,
         ProspeccaoConfig,
         ProspeccaoResultado,
+        Empresa,
+        FiltrosICP,
+        EnriquecimentoResumo,
         MapaCalorRequest,
         MapaCalorResponse,
         MensagemRequest,
@@ -260,6 +263,149 @@ try:
         _consume_credits,
         _get_credits,
     )
+    try:
+        from api.prospeccao_service import rodar_prospeccao_otimizada as _rodar_otimizada
+        _USE_OTIMIZADA = True
+    except Exception:
+        _rodar_otimizada = None
+        _USE_OTIMIZADA = False
+
+    def _config_to_otimizada_kwargs(config: ProspeccaoConfig, excluir_cnpjs: list = None) -> dict:
+        """Mapeia ProspeccaoConfig para kwargs de rodar_prospeccao_otimizada."""
+        cidades = list(config.cidades or [])
+        if config.cidade and config.cidade not in cidades:
+            cidades.insert(0, config.cidade)
+        kwargs = {
+            "termo": config.termo or None,
+            "uf": config.uf or None,
+            "municipio": cidades[0] if cidades else None,
+            "municipios": cidades if len(cidades) > 1 else None,
+            "capital_minima": float(config.capital_minima) if config.capital_minima else None,
+            "capital_maxima": float(config.capital_maxima) if config.capital_maxima else None,
+            "cnaes": config.cnaes or None,
+            "segmentos": config.segmentos or None,
+            "portes": config.portes or None,
+            "limite": config.limite_empresas,
+            "enriquecer_background": config.enriquecer_web,
+            "priorizar_contato": config.priorizar_com_contato,
+        }
+        if excluir_cnpjs:
+            kwargs["excluir_cnpjs"] = excluir_cnpjs
+        return kwargs
+
+    # ── Anti-repetição: Redis "seen CNPJs" por org ──────────────────────────
+    def _seen_key(org_id: str) -> str:
+        return f"hermes:seen_cnpjs:{org_id}"
+
+    def _load_seen_cnpjs(org_id: str) -> list:
+        """Carrega CNPJs já retornados nas últimas buscas desta org (TTL 7 dias)."""
+        try:
+            from redis import Redis
+            from config import settings as _s
+            r = Redis.from_url(_s.REDIS_URL, socket_connect_timeout=2)
+            members = r.smembers(_seen_key(org_id))
+            return [m.decode() if isinstance(m, bytes) else m for m in members]
+        except Exception:
+            return []
+
+    def _save_seen_cnpjs(org_id: str, cnpjs: list) -> None:
+        """Persiste CNPJs retornados (SET Redis, TTL 7 dias, max 5000 itens)."""
+        if not cnpjs:
+            return
+        try:
+            from redis import Redis
+            from config import settings as _s
+            r = Redis.from_url(_s.REDIS_URL, socket_connect_timeout=2)
+            key = _seen_key(org_id)
+            pipe = r.pipeline()
+            pipe.sadd(key, *cnpjs)
+            pipe.expire(key, 7 * 24 * 3600)  # 7 dias
+            pipe.execute()
+            # Trim: se passou de 5000, remove aleatórios (Redis SET não tem ordem)
+            count = r.scard(key)
+            if count > 5000:
+                excess = r.srandmember(key, count - 5000)
+                if excess:
+                    r.srem(key, *excess)
+        except Exception as e:
+            logger.debug(f"Não salvou seen_cnpjs: {e}")
+
+    def _build_resultado_from_otimizada(raw: dict, config: ProspeccaoConfig) -> ProspeccaoResultado:
+        """Converte resultado de rodar_prospeccao_otimizada para ProspeccaoResultado."""
+        empresas_raw = raw.get("empresas", [])
+        empresas: list[Empresa] = []
+        for d in empresas_raw:
+            try:
+                emp = Empresa(
+                    cnpj=d.get("cnpj") or "",
+                    razao_social=d.get("razao_social") or "",
+                    nome_fantasia=d.get("nome_fantasia"),
+                    cidade=d.get("cidade"),
+                    uf=d.get("uf"),
+                    # Classificação
+                    cnae_principal=d.get("cnae_principal"),
+                    cnae_descricao=d.get("cnae_descricao"),
+                    capital_social=d.get("capital_social"),
+                    porte=d.get("porte"),
+                    segmento=d.get("segmento"),
+                    subsegmento=d.get("subsegmento"),
+                    natureza_juridica=d.get("natureza_juridica"),
+                    situacao_cadastral=d.get("situacao_cadastral"),
+                    data_abertura=d.get("data_abertura"),
+                    # Endereço
+                    logradouro=d.get("logradouro"),
+                    numero=d.get("numero"),
+                    complemento=d.get("complemento"),
+                    bairro=d.get("bairro"),
+                    cep=d.get("cep"),
+                    # Contatos
+                    telefone_receita=d.get("telefone_receita"),
+                    telefone_padrao=d.get("telefone_final") or d.get("telefone_receita"),
+                    email=d.get("email_receita"),
+                    email_enriquecido=d.get("email_final"),
+                    whatsapp_enriquecido=d.get("whatsapp_final"),
+                    site=d.get("site"),
+                    # Sócios
+                    socios_resumo=d.get("socios_resumo"),
+                    socios_estruturado=d.get("socios_estruturado"),
+                    cnaes_secundarios=d.get("cnaes_secundarios"),
+                    # Contexto
+                    contexto_sidra=d.get("contexto_sidra"),
+                    # Scores
+                    score_icp=d.get("score_icp"),
+                    scores=d.get("scores"),
+                    confiabilidade=d.get("confiabilidade"),
+                    # Metadados
+                    registro_dono=d.get("registro_dono"),
+                    registro_email=d.get("registro_email"),
+                    fonte_dados_prioritaria=d.get("fonte_dados_prioritaria"),
+                )
+                empresas.append(emp)
+            except Exception:
+                pass  # skip malformed rows
+
+        total = len(empresas)
+        com_enriq = sum(
+            1 for e in empresas
+            if e.email_enriquecido or e.whatsapp_enriquecido or e.telefone_padrao
+        )
+        return ProspeccaoResultado(
+            total_empresas=total,
+            empresas=empresas,
+            filtros_icp=FiltrosICP(
+                capital_social_minimo=float(config.capital_minima) if config.capital_minima else None,
+                portes=config.portes or [],
+                segmentos=config.segmentos or [],
+                cidade=config.cidade or None,
+                uf=config.uf or None,
+            ),
+            enriquecimento_web=EnriquecimentoResumo(
+                total_com_enriquecimento=com_enriq,
+                total_sem_enriquecimento=total - com_enriq,
+                porcentagem_enriquecida=round(com_enriq / total * 100, 1) if total else 0.0,
+            ),
+        )
+
     from fastapi import HTTPException, Request
     from fastapi.responses import StreamingResponse
     from middleware.auth import require_auth
@@ -333,7 +479,16 @@ try:
         logger.info(f"Prospecção iniciada | user={user.get('email')} | termo={getattr(config, 'termo', '')} | org={org_id}")
         try:
             effective_config = _apply_suppression_registry(config, org_id)
-            resultado = await asyncio.to_thread(rodar_prospeccao_icp, effective_config)
+            if _USE_OTIMIZADA:
+                seen = _load_seen_cnpjs(org_id)
+                raw = await asyncio.to_thread(
+                    _rodar_otimizada,
+                    **_config_to_otimizada_kwargs(effective_config, excluir_cnpjs=seen),
+                )
+                resultado = _build_resultado_from_otimizada(raw, effective_config)
+                _save_seen_cnpjs(org_id, [e.cnpj for e in resultado.empresas if e.cnpj])
+            else:
+                resultado = await asyncio.to_thread(rodar_prospeccao_icp, effective_config)
             result_store.save_result(
                 org_id,
                 config.model_dump(by_alias=True),
@@ -366,7 +521,15 @@ try:
 
         def run_in_thread():
             try:
-                result = rodar_prospeccao_icp(effective_config, on_progress=on_progress)
+                if _USE_OTIMIZADA:
+                    seen = _load_seen_cnpjs(org_id)
+                    raw = _rodar_otimizada(
+                        **_config_to_otimizada_kwargs(effective_config, excluir_cnpjs=seen)
+                    )
+                    result = _build_resultado_from_otimizada(raw, effective_config)
+                    _save_seen_cnpjs(org_id, [e.cnpj for e in result.empresas if e.cnpj])
+                else:
+                    result = rodar_prospeccao_icp(effective_config, on_progress=on_progress)
                 result_holder.append(result)
             except Exception as exc:
                 error_holder.append(str(exc))

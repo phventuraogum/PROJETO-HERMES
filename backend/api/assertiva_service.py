@@ -7,6 +7,7 @@ import logging
 import re
 import time
 import unicodedata
+import base64
 from typing import Optional, Dict, Any
 from urllib.parse import urlparse
 
@@ -157,6 +158,11 @@ class AssertivaCNPJService:
     # Autenticação
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _basic_auth_header(client_id: str, client_secret: str) -> str:
+        raw = f"{client_id}:{client_secret}".encode("utf-8")
+        return "Basic " + base64.b64encode(raw).decode("ascii")
+
     async def _get_token(self) -> str:
         """Retorna token válido, renovando se necessário."""
         now = time.monotonic()
@@ -164,22 +170,42 @@ class AssertivaCNPJService:
         if self._token and now < self._token_expires_at - 5:
             return self._token
 
+        # Assertiva pode variar conforme provisionamento:
+        # - Basic Auth + grant_type=client_credentials
+        # - Basic Auth sem body
+        # Tentamos estratégias compatíveis antes de falhar.
+        auth_header = self._basic_auth_header(self.client_id, self.client_secret)
+        attempts: list[tuple[dict, Optional[dict]]] = [
+            (
+                {"Authorization": auth_header, "Content-Type": "application/x-www-form-urlencoded"},
+                {"grant_type": "client_credentials"},
+            ),
+            (
+                {"Authorization": auth_header, "Content-Type": "application/x-www-form-urlencoded"},
+                None,
+            ),
+        ]
+        last_resp: Optional[httpx.Response] = None
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
-                ASSERTIVA_TOKEN_URL,
-                data={"grant_type": "client_credentials"},
-                auth=(self.client_id, self.client_secret),
-            )
+            for headers, data in attempts:
+                resp = await client.post(
+                    ASSERTIVA_TOKEN_URL,
+                    headers=headers,
+                    data=data,
+                )
+                last_resp = resp
+                if resp.status_code == 200:
+                    break
 
-        if resp.status_code != 200:
+        if not last_resp or last_resp.status_code != 200:
             logger.error(
-                "Assertiva auth falhou: %s — %s", resp.status_code, resp.text[:300]
+                "Assertiva auth falhou: %s — %s", (last_resp.status_code if last_resp else "sem resposta"), (last_resp.text[:300] if last_resp else "sem resposta")
             )
             raise RuntimeError(
-                f"Falha ao autenticar na Assertiva: HTTP {resp.status_code}"
+                f"Falha ao autenticar na Assertiva: HTTP {(last_resp.status_code if last_resp else 'sem resposta')}"
             )
 
-        data = resp.json()
+        data = last_resp.json()
         self._token = data["access_token"]
         expires_in = int(data.get("expires_in", 60))
         self._token_expires_at = now + expires_in

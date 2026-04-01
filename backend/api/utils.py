@@ -236,16 +236,50 @@ PORTE_LABEL_BY_CODE = {
     "": "Não informado",
 }
 
-# Segmentos macro (usados pra filtro / tag "grande")
+# Segmentos macro → prefixos CNAE (usados pra filtro SQL e tag de classificação)
 SEGMENTO_CNAE_PREFIX = {
-    "Hospitais": ["8610"],
-    "Clínicas": ["8640"],
-    "Laboratórios": ["8640"],
-    "Farmácias": ["4771"],
+    # Saúde
+    "Hospitais":     ["8610"],
+    "Clínicas":      ["8640", "8630", "8650", "8660", "8621", "8622"],
+    "Laboratórios":  ["8640", "8630"],
+    "Farmácias":     ["4771"],
+    "Saúde":         ["86", "87", "88"],
+
+    # Alimentação & Varejo
     "Supermercados": ["4711", "4712"],
-    "Logística": ["4930", "49"],
-    "Indústria": ["10", "11", "12", "20", "21", "22", "23"],
-    "Serviços": ["96"],
+    "Alimentação":   ["5611", "5612", "56", "1011", "1012", "1013", "1020", "1031", "1032", "1033", "1040"],
+    "Varejo":        ["45", "46", "47"],
+
+    # Logística & Transporte
+    "Logística":     ["4930", "4940", "4950", "49", "5210", "5229", "5211", "5212"],
+    "Transporte":    ["49", "50", "51"],
+
+    # Indústria (todos os grupos 10-33 da CNAE)
+    "Indústria":     ["10", "11", "12", "13", "14", "15", "16", "17", "18",
+                      "19", "20", "21", "22", "23", "24", "25", "26", "27",
+                      "28", "29", "30", "31", "32", "33"],
+
+    # Construção
+    "Construção":    ["41", "42", "43"],
+
+    # Tecnologia
+    "Tecnologia":    ["62", "631", "6311", "6319", "6201", "6202", "6203",
+                      "6204", "6209", "9511", "9512"],
+
+    # Educação
+    "Educação":      ["85", "8511", "8512", "8513", "8520", "8531", "8532", "8533"],
+
+    # Financeiro
+    "Financeiro":    ["64", "65", "66"],
+
+    # Imobiliário
+    "Imobiliário":   ["6810", "6820", "68"],
+
+    # Agronegócio
+    "Agronegócio":   ["01", "02", "03"],
+
+    # Serviços gerais
+    "Serviços":      ["96", "74", "73", "72", "71", "70", "69"],
 }
 
 def mapear_porte(codigo: Optional[str]) -> Optional[str]:
