@@ -402,9 +402,10 @@ def _export_kommo(
 
     rp, rs = _kommo_resolve_pipeline_status(base, headers, pipeline_id, status_id, sub)
 
-    # 2. Lead (sempre com pipeline + status)
+    # 2. Lead (com fallback progressivo para diferenças de regra entre contas Kommo)
+    lead_name = (lead.nome_fantasia or lead.razao_social or "Lead Hermes")[:250]
     lead_body: dict = {
-        "name": (lead.nome_fantasia or lead.razao_social or "Lead Hermes")[:250],
+        "name": lead_name,
         "pipeline_id": rp,
         "status_id": rs,
     }
@@ -413,7 +414,23 @@ def _export_kommo(
 
     lr = requests.post(f"{base}/leads", headers=headers, json=[lead_body], timeout=20)
     if lr.status_code >= 300:
-        raise HTTPException(status_code=lr.status_code, detail=f"Kommo Leads: {lr.text[:800]}")
+        # Algumas contas rejeitam status específico embora aceitem pipeline.
+        lead_body_wo_status = {"name": lead_name, "pipeline_id": rp}
+        if contact_id:
+            lead_body_wo_status["_embedded"] = {"contacts": [{"id": contact_id, "is_main": True}]}
+        lr2 = requests.post(f"{base}/leads", headers=headers, json=[lead_body_wo_status], timeout=20)
+        if lr2.status_code < 300:
+            lr = lr2
+        else:
+            # Último fallback: deixa Kommo decidir funil/etapa padrão da conta.
+            lead_body_min = {"name": lead_name}
+            if contact_id:
+                lead_body_min["_embedded"] = {"contacts": [{"id": contact_id, "is_main": True}]}
+            lr3 = requests.post(f"{base}/leads", headers=headers, json=[lead_body_min], timeout=20)
+            if lr3.status_code < 300:
+                lr = lr3
+            else:
+                raise HTTPException(status_code=lr3.status_code, detail=f"Kommo Leads: {lr3.text[:800]}")
 
     lead_id = (lr.json().get("_embedded", {}).get("leads") or [{}])[0].get("id")
 
