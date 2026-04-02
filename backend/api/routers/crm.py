@@ -793,9 +793,39 @@ def export_batch_to_crm(
 # Os dados novos são gravados de volta no contato Ploomes.
 # ─────────────────────────────────────────────────────────────
 
+def _resolve_ploomes_key(override: str | None, org_id: str | None) -> str:
+    """
+    Resolve a User-Key do Ploomes para a org:
+      1. override passado no body (útil para testes)
+      2. variável de ambiente PLOOMES_API_KEY (configurada por org no .env / secret da VPS)
+    Levanta 503 se não houver chave configurada.
+    """
+    key = (override or "").strip() or (settings.PLOOMES_API_KEY or "").strip()
+    if not key:
+        raise HTTPException(
+            status_code=503,
+            detail="Ploomes API key não configurada. Defina PLOOMES_API_KEY no .env da VPS.",
+        )
+    return key
+
+
+def _resolve_ploomes_funnel(override: int | None) -> int | None:
+    """Resolve o funil do Ploomes: override > PLOOMES_FUNNEL_ID do .env."""
+    if override:
+        return override
+    fid = getattr(settings, "PLOOMES_FUNNEL_ID", None)
+    return int(fid) if fid else None
+
+
 class PloomesEnrichRequest(BaseModel):
-    api_key: str = Field(..., description="User-Key do Ploomes")
-    funnel_id: Optional[int] = Field(None, description="Filtrar contatos de um funil específico")
+    api_key: Optional[str] = Field(
+        None,
+        description="User-Key do Ploomes. Se omitido, usa PLOOMES_API_KEY configurado no servidor.",
+    )
+    funnel_id: Optional[int] = Field(
+        None,
+        description="Filtrar contatos de um funil específico. Se omitido, usa PLOOMES_FUNNEL_ID do servidor.",
+    )
     limit: int = Field(50, ge=1, le=200, description="Máx de contatos a processar por vez")
     apenas_sem_contato: bool = Field(True, description="Somente contatos sem telefone e sem e-mail cadastrados")
     usar_assertiva: bool = Field(True, description="Usar Assertiva Localize PJ se configurada para a org")
@@ -992,21 +1022,18 @@ async def enrich_ploomes_contacts(
     **Exemplo:**
     ```json
     POST /crm/ploomes/enrich
-    {
-        "api_key": "SUA_USER_KEY",
-        "funnel_id": 12345,
-        "limit": 100,
-        "apenas_sem_contato": true
-    }
+    { "limit": 100 }
     ```
+    A `api_key` e o `funnel_id` são lidos automaticamente da configuração da org
+    (`PLOOMES_API_KEY` e `PLOOMES_FUNNEL_ID` no servidor). Podem ser sobrescritos no body se necessário.
     """
-    api_key = payload.api_key.strip()
-    if not api_key:
-        raise HTTPException(status_code=400, detail="api_key é obrigatória")
+    org_id = (x_org_id or "").strip() or "default"
+    api_key = _resolve_ploomes_key(payload.api_key, org_id)
+    funnel_id = _resolve_ploomes_funnel(payload.funnel_id)
 
     # 1. Buscar contatos no Ploomes
     contacts = _ploomes_get_contacts_for_enrich(
-        api_key, payload.funnel_id, payload.limit, payload.apenas_sem_contato
+        api_key, funnel_id, payload.limit, payload.apenas_sem_contato
     )
 
     if not contacts:
@@ -1111,26 +1138,30 @@ async def enrich_ploomes_contacts(
     tags=["CRM", "Ploomes"],
 )
 def list_ploomes_contacts_preview(
-    api_key: str,
-    funnel_id: Optional[int] = None,
     apenas_sem_contato: bool = True,
     limit: int = 50,
+    api_key: Optional[str] = None,
+    funnel_id: Optional[int] = None,
     _user: dict = Depends(require_auth),
+    x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
 ) -> Dict[str, Any]:
     """
     Lista contatos do Ploomes que seriam processados pelo endpoint de enriquecimento.
     Use para pré-visualizar antes de rodar o enriquecimento.
 
+    A `api_key` e o `funnel_id` são lidos automaticamente do servidor.
+    Podem ser sobrescritos via query param se necessário.
+
     **Exemplo:**
     ```
-    GET /crm/ploomes/contacts?api_key=SUA_KEY&funnel_id=12345&apenas_sem_contato=true&limit=20
+    GET /crm/ploomes/contacts?apenas_sem_contato=true&limit=20
     ```
     """
-    api_key = api_key.strip()
-    if not api_key:
-        raise HTTPException(status_code=400, detail="api_key é obrigatória")
+    org_id = (x_org_id or "").strip() or "default"
+    resolved_key = _resolve_ploomes_key(api_key, org_id)
+    resolved_funnel = _resolve_ploomes_funnel(funnel_id)
 
-    contacts = _ploomes_get_contacts_for_enrich(api_key, funnel_id, min(limit, 200), apenas_sem_contato)
+    contacts = _ploomes_get_contacts_for_enrich(resolved_key, resolved_funnel, min(limit, 200), apenas_sem_contato)
     resumo = []
     for c in contacts:
         cnpj = _extract_cnpj_from_ploomes_contact(c)
