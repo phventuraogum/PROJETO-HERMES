@@ -239,19 +239,31 @@ def _kommo_auth_headers(access_token: str) -> dict:
 
 
 def _kommo_fetch_contact_fields(base: str, headers: dict) -> list[dict]:
-    r = requests.get(f"{base}/contacts/fields", headers=headers, timeout=20)
-    if r.status_code >= 300:
-        return []
-    data = r.json() or {}
-    return (data.get("_embedded") or {}).get("fields") or []
+    """Busca campos do contato — tenta custom_fields primeiro (API v4), depois fields."""
+    for path in ("/contacts/custom_fields", "/contacts/fields"):
+        r = requests.get(f"{base}{path}", headers=headers, timeout=20)
+        if r.status_code >= 300:
+            continue
+        data = r.json() or {}
+        emb = data.get("_embedded") or {}
+        fields = emb.get("custom_fields") or emb.get("fields") or []
+        if fields:
+            return fields
+    return []
 
 
 def _kommo_fetch_company_fields(base: str, headers: dict) -> list[dict]:
-    r = requests.get(f"{base}/companies/fields", headers=headers, timeout=20)
-    if r.status_code >= 300:
-        return []
-    data = r.json() or {}
-    return (data.get("_embedded") or {}).get("fields") or []
+    """Busca campos da empresa — tenta custom_fields primeiro (API v4), depois fields."""
+    for path in ("/companies/custom_fields", "/companies/fields"):
+        r = requests.get(f"{base}{path}", headers=headers, timeout=20)
+        if r.status_code >= 300:
+            continue
+        data = r.json() or {}
+        emb = data.get("_embedded") or {}
+        fields = emb.get("custom_fields") or emb.get("fields") or []
+        if fields:
+            return fields
+    return []
 
 
 def _kommo_fetch_lead_fields(base: str, headers: dict) -> list[dict]:
@@ -386,7 +398,11 @@ def _kommo_build_contact_custom_fields(fields: list[dict], lead: LeadExportPaylo
 
     phone = (lead.telefone or lead.whatsapp or "").strip()
     if phone:
-        f = by_code.get("PHONE") or by_code.get("MOB")
+        f = (
+            by_code.get("PHONE")
+            or by_code.get("MOB")
+            or _kommo_find_field_by_hints(fields, ("PHONE", "MOB"), ("TELEFONE", "CELULAR", "WHATSAPP", "TEL"))
+        )
         if f and f.get("id") is not None:
             eid = _kommo_pick_enum_id(f, ("WORK", "MOB", "CEL", "OTHER"))
             val = {"value": phone}
