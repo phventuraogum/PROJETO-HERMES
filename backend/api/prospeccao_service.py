@@ -80,77 +80,45 @@ def _resolver_cnaes_efetivos(
 
 
 def _needs_background_enrichment(empresa: Dict[str, Any]) -> bool:
-    return not (
-        empresa.get("site")
-        and (
-            empresa.get("email_final")
-            or empresa.get("telefone_final")
-            or empresa.get("whatsapp_final")
-        )
-    )
+    """Retorna True se a empresa ainda não tem WhatsApp — foco principal."""
+    return not empresa.get("whatsapp_final")
 
 
-def _enriquecer_homepage_rapido(empresa: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Enriquecimento rápido via homepage — termina em segundos por empresa.
+_WA_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; HermesBot/1.0)"}
+_CONTACT_PATHS = ["/contato", "/fale-conosco", "/contact", "/atendimento", "/faleconosco", "/whatsapp"]
 
-    Busca:
-    - Links wa.me / api.whatsapp.com / web.whatsapp.com
-    - Números de telefone no HTML
-    - Endereços de e-mail no HTML
 
-    Não faz Google, LinkedIn, OpenAI nem nada pesado.
-    Ideal para enriquecimento síncrono durante a prospecção.
-    """
-    import re
-    import requests
+def _fetch_html(url: str, timeout: int = 8) -> str:
+    """Busca HTML de uma URL. Tenta https depois http."""
+    import requests as _req
+    url = url if url.startswith("http") else f"https://{url}"
+    try:
+        return _req.get(url, timeout=timeout, headers=_WA_HEADERS, allow_redirects=True).text
+    except Exception:
+        try:
+            return _req.get(url.replace("https://", "http://", 1), timeout=5, headers=_WA_HEADERS).text
+        except Exception:
+            return ""
 
-    cnpj = empresa.get("cnpj", "")
-    site = empresa.get("site", "")
-    resultado: Dict[str, Any] = {"cnpj": cnpj}
 
-    if not site:
+def _extrair_contatos_html(html: str) -> Dict[str, Any]:
+    """Extrai WhatsApp, telefone e e-mail de um bloco HTML."""
+    resultado: Dict[str, Any] = {}
+    if not html:
         return resultado
 
-    # Garante protocolo
-    url = site if site.startswith("http") else f"https://{site}"
-
-    try:
-        resp = requests.get(
-            url,
-            timeout=8,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; HermesBot/1.0)"},
-            allow_redirects=True,
-        )
-        html = resp.text
-    except Exception:
-        # Tenta http se https falhou
-        try:
-            url_http = url.replace("https://", "http://", 1)
-            resp = requests.get(url_http, timeout=6,
-                                headers={"User-Agent": "Mozilla/5.0"})
-            html = resp.text
-        except Exception:
-            return resultado
-
-    # ── WhatsApp ────────────────────────────────────────────────────────────
+    # ── WhatsApp ──────────────────────────────────────────────────────────────
     wa_patterns = [
-        # links diretos wa.me
         r'wa\.me/(?:55)?(\d{10,13})',
-        # API / web send
         r'api\.whatsapp\.com/send\?phone=(?:55)?(\d{10,13})',
         r'web\.whatsapp\.com/send\?phone=(?:55)?(\d{10,13})',
         r'whatsapp\.com/send/?\?phone=(?:55)?(\d{10,13})',
-        # app link nativo
         r'whatsapp://send/?\?phone=(?:55)?(\d{10,13})',
-        # URLs encodadas (%2F ou %3F)
         r'wa\.me%2F(?:55)?(\d{10,13})',
         r'phone%3D(?:55)?(\d{10,13})',
-        # atributos HTML comuns
         r'data-whatsapp=["\'](?:\+?55)?(\d{10,11})["\']',
         r'data-phone=["\'](?:\+?55)?(\d{10,11})["\']',
         r'data-number=["\'](?:\+?55)?(\d{10,11})["\']',
-        # onclick / href com número
         r'onclick=["\'][^"\']*wa\.me/(?:55)?(\d{10,13})',
         r'href=["\'][^"\']*wa\.me/(?:55)?(\d{10,13})',
     ]
@@ -158,42 +126,75 @@ def _enriquecer_homepage_rapido(empresa: Dict[str, Any]) -> Dict[str, Any]:
         m = re.search(pat, html, re.IGNORECASE)
         if m:
             numero = re.sub(r'\D', '', m.group(1))
-            # Normaliza: garante 55 + DDD (2) + número (8 ou 9) = 13 ou 12 dígitos
             if not numero.startswith("55"):
                 numero = "55" + numero
             if len(numero) in (12, 13):
                 resultado["whatsapp"] = numero
                 break
 
-    # ── Telefone (fallback se não achou WhatsApp) ────────────────────────────
+    # ── Telefone (fallback) ───────────────────────────────────────────────────
     if not resultado.get("whatsapp"):
-        tel_pat = re.findall(
-            r'(?:\+55\s?|55\s?)?(?:\(?\d{2}\)?\s?)(?:9\s?)?\d{4}[\s\-]?\d{4}',
-            html,
-        )
-        for tel_raw in tel_pat:
+        for tel_raw in re.findall(
+            r'(?:\+55\s?|55\s?)?(?:\(?\d{2}\)?\s?)(?:9\s?)?\d{4}[\s\-]?\d{4}', html
+        ):
             digits = re.sub(r'\D', '', tel_raw)
             if len(digits) in (10, 11, 12, 13):
-                # Número celular BR (11 dígitos: DDD + 9 + 8) → tratar como WhatsApp
-                normalized = digits if digits.startswith("55") else "55" + digits
-                pure = normalized[2:]  # remove 55
+                norm = digits if digits.startswith("55") else "55" + digits
+                pure = norm[2:]
                 if len(pure) == 11 and pure[2] == "9":
-                    resultado["whatsapp"] = normalized
+                    resultado["whatsapp"] = norm
                 else:
-                    resultado["telefone"] = digits
+                    resultado.setdefault("telefone", digits)
                 break
 
-    # ── E-mail ──────────────────────────────────────────────────────────────
-    email_pat = re.findall(
-        r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}',
-        html,
-    )
+    # ── E-mail ────────────────────────────────────────────────────────────────
     BLACKLIST = {"example", "sentry", "noreply", "no-reply", "teste", "test",
                  "support@sentry", "email@", "user@", "name@"}
-    for email in email_pat:
+    for email in re.findall(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', html):
         if not any(b in email.lower() for b in BLACKLIST):
             resultado["email"] = email
             break
+
+    return resultado
+
+
+def _enriquecer_homepage_rapido(empresa: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Enriquecimento rápido via site — homepage + páginas de contato.
+
+    Tenta em ordem:
+    1. Homepage (índice do site)
+    2. /contato, /fale-conosco, /contact, /atendimento (onde WA costuma aparecer)
+
+    Não faz Google, LinkedIn nem nada pesado.
+    """
+    cnpj = empresa.get("cnpj", "")
+    site = empresa.get("site", "")
+    resultado: Dict[str, Any] = {"cnpj": cnpj}
+
+    if not site:
+        return resultado
+
+    base_url = site.rstrip("/") if site.startswith("http") else f"https://{site.rstrip('/')}"
+
+    # 1. Homepage
+    html = _fetch_html(base_url)
+    resultado.update(_extrair_contatos_html(html))
+
+    # 2. Se ainda não achou WhatsApp, tenta páginas de contato
+    if not resultado.get("whatsapp"):
+        for path in _CONTACT_PATHS:
+            contact_html = _fetch_html(base_url + path, timeout=6)
+            if not contact_html:
+                continue
+            contact_data = _extrair_contatos_html(contact_html)
+            if contact_data.get("whatsapp"):
+                resultado["whatsapp"] = contact_data["whatsapp"]
+                break
+            # Aproveita telefone/email mesmo sem WA
+            for k in ("telefone", "email"):
+                if contact_data.get(k) and not resultado.get(k):
+                    resultado[k] = contact_data[k]
 
     return resultado
 
