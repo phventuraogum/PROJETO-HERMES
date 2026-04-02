@@ -824,13 +824,14 @@ class PloomesEnrichRequest(BaseModel):
     )
     funnel_id: Optional[int] = Field(
         None,
-        description="Filtrar contatos de um funil específico. Se omitido, usa PLOOMES_FUNNEL_ID do servidor.",
+        description="Filtrar contatos de um funil específico. Se omitido, processa TODOS os contatos da base.",
     )
-    limit: int = Field(50, ge=1, le=200, description="Máx de contatos a processar por vez")
-    apenas_sem_contato: bool = Field(True, description="Somente contatos sem telefone e sem e-mail cadastrados")
-    usar_assertiva: bool = Field(True, description="Usar Assertiva Localize PJ se configurada para a org")
-    usar_brasilapi: bool = Field(True, description="Usar BrasilAPI / Receita Federal como fallback de CNPJ")
-    usar_homepage: bool = Field(True, description="Tentar homepage scraping se site estiver disponível")
+    limit: int = Field(2000, ge=1, le=5000, description="Máx de contatos a processar. Padrão 2000 (toda a base).")
+    apenas_sem_contato: bool = Field(False, description="False = enriquece todos; True = somente sem telefone/email")
+    usar_hermes_db: bool = Field(True, description="Consultar banco DuckDB do Hermes (fonte principal)")
+    usar_assertiva: bool = Field(True, description="Usar Assertiva Localize PJ se configurada (fallback)")
+    usar_brasilapi: bool = Field(True, description="Usar BrasilAPI / Receita Federal (fallback)")
+    usar_homepage: bool = Field(True, description="Tentar homepage scraping se site disponível (fallback final)")
 
 
 # ── Helpers Ploomes ──────────────────────────────────────────
@@ -841,37 +842,53 @@ def _ploomes_get_contacts_for_enrich(
     limit: int,
     apenas_sem_contato: bool,
 ) -> List[Dict[str, Any]]:
-    """Busca contatos no Ploomes prontos para enriquecimento."""
+    """Busca contatos no Ploomes prontos para enriquecimento (com paginação automática)."""
     headers = {"User-Key": api_key, "Content-Type": "application/json"}
     filters: List[str] = []
     if apenas_sem_contato:
-        # Sem telefone cadastrado E sem e-mail
         filters.append("(not Phones/any() and (Email eq null or Email eq ''))")
     if funnel_id:
         filters.append(
             f"DealsContactAssociation/any(d: d/Deal/FunnelId eq {funnel_id})"
         )
-    params: Dict[str, Any] = {
-        "$top": limit,
-        "$expand": "Phones,OtherProperties",
-        "$orderby": "CreateDate desc",
-        "$select": "Id,Name,Email,Phones,OtherProperties",
-    }
-    if filters:
-        params["$filter"] = " and ".join(filters)
-    try:
-        r = requests.get(
-            f"{PLOOMES_BASE}/Contacts",
-            headers=headers,
-            params=params,
-            timeout=20,
-        )
-        if r.status_code == 200:
-            return r.json().get("value", [])
-        logger.warning(f"Ploomes GET /Contacts retornou {r.status_code}: {r.text[:200]}")
-    except Exception as e:
-        logger.warning(f"Ploomes GET /Contacts falhou: {e}")
-    return []
+
+    PAGE = 100  # Ploomes aceita até 100 por página
+    all_contacts: List[Dict[str, Any]] = []
+    skip = 0
+
+    while len(all_contacts) < limit:
+        page_top = min(PAGE, limit - len(all_contacts))
+        params: Dict[str, Any] = {
+            "$top": page_top,
+            "$skip": skip,
+            "$expand": "Phones,OtherProperties",
+            "$orderby": "CreateDate desc",
+            "$select": "Id,Name,Email,Phones,OtherProperties",
+        }
+        if filters:
+            params["$filter"] = " and ".join(filters)
+        try:
+            r = requests.get(
+                f"{PLOOMES_BASE}/Contacts",
+                headers=headers,
+                params=params,
+                timeout=30,
+            )
+            if r.status_code != 200:
+                logger.warning(f"Ploomes GET /Contacts retornou {r.status_code}: {r.text[:200]}")
+                break
+            page_data = r.json().get("value", [])
+            if not page_data:
+                break
+            all_contacts.extend(page_data)
+            skip += len(page_data)
+            if len(page_data) < page_top:
+                break  # Última página
+        except Exception as e:
+            logger.warning(f"Ploomes GET /Contacts falhou: {e}")
+            break
+
+    return all_contacts
 
 
 def _ploomes_patch_contact(api_key: str, contact_id: int, updates: Dict[str, Any]) -> bool:
@@ -993,6 +1010,84 @@ def _enrich_via_homepage(site: str) -> Dict[str, Any]:
         return {}
 
 
+def _enrich_via_hermes_db(cnpj: str) -> Dict[str, Any]:
+    """
+    Consulta o banco DuckDB do Hermes diretamente para extrair
+    telefone, e-mail, WhatsApp e site cadastrados para o CNPJ.
+
+    Prioridade de campos:
+    - whatsapp_final  > telefone_final  > telefone_receita
+    - email_final     > email_receita
+    - site_web        (site da empresa)
+    """
+    try:
+        from api.db_pool import get_connection
+        clean = re.sub(r"\D", "", cnpj)
+        if len(clean) != 14:
+            return {}
+
+        with get_connection() as conn:
+            row = conn.execute("""
+                SELECT
+                    whatsapp_final,
+                    telefone_final,
+                    telefone_receita,
+                    email_final,
+                    email_receita,
+                    site_web,
+                    razao_social,
+                    nome_fantasia,
+                    cidade,
+                    uf
+                FROM vw_prospeccao_base
+                WHERE cnpj = ?
+                LIMIT 1
+            """, [clean]).fetchone()
+
+        if not row:
+            return {}
+
+        (whatsapp_final, telefone_final, telefone_receita,
+         email_final, email_receita, site_web,
+         razao_social, nome_fantasia, cidade, uf) = row
+
+        out: Dict[str, Any] = {}
+
+        # Telefone / WhatsApp
+        wa = (whatsapp_final or "").strip()
+        tel = (telefone_final or telefone_receita or "").strip()
+        wa_clean = re.sub(r"\D", "", wa)
+        tel_clean = re.sub(r"\D", "", tel)
+
+        if wa_clean:
+            out["whatsapp"] = wa_clean
+        elif tel_clean:
+            out["telefone"] = tel_clean
+
+        # E-mail
+        email = (email_final or email_receita or "").strip()
+        if email and "@" in email:
+            out["email"] = email
+
+        # Site
+        if site_web and "." in site_web:
+            out["site"] = site_web.strip()
+
+        # Dados cadastrais extras (para atualizar OtherProperties)
+        if razao_social:
+            out["razao_social"] = razao_social.strip()
+        if cidade:
+            out["cidade"] = cidade.strip()
+        if uf:
+            out["uf"] = uf.strip()
+
+        return out
+
+    except Exception as e:
+        logger.debug(f"HermesDB enrich CNPJ {cnpj}: {e}")
+        return {}
+
+
 # ── Endpoint ─────────────────────────────────────────────────
 
 @router.post(
@@ -1006,32 +1101,30 @@ async def enrich_ploomes_contacts(
     x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
 ) -> Dict[str, Any]:
     """
-    Busca contatos no Ploomes que ainda não têm telefone/e-mail,
-    enriquece usando múltiplas fontes em cascata e grava os dados
-    de volta no Ploomes automaticamente.
+    Percorre TODOS os contatos do Ploomes (com paginação automática), consulta o banco
+    DuckDB do Hermes pelo CNPJ de cada contato e grava de volta telefone, WhatsApp e
+    e-mail encontrados.
 
-    **Fontes (em ordem de prioridade):**
-    1. **Assertiva Localize PJ** — melhor qualidade, requer CNPJ cadastrado no contato
-    2. **BrasilAPI / Receita Federal** — fallback gratuito via CNPJ
-    3. **Homepage scraping** — extrai wa.me, telefone e e-mail do site da empresa
+    **Fontes em cascata (param de habilitação):**
+    1. **Banco Hermes (DuckDB)** — `usar_hermes_db=true` — fonte principal, instantâneo
+    2. **Assertiva Localize PJ** — `usar_assertiva=true` — melhor para dados novos
+    3. **BrasilAPI / Receita Federal** — `usar_brasilapi=true` — gratuito, fallback
+    4. **Homepage scraping** — `usar_homepage=true` — última tentativa via site
 
-    **Campos customizados necessários no Ploomes** para CNPJ/Site:
-    - `Contacts_CNPJ` (já mapeado pelo Hermes ao exportar leads)
-    - `Contacts_Site` (opcional, melhora cobertura via homepage)
+    **Campos obrigatórios no Ploomes:**
+    - `Contacts_CNPJ` — o Hermes já preenche ao exportar leads
 
-    **Exemplo:**
+    **Chamada mínima** (usa PLOOMES_API_KEY do servidor, processa todos):
     ```json
     POST /crm/ploomes/enrich
-    { "limit": 100 }
+    {}
     ```
-    A `api_key` e o `funnel_id` são lidos automaticamente da configuração da org
-    (`PLOOMES_API_KEY` e `PLOOMES_FUNNEL_ID` no servidor). Podem ser sobrescritos no body se necessário.
     """
     org_id = (x_org_id or "").strip() or "default"
     api_key = _resolve_ploomes_key(payload.api_key, org_id)
     funnel_id = _resolve_ploomes_funnel(payload.funnel_id)
 
-    # 1. Buscar contatos no Ploomes
+    # 1. Buscar TODOS os contatos no Ploomes (com paginação)
     contacts = _ploomes_get_contacts_for_enrich(
         api_key, funnel_id, payload.limit, payload.apenas_sem_contato
     )
@@ -1042,13 +1135,15 @@ async def enrich_ploomes_contacts(
             "total_processados": 0,
             "enriquecidos": 0,
             "sem_dado_novo": 0,
-            "mensagem": "Nenhum contato encontrado para enriquecimento",
+            "sem_cnpj": 0,
+            "mensagem": "Nenhum contato encontrado",
             "resultados": [],
         }
 
     loop = asyncio.get_event_loop()
     resultados: List[Dict[str, Any]] = []
     enriquecidos = 0
+    sem_cnpj = 0
 
     for contact in contacts:
         contact_id = contact.get("Id")
@@ -1068,17 +1163,33 @@ async def enrich_ploomes_contacts(
             "dados_adicionados": {},
         }
 
+        if not cnpj and not site:
+            item["status"] = "sem_cnpj"
+            sem_cnpj += 1
+            resultados.append(item)
+            continue
+
         dados: Dict[str, Any] = {}
+
+        # ── Fonte 0: Banco DuckDB do Hermes ─────────────────
+        if payload.usar_hermes_db and cnpj:
+            db_result = await loop.run_in_executor(None, _enrich_via_hermes_db, cnpj)
+            if db_result:
+                dados.update(db_result)
+                item["fonte"] = "hermes_db"
 
         # ── Fonte 1: Assertiva ───────────────────────────────
         if payload.usar_assertiva and cnpj:
-            try:
-                assertiva = await _enrich_via_assertiva(cnpj)
-                if assertiva:
-                    dados.update(assertiva)
-                    item["fonte"] = "assertiva"
-            except Exception:
-                pass
+            if not dados.get("telefone") and not dados.get("whatsapp"):
+                try:
+                    assertiva = await _enrich_via_assertiva(cnpj)
+                    if assertiva:
+                        for k, v in assertiva.items():
+                            dados.setdefault(k, v)
+                        if not item["fonte"]:
+                            item["fonte"] = "assertiva"
+                except Exception:
+                    pass
 
         # ── Fonte 2: BrasilAPI ───────────────────────────────
         if payload.usar_brasilapi and cnpj:
@@ -1091,7 +1202,7 @@ async def enrich_ploomes_contacts(
                         item["fonte"] = "brasilapi"
 
         # ── Fonte 3: Homepage ────────────────────────────────
-        _site_to_try = site or dados.get("site_encontrado")
+        _site_to_try = site or dados.get("site")
         if payload.usar_homepage and _site_to_try:
             if not dados.get("whatsapp") and not dados.get("telefone"):
                 hp = await loop.run_in_executor(None, _enrich_via_homepage, _site_to_try)
@@ -1115,8 +1226,10 @@ async def enrich_ploomes_contacts(
             if updates:
                 _ploomes_patch_contact(api_key, contact_id, updates)
 
-            # Remove campo auxiliar antes de retornar
-            dados.pop("site_encontrado", None)
+            # Remove campos auxiliares antes de retornar
+            for _aux in ("site", "razao_social", "cidade", "uf"):
+                dados.pop(_aux, None)
+
             item["status"] = "enriquecido"
             item["dados_adicionados"] = dados
             enriquecidos += 1
@@ -1127,7 +1240,8 @@ async def enrich_ploomes_contacts(
         "success": True,
         "total_processados": len(contacts),
         "enriquecidos": enriquecidos,
-        "sem_dado_novo": len(contacts) - enriquecidos,
+        "sem_dado_novo": len(contacts) - enriquecidos - sem_cnpj,
+        "sem_cnpj": sem_cnpj,
         "resultados": resultados,
     }
 
