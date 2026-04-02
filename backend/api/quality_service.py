@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 
-from api.validation_service import calcular_score_confiabilidade, validar_cnpj, validar_email, validar_telefone
+from api.validation_service import calcular_score_confiabilidade, validar_cnpj, validar_email, validar_telefone, validar_whatsapp
 
 logger = logging.getLogger(__name__)
 

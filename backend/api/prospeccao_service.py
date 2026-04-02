@@ -10,6 +10,7 @@ Melhorias:
 """
 import logging
 import os
+import re
 from collections import defaultdict
 from typing import List, Optional, Dict, Any
 
