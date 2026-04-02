@@ -55,8 +55,8 @@ def _export_pipedrive(api_key: str, lead: LeadExportPayload) -> dict:
     person_body = {"name": lead.nome_fantasia or lead.razao_social}
     if lead.email:
         person_body["email"] = [{"value": lead.email, "primary": True}]
-    if lead.telefone or lead.whatsapp:
-        person_body["phone"] = [{"value": lead.telefone or lead.whatsapp, "primary": True}]
+    if lead.whatsapp or lead.telefone:
+        person_body["phone"] = [{"value": lead.whatsapp or lead.telefone, "primary": True}]
     if org_id:
         person_body["org_id"] = org_id
 
@@ -84,8 +84,8 @@ def _export_hubspot(api_key: str, lead: LeadExportPayload) -> dict:
     }
     if lead.email:
         props["email"] = lead.email
-    if lead.telefone or lead.whatsapp:
-        props["phone"] = lead.telefone or lead.whatsapp
+    if lead.whatsapp or lead.telefone:
+        props["phone"] = lead.whatsapp or lead.telefone
     if lead.site:
         props["website"] = lead.site
 
@@ -136,7 +136,7 @@ def _export_ploomes(api_key: str, lead: LeadExportPayload, funnel_id: int | None
         "Content-Type": "application/json",
     }
 
-    phone = (lead.telefone or lead.whatsapp or "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
+    phone = (lead.whatsapp or lead.telefone or "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
 
     contact_id = None
     if phone:
@@ -347,7 +347,7 @@ def _kommo_build_lead_custom_fields(fields: list[dict], lead: LeadExportPayload)
             }
         )
 
-    phone = (lead.telefone or lead.whatsapp or "").strip()
+    phone = (lead.whatsapp or lead.telefone or "").strip()
     email = (lead.email or "").strip()
     site = (lead.site or "").strip()
     cnpj = (lead.cnpj or "").strip()
@@ -396,7 +396,7 @@ def _kommo_build_contact_custom_fields(fields: list[dict], lead: LeadExportPaylo
                 val["enum_id"] = eid
             out.append({"field_id": int(f["id"]), "values": [val]})
 
-    phone = (lead.telefone or lead.whatsapp or "").strip()
+    phone = (lead.whatsapp or lead.telefone or "").strip()
     if phone:
         f = (
             by_code.get("PHONE")
@@ -430,7 +430,7 @@ def _kommo_build_company_custom_fields(fields: list[dict], lead: LeadExportPaylo
                 val["enum_id"] = eid
         out.append({"field_id": int(field["id"]), "values": [val]})
 
-    phone = (lead.telefone or lead.whatsapp or "").strip()
+    phone = (lead.whatsapp or lead.telefone or "").strip()
     email = (lead.email or "").strip()
     site = (lead.site or "").strip()
     cnpj = (lead.cnpj or "").strip()

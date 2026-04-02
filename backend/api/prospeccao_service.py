@@ -134,20 +134,35 @@ def _enriquecer_homepage_rapido(empresa: Dict[str, Any]) -> Dict[str, Any]:
 
     # ── WhatsApp ────────────────────────────────────────────────────────────
     wa_patterns = [
-        r'wa\.me/(\d{10,15})',
-        r'api\.whatsapp\.com/send\?phone=(\d{10,15})',
-        r'web\.whatsapp\.com/send\?phone=(\d{10,15})',
-        r'whatsapp\.com/send/?\?phone=(\d{10,15})',
+        # links diretos wa.me
+        r'wa\.me/(?:55)?(\d{10,13})',
+        # API / web send
+        r'api\.whatsapp\.com/send\?phone=(?:55)?(\d{10,13})',
+        r'web\.whatsapp\.com/send\?phone=(?:55)?(\d{10,13})',
+        r'whatsapp\.com/send/?\?phone=(?:55)?(\d{10,13})',
+        # app link nativo
+        r'whatsapp://send/?\?phone=(?:55)?(\d{10,13})',
+        # URLs encodadas (%2F ou %3F)
+        r'wa\.me%2F(?:55)?(\d{10,13})',
+        r'phone%3D(?:55)?(\d{10,13})',
+        # atributos HTML comuns
+        r'data-whatsapp=["\'](?:\+?55)?(\d{10,11})["\']',
+        r'data-phone=["\'](?:\+?55)?(\d{10,11})["\']',
+        r'data-number=["\'](?:\+?55)?(\d{10,11})["\']',
+        # onclick / href com número
+        r'onclick=["\'][^"\']*wa\.me/(?:55)?(\d{10,13})',
+        r'href=["\'][^"\']*wa\.me/(?:55)?(\d{10,13})',
     ]
     for pat in wa_patterns:
         m = re.search(pat, html, re.IGNORECASE)
         if m:
-            numero = m.group(1)
-            # Normaliza para 55XXXXXXXXXXX
+            numero = re.sub(r'\D', '', m.group(1))
+            # Normaliza: garante 55 + DDD (2) + número (8 ou 9) = 13 ou 12 dígitos
             if not numero.startswith("55"):
                 numero = "55" + numero
-            resultado["whatsapp"] = numero
-            break
+            if len(numero) in (12, 13):
+                resultado["whatsapp"] = numero
+                break
 
     # ── Telefone (fallback se não achou WhatsApp) ────────────────────────────
     if not resultado.get("whatsapp"):
@@ -158,7 +173,13 @@ def _enriquecer_homepage_rapido(empresa: Dict[str, Any]) -> Dict[str, Any]:
         for tel_raw in tel_pat:
             digits = re.sub(r'\D', '', tel_raw)
             if len(digits) in (10, 11, 12, 13):
-                resultado["telefone"] = digits
+                # Número celular BR (11 dígitos: DDD + 9 + 8) → tratar como WhatsApp
+                normalized = digits if digits.startswith("55") else "55" + digits
+                pure = normalized[2:]  # remove 55
+                if len(pure) == 11 and pure[2] == "9":
+                    resultado["whatsapp"] = normalized
+                else:
+                    resultado["telefone"] = digits
                 break
 
     # ── E-mail ──────────────────────────────────────────────────────────────
@@ -190,7 +211,18 @@ def _enriquecer_lote_paralelo(
     """
     import concurrent.futures
 
-    # Só enriquece empresas que têm site mas não têm WhatsApp ainda
+    # ── Inferência WhatsApp de telefone celular (sem precisar de site) ────────
+    # Celular BR: 11 dígitos após remover 55 (DDD 2 + 9 + 8 dígitos)
+    for emp in empresas:
+        if emp.get("whatsapp_final"):
+            continue
+        tel = re.sub(r"\D", "", emp.get("telefone_final") or emp.get("telefone_receita") or "")
+        if tel.startswith("55"):
+            tel = tel[2:]
+        if len(tel) == 11 and tel[2] == "9":
+            emp["whatsapp_final"] = "55" + tel
+
+    # Só raspa site para empresas que ainda não têm WhatsApp
     candidatas = [e for e in empresas if e.get("site") and not e.get("whatsapp_final")]
     if not candidatas:
         return empresas
