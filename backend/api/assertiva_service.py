@@ -8,6 +8,7 @@ import re
 import time
 import unicodedata
 import base64
+import os
 from typing import Optional, Dict, Any
 from urllib.parse import urlparse
 
@@ -15,7 +16,12 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-ASSERTIVA_TOKEN_URL = "https://api.assertivasolucoes.com.br/oauth2/v3/token"
+# Observação: alguns materiais da Assertiva mostram host "ap." e outros "api.".
+# Mantemos o padrão "api." e tentamos fallback automático para "ap.".
+ASSERTIVA_TOKEN_URL = os.getenv(
+    "ASSERTIVA_TOKEN_URL",
+    "https://api.assertivasolucoes.com.br/oauth2/v3/token",
+)
 ASSERTIVA_CNPJ_URL  = "https://api.assertivasolucoes.com.br/localize/v3/cnpj"
 ASSERTIVA_CPF_URL   = "https://api.assertivasolucoes.com.br/localize/v3/cpf"
 
@@ -185,16 +191,22 @@ class AssertivaCNPJService:
                 None,
             ),
         ]
+        token_urls = [ASSERTIVA_TOKEN_URL]
+        if "://api." in ASSERTIVA_TOKEN_URL:
+            token_urls.append(ASSERTIVA_TOKEN_URL.replace("://api.", "://ap.", 1))
         last_resp: Optional[httpx.Response] = None
         async with httpx.AsyncClient(timeout=15) as client:
-            for headers, data in attempts:
-                resp = await client.post(
-                    ASSERTIVA_TOKEN_URL,
-                    headers=headers,
-                    data=data,
-                )
-                last_resp = resp
-                if resp.status_code == 200:
+            for token_url in token_urls:
+                for headers, data in attempts:
+                    resp = await client.post(
+                        token_url,
+                        headers=headers,
+                        data=data,
+                    )
+                    last_resp = resp
+                    if resp.status_code == 200:
+                        break
+                if last_resp is not None and last_resp.status_code == 200:
                     break
 
         if not last_resp or last_resp.status_code != 200:

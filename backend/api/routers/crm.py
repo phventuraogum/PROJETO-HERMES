@@ -1,11 +1,15 @@
 from fastapi import APIRouter, HTTPException, Depends, Header
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
 import re
+import asyncio
+import logging
 import requests
 
 from config import settings
 from middleware.auth import require_auth
+
+logger = logging.getLogger("hermes.crm")
 
 router = APIRouter()
 
@@ -168,6 +172,8 @@ def _export_ploomes(api_key: str, lead: LeadExportPayload, funnel_id: int | None
             other_props.append({"FieldKey": "Contacts_Segmento", "ObjectValueAsString": lead.segmento})
         if lead.porte:
             other_props.append({"FieldKey": "Contacts_Porte", "ObjectValueAsString": lead.porte})
+        if lead.site:
+            other_props.append({"FieldKey": "Contacts_Site", "ObjectValueAsString": lead.site})
         if other_props:
             contact_body["OtherProperties"] = other_props
 
@@ -776,3 +782,372 @@ def export_batch_to_crm(
 
     success_count = sum(1 for r in results if r.get("success"))
     return {"total": len(payload.leads), "success": success_count, "results": results}
+
+
+# ─── PLOOMES ENRICH ─────────────────────────────────────────
+# Busca contatos já existentes no Ploomes e enriquece com
+# telefone, WhatsApp e e-mail via:
+#   1. Assertiva Localize PJ  (melhor fonte — CNPJ)
+#   2. BrasilAPI / Receita Federal  (fallback — CNPJ)
+#   3. Homepage scraping síncrono   (fallback — site)
+# Os dados novos são gravados de volta no contato Ploomes.
+# ─────────────────────────────────────────────────────────────
+
+class PloomesEnrichRequest(BaseModel):
+    api_key: str = Field(..., description="User-Key do Ploomes")
+    funnel_id: Optional[int] = Field(None, description="Filtrar contatos de um funil específico")
+    limit: int = Field(50, ge=1, le=200, description="Máx de contatos a processar por vez")
+    apenas_sem_contato: bool = Field(True, description="Somente contatos sem telefone e sem e-mail cadastrados")
+    usar_assertiva: bool = Field(True, description="Usar Assertiva Localize PJ se configurada para a org")
+    usar_brasilapi: bool = Field(True, description="Usar BrasilAPI / Receita Federal como fallback de CNPJ")
+    usar_homepage: bool = Field(True, description="Tentar homepage scraping se site estiver disponível")
+
+
+# ── Helpers Ploomes ──────────────────────────────────────────
+
+def _ploomes_get_contacts_for_enrich(
+    api_key: str,
+    funnel_id: int | None,
+    limit: int,
+    apenas_sem_contato: bool,
+) -> List[Dict[str, Any]]:
+    """Busca contatos no Ploomes prontos para enriquecimento."""
+    headers = {"User-Key": api_key, "Content-Type": "application/json"}
+    filters: List[str] = []
+    if apenas_sem_contato:
+        # Sem telefone cadastrado E sem e-mail
+        filters.append("(not Phones/any() and (Email eq null or Email eq ''))")
+    if funnel_id:
+        filters.append(
+            f"DealsContactAssociation/any(d: d/Deal/FunnelId eq {funnel_id})"
+        )
+    params: Dict[str, Any] = {
+        "$top": limit,
+        "$expand": "Phones,OtherProperties",
+        "$orderby": "CreateDate desc",
+        "$select": "Id,Name,Email,Phones,OtherProperties",
+    }
+    if filters:
+        params["$filter"] = " and ".join(filters)
+    try:
+        r = requests.get(
+            f"{PLOOMES_BASE}/Contacts",
+            headers=headers,
+            params=params,
+            timeout=20,
+        )
+        if r.status_code == 200:
+            return r.json().get("value", [])
+        logger.warning(f"Ploomes GET /Contacts retornou {r.status_code}: {r.text[:200]}")
+    except Exception as e:
+        logger.warning(f"Ploomes GET /Contacts falhou: {e}")
+    return []
+
+
+def _ploomes_patch_contact(api_key: str, contact_id: int, updates: Dict[str, Any]) -> bool:
+    headers = {"User-Key": api_key, "Content-Type": "application/json"}
+    try:
+        r = requests.patch(
+            f"{PLOOMES_BASE}/Contacts({contact_id})",
+            headers=headers,
+            json=updates,
+            timeout=15,
+        )
+        return r.status_code < 300
+    except Exception as e:
+        logger.warning(f"Ploomes PATCH /Contacts({contact_id}) falhou: {e}")
+        return False
+
+
+def _ploomes_add_phone(api_key: str, contact_id: int, phone: str) -> bool:
+    headers = {"User-Key": api_key, "Content-Type": "application/json"}
+    try:
+        r = requests.post(
+            f"{PLOOMES_BASE}/Contacts({contact_id})/Phones",
+            headers=headers,
+            json={"PhoneNumber": phone, "PhoneTypeId": 1},
+            timeout=15,
+        )
+        return r.status_code < 300
+    except Exception as e:
+        logger.warning(f"Ploomes POST /Phones({contact_id}) falhou: {e}")
+        return False
+
+
+def _extract_cnpj_from_ploomes_contact(contact: Dict[str, Any]) -> str | None:
+    """Extrai CNPJ limpado das OtherProperties do contato."""
+    for prop in contact.get("OtherProperties", []):
+        key = (prop.get("FieldKey") or "").lower()
+        if "cnpj" in key:
+            val = (
+                prop.get("StringValue")
+                or prop.get("ObjectValueAsString")
+                or prop.get("IntValue")
+                or ""
+            )
+            clean = re.sub(r"\D", "", str(val))
+            if len(clean) == 14:
+                return clean
+    return None
+
+
+def _extract_site_from_ploomes_contact(contact: Dict[str, Any]) -> str | None:
+    """Extrai URL de site das OtherProperties do contato."""
+    for prop in contact.get("OtherProperties", []):
+        key = (prop.get("FieldKey") or "").lower()
+        if any(k in key for k in ("site", "website", "url", "homepage")):
+            val = (
+                prop.get("StringValue")
+                or prop.get("ObjectValueAsString")
+                or ""
+            )
+            if val and "." in val:
+                return val.strip()
+    return None
+
+
+# ── Fontes de enriquecimento ─────────────────────────────────
+
+async def _enrich_via_assertiva(cnpj: str) -> Dict[str, Any]:
+    """Consulta Assertiva Localize PJ e extrai telefone/whatsapp/email."""
+    try:
+        from api.assertiva_service import get_assertiva_service
+        service = get_assertiva_service()
+        result = await service.consultar_cnpj(cnpj)
+        out: Dict[str, Any] = {}
+        for t in result.get("telefones", []):
+            num = t.get("numero") or t.get("telefone") or ""
+            clean = re.sub(r"\D", "", num)
+            if not clean:
+                continue
+            if t.get("whatsapp"):
+                out.setdefault("whatsapp", clean)
+            else:
+                out.setdefault("telefone", clean)
+        emails = result.get("emails", [])
+        if emails:
+            e0 = emails[0]
+            out.setdefault("email", e0 if isinstance(e0, str) else e0.get("email", ""))
+        return out
+    except Exception as e:
+        logger.debug(f"Assertiva enrich CNPJ {cnpj}: {e}")
+        return {}
+
+
+def _enrich_via_brasilapi(cnpj: str) -> Dict[str, Any]:
+    """Consulta BrasilAPI / Receita Federal de forma síncrona."""
+    try:
+        from api.validation_service import verificar_cnpj_receita
+        r = verificar_cnpj_receita(cnpj)
+        out: Dict[str, Any] = {}
+        if r.get("telefone"):
+            out["telefone"] = re.sub(r"\D", "", r["telefone"])
+        if r.get("email"):
+            out["email"] = r["email"]
+        if r.get("site"):
+            out["site_encontrado"] = r["site"]
+        return out
+    except Exception as e:
+        logger.debug(f"BrasilAPI enrich CNPJ {cnpj}: {e}")
+        return {}
+
+
+def _enrich_via_homepage(site: str) -> Dict[str, Any]:
+    """Scraping rápido da homepage (wa.me, telefone, e-mail)."""
+    try:
+        from api.prospeccao_service import _enriquecer_homepage_rapido
+        res = _enriquecer_homepage_rapido({"cnpj": "", "site": site})
+        return {k: v for k, v in res.items() if k != "cnpj" and v}
+    except Exception as e:
+        logger.debug(f"Homepage enrich {site}: {e}")
+        return {}
+
+
+# ── Endpoint ─────────────────────────────────────────────────
+
+@router.post(
+    "/ploomes/enrich",
+    summary="Enriquecer contatos do Ploomes com dados de contato",
+    tags=["CRM", "Ploomes"],
+)
+async def enrich_ploomes_contacts(
+    payload: PloomesEnrichRequest,
+    _user: dict = Depends(require_auth),
+    x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
+) -> Dict[str, Any]:
+    """
+    Busca contatos no Ploomes que ainda não têm telefone/e-mail,
+    enriquece usando múltiplas fontes em cascata e grava os dados
+    de volta no Ploomes automaticamente.
+
+    **Fontes (em ordem de prioridade):**
+    1. **Assertiva Localize PJ** — melhor qualidade, requer CNPJ cadastrado no contato
+    2. **BrasilAPI / Receita Federal** — fallback gratuito via CNPJ
+    3. **Homepage scraping** — extrai wa.me, telefone e e-mail do site da empresa
+
+    **Campos customizados necessários no Ploomes** para CNPJ/Site:
+    - `Contacts_CNPJ` (já mapeado pelo Hermes ao exportar leads)
+    - `Contacts_Site` (opcional, melhora cobertura via homepage)
+
+    **Exemplo:**
+    ```json
+    POST /crm/ploomes/enrich
+    {
+        "api_key": "SUA_USER_KEY",
+        "funnel_id": 12345,
+        "limit": 100,
+        "apenas_sem_contato": true
+    }
+    ```
+    """
+    api_key = payload.api_key.strip()
+    if not api_key:
+        raise HTTPException(status_code=400, detail="api_key é obrigatória")
+
+    # 1. Buscar contatos no Ploomes
+    contacts = _ploomes_get_contacts_for_enrich(
+        api_key, payload.funnel_id, payload.limit, payload.apenas_sem_contato
+    )
+
+    if not contacts:
+        return {
+            "success": True,
+            "total_processados": 0,
+            "enriquecidos": 0,
+            "sem_dado_novo": 0,
+            "mensagem": "Nenhum contato encontrado para enriquecimento",
+            "resultados": [],
+        }
+
+    loop = asyncio.get_event_loop()
+    resultados: List[Dict[str, Any]] = []
+    enriquecidos = 0
+
+    for contact in contacts:
+        contact_id = contact.get("Id")
+        nome = contact.get("Name", "")
+        has_phones = bool(contact.get("Phones"))
+        has_email = bool((contact.get("Email") or "").strip())
+
+        cnpj = _extract_cnpj_from_ploomes_contact(contact)
+        site = _extract_site_from_ploomes_contact(contact)
+
+        item: Dict[str, Any] = {
+            "contact_id": contact_id,
+            "nome": nome,
+            "cnpj": cnpj,
+            "status": "sem_dados_novos",
+            "fonte": None,
+            "dados_adicionados": {},
+        }
+
+        dados: Dict[str, Any] = {}
+
+        # ── Fonte 1: Assertiva ───────────────────────────────
+        if payload.usar_assertiva and cnpj:
+            try:
+                assertiva = await _enrich_via_assertiva(cnpj)
+                if assertiva:
+                    dados.update(assertiva)
+                    item["fonte"] = "assertiva"
+            except Exception:
+                pass
+
+        # ── Fonte 2: BrasilAPI ───────────────────────────────
+        if payload.usar_brasilapi and cnpj:
+            if not dados.get("telefone") and not dados.get("whatsapp"):
+                br = await loop.run_in_executor(None, _enrich_via_brasilapi, cnpj)
+                if br:
+                    for k, v in br.items():
+                        dados.setdefault(k, v)
+                    if not item["fonte"]:
+                        item["fonte"] = "brasilapi"
+
+        # ── Fonte 3: Homepage ────────────────────────────────
+        _site_to_try = site or dados.get("site_encontrado")
+        if payload.usar_homepage and _site_to_try:
+            if not dados.get("whatsapp") and not dados.get("telefone"):
+                hp = await loop.run_in_executor(None, _enrich_via_homepage, _site_to_try)
+                if hp:
+                    for k, v in hp.items():
+                        dados.setdefault(k, v)
+                    if not item["fonte"]:
+                        item["fonte"] = "homepage"
+
+        # ── Gravar no Ploomes ────────────────────────────────
+        if dados:
+            updates: Dict[str, Any] = {}
+            phone = re.sub(r"\D", "", dados.get("whatsapp") or dados.get("telefone") or "")
+
+            if not has_email and dados.get("email"):
+                updates["Email"] = dados["email"]
+
+            if not has_phones and phone:
+                _ploomes_add_phone(api_key, contact_id, phone)
+
+            if updates:
+                _ploomes_patch_contact(api_key, contact_id, updates)
+
+            # Remove campo auxiliar antes de retornar
+            dados.pop("site_encontrado", None)
+            item["status"] = "enriquecido"
+            item["dados_adicionados"] = dados
+            enriquecidos += 1
+
+        resultados.append(item)
+
+    return {
+        "success": True,
+        "total_processados": len(contacts),
+        "enriquecidos": enriquecidos,
+        "sem_dado_novo": len(contacts) - enriquecidos,
+        "resultados": resultados,
+    }
+
+
+@router.get(
+    "/ploomes/contacts",
+    summary="Listar contatos do Ploomes (pré-visualização para enriquecimento)",
+    tags=["CRM", "Ploomes"],
+)
+def list_ploomes_contacts_preview(
+    api_key: str,
+    funnel_id: Optional[int] = None,
+    apenas_sem_contato: bool = True,
+    limit: int = 50,
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    """
+    Lista contatos do Ploomes que seriam processados pelo endpoint de enriquecimento.
+    Use para pré-visualizar antes de rodar o enriquecimento.
+
+    **Exemplo:**
+    ```
+    GET /crm/ploomes/contacts?api_key=SUA_KEY&funnel_id=12345&apenas_sem_contato=true&limit=20
+    ```
+    """
+    api_key = api_key.strip()
+    if not api_key:
+        raise HTTPException(status_code=400, detail="api_key é obrigatória")
+
+    contacts = _ploomes_get_contacts_for_enrich(api_key, funnel_id, min(limit, 200), apenas_sem_contato)
+    resumo = []
+    for c in contacts:
+        cnpj = _extract_cnpj_from_ploomes_contact(c)
+        site = _extract_site_from_ploomes_contact(c)
+        resumo.append({
+            "id": c.get("Id"),
+            "nome": c.get("Name"),
+            "email": c.get("Email"),
+            "tem_telefone": bool(c.get("Phones")),
+            "cnpj": cnpj,
+            "site": site,
+            "pode_enriquecer": bool(cnpj or site),
+        })
+    return {
+        "total": len(resumo),
+        "com_cnpj": sum(1 for r in resumo if r["cnpj"]),
+        "com_site": sum(1 for r in resumo if r["site"]),
+        "pode_enriquecer": sum(1 for r in resumo if r["pode_enriquecer"]),
+        "contatos": resumo,
+    }
