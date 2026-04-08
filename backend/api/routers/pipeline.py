@@ -225,7 +225,8 @@ def _is_brazilian_mobile(digits: str) -> bool:
 
 # ─── LISTAR PIPELINE ──────────────────────────────────────
 
-@router.get("")
+@router.get("/")
+@router.get("")  # compat: alguns proxies/clientes sem barra final
 def list_pipeline(
     _user: dict = Depends(require_auth),
     x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
@@ -254,6 +255,7 @@ def list_pipeline(
 
 # ─── ADICIONAR AO PIPELINE ─────────────────────────────────
 
+@router.post("/")
 @router.post("")
 def add_to_pipeline(
     payload: AddToPipelineRequest,
