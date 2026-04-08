@@ -35,6 +35,7 @@ class PublicFiscalDataServiceTests(unittest.TestCase):
         cls.tmpdir = tempfile.TemporaryDirectory()
         os.environ["ENVIRONMENT"] = "development"
         os.environ["HERMES_DUCKDB_PATH"] = str(Path(cls.tmpdir.name) / "hermes-fiscal-test.duckdb")
+        os.environ["HERMES_APP_DB_PATH"] = str(Path(cls.tmpdir.name) / "hermes-app-fiscal-test.duckdb")
 
         cls.db_pool = importlib.import_module("api.db_pool")
         importlib.reload(cls.db_pool)
@@ -123,6 +124,19 @@ class PublicFiscalDataServiceTests(unittest.TestCase):
         self.assertEqual(payload["summary"]["total_records"], 2)
         self.assertEqual(payload["records"][0]["source_file_name"], "pgfn-b.csv")
         self.assertEqual(payload["records"][0]["receita_principal"], "FGTS")
+
+    def test_batch_cnpjs_divida_aberta_returns_open_debts(self):
+        self.service.import_snapshot(
+            "batch-org",
+            CSV_SAMPLE.encode("utf-8"),
+            filename="pgfn-publica.csv",
+            source_label="PGFN Dados Abertos",
+        )
+        out = self.service.batch_cnpjs_divida_aberta(
+            "batch-org",
+            ["15.103.354/0001-39", "03.023.889/0001-10", "00.000.000/0001-00"],
+        )
+        self.assertEqual(out, {"15103354000139", "03023889000110"})
 
 
 if __name__ == "__main__":

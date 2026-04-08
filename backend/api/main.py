@@ -355,6 +355,7 @@ class ProspeccaoResultado(BaseModel):
     empresas: List[Empresa]
     filtros_icp: FiltrosICP
     enriquecimento_web: EnriquecimentoResumo
+    metadata: Optional[Dict[str, Any]] = None
 
 
 # ==========================================================
@@ -1084,13 +1085,14 @@ SEGMENTO_PREFIX_NORMALIZADO = {
 }
 
 
-def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> ProspeccaoResultado:
+def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None, org_id: Optional[str] = None) -> ProspeccaoResultado:
     """
     on_progress: optional callback(stage: str, current: int, total: int, detail: str)
     Stages: 'db_query', 'building', 'enriching', 'enriching_socials', 'done'
+    org_id: usado para filtro PGFN (HERMES_PROSPECCAO_PGFN_ORG_IDS) e cache multi-tenant.
     """
     # --- Cache Lookup ---
-    cache_key = config.model_dump()
+    cache_key = {**config.model_dump(), "org_id": org_id or ""}
     cached = cache_service.get("prospeccao_icp", **cache_key)
     if cached:
         return ProspeccaoResultado(**cached)
@@ -1117,6 +1119,15 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
     uf_norm = ufs_norm[0] if ufs_norm else None
 
     _emit("db_query", 0, 0, "Consultando base de dados")
+
+    limite_desejado = min(config.limite_empresas or 50, 2000)
+    from api.pgfn_prospeccao_filter import org_requires_pgfn_prospeccao_filter, prefetch_limit_for_pgfn
+
+    sql_limit = (
+        prefetch_limit_for_pgfn(limite_desejado)
+        if org_requires_pgfn_prospeccao_filter(org_id)
+        else limite_desejado
+    )
 
     _valid_col = "(TRIM({col}) != '' AND LOWER(TRIM({col})) != 'nan')"
 
@@ -1276,9 +1287,8 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
         else:
             sql += " ORDER BY capital_num DESC NULLS LAST"
 
-        limit = min(config.limite_empresas or 50, 2000)
         sql += " LIMIT ?"
-        params.append(limit)
+        params.append(sql_limit)
 
         df = con.execute(sql, params).fetchdf()
 
@@ -1527,6 +1537,16 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
             )
         )
 
+    from api.pgfn_prospeccao_filter import aplicar_filtro_pgfn_empresas_pydantic
+
+    empresas, pgfn_meta = aplicar_filtro_pgfn_empresas_pydantic(org_id, empresas, limite_desejado)
+    if pgfn_meta.get("pgfn_filtrado"):
+        volume_por_regiao = {}
+        for emp in empresas:
+            uf_val = (emp.uf or "").strip().upper()
+            if uf_val:
+                volume_por_regiao[uf_val] = volume_por_regiao.get(uf_val, 0) + 1
+
     if config.enriquecer_web:
         _emit("enriching", 0, len(empresas), "Iniciando enriquecimento web")
         try:
@@ -1593,6 +1613,7 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
         empresas=empresas,
         filtros_icp=filtros_icp,
         enriquecimento_web=enriquecimento,
+        metadata=pgfn_meta if pgfn_meta else None,
     )
 
     _emit("done", total_empresas, total_empresas, f"{total_empresas} empresas encontradas")
@@ -1805,8 +1826,13 @@ async def list_orgs(request: Request, _user: dict = Depends(require_auth)):
     Por enquanto retorna uma org default; depois integrar com DB/auth.
     """
     org_id = get_org_id(request)
+    try:
+        from api.pgfn_prospeccao_filter import QUITOU_BR_ORG_ID
+    except ImportError:
+        QUITOU_BR_ORG_ID = "451d43bd-da3f-4709-9473-71721e7a55bf"
+    display = "Quitou BR" if org_id.strip() == QUITOU_BR_ORG_ID else "Minha Organização"
     return [
-        {"id": org_id, "name": "Minha Organização", "slug": org_id, "role": "admin"},
+        {"id": org_id, "name": display, "slug": org_id, "role": "admin"},
     ]
 
 
@@ -1959,7 +1985,7 @@ async def run_prospeccao(request: Request, config: ProspeccaoConfig, _user: dict
                 detail=f"Créditos insuficientes. Necessário: {need}, saldo: {_get_credits(org_id)}. Desative 'Enriquecimento web' ou adquira mais créditos.",
             )
     try:
-        resultado = rodar_prospeccao_icp(config)
+        resultado = rodar_prospeccao_icp(config, org_id=get_org_id(request))
         return resultado
     except Exception as e:
         print("ERRO AO RODAR PROSPECÇÃO:", repr(e))

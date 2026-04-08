@@ -1062,7 +1062,8 @@ class PublicFiscalDataService:
 
     def get_latest_snapshot_meta(self, org_id: str) -> dict[str, Any] | None:
         self.ensure_tables()
-        with get_connection(read_only=True) as conn:
+        # fiscal_public_* vive em app.duckdb (read_only=False no pool)
+        with get_connection(read_only=False) as conn:
             row = conn.execute(
                 """
                 SELECT
@@ -1129,7 +1130,7 @@ class PublicFiscalDataService:
                 "records": [],
             }
 
-        with get_connection(read_only=True) as conn:
+        with get_connection(read_only=False) as conn:
             rows = conn.execute(
                 """
                 SELECT
@@ -1243,6 +1244,71 @@ class PublicFiscalDataService:
             },
             "records": records,
         }
+
+    def _fechada_substrings_from_env(self) -> list[str]:
+        raw = os.getenv(
+            "HERMES_PG_PUBLIC_FISCAL_SITUACAO_FECHADA_SUBSTR",
+            "quit,baix,exclu,pago,cancel,anul",
+        )
+        return [x.strip() for x in raw.split(",") if x.strip()]
+
+    def _sql_situacao_divida_aberta(self) -> str:
+        """
+        Fragmento SQL: linha da dívida considerada 'em aberto' para fins de prospecção.
+        Situação vazia/desconhecida conta como aberta (evita descartar import incompleto).
+        """
+        patterns = self._fechada_substrings_from_env()
+        if not patterns:
+            return "1=1"
+        parts: list[str] = []
+        for p in patterns:
+            esc = p.replace("'", "''").upper()
+            parts.append(f"UPPER(COALESCE(situacao,'')) NOT LIKE '%{esc}%'")
+        inner = " AND ".join(parts)
+        return f"(TRIM(COALESCE(situacao,'')) = '' OR ({inner}))"
+
+    def batch_cnpjs_divida_aberta(self, org_id: str, cnpjs: list[str]) -> set[str]:
+        """
+        CNPJs que possuem ao menos uma inscrição considerada em aberto no snapshot PGFN mais recente.
+        Usado para filtrar prospecção (ex.: cliente interno focado em recuperação de crédito).
+        """
+        self.ensure_tables()
+        normalized = [_normalize_cnpj(c) for c in cnpjs]
+        normalized = [c for c in normalized if len(c) == 14]
+        if not normalized:
+            return set()
+        snapshot = self.get_latest_snapshot_meta(org_id)
+        if not snapshot:
+            logger.warning("batch_cnpjs_divida_aberta: sem snapshot PGFN importado para org_id=%s", org_id)
+            return set()
+        import_id = snapshot["id"]
+        situacao_sql = self._sql_situacao_divida_aberta()
+        out: set[str] = set()
+        chunk_size = min(500, max(50, _env_int_chunk()))
+        with get_connection(read_only=False) as conn:
+            for i in range(0, len(normalized), chunk_size):
+                chunk = normalized[i : i + chunk_size]
+                placeholders = ", ".join(["?"] * len(chunk))
+                sql = f"""
+                    SELECT DISTINCT cnpj
+                    FROM fiscal_public_debts
+                    WHERE org_id = ?
+                      AND import_id = ?
+                      AND cnpj IN ({placeholders})
+                      AND ({situacao_sql})
+                """
+                rows = conn.execute(sql, [org_id, import_id] + chunk).fetchall()
+                for r in rows:
+                    out.add(str(r[0]))
+        return out
+
+
+def _env_int_chunk() -> int:
+    raw = os.getenv("HERMES_PG_PUBLIC_BATCH_CHUNK", "450").strip()
+    try:
+        return max(50, int(raw))
+    except ValueError:
+        return 450
 
 
 public_fiscal_data_service = PublicFiscalDataService()

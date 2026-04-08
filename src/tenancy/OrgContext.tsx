@@ -16,11 +16,28 @@ type OrgCtx = {
 const Ctx = createContext<OrgCtx | null>(null);
 const LS_KEY = "hermes.org_id";
 
+/** Build: defina VITE_DEFAULT_ORG_ID=<UUID Supabase organizations.id> para alinhar com a API. */
+const ENV_DEFAULT_ORG = (import.meta.env.VITE_DEFAULT_ORG_ID || "").trim();
+
 export function OrgProvider({ children }: { children: React.ReactNode }) {
   const { accessToken } = useAuth();
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [orgId, setOrgIdState] = useState<string | null>(localStorage.getItem(LS_KEY));
   const [loadingOrgs, setLoadingOrgs] = useState(false);
+
+  // Primeira visita: org vinda do .env (deploy dedicado Quitou BR)
+  useEffect(() => {
+    if (!ENV_DEFAULT_ORG) return;
+    try {
+      const existing = localStorage.getItem(LS_KEY);
+      if (!existing || !existing.trim()) {
+        localStorage.setItem(LS_KEY, ENV_DEFAULT_ORG);
+        setOrgIdState(ENV_DEFAULT_ORG);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const setOrgId = (id: string) => {
     localStorage.setItem(LS_KEY, id);
@@ -34,8 +51,9 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
       setOrgs([defaultOrg]);
       const current = localStorage.getItem(LS_KEY);
       if (!current || !current.trim()) {
-        localStorage.setItem(LS_KEY, "default");
-        setOrgIdState("default");
+        const id = ENV_DEFAULT_ORG || "default";
+        localStorage.setItem(LS_KEY, id);
+        setOrgIdState(id);
       } else setOrgIdState(current);
       return;
     }

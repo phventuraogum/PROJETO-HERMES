@@ -225,3 +225,81 @@ sudo bash scripts/run_production.sh
 ```
 
 O `run_production.sh` faz o setup na primeira vez (se precisar) e sempre o deploy. Depois disso o sistema está rodando na VPS.
+
+---
+
+## 8. Verificação PGFN / Quitou BR (produção)
+
+O filtro de prospecção “só com dívida em aberto na PGFN” usa o **`app.duckdb`** (volume Docker, caminho interno **`/data/app.duckdb`**) e as tabelas **`fiscal_public_imports`** / **`fiscal_public_debts`**. O `docker-compose.prod.yml` já define `HERMES_APP_DB_PATH=/data/app.duckdb`.
+
+### 8.1 Na VPS — script automático
+
+Na VPS (com o stack no ar):
+
+```bash
+cd /opt/hermes
+sudo bash scripts/verify_pgfn_prod.sh
+```
+
+Confirme:
+
+- `cnpj.duckdb` e `app.duckdb` aparecem em `/data` com tamanho razoável.
+- `HERMES_PG_PUBLIC_SNAPSHOT_ORG_ID` no output **coincide** com um `org_id` que tenha imports na query “Imports por org_id” (ex.: `default` se foi esse o valor usado na importação nacional).
+- `HERMES_PROSPECCAO_PGFN_ORG_IDS` contém o UUID da Quitou: `451d43bd-da3f-4709-9473-71721e7a55bf`.
+
+### 8.2 Variáveis no `/opt/hermes/.env`
+
+Garanta (valores de exemplo alinhados ao código):
+
+```bash
+HERMES_PROSPECCAO_PGFN_ORG_IDS=451d43bd-da3f-4709-9473-71721e7a55bf
+HERMES_PG_PUBLIC_SNAPSHOT_ORG_ID=default
+```
+
+(Se o import PGFN foi feito com **outro** `org_id`, use esse valor em `HERMES_PG_PUBLIC_SNAPSHOT_ORG_ID`.)
+
+Depois de alterar o `.env`:
+
+```bash
+cd /opt/hermes && sudo bash scripts/deploy.sh
+```
+
+### 8.3 Build do frontend Quitou
+
+No ficheiro de env do **build** (ex.: `.env.production` na raiz do monorepo), defina o mesmo UUID para o browser enviar `X-Org-Id`:
+
+```bash
+VITE_DEFAULT_ORG_ID=451d43bd-da3f-4709-9473-71721e7a55bf
+```
+
+E a URL da API, se for o caso:
+
+```bash
+VITE_API_BASE_URL=http://srv887957.hstgr.cloud
+# ou https://... quando usar SSL
+```
+
+### 8.4 Validar a API (no seu PC ou na VPS)
+
+Com um **JWT válido** do Supabase (utilizador autenticado), no diretório do backend:
+
+```powershell
+# PowerShell (Windows)
+$env:HERMES_API_URL = "http://srv887957.hstgr.cloud"
+$env:HERMES_DEV_TOKEN = "<cole o access_token do Supabase>"
+cd C:\caminho\para\PROJETO-HERMES\backend
+python scripts\validate_quitou_pgfn.py
+```
+
+Ou na VPS, com token exportado:
+
+```bash
+export HERMES_API_URL="http://127.0.0.1:8000"
+export HERMES_DEV_TOKEN="..."
+cd /opt/hermes/backend
+python3 scripts/validate_quitou_pgfn.py
+```
+
+Se a resposta JSON incluir `metadata` com informação PGFN, o fluxo está coerente. Se `metadata` vier vazio mas a prospecção funcionar, confira os logs do container `api` e o script da secção 8.1 (contagens > 0 em `fiscal_public_debts`).
+
+**Segurança:** não partilhe `.env`, tokens nem chaves em tickets ou screenshots públicos.

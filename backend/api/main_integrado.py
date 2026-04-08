@@ -274,6 +274,7 @@ try:
         config: ProspeccaoConfig,
         excluir_cnpjs: list = None,
         progress_callback=None,
+        org_id: str | None = None,
     ) -> dict:
         """Mapeia ProspeccaoConfig para kwargs de rodar_prospeccao_otimizada."""
         cidades = list(config.cidades or [])
@@ -298,6 +299,8 @@ try:
             kwargs["excluir_cnpjs"] = excluir_cnpjs
         if progress_callback:
             kwargs["progress_callback"] = progress_callback
+        if org_id is not None:
+            kwargs["org_id"] = org_id
         return kwargs
 
     # ── Anti-repetição: Redis "seen CNPJs" por org ──────────────────────────
@@ -490,12 +493,12 @@ try:
                 seen = _load_seen_cnpjs(org_id)
                 raw = await asyncio.to_thread(
                     _rodar_otimizada,
-                    **_config_to_otimizada_kwargs(effective_config, excluir_cnpjs=seen),
+                    **_config_to_otimizada_kwargs(effective_config, excluir_cnpjs=seen, org_id=org_id),
                 )
                 resultado = _build_resultado_from_otimizada(raw, effective_config)
                 _save_seen_cnpjs(org_id, [e.cnpj for e in resultado.empresas if e.cnpj])
             else:
-                resultado = await asyncio.to_thread(rodar_prospeccao_icp, effective_config)
+                resultado = await asyncio.to_thread(rodar_prospeccao_icp, effective_config, None, org_id)
             result_store.save_result(
                 org_id,
                 config.model_dump(by_alias=True),
@@ -535,12 +538,13 @@ try:
                             effective_config,
                             excluir_cnpjs=seen,
                             progress_callback=on_progress,
+                            org_id=org_id,
                         )
                     )
                     result = _build_resultado_from_otimizada(raw, effective_config)
                     _save_seen_cnpjs(org_id, [e.cnpj for e in result.empresas if e.cnpj])
                 else:
-                    result = rodar_prospeccao_icp(effective_config, on_progress=on_progress)
+                    result = rodar_prospeccao_icp(effective_config, on_progress=on_progress, org_id=org_id)
                 result_holder.append(result)
             except Exception as exc:
                 error_holder.append(str(exc))
@@ -710,6 +714,20 @@ try:
             "enriquecimento_web": resultado_base.enriquecimento_web,
             "empresas_com_insights": empresas_com_insights,
         }
+
+    @app.get("/admin/orgs", tags=["Admin"])
+    async def list_orgs_legacy(
+        request: Request,
+        user: dict = Depends(require_auth),
+    ):
+        """Lista organizações do tenant. Requer autenticação."""
+        org_id = get_org_id(request)
+        try:
+            from api.pgfn_prospeccao_filter import QUITOU_BR_ORG_ID
+        except ImportError:
+            QUITOU_BR_ORG_ID = "451d43bd-da3f-4709-9473-71721e7a55bf"
+        display = "Quitou BR" if org_id.strip() == QUITOU_BR_ORG_ID else "Minha Organização"
+        return [{"id": org_id, "name": display, "slug": org_id, "role": "admin"}]
 
     logger.info("[OK] Endpoints legados carregados com autenticação")
 

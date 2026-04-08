@@ -190,7 +190,7 @@ def _resolve_refresh_targets(
 
             config = ProspeccaoConfig.model_validate(saved_search.get("config") or {})
             config = _apply_suppression_registry(config, org_id)
-            result = rodar_prospeccao_icp(config)
+            result = rodar_prospeccao_icp(config, org_id=org_id)
         except HTTPException:
             raise
         except Exception as exc:
@@ -431,7 +431,7 @@ async def preview_saved_search(
 
         config = ProspeccaoConfig.model_validate(saved_search.get("config") or {})
         config = _apply_suppression_registry(config, _org_id(request))
-        result = rodar_prospeccao_icp(config)
+        result = rodar_prospeccao_icp(config, org_id=_org_id(request))
         lead_registry_service.touch_saved_search_run(_org_id(request), search_id)
         return result
     except HTTPException:

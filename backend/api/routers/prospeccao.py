@@ -32,6 +32,10 @@ except ImportError:
 router = APIRouter(prefix="/prospeccao", tags=["Prospecção"])
 
 
+def _org_id(request: Request) -> str:
+    return (request.headers.get("X-Org-Id") or "").strip() or "default"
+
+
 class ProspeccaoRequest(BaseModel):
     """Request padronizado para prospecção"""
     termo: Optional[str] = Field(None, description="Termo de busca (nome/razão social)")
@@ -118,9 +122,10 @@ async def prospeccao(
                 segmentos=request.segmentos,
                 portes=request.portes,
                 limite=request.limite,
-                enriquecer_background=request.enriquecer_background,
+                                enriquecer_background=request.enriquecer_background,
                 priorizar_contato=request.priorizar_contato,
                 excluir_cnpjs=seen_cnpjs or None,
+                org_id=_org_id(http_request),
             )
 
             # Persiste CNPJs retornados para próximas buscas
@@ -240,6 +245,8 @@ async def prospeccao_get(
         limite=limite,
         formato=formato,
     )
+    # Passa _user explicitamente para reutilizar o endpoint POST sem duplicar auth
+
     return await prospeccao(http_request, request, _user)
 
 

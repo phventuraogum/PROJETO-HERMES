@@ -59,6 +59,8 @@ backend/runtime/
 backend/devdata/*.html
 backend/devdata/*.pdf
 backend/devdata/*.log
+backend/devdata/*.json
+backend/devdata/*.csv
 
 # ── Testes ───────────────────────────────────────────────────
 .pytest_cache/

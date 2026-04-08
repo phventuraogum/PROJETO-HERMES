@@ -1,11 +1,11 @@
-"""
-Serviço de Prospecção — v3
+﻿"""
+Servi├ºo de Prospec├º├úo ÔÇö v3
 Melhorias:
-- Mais colunas (endereço completo, CNAE descrição, data abertura, situação cadastral)
-- Filtro padrão: apenas empresas ATIVAS (SITUACAO_CADASTRAL = '02')
-- CPF_CNPJ_SOCIO incluso → DecisorModal pode enriquecer via Assertiva PF sem busca extra
-- Diversidade geográfica: sem filtro de cidade, cap de 25% por município
-- excluir_cnpjs: suporte a NOT IN (anti-repetição entre buscas)
+- Mais colunas (endere├ºo completo, CNAE descri├º├úo, data abertura, situa├º├úo cadastral)
+- Filtro padr├úo: apenas empresas ATIVAS (SITUACAO_CADASTRAL = '02')
+- CPF_CNPJ_SOCIO incluso ÔåÆ DecisorModal pode enriquecer via Assertiva PF sem busca extra
+- Diversidade geogr├ífica: sem filtro de cidade, cap de 25% por munic├¡pio
+- excluir_cnpjs: suporte a NOT IN (anti-repeti├º├úo entre buscas)
 - Cache Redis (5 min TTL)
 """
 import logging
@@ -80,7 +80,7 @@ def _resolver_cnaes_efetivos(
 
 
 def _needs_background_enrichment(empresa: Dict[str, Any]) -> bool:
-    """Retorna True se a empresa ainda não tem WhatsApp — foco principal."""
+    """Retorna True se a empresa ainda n├úo tem WhatsApp ÔÇö foco principal."""
     return not empresa.get("whatsapp_final")
 
 
@@ -107,7 +107,7 @@ def _extrair_contatos_html(html: str) -> Dict[str, Any]:
     if not html:
         return resultado
 
-    # ── WhatsApp ──────────────────────────────────────────────────────────────
+    # ÔöÇÔöÇ WhatsApp ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
     wa_patterns = [
         r'wa\.me/(?:55)?(\d{10,13})',
         r'api\.whatsapp\.com/send\?phone=(?:55)?(\d{10,13})',
@@ -132,7 +132,7 @@ def _extrair_contatos_html(html: str) -> Dict[str, Any]:
                 resultado["whatsapp"] = numero
                 break
 
-    # ── Telefone (fallback) ───────────────────────────────────────────────────
+    # ÔöÇÔöÇ Telefone (fallback) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
     if not resultado.get("whatsapp"):
         for tel_raw in re.findall(
             r'(?:\+55\s?|55\s?)?(?:\(?\d{2}\)?\s?)(?:9\s?)?\d{4}[\s\-]?\d{4}', html
@@ -147,7 +147,7 @@ def _extrair_contatos_html(html: str) -> Dict[str, Any]:
                     resultado.setdefault("telefone", digits)
                 break
 
-    # ── E-mail ────────────────────────────────────────────────────────────────
+    # ÔöÇÔöÇ E-mail ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
     BLACKLIST = {"example", "sentry", "noreply", "no-reply", "teste", "test",
                  "support@sentry", "email@", "user@", "name@"}
     for email in re.findall(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', html):
@@ -160,13 +160,13 @@ def _extrair_contatos_html(html: str) -> Dict[str, Any]:
 
 def _enriquecer_homepage_rapido(empresa: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Enriquecimento rápido via site — homepage + páginas de contato.
+    Enriquecimento r├ípido via site ÔÇö homepage + p├íginas de contato.
 
     Tenta em ordem:
-    1. Homepage (índice do site)
+    1. Homepage (├¡ndice do site)
     2. /contato, /fale-conosco, /contact, /atendimento (onde WA costuma aparecer)
 
-    Não faz Google, LinkedIn nem nada pesado.
+    N├úo faz Google, LinkedIn nem nada pesado.
     """
     cnpj = empresa.get("cnpj", "")
     site = empresa.get("site", "")
@@ -181,7 +181,7 @@ def _enriquecer_homepage_rapido(empresa: Dict[str, Any]) -> Dict[str, Any]:
     html = _fetch_html(base_url)
     resultado.update(_extrair_contatos_html(html))
 
-    # 2. Se ainda não achou WhatsApp, tenta páginas de contato
+    # 2. Se ainda n├úo achou WhatsApp, tenta p├íginas de contato
     if not resultado.get("whatsapp"):
         for path in _CONTACT_PATHS:
             contact_html = _fetch_html(base_url + path, timeout=6)
@@ -206,15 +206,15 @@ def _enriquecer_lote_paralelo(
     progress_callback=None,
 ) -> List[Dict[str, Any]]:
     """
-    Enriquecimento rápido paralelo — raspa homepage de cada empresa buscando
+    Enriquecimento r├ípido paralelo ÔÇö raspa homepage de cada empresa buscando
     WhatsApp (wa.me), telefone e e-mail. Termina em ~10-20s para qualquer lote.
 
-    Não faz Google, LinkedIn nem nada pesado — isso fica para o worker background.
+    N├úo faz Google, LinkedIn nem nada pesado ÔÇö isso fica para o worker background.
     """
     import concurrent.futures
 
-    # ── Inferência WhatsApp de telefone celular (sem precisar de site) ────────
-    # Celular BR: 11 dígitos após remover 55 (DDD 2 + 9 + 8 dígitos)
+    # ÔöÇÔöÇ Infer├¬ncia WhatsApp de telefone celular (sem precisar de site) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    # Celular BR: 11 d├¡gitos ap├│s remover 55 (DDD 2 + 9 + 8 d├¡gitos)
     for emp in empresas:
         if emp.get("whatsapp_final"):
             continue
@@ -224,7 +224,7 @@ def _enriquecer_lote_paralelo(
         if len(tel) == 11 and tel[2] == "9":
             emp["whatsapp_final"] = "55" + tel
 
-    # Só raspa site para empresas que ainda não têm WhatsApp
+    # S├│ raspa site para empresas que ainda n├úo t├¬m WhatsApp
     candidatas = [e for e in empresas if e.get("site") and not e.get("whatsapp_final")]
     if not candidatas:
         return empresas
@@ -277,7 +277,7 @@ def _enriquecer_lote_paralelo(
                     )
 
         except concurrent.futures.TimeoutError:
-            logger.info(f"[ENRICH_RAPIDO] Timeout {timeout_total}s — {concluidos}/{total} concluídas")
+            logger.info(f"[ENRICH_RAPIDO] Timeout {timeout_total}s ÔÇö {concluidos}/{total} conclu├¡das")
 
     if progress_callback:
         progress_callback("enriquecimento", total, total, "Contatos coletados.")
@@ -292,7 +292,7 @@ def _diversificar_geograficamente(
 ) -> List[Dict]:
     """
     Garante que nenhuma cidade ocupe mais de max_pct_cidade do resultado final.
-    Só aplica quando resultado é grande e não há filtro de cidade (chamado externamente).
+    S├│ aplica quando resultado ├® grande e n├úo h├í filtro de cidade (chamado externamente).
     """
     if len(empresas) <= 100:
         return empresas[:limite]
@@ -311,7 +311,7 @@ def _diversificar_geograficamente(
         else:
             overflow.append(emp)
 
-    # Completa até o limite com overflow (empresas das cidades dominantes)
+    # Completa at├® o limite com overflow (empresas das cidades dominantes)
     for emp in overflow:
         if len(selecionados) >= limite:
             break
@@ -339,17 +339,18 @@ def rodar_prospeccao_otimizada(
     excluir_cnpjs: Optional[List[str]] = None,
     apenas_ativas: bool = True,
     progress_callback=None,
+    org_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Executa prospecção otimizada com cache e views.
+    Executa prospec├º├úo otimizada com cache e views.
 
-    v3 — melhorias:
-    - Mais colunas (endereço, CNAE descrição, data abertura, situação cadastral)
-    - apenas_ativas=True: filtra SITUACAO_CADASTRAL = '02' por padrão
-    - excluir_cnpjs: NOT IN — usado para anti-repetição entre buscas
-    - CPF_CNPJ_SOCIO incluído nos sócios estruturados
-    - Diversidade geográfica automática quando sem filtro de cidade
-    - Ordenação: contato > LOG(capital) + RANDOM()
+    v3 ÔÇö melhorias:
+    - Mais colunas (endere├ºo, CNAE descri├º├úo, data abertura, situa├º├úo cadastral)
+    - apenas_ativas=True: filtra SITUACAO_CADASTRAL = '02' por padr├úo
+    - excluir_cnpjs: NOT IN ÔÇö usado para anti-repeti├º├úo entre buscas
+    - CPF_CNPJ_SOCIO inclu├¡do nos s├│cios estruturados
+    - Diversidade geogr├ífica autom├ítica quando sem filtro de cidade
+    - Ordena├º├úo: contato > LOG(capital) + RANDOM()
     """
     # Normaliza cidades
     cidades_efetivas: List[str] = []
@@ -363,10 +364,18 @@ def rodar_prospeccao_otimizada(
     # Resolve CNAEs efetivos
     cnaes_efetivos = _resolver_cnaes_efetivos(segmentos, cnaes)
 
-    # Normaliza lista de exclusão
+    # Normaliza lista de exclus├úo
     cnpjs_excluidos = [str(c).strip() for c in (excluir_cnpjs or []) if str(c).strip()]
 
-    # Cache key (exclui cnpjs_excluidos para não explodir o cache)
+    from api.pgfn_prospeccao_filter import (
+        aplicar_filtro_pgfn_empresas_dict,
+        org_requires_pgfn_prospeccao_filter,
+        prefetch_limit_for_pgfn,
+    )
+
+    limite_desejado = limite
+
+    # Cache key (exclui cnpjs_excluidos para n├úo explodir o cache)
     cache_key_params = {
         "termo": termo,
         "uf": uf,
@@ -378,18 +387,23 @@ def rodar_prospeccao_otimizada(
         "limite": limite,
         "priorizar_contato": priorizar_contato,
         "apenas_ativas": apenas_ativas,
+        "org_id": org_id or "",
     }
 
-    # Só usa cache se não houver exclusões ativas (anti-repetição pede resultado fresco)
+    # S├│ usa cache se n├úo houver exclus├Áes ativas (anti-repeti├º├úo pede resultado fresco)
     if not cnpjs_excluidos:
         cached = cache_service.get("prospeccao_v3", **cache_key_params)
         if cached:
-            logger.info("Prospecção v3 em cache")
+            logger.info("Prospec├º├úo v3 em cache")
             return cached
 
-    # ── Query principal ──────────────────────────────────────────────────────
-    # Solicita LIMIT maior para depois aplicar diversidade geográfica
-    limite_sql = min(limite * 3, 6000) if not cidades_efetivas else min(limite, 2000)
+    # ÔöÇÔöÇ Query principal ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    # Solicita LIMIT maior para depois aplicar diversidade geogr├ífica
+    base_limite_sql = min(limite * 3, 6000) if not cidades_efetivas else min(limite, 2000)
+    if org_requires_pgfn_prospeccao_filter(org_id):
+        limite_sql = max(base_limite_sql, prefetch_limit_for_pgfn(limite_desejado))
+    else:
+        limite_sql = base_limite_sql
 
     sql = """
         SELECT
@@ -449,12 +463,12 @@ def rodar_prospeccao_otimizada(
             sql += f" AND ({cond})"
             params.extend(f"%{c}%" for c in cidades_efetivas)
 
-    # Capital mínimo
+    # Capital m├¡nimo
     if capital_minima and capital_minima > 0:
         sql += " AND e.CAPITAL_SOCIAL_NUM >= ?"
         params.append(float(capital_minima))
 
-    # Capital máximo
+    # Capital m├íximo
     if capital_maxima and capital_maxima > 0:
         sql += " AND (e.CAPITAL_SOCIAL_NUM <= ? OR e.CAPITAL_SOCIAL_NUM IS NULL)"
         params.append(float(capital_maxima))
@@ -464,7 +478,7 @@ def rodar_prospeccao_otimizada(
         PORTE_MAP = {
             "ME":     ["01"],
             "EPP":    ["03"],
-            "Médio":  ["05"],
+            "M├®dio":  ["05"],
             "Grande": ["05"],
             "Demais": ["05"],
         }
@@ -480,14 +494,14 @@ def rodar_prospeccao_otimizada(
         sql += f" AND ({cond})"
         params.extend(f"{c}%" for c in cnaes_efetivos)
 
-    # Exclusão de CNPJs (anti-repetição + suppression registry)
+    # Exclus├úo de CNPJs (anti-repeti├º├úo + suppression registry)
     if cnpjs_excluidos:
-        # DuckDB lida bem com listas até ~5000 itens
+        # DuckDB lida bem com listas at├® ~5000 itens
         placeholders = ", ".join(["?"] * len(cnpjs_excluidos))
         sql += f" AND e.cnpj NOT IN ({placeholders})"
         params.extend(cnpjs_excluidos)
 
-    # Ordenação inteligente
+    # Ordena├º├úo inteligente
     if priorizar_contato:
         sql += """
             ORDER BY
@@ -509,11 +523,11 @@ def rodar_prospeccao_otimizada(
     sql += " LIMIT ?"
     params.append(limite_sql)
 
-    # ── Executa ──────────────────────────────────────────────────────────────
+    # ÔöÇÔöÇ Executa ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
     with get_connection(read_only=True) as conn:
         df = conn.execute(sql, params).fetchdf()
 
-    # ── Sócios (com CPF) ──────────────────────────────────────────────────────
+    # ÔöÇÔöÇ S├│cios (com CPF) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
     socios_map: Dict[str, List[Dict]] = {}
     if not df.empty:
         cnpj_bases = sorted({str(row["cnpj"])[:8] for _, row in df.iterrows()})
@@ -546,9 +560,9 @@ def rodar_prospeccao_otimizada(
                                 "cpf_cnpj": cpf_cnpj,
                             })
             except Exception as e:
-                logger.warning(f"Erro ao buscar sócios: {e}")
+                logger.warning(f"Erro ao buscar s├│cios: {e}")
 
-    # ── Processa linhas ───────────────────────────────────────────────────────
+    # ÔöÇÔöÇ Processa linhas ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
     empresas_raw: List[Dict] = []
     cnpjs_para_enriquecer: List[str] = []
 
@@ -582,14 +596,14 @@ def rodar_prospeccao_otimizada(
         tel_final   = as_opt_str(row.get("telefone_final")) or tel_receita
 
         empresa: Dict[str, Any] = {
-            # Identificação
+            # Identifica├º├úo
             "cnpj":              cnpj_str,
             "razao_social":      razao,
             "nome_fantasia":     fantasia,
             "cidade":            cidade_val,
             "uf":                uf_val,
 
-            # Classificação
+            # Classifica├º├úo
             "cnae_principal":    cnae,
             "cnae_descricao":    as_opt_str(row.get("cnae_descricao")),
             "porte":             porte_rotulo,
@@ -600,7 +614,7 @@ def rodar_prospeccao_otimizada(
             "situacao_cadastral": as_opt_str(row.get("situacao_cadastral")),
             "data_abertura":     as_opt_str(row.get("data_abertura")),
 
-            # Endereço
+            # Endere├ºo
             "logradouro":  as_opt_str(row.get("logradouro")),
             "numero":      as_opt_str(row.get("numero")),
             "complemento": as_opt_str(row.get("complemento")),
@@ -615,11 +629,11 @@ def rodar_prospeccao_otimizada(
             "telefone_final":   as_opt_str(tel_final),
             "whatsapp_final":   as_opt_str(row.get("whatsapp_final")),
 
-            # Sócios
+            # S├│cios
             "socios_resumo":     socios_resumo,
             "socios_estruturado": socios_lista if socios_lista else None,
 
-            # Contexto econômico
+            # Contexto econ├┤mico
             "contexto_sidra": contexto_sidra,
 
             # Score base
@@ -628,7 +642,7 @@ def rodar_prospeccao_otimizada(
             ),
         }
 
-        # Scores avançados
+        # Scores avan├ºados
         empresa["scores"]         = calcular_score_priorizacao(empresa)
         empresa["confiabilidade"] = calcular_score_confiabilidade(
             email=empresa.get("email_final"),
@@ -638,7 +652,7 @@ def rodar_prospeccao_otimizada(
             fonte_dados="enriquecido" if empresa.get("site") else "receita",
         )
 
-        # Top 3 — enriquecimento em tempo real via BrasilAPI
+        # Top 3 ÔÇö enriquecimento em tempo real via BrasilAPI
         if len(empresas_raw) < 3:
             try:
                 from api.validation_service import verificar_cnpj_receita
@@ -683,16 +697,22 @@ def rodar_prospeccao_otimizada(
         if enriquecer_background and _needs_background_enrichment(empresa):
             cnpjs_para_enriquecer.append(cnpj_str)
 
-    # ── Diversidade geográfica ────────────────────────────────────────────────
-    # Só aplica quando não há filtro de cidade (resultado amplo por UF ou nacional)
+    # ÔöÇÔöÇ Diversidade geogr├ífica ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    # S├│ aplica quando n├úo h├í filtro de cidade (resultado amplo por UF ou nacional)
     if not cidades_efetivas and len(empresas_raw) > limite:
         empresas = _diversificar_geograficamente(empresas_raw, limite)
     else:
         empresas = empresas_raw[:limite]
 
-    # ── Enriquecimento síncrono (paralelo, com timeout) ───────────────────────
-    # Roda ANTES de retornar — o usuário recebe leads já enriquecidos.
-    # Empresas que já têm site+contato completo são puladas automaticamente.
+    empresas, pgfn_meta = aplicar_filtro_pgfn_empresas_dict(org_id, empresas, limite_desejado)
+    cnpjs_para_enriquecer = [
+        c for c in cnpjs_para_enriquecer
+        if any(e.get("cnpj") == c for e in empresas)
+    ]
+
+    # ÔöÇÔöÇ Enriquecimento s├¡ncrono (paralelo, com timeout) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    # Roda ANTES de retornar ÔÇö o usu├írio recebe leads j├í enriquecidos.
+    # Empresas que j├í t├¬m site+contato completo s├úo puladas automaticamente.
     if enriquecer_sincrono:
         empresas_sem_contato = [e for e in empresas if _needs_background_enrichment(e)]
         if empresas_sem_contato:
@@ -707,7 +727,7 @@ def rodar_prospeccao_otimizada(
                 progress_callback=progress_callback,
             )
 
-    # ── Enriquecimento em background (empresas que ainda ficaram sem contato) ──
+    # ÔöÇÔöÇ Enriquecimento em background (empresas que ainda ficaram sem contato) ÔöÇÔöÇ
     # Serve para re-processar em segundo plano e enriquecer o DuckDB para buscas futuras.
     if enriquecer_background:
         ainda_sem_contato = [e["cnpj"] for e in empresas if _needs_background_enrichment(e) and e.get("cnpj")]
@@ -727,7 +747,7 @@ def rodar_prospeccao_otimizada(
             except Exception as e:
                 logger.error(f"Erro ao enfileirar enriquecimento residual: {e}")
 
-    # ── Monta resultado ───────────────────────────────────────────────────────
+    # ÔöÇÔöÇ Monta resultado ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
     resultado = {
         "total": len(empresas),
         "empresas": empresas,
@@ -744,8 +764,10 @@ def rodar_prospeccao_otimizada(
             "excluidos_count": len(cnpjs_excluidos),
         },
     }
+    if pgfn_meta:
+        resultado["filtros_aplicados"]["pgfn"] = pgfn_meta
 
-    # Cache apenas quando sem exclusões ativas
+    # Cache apenas quando sem exclus├Áes ativas
     if not cnpjs_excluidos:
         cache_service.set("prospeccao_v3", resultado, ttl=300, **cache_key_params)
 
