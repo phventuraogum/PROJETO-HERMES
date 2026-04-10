@@ -447,7 +447,8 @@ const EnriquecerCnpj = () => {
     try {
       setIsSavingResult(true);
       await salvarResultadoEnriquecimentoCnpj(empresa, cnpjDigits);
-      navigate("/results");
+      const hl = cnpjDigits.replace(/\D/g, "").slice(0, 14);
+      navigate("/results", { state: { highlightCnpj: hl } });
     } catch (err: any) {
       toast.error(err?.message || "Nao foi possivel abrir o resultado.");
     } finally {

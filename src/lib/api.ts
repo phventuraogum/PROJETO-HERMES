@@ -171,6 +171,9 @@ export type Empresa = {
   confiabilidade?: Record<string, unknown> | null;
   qualidade?: Record<string, unknown> | null;
   priorizacao?: Record<string, unknown> | null;
+
+  /** Origem da linha na lista de resultados (metadado UI / export) */
+  origem_lead?: "prospeccao_configurada" | "enriquecimento_cnpj" | "empresas_parecidas" | null;
 };
 
 export type ProspeccaoResultado = {
@@ -179,6 +182,17 @@ export type ProspeccaoResultado = {
   filtros_icp: FiltrosICP;
   enriquecimento_web: EnriquecimentoResumo;
 };
+
+/** Marca leads da prospecção principal (stream/run) para filtros e export. */
+export function aplicarOrigemProspeccaoResultado(resultado: ProspeccaoResultado): ProspeccaoResultado {
+  return {
+    ...resultado,
+    empresas: resultado.empresas.map((e) => ({
+      ...e,
+      origem_lead: e.origem_lead ?? "prospeccao_configurada",
+    })),
+  };
+}
 
 export type ResultadoSalvo = {
   timestamp: string;
@@ -1494,6 +1508,11 @@ export async function salvarResultadoEnriquecimentoCnpj(
     empresa.whatsapp_enriquecido,
   );
 
+  const empresaComOrigem: Empresa = {
+    ...empresa,
+    origem_lead: "enriquecimento_cnpj",
+  };
+
   await salvarResultadoLocal({
     timestamp: new Date().toISOString(),
     config: {
@@ -1518,7 +1537,7 @@ export async function salvarResultadoEnriquecimentoCnpj(
     },
     resultado: {
       total_empresas: 1,
-      empresas: [empresa],
+      empresas: [empresaComOrigem],
       filtros_icp: {
         portes: empresa.porte ? [empresa.porte] : [],
         segmentos: empresa.segmento ? [empresa.segmento] : [],
@@ -1699,13 +1718,15 @@ export async function runProspeccao(configFront: ProspeccaoConfig): Promise<Pros
     body: JSON.stringify(payload),
   });
 
+  const tagged = aplicarOrigemProspeccaoResultado(data);
+
   await salvarResultadoLocal({
     timestamp: new Date().toISOString(),
     config: configFront,
-    resultado: data,
+    resultado: tagged,
   });
 
-  return data;
+  return tagged;
 }
 
 export type ProgressEvent = {
@@ -1776,7 +1797,7 @@ export async function runProspeccaoStream(
               return true;
             } else if (parsed.empresas !== undefined) {
               resolved = true;
-              const data = parsed as ProspeccaoResultado;
+              const data = aplicarOrigemProspeccaoResultado(parsed as ProspeccaoResultado);
               void salvarResultadoLocal({
                 timestamp: new Date().toISOString(),
                 config: configFront,
@@ -2943,13 +2964,18 @@ export function getHistoricoLocal(): BuscaSalva[] {
   } catch { return []; }
 }
 
-export function salvarBuscaHistorico(config: ProspeccaoConfig, resultado: { total_empresas: number; empresas: Empresa[] }) {
+export function salvarBuscaHistorico(
+  config: ProspeccaoConfig,
+  resultado: { total_empresas: number; empresas: Empresa[] },
+  opts?: { nome?: string },
+) {
   const existentes = getHistoricoLocal();
   const empresas = resultado.empresas ?? [];
   const t = empresas.length || 1;
 
   const novaEntrada: BuscaSalva = {
     id: Date.now().toString(),
+    nome: opts?.nome?.trim() || undefined,
     timestamp: new Date().toISOString(),
     config,
     // Histórico usa apenas métricas e resumo; não persiste a lista inteira para evitar estouro de quota.

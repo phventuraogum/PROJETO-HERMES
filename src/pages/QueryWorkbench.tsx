@@ -19,6 +19,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 
+import { alpha } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
@@ -27,6 +28,8 @@ import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import TextField from "@mui/material/TextField";
 import Chip from "@mui/material/Chip";
+import Paper from "@mui/material/Paper";
+import Alert from "@mui/material/Alert";
 
 import {
   createSavedSearch,
@@ -35,6 +38,7 @@ import {
   previewSavedSearch,
   runProspeccaoStream,
   salvarResultadoManual,
+  salvarBuscaHistorico,
   traduzirQueryEmFiltros,
   type ProgressEvent,
   type ProspeccaoConfig,
@@ -99,12 +103,14 @@ function formatDate(value?: string | null): string {
   }
 }
 
-const STAT_BOX_SX = {
-  borderRadius: "10px",
-  border: "1px solid rgba(255,255,255,0.07)",
-  bgcolor: "rgba(24,24,24,0.7)",
-  p: 1.5,
-};
+function defaultExecutionTitle(termo: string, ufs: string[]): string {
+  const t = termo.trim();
+  const u = ufs.filter(Boolean).join(", ");
+  if (t && u) return `${t} · ${u}`;
+  if (t) return t;
+  if (u) return `Prospecção · ${u}`;
+  return "Nova execução";
+}
 
 const QueryWorkbench = () => {
   const navigate = useNavigate();
@@ -135,6 +141,8 @@ const QueryWorkbench = () => {
   const [aiPrompt, setAiPrompt] = useState("");
   const [translatingPrompt, setTranslatingPrompt] = useState(false);
   const [translationResult, setTranslationResult] = useState<QueryTranslationResult | null>(null);
+  const [executionTitle, setExecutionTitle] = useState("");
+  const [executionTitleTouched, setExecutionTitleTouched] = useState(false);
 
   const payload = useMemo<ProspeccaoConfig>(() => {
     const cidades = parseList(cidadesInput);
@@ -177,6 +185,12 @@ const QueryWorkbench = () => {
     termoBase,
     ufsInput,
   ]);
+
+  useEffect(() => {
+    if (executionTitleTouched) return;
+    const ufs = parseList(ufsInput).map((item) => item.toUpperCase());
+    setExecutionTitle(defaultExecutionTitle(termoBase, ufs));
+  }, [termoBase, ufsInput, executionTitleTouched]);
 
   const progressPct = useMemo(() => {
     if (!progress || !progress.total) return 12;
@@ -262,6 +276,13 @@ const QueryWorkbench = () => {
       setProgress({ stage: "db_query", current: 0, total: 0, detail: "Inicializando query..." });
       const resultado = await runProspeccaoStream(payload, (evt) => setProgress(evt));
       setUltimoResultado(resultado);
+      const nomeExec =
+        executionTitle.trim() || defaultExecutionTitle(termoBase, parseList(ufsInput).map((u) => u.toUpperCase()));
+      salvarBuscaHistorico(
+        payload,
+        { total_empresas: resultado.total_empresas, empresas: resultado.empresas },
+        { nome: nomeExec },
+      );
       toast.success(`${resultado.total_empresas} empresas retornadas.`);
     } catch (err: any) {
       toast.error(err?.message || "Falha ao executar a query.");
@@ -310,6 +331,11 @@ const QueryWorkbench = () => {
       setRunningSavedSearchId(search.id);
       const resultado = await previewSavedSearch(search.id);
       await salvarResultadoManual(search.config, resultado);
+      salvarBuscaHistorico(
+        search.config,
+        { total_empresas: resultado.total_empresas, empresas: resultado.empresas },
+        { nome: search.name?.trim() || `Salva: ${search.id.slice(0, 8)}` },
+      );
       toast.success(`${resultado.total_empresas} empresas retornadas pela busca salva.`);
       await reloadSavedSearches();
       navigate("/results");
@@ -655,6 +681,19 @@ const QueryWorkbench = () => {
               {JSON.stringify(payload, null, 2)}
             </Box>
 
+            <TextField
+              label="Título desta execução (histórico)"
+              value={executionTitle}
+              onChange={(e) => {
+                setExecutionTitleTouched(true);
+                setExecutionTitle(e.target.value);
+              }}
+              placeholder={defaultExecutionTitle(termoBase, parseList(ufsInput).map((u) => u.toUpperCase()))}
+              fullWidth
+              size="small"
+              sx={{ mb: 1.5 }}
+            />
+
             <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { md: "1fr 1fr" } }}>
               <Button
                 variant="outlined"
@@ -700,24 +739,46 @@ const QueryWorkbench = () => {
               </Stack>
             </Box>
 
-            {/* Execution status */}
-            <Box sx={{ mt: 2.5, borderRadius: "12px", border: "1px solid rgba(255,255,255,0.07)", bgcolor: "rgba(255,255,255,0.03)", p: 2 }}>
+            {/* Execution status — destaque visual (último resultado) */}
+            <Paper
+              elevation={0}
+              sx={(theme) => ({
+                mt: 2.5,
+                p: 2,
+                borderRadius: "12px",
+                border: "2px solid",
+                borderColor: "primary.main",
+                bgcolor:
+                  theme.palette.mode === "dark"
+                    ? alpha(theme.palette.primary.main, 0.08)
+                    : alpha(theme.palette.primary.main, 0.06),
+              })}
+            >
+              <Alert severity="info" icon={<SparklesIcon sx={{ fontSize: 20, color: "primary.main" }} />} sx={{ mb: 2, bgcolor: "transparent", py: 0 }}>
+                <Typography variant="subtitle2" fontWeight={700} color="primary">
+                  Execução e último resultado
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Acompanhe o progresso e as métricas do lote mais recente antes de abrir a página de resultados.
+                </Typography>
+              </Alert>
               <Stack direction="row" justifyContent="space-between" alignItems="center" gap={2} mb={1.5}>
                 <Box>
-                  <Typography variant="body2" fontWeight={500}>Execucao</Typography>
+                  <Typography variant="body2" fontWeight={600}>
+                    Status
+                  </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {progress?.detail || "Pronto para disparar a prospeccao."}
                   </Typography>
                 </Box>
-                <SparklesIcon sx={{ fontSize: 16, color: "#fcd34d" }} />
               </Stack>
               <LinearProgress
                 variant="determinate"
                 value={isRunning ? progressPct : ultimoResultado ? 100 : 0}
                 sx={{
                   borderRadius: 4,
-                  bgcolor: "rgba(255,255,255,0.07)",
-                  "& .MuiLinearProgress-bar": { bgcolor: "#F97316" },
+                  bgcolor: "action.hover",
+                  "& .MuiLinearProgress-bar": { bgcolor: "primary.main" },
                   mb: ultimoResultado ? 2 : 0,
                 }}
               />
@@ -729,11 +790,22 @@ const QueryWorkbench = () => {
                       { label: "Enriquecidas", value: ultimoResultado.enriquecimento_web.total_com_enriquecimento },
                       { label: "Taxa", value: `${Math.round(ultimoResultado.enriquecimento_web.porcentagem_enriquecida)}%` },
                     ].map((item) => (
-                      <Box key={item.label} sx={STAT_BOX_SX}>
-                        <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(240,240,240,0.35)", display: "block" }}>
+                      <Box
+                        key={item.label}
+                        sx={(theme) => ({
+                          borderRadius: "10px",
+                          border: "1px solid",
+                          borderColor: "divider",
+                          bgcolor: theme.palette.mode === "dark" ? "rgba(0,0,0,0.25)" : "action.hover",
+                          p: 1.5,
+                        })}
+                      >
+                        <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "text.secondary", display: "block" }}>
                           {item.label}
                         </Typography>
-                        <Typography variant="subtitle2" fontWeight={700} mt={1}>{item.value}</Typography>
+                        <Typography variant="subtitle2" fontWeight={700} mt={1}>
+                          {item.value}
+                        </Typography>
                       </Box>
                     ))}
                   </Box>
@@ -742,14 +814,19 @@ const QueryWorkbench = () => {
                     fullWidth
                     onClick={() => navigate("/results")}
                     startIcon={<ArrowRightIcon />}
-                    endIcon={<Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.5 }}>latest run</Typography>}
+                    color="primary"
+                    endIcon={
+                      <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.6 }}>
+                        ultima execucao
+                      </Typography>
+                    }
                     sx={{ justifyContent: "space-between" }}
                   >
                     Abrir resultados
                   </Button>
                 </Stack>
               )}
-            </Box>
+            </Paper>
           </CardContent>
         </Card>
       </Box>

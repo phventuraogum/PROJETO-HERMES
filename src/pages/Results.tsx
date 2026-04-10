@@ -98,6 +98,41 @@ import { toast } from "sonner";
 
 // ─── CSV ──────────────────────────────────────────────────────────────────────
 
+/** DDD da capital / principal pra cada UF — heurística quando o número vem sem DDD. */
+const DDD_CAPITAL_UF: Record<string, string> = {
+  AC: "68", AL: "82", AM: "92", AP: "96", BA: "71", CE: "85", DF: "61", ES: "27", GO: "62", MA: "98", MG: "31", MS: "67", MT: "65",
+  PA: "91", PB: "83", PE: "81", PI: "86", PR: "41", RJ: "21", RN: "84", RO: "69", RR: "95", RS: "51", SC: "48", SE: "79", SP: "11", TO: "63",
+};
+
+function digitsOnly(s: string): string {
+  return String(s || "").replace(/\D/g, "");
+}
+
+/** Melhora export CSV: antecede DDD (capital UF) se houver só 8–9 dígitos locais. */
+function telefoneComDddParaCsv(telefone: string | null | undefined, uf: string | null | undefined): string {
+  if (!telefone?.trim()) return "";
+  let d = digitsOnly(telefone);
+  if (d.startsWith("55") && d.length >= 12) d = d.slice(2);
+  const u = (uf || "").trim().toUpperCase();
+  const ddd = DDD_CAPITAL_UF[u];
+  if (ddd && (d.length === 8 || d.length === 9)) {
+    return `${ddd}${d}`;
+  }
+  return telefone.trim();
+}
+
+function pickTelefoneExport(e: Empresa): string {
+  const raw =
+    e.telefone_final ??
+    e.telefone_enriquecido ??
+    e.telefone_padrao ??
+    e.telefone_receita ??
+    e.telefone_estab1 ??
+    e.telefone_estab2 ??
+    "";
+  return telefoneComDddParaCsv(raw, e.uf);
+}
+
 function escapeCsv(v: string) {
   const s = v.replace(/"/g, '""');
   return /[;"\r\n]/.test(s) ? `"${s}"` : s;
@@ -126,7 +161,7 @@ function gerarCsv(empresas: Empresa[]): string {
       e.segmento ?? "", e.porte ?? "",
       e.capital_social != null ? e.capital_social.toString().replace(".", ",") : "",
       e.score_icp != null ? e.score_icp.toFixed(1).replace(".", ",") : "",
-      e.telefone_padrao ?? "", e.email ?? "",
+      pickTelefoneExport(e), e.email ?? "",
       e.whatsapp_publico ?? e.whatsapp_enriquecido ?? "",
       e.site ?? "", e.email_enriquecido ?? "",
       socios, end, e.bairro ?? "", e.cep ?? "", pib,
@@ -144,6 +179,12 @@ function downloadCsv(empresas: Empresa[], nome = "hermes-leads") {
   document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
+
+const LABEL_ORIGEM: Record<NonNullable<Empresa["origem_lead"]>, string> = {
+  prospeccao_configurada: "Prospecção",
+  enriquecimento_cnpj: "Enriquecimento CNPJ",
+  empresas_parecidas: "Parecidas",
+};
 
 // ─── helpers visuais ──────────────────────────────────────────────────────────
 
@@ -301,6 +342,7 @@ function intelStatusColor(status?: string | null): "success" | "info" | "warning
 
 function similarCompanyToEmpresa(item: SimilarCompany): Empresa {
   return {
+    origem_lead: "empresas_parecidas",
     cnpj: item.cnpj,
     razao_social: item.razao_social,
     nome_fantasia: item.nome_fantasia ?? null,
@@ -1012,6 +1054,7 @@ function EmpresaCard({
   contactIntel,
   isResolvingContactIntel,
   onResolveContactIntel,
+  highlightRecent,
 }: {
   emp: Empresa;
   selected: boolean;
@@ -1019,6 +1062,7 @@ function EmpresaCard({
   contactIntel?: ContactIntelligenceResult | null;
   isResolvingContactIntel?: boolean;
   onResolveContactIntel?: () => void;
+  highlightRecent?: boolean;
 }) {
   const [mensagemOpen, setMensagemOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -1033,14 +1077,21 @@ function EmpresaCard({
     }
   };
 
+  const o = emp.origem_lead ?? "prospeccao_configurada";
+
   return (
     <Card sx={{
-      border: selected ? "1px solid rgba(249,115,22,0.6)" : "1px solid rgba(255,255,255,0.07)",
-      bgcolor: selected ? "rgba(249,115,22,0.05)" : "background.paper",
+      border: highlightRecent
+        ? "2px solid"
+        : selected ? "1px solid rgba(249,115,22,0.6)" : "1px solid rgba(255,255,255,0.07)",
+      borderColor: highlightRecent ? "primary.main" : undefined,
+      bgcolor: highlightRecent
+        ? (theme) => (theme.palette.mode === "dark" ? "rgba(249,115,22,0.08)" : "rgba(249,115,22,0.06)")
+        : selected ? "rgba(249,115,22,0.05)" : "background.paper",
       borderRadius: "12px",
       position: "relative",
       transition: "border-color 0.15s, box-shadow 0.15s",
-      "&:hover": { borderColor: "rgba(249,115,22,0.3)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" },
+      "&:hover": { borderColor: highlightRecent ? "primary.main" : "rgba(249,115,22,0.3)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" },
       "&:hover .card-checkbox": { opacity: 1 },
       "&:hover .card-detail-btn": { opacity: 1 },
     }}>
@@ -1082,6 +1133,13 @@ function EmpresaCard({
 
         {/* Badges */}
         <Stack direction="row" flexWrap="wrap" spacing={0.5} sx={{ mb: 1.5 }}>
+          <Chip
+            label={LABEL_ORIGEM[o]}
+            size="small"
+            variant="outlined"
+            color={o === "prospeccao_configurada" ? "primary" : "default"}
+            sx={{ fontSize: 9, height: 20, borderColor: "divider" }}
+          />
           {emp.segmento && <Chip label={emp.segmento} size="small" variant="outlined" sx={{ fontSize: 10, height: 20 }} />}
           {emp.porte && <Chip label={emp.porte} size="small" color={getPorteColor(emp.porte)} variant="outlined" sx={{ fontSize: 10, height: 20 }} />}
           <Chip
@@ -1161,6 +1219,15 @@ function EmpresaCard({
 type SortKey = "score_icp" | "capital_social" | "razao_social";
 type FilterChip = "com_email" | "com_whatsapp" | "com_linkedin" | "com_site";
 
+type OrigemFiltro = "todas" | NonNullable<Empresa["origem_lead"]>;
+
+function normalizeOrigemEmpresas(list: Empresa[]): Empresa[] {
+  return list.map((e) => ({
+    ...e,
+    origem_lead: e.origem_lead ?? "prospeccao_configurada",
+  }));
+}
+
 const ResultsPage = () => {
   const location = useLocation();
   const [empresas, setEmpresas]     = useState<Empresa[]>([]);
@@ -1190,6 +1257,9 @@ const ResultsPage = () => {
   const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(null);
   const [exportMenuAnchor, setExportMenuAnchor] = useState<null | HTMLElement>(null);
   const [detailDrawerEmp, setDetailDrawerEmp] = useState<Empresa | null>(null);
+  const [origemFiltro, setOrigemFiltro] = useState<OrigemFiltro>("todas");
+  const [highlightCnpj, setHighlightCnpj] = useState<string | null>(null);
+  const [confirmIsolateOpen, setConfirmIsolateOpen] = useState(false);
 
   const refreshLeadRegistryMeta = async () => {
     const [lists, suppressions] = await Promise.all([
@@ -1201,9 +1271,10 @@ const ResultsPage = () => {
   };
 
   useEffect(() => {
-    const stateResultados = Array.isArray((location.state as { resultados?: Empresa[] } | null)?.resultados)
-      ? (location.state as { resultados?: Empresa[] }).resultados ?? []
-      : [];
+    const st = location.state as { resultados?: Empresa[]; highlightCnpj?: string } | null;
+    const stateResultados = Array.isArray(st?.resultados) ? st!.resultados! : [];
+    const hl = st?.highlightCnpj ? normalizeCnpj(st.highlightCnpj) : "";
+    if (hl) setHighlightCnpj(hl);
 
     (async () => {
       try {
@@ -1215,10 +1286,11 @@ const ResultsPage = () => {
 
         if (resultadosResult.status === "fulfilled") {
           const p = resultadosResult.value;
-          setEmpresas((p.resultados && p.resultados.length > 0) ? p.resultados : stateResultados);
+          const raw = (p.resultados && p.resultados.length > 0) ? p.resultados : stateResultados;
+          setEmpresas(normalizeOrigemEmpresas(raw));
           setExecucao(p.execucao);
         } else {
-          setEmpresas(stateResultados);
+          setEmpresas(normalizeOrigemEmpresas(stateResultados));
           toast.error("Nao foi possivel carregar a ultima execucao.");
         }
 
@@ -1399,6 +1471,10 @@ const ResultsPage = () => {
     if (activeChips.includes("com_site"))
       list = list.filter(e => e.site);
 
+    if (origemFiltro !== "todas") {
+      list = list.filter((e) => (e.origem_lead ?? "prospeccao_configurada") === origemFiltro);
+    }
+
     list.sort((a, b) => {
       let va: number | string = 0, vb: number | string = 0;
       if (sortKey === "score_icp")       { va = a.score_icp ?? 0;       vb = b.score_icp ?? 0; }
@@ -1409,7 +1485,7 @@ const ResultsPage = () => {
     });
 
     return list;
-  }, [visibleEmpresas, searchTerm, activeChips, sortKey, sortAsc]);
+  }, [visibleEmpresas, searchTerm, activeChips, sortKey, sortAsc, origemFiltro]);
 
   // ── seleção ────────────────────────────────────────────────────────────────
   const toggleChip = (c: FilterChip) =>
@@ -1590,7 +1666,7 @@ const ResultsPage = () => {
         return;
       }
 
-      const merged = [...empresas, ...additions];
+      const merged = normalizeOrigemEmpresas([...empresas, ...additions]);
       setEmpresas(merged);
       setExecucao((prev) => (prev ? { ...prev, total_empresas: merged.length } : prev));
       await salvarResultadoManual(currentConfig ?? {
@@ -1621,6 +1697,70 @@ const ResultsPage = () => {
       setExpandingSimilar(false);
     }
   };
+
+  const recarregarUltimaExecucaoSalva = async () => {
+    try {
+      setLoading(true);
+      const p = await getResultadosUltimaExecucao();
+      setEmpresas(normalizeOrigemEmpresas(p.resultados ?? []));
+      setExecucao(p.execucao);
+      const fr = await getResultados().catch(() => null);
+      if (fr?.config) setCurrentConfig(fr.config);
+      setOrigemFiltro("todas");
+      toast.success("Lista alinhada à última execução salva no Hermes.");
+    } catch (err: any) {
+      toast.error(err?.message || "Não foi possível recarregar a última execução.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmarListaSoProspeccao = async () => {
+    try {
+      const next = empresas.filter((e) => (e.origem_lead ?? "prospeccao_configurada") === "prospeccao_configurada");
+      if (next.length === empresas.length) {
+        toast.info("Não há linhas de outras origens para remover.");
+        setConfirmIsolateOpen(false);
+        return;
+      }
+      setEmpresas(next);
+      setExecucao((prev) => (prev ? { ...prev, total_empresas: next.length } : prev));
+      await salvarResultadoManual(
+        currentConfig ?? {
+          termo_base: "",
+          cidade: "",
+          uf: "",
+          cidades: [],
+          ufs: [],
+          capital_minimo: 0,
+          capital_maximo: null,
+          limite_empresas: next.length,
+          portes: [],
+          segmentos: [],
+          cnaes: [],
+          incluir_cnae_secundario: false,
+          enriquecimento_web: true,
+          exigir_contato_acionavel: false,
+          priorizar_com_contato: true,
+          excluir_cnpjs: [],
+          idade_minima_anos: null,
+          idade_maxima_anos: null,
+        },
+        buildResultadoSnapshot(currentConfig, next),
+      );
+      toast.success("Mantidas apenas linhas da prospecção configurada.");
+    } catch (err: any) {
+      toast.error(err?.message || "Falha ao gravar a lista.");
+    } finally {
+      setConfirmIsolateOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!highlightCnpj) return;
+    const t = window.setTimeout(() => setHighlightCnpj(null), 12000);
+    return () => window.clearTimeout(t);
+  }, [highlightCnpj]);
 
   const resolverSelecionadasContactIntel = async () => {
     const selecionadas = getSelectedCompanies();
@@ -1919,7 +2059,39 @@ const ResultsPage = () => {
           )}
         </Stack>
 
+        <Stack direction="row" flexWrap="wrap" alignItems="center" spacing={1}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11, fontWeight: 600 }}>
+            Lista e origem:
+          </Typography>
+          <Button size="small" variant="outlined" onClick={() => void recarregarUltimaExecucaoSalva()}>
+            Recarregar última execução
+          </Button>
+          <Button size="small" variant="outlined" color="warning" onClick={() => setConfirmIsolateOpen(true)}>
+            Manter só prospecção configurada
+          </Button>
+        </Stack>
+
         {/* Filter chips */}
+        <Stack direction="row" flexWrap="wrap" alignItems="center" spacing={1}>
+          <Typography variant="caption" color="text.disabled" sx={{ fontSize: 11 }}>Origem:</Typography>
+          {([
+            { id: "todas" as const, label: "Todas" },
+            { id: "prospeccao_configurada" as const, label: LABEL_ORIGEM.prospeccao_configurada },
+            { id: "enriquecimento_cnpj" as const, label: LABEL_ORIGEM.enriquecimento_cnpj },
+            { id: "empresas_parecidas" as const, label: LABEL_ORIGEM.empresas_parecidas },
+          ]).map((o) => (
+            <Chip
+              key={o.id}
+              label={o.label}
+              size="small"
+              onClick={() => setOrigemFiltro(o.id)}
+              variant={origemFiltro === o.id ? "filled" : "outlined"}
+              color={origemFiltro === o.id ? "primary" : "default"}
+              sx={{ fontSize: 11, height: 24, cursor: "pointer" }}
+            />
+          ))}
+        </Stack>
+
         <Stack direction="row" flexWrap="wrap" alignItems="center" spacing={1}>
           <Typography variant="caption" color="text.disabled" sx={{ fontSize: 11 }}>Filtrar:</Typography>
           {([
@@ -1969,7 +2141,7 @@ const ResultsPage = () => {
           <SearchIcon sx={{ fontSize: 40, color: "text.disabled", mb: 2 }} />
           <Typography variant="body2" color="text.secondary">Nenhuma empresa encontrada com os filtros atuais.</Typography>
           {(searchTerm || activeChips.length > 0) && (
-            <Button variant="text" size="small" onClick={() => { setSearchTerm(""); setActiveChips([]); }} sx={{ mt: 1.5 }}>
+            <Button variant="text" size="small" onClick={() => { setSearchTerm(""); setActiveChips([]); setOrigemFiltro("todas"); }} sx={{ mt: 1.5 }}>
               Limpar filtros
             </Button>
           )}
@@ -2004,6 +2176,7 @@ const ResultsPage = () => {
                 contactIntel={contactIntelByCnpj[emp.cnpj] ?? null}
                 isResolvingContactIntel={resolvingIntelCnpjs.has(emp.cnpj)}
                 onResolveContactIntel={() => void resolveOneContactIntel(emp.cnpj)}
+                highlightRecent={Boolean(highlightCnpj && normalizeCnpj(emp.cnpj) === highlightCnpj)}
               />
             ))}
           </Box>
@@ -2044,7 +2217,10 @@ const ResultsPage = () => {
                     key={emp.cnpj}
                     sx={{
                       borderBottom: "1px solid rgba(255,255,255,0.05)",
-                      bgcolor: selected.has(emp.cnpj) ? "rgba(249,115,22,0.06)" : "transparent",
+                      bgcolor:
+                        highlightCnpj && normalizeCnpj(emp.cnpj) === highlightCnpj
+                          ? (theme) => (theme.palette.mode === "dark" ? "rgba(249,115,22,0.1)" : "rgba(249,115,22,0.08)")
+                          : selected.has(emp.cnpj) ? "rgba(249,115,22,0.06)" : "transparent",
                       "&:hover": { bgcolor: selected.has(emp.cnpj) ? "rgba(249,115,22,0.08)" : "rgba(255,255,255,0.02)" },
                     }}
                   >
@@ -2219,6 +2395,26 @@ const ResultsPage = () => {
             sx={{ bgcolor: "#f59e0b", color: "#000", "&:hover": { bgcolor: "#d97706" } }}
           >
             Suprimir lote
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={confirmIsolateOpen}
+        onClose={() => setConfirmIsolateOpen(false)}
+        PaperProps={{ sx: { bgcolor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: "12px", minWidth: 400 } }}
+      >
+        <DialogTitle>Manter só prospecção configurada?</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: "text.secondary" }}>
+            Serão removidas da vista atual as linhas vindas de enriquecimento por CNPJ ou de empresas parecidas,
+            mantendo apenas os leads da prospecção configurada. A lista gravada no Hermes será atualizada.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button variant="outlined" onClick={() => setConfirmIsolateOpen(false)}>Cancelar</Button>
+          <Button variant="contained" color="warning" onClick={() => void confirmarListaSoProspeccao()}>
+            Confirmar
           </Button>
         </DialogActions>
       </Dialog>

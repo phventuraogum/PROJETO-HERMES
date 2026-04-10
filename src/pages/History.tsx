@@ -51,7 +51,7 @@ function Delta({ a, b, suffix = "", higher = "up" }: {
 }) {
   const diff = a - b;
   const up = higher === "up" ? diff >= 0 : diff <= 0;
-  if (Math.abs(diff) < 0.01) return <RemoveIcon sx={{ fontSize: 12, color: "rgba(154,154,154,0.5)" }} />;
+  if (Math.abs(diff) < 0.01) return <RemoveIcon sx={{ fontSize: 12, color: "text.disabled" }} />;
   return (
     <Stack direction="row" alignItems="center" gap={0.25} sx={{ fontSize: 10, fontWeight: 500, color: up ? "#34d399" : "#f87171" }}>
       {up
@@ -136,15 +136,15 @@ function BuscaCard({ busca, selecionada, onSelecionar, onRenomear, onDeletar }: 
                   {busca.nome || `#${busca.id.slice(-4)} · ${fmtData(busca.timestamp)}`}
                 </Typography>
                 <Stack direction="row" alignItems="center" gap={0.5} sx={{ mt: 0.25 }}>
-                  <CalendarTodayIcon sx={{ fontSize: 10, color: "rgba(154,154,154,0.7)" }} />
-                  <Typography variant="caption" sx={{ color: "rgba(154,154,154,0.7)", fontSize: 10 }}>
+                  <CalendarTodayIcon sx={{ fontSize: 10, color: "text.secondary" }} />
+                  <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 10 }}>
                     {fmtData(busca.timestamp)}
                   </Typography>
                 </Stack>
               </Box>
               <Stack direction="row" alignItems="center" gap={0.25} sx={{ flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                 <IconButton size="small" onClick={() => setEditando(true)} sx={{ width: 20, height: 20 }}>
-                  <EditIcon sx={{ fontSize: 10, color: "rgba(154,154,154,0.7)" }} />
+                  <EditIcon sx={{ fontSize: 10, color: "text.secondary" }} />
                 </IconButton>
                 <IconButton size="small" onClick={onDeletar} sx={{ width: 20, height: 20 }}>
                   <DeleteIcon sx={{ fontSize: 10, color: "#f87171" }} />
@@ -411,11 +411,18 @@ const History = () => {
         <Stack spacing={1}>
           {selecionadas.length > 0 && (
             <Stack direction="row" alignItems="center" gap={1} sx={{
-              borderRadius: 1.5, border: "1px solid rgba(249,115,22,0.25)",
-              backgroundColor: "rgba(249,115,22,0.05)", px: 1.5, py: 1,
+              borderRadius: 1.5,
+              border: "1px solid",
+              borderColor: (theme) => theme.palette.mode === "dark"
+                ? "rgba(249,115,22,0.45)"
+                : "rgba(234,88,12,0.55)",
+              backgroundColor: (theme) => theme.palette.mode === "dark"
+                ? "rgba(249,115,22,0.08)"
+                : "rgba(249,115,22,0.12)",
+              px: 1.5, py: 1,
             }}>
-              <BarChartIcon sx={{ fontSize: 14, color: "#F97316" }} />
-              <Typography variant="caption" sx={{ color: "#F97316", fontSize: 11 }}>
+              <BarChartIcon sx={{ fontSize: 14, color: "primary.main" }} />
+              <Typography variant="caption" sx={{ color: "text.primary", fontSize: 11, fontWeight: 600 }}>
                 {selecionadas.length === 1 ? "Selecione outra busca para comparar" : "Comparando as 2 buscas →"}
               </Typography>
             </Stack>
@@ -524,8 +531,8 @@ function DetalheSimples({ busca }: { busca: BuscaSalva }) {
               ["Limite", busca.config.limite_empresas.toString()],
             ].map(([k, v]) => (
               <Stack key={k} direction="row" gap={1}>
-                <Typography variant="caption" sx={{ color: "rgba(154,154,154,0.7)", minWidth: 100, flexShrink: 0, fontSize: 12 }}>{k}</Typography>
-                <Typography variant="caption" sx={{ color: "rgba(240,240,240,0.8)", fontSize: 12 }}>{v}</Typography>
+                <Typography variant="caption" sx={{ color: "text.secondary", minWidth: 100, flexShrink: 0, fontSize: 12 }}>{k}</Typography>
+                <Typography variant="caption" sx={{ color: "text.primary", fontSize: 12 }}>{v}</Typography>
               </Stack>
             ))}
           </Stack>
@@ -538,7 +545,7 @@ function DetalheSimples({ busca }: { busca: BuscaSalva }) {
           <Card key={k.label} sx={{ borderRadius: 2, border: "1px solid", borderColor: "divider", backgroundColor: "background.paper", textAlign: "center" }}>
             <CardContent sx={{ py: "12px !important", px: "8px !important" }}>
               <Typography variant="h6" fontWeight={700} sx={{ color: "text.primary", fontSize: 18 }}>{k.value}</Typography>
-              <Typography variant="caption" sx={{ color: "rgba(154,154,154,0.7)", fontSize: 10 }}>{k.label}</Typography>
+              <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 10 }}>{k.label}</Typography>
             </CardContent>
           </Card>
         ))}

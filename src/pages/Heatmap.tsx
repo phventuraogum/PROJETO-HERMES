@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box, Stack, Typography, Card, CardContent, Chip,
   Table, TableHead, TableBody, TableRow, TableCell,
-  CircularProgress, Paper,
+  CircularProgress, Paper, Alert,
 } from "@mui/material";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import { toast } from "sonner";
@@ -172,6 +172,16 @@ export default function HeatmapPage() {
           )}
         </Typography>
       </Box>
+
+      <Alert severity="info" variant="outlined" sx={{ borderRadius: 2, color: "text.primary", "& .MuiAlert-message": { width: "100%" } }}>
+        <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>
+          Visualização em evolução (beta)
+        </Typography>
+        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+          Apenas empresas com latitude e longitude entram no mapa; o restante continua na tabela de concentração.
+          Estamos ajustando escala de cores e densidade — use os dados como orientação, não como decisão isolada.
+        </Typography>
+      </Alert>
 
       {/* Resumo do mapa */}
       <Card sx={{ borderRadius: 2, border: "1px solid", borderColor: "divider", backgroundColor: "background.paper" }}>

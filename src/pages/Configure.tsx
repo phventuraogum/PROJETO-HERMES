@@ -256,6 +256,8 @@ const Configure = () => {
   const [progressPct,            setProgressPct]            = useState(0);
   const [progressDetail,         setProgressDetail]         = useState("");
   const [resultado,              setResultado]              = useState<ProspeccaoResultado | null>(null);
+  const [tituloExecucao,         setTituloExecucao]         = useState("");
+  const [tituloExecucaoTouched,  setTituloExecucaoTouched]  = useState(false);
   const [recentes,               setRecentes]               = useState<BuscaRecente[]>([]);
   const [preview,                setPreview]                = useState<{
     total: number; comEmail: number; comWA: number; scoreM: number;
@@ -317,6 +319,16 @@ const Configure = () => {
       setPreview({ total: t, comEmail, comWA, scoreM });
     } catch { setPreview(null); }
   }, [portesSelecionados, segmentosSelecionados, capitalMinimo, capitalMaximo]);
+
+  useEffect(() => {
+    if (tituloExecucaoTouched) return;
+    const t = termoBase.trim();
+    const u = ufs.length ? ufs.join(", ") : uf;
+    if (t && u) setTituloExecucao(`${t} · ${u}`);
+    else if (t) setTituloExecucao(t);
+    else if (u) setTituloExecucao(`Prospecção · ${u}`);
+    else setTituloExecucao("Nova prospecção");
+  }, [termoBase, uf, ufs, tituloExecucaoTouched]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const togglePorte = (p: string) =>
@@ -468,9 +480,15 @@ const Configure = () => {
       setResultado(data);
       toast.success(`${data.total_empresas} empresas encontradas!`);
 
+      const nomeHist =
+        tituloExecucao.trim() ||
+        (termoBase.trim() && (ufs.length ? ufs.join(", ") : uf)
+          ? `${termoBase.trim()} · ${ufs.length ? ufs.join(", ") : uf}`
+          : "Nova prospecção");
       salvarBuscaHistorico(
         configPayload,
-        { total_empresas: data.total_empresas, empresas: data.empresas }
+        { total_empresas: data.total_empresas, empresas: data.empresas },
+        { nome: nomeHist },
       );
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Erro ao rodar prospecção. Verifique o console.";
@@ -1346,6 +1364,19 @@ const Configure = () => {
                 </Button>
               </Box>
             )}
+
+            <TextField
+              label="Título desta execução (histórico)"
+              value={tituloExecucao}
+              onChange={(e) => {
+                setTituloExecucaoTouched(true);
+                setTituloExecucao(e.target.value);
+              }}
+              placeholder="Ex.: clínicas · MG"
+              fullWidth
+              size="small"
+              sx={{ maxWidth: 480 }}
+            />
 
             {/* Botão principal */}
             <Stack direction="row" alignItems="center" spacing={2}>
