@@ -33,6 +33,7 @@ export type ProspeccaoConfig = {
   excluir_cnpjs?: string[];
   idade_minima_anos?: number | null;
   idade_maxima_anos?: number | null;
+  subsegmento_alvo?: string;
 };
 
 export type FiltrosICP = {

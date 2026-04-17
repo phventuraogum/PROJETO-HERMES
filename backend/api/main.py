@@ -228,6 +228,7 @@ class ProspeccaoConfig(BaseModel):
     excluir_cnpjs: Optional[List[str]] = None
     idade_minima_anos: Optional[int] = None
     idade_maxima_anos: Optional[int] = None
+    subsegmento_alvo: Optional[str] = None  # nicho/subsegmento: filtra por busca_texto
 
 
 class SocioRedeSocial(BaseModel):
@@ -444,18 +445,26 @@ NATUREZA_JURIDICA_MAP: Dict[str, str] = {
 # Segmentos macro (usados pra filtro / tag "grande")
 SEGMENTO_CNAE_PREFIX = {
     # Saúde
-    "Hospitais": ["8610"],
-    "Clínicas": ["8640"],
-    "Laboratórios": ["8640"],  # lab clínico, análises etc.
-    "Farmácias": ["4771"],
+    "Hospitais":    ["861"],              # 8610 - atenção hospitalar
+    "Clínicas":     ["862"],              # 8621/8622/8630 - atenção ambulatorial
+    "Laboratórios": ["864", "8630"],      # 8640 - apoio diagnóstico / análises clínicas
+    "Farmácias":    ["4771"],             # comércio varejista farmacêutico
     # Varejo alimentar
-    "Supermercados": ["4711", "4712"],
+    "Supermercados": ["4711", "4712"],    # supermercados e hipermercados
     # Logística / transporte
-    "Logística": ["4930", "49"],
-    # Indústria (amplo)
-    "Indústria": ["10", "11", "12", "20", "21", "22", "23"],
-    # Serviços gerais (beleza, outros)
-    "Serviços": ["96"],
+    "Logística": [
+        "4920", "4930", "4940", "4950",  # transporte rodoviário carga/passageiro
+        "5210", "5229", "5231", "5239",  # armazenagem e atividades auxiliares
+        "5250",                          # atividades de agenciamento de cargas
+    ],
+    # Indústria (seções C completa: 10-33)
+    "Indústria": [str(n) for n in range(10, 34)],
+    # Serviços profissionais e especializados
+    "Serviços": [
+        "69", "70", "71", "72", "73", "74", "75",  # jurídico, consultoria, engenharia, P&D, publicidade
+        "77", "78", "79", "80", "81", "82",         # locação, RH, viagem, vigilância, limpeza, serviços de escritório
+        "95", "96",                                  # reparação e outros serviços pessoais
+    ],
 }
 
 UF_CENTER = {
@@ -1133,11 +1142,12 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
 
         params: List[object] = []
 
-        # ----- filtro por termo (nome/razão) -----
+        # ----- filtro por termo (razão social + fantasia + cnae_descricao via busca_texto) -----
         if config.termo:
             like = f"%{config.termo.strip().upper()}%"
-            sql += " AND (UPPER(e.RAZAO_SOCIAL) LIKE ? OR UPPER(e.NOME_FANTASIA) LIKE ?)"
-            params.extend([like, like])
+            # busca_texto já contém razao_social + nome_fantasia + cnae_descricao em UPPER
+            sql += " AND e.busca_texto LIKE ?"
+            params.append(like)
 
         # ----- multi-cidade -----
         if cidades_norm:
@@ -1169,12 +1179,22 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
             params.append(float(config.capital_maxima))
 
         # ----- idade da empresa -----
+        # DATA_INICIO_ATIVIDADE é armazenada como 'YYYYMMDD' (8 chars sem traços).
+        # TRY_CAST para DATE retorna NULL nesse formato — usar make_date().
+        _dt = (
+            "make_date("
+            "  CAST(LEFT(e.DATA_INICIO_ATIVIDADE, 4) AS INT),"
+            "  CAST(SUBSTR(e.DATA_INICIO_ATIVIDADE, 5, 2) AS INT),"
+            "  CAST(SUBSTR(e.DATA_INICIO_ATIVIDADE, 7, 2) AS INT)"
+            ")"
+        )
+        _dt_guard = "LENGTH(e.DATA_INICIO_ATIVIDADE) = 8"
         if config.idade_minima_anos and config.idade_minima_anos > 0:
             anos_min = int(config.idade_minima_anos)
-            sql += f" AND TRY_CAST(e.DATA_INICIO_ATIVIDADE AS DATE) <= CURRENT_DATE - INTERVAL '{anos_min}' YEAR"
+            sql += f" AND {_dt_guard} AND {_dt} <= CURRENT_DATE - INTERVAL '{anos_min}' YEAR"
         if config.idade_maxima_anos and config.idade_maxima_anos > 0:
             anos_max = int(config.idade_maxima_anos)
-            sql += f" AND TRY_CAST(e.DATA_INICIO_ATIVIDADE AS DATE) >= CURRENT_DATE - INTERVAL '{anos_max}' YEAR"
+            sql += f" AND {_dt_guard} AND {_dt} >= CURRENT_DATE - INTERVAL '{anos_max}' YEAR"
 
         # ----- exigir contato acionável (telefone, email ou whatsapp) -----
         if config.exigir_contato:
@@ -1195,6 +1215,12 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
                 ph = ", ".join(["?"] * len(cnpjs_limpos))
                 sql += f" AND e.cnpj NOT IN ({ph})"
                 params.extend(cnpjs_limpos)
+
+        # ----- subsegmento/nicho (filtro livre em busca_texto) -----
+        if getattr(config, "subsegmento_alvo", None):
+            like_sub = f"%{config.subsegmento_alvo.strip().upper()}%"
+            sql += " AND e.busca_texto LIKE ?"
+            params.append(like_sub)
 
         # ----- cnaes / segmentos -----
         cnae_col = "e.CNAE_PRINCIPAL"
@@ -1495,8 +1521,114 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
             )
         )
 
+    # ── Enriquecimento OpenCNPJ (SEMPRE — dados atualizados da Receita Federal) ──
+    # Substitui a lógica de "top 10 via BrasilAPI". Chama 3 APIs em cascata para
+    # TODOS os resultados em paralelo (semáforo 8 req simultâneas).
+    # Fornece: email atual, telefones, QSA sócios, cnae_descricao.
+    _emit("enriching", 0, len(empresas), "Consultando dados atualizados da Receita Federal...")
+    try:
+        import asyncio as _asyncio
+        from enrichment_opencnpj import enriquecer_lote_opencnpj as _enriquecer_lote
+
+        cnpjs_lote = [e.cnpj for e in empresas]
+        dados_rf = _asyncio.run(_enriquecer_lote(cnpjs_lote, max_concurrent=8))
+
+        db_rows_para_salvar: List[Empresa] = []
+        enriquecidos = 0
+
+        for i, emp in enumerate(empresas):
+            d = dados_rf.get(emp.cnpj) or {}
+            if not d:
+                continue
+
+            atualizado = False
+
+            # Email — complementa se vazio
+            email_novo = d.get("email") or d.get("email_receita")
+            if email_novo:
+                if not emp.email:
+                    emp.email = email_novo
+                    atualizado = True
+                if not emp.email_enriquecido:
+                    emp.email_enriquecido = email_novo
+                    atualizado = True
+
+            # Telefones — complementa se faltando DDD ou vazio
+            tels = d.get("telefones_receita") or ([d["telefone"]] if d.get("telefone") else [])
+            if tels:
+                if not emp.telefone_padrao:
+                    emp.telefone_padrao = tels[0]
+                    atualizado = True
+                if not emp.telefone_receita:
+                    emp.telefone_receita = tels[0]
+                    atualizado = True
+                if len(tels) > 1 and not emp.telefone_estab2:
+                    emp.telefone_estab2 = tels[1]
+                    atualizado = True
+
+            # Sócios QSA — usa OpenCNPJ quando tabela socios não retornou nada
+            socios_qsa = d.get("socios_qsa") or []
+            if socios_qsa and not emp.socios_resumo:
+                textos, structs = [], []
+                for s in socios_qsa:
+                    nome = (s.get("nome") or "").strip()
+                    qual = (s.get("qualificacao") or "").strip()
+                    if nome:
+                        textos.append(f"{nome} ({qual})" if qual else nome)
+                        structs.append({
+                            "nome": nome,
+                            "qualificacao": qual,
+                            "data_entrada": "",
+                            "cpf_cnpj": s.get("cpf_cnpj", ""),
+                        })
+                if textos:
+                    emp.socios_resumo = "\n".join(textos)
+                    emp.socios_estruturado = structs
+                    atualizado = True
+
+            # CNAE descrição
+            if d.get("cnae_descricao") and not emp.cnae_descricao:
+                emp.cnae_descricao = d["cnae_descricao"]
+                atualizado = True
+
+            if atualizado:
+                enriquecidos += 1
+                db_rows_para_salvar.append(emp)
+
+            if (i + 1) % 20 == 0:
+                _emit("enriching", i + 1, len(empresas),
+                      f"RF atualizada: {enriquecidos}/{i + 1}")
+
+        _emit("enriching", len(empresas), len(empresas),
+              f"Enriquecimento concluído: {enriquecidos}/{len(empresas)} empresas atualizadas")
+
+        # Persiste no cache DuckDB para próximas consultas
+        if db_rows_para_salvar:
+            try:
+                from api.db_pool import CNPJ_DB_PATH
+                import duckdb as _ddb
+                with _ddb.connect(CNPJ_DB_PATH, read_only=False) as _con:
+                    for emp in db_rows_para_salvar:
+                        if emp.email_enriquecido or emp.telefone_enriquecido or emp.site:
+                            _con.execute(
+                                """INSERT OR REPLACE INTO empresas_enriquecidas
+                                   (cnpj, site, email_enriquecido, telefone_enriquecido,
+                                    whatsapp_publico, whatsapp_enriquecido, outras_informacoes)
+                                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                                [emp.cnpj, emp.site, emp.email_enriquecido,
+                                 emp.telefone_enriquecido, emp.whatsapp_publico,
+                                 emp.whatsapp_enriquecido, emp.outras_informacoes],
+                            )
+            except Exception as _pe:
+                print(f"[OPENCNPJ] Falha ao persistir cache: {_pe}")
+
+    except Exception as _oe:
+        print(f"[OPENCNPJ] Enriquecimento RF falhou (continuando sem): {_oe}")
+
+    # ── Enriquecimento WEB avançado (scraping, WhatsApp, redes sociais) ─────────
+    # Ativado explicitamente pelo usuário — mais lento (~2 min)
     if config.enriquecer_web:
-        _emit("enriching", 0, len(empresas), "Iniciando enriquecimento web")
+        _emit("enriching", 0, len(empresas), "Enriquecimento web (scraping avançado)...")
         try:
             def _enrich_progress(idx, total, name):
                 _emit("enriching", idx, total, name)

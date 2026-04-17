@@ -158,21 +158,55 @@ def digits(s: Optional[Any]) -> Optional[str]:
     return re.sub(r"\D", "", txt) or None
 
 
+_TELEFONE_INVALIDOS = frozenset({
+    "0", "00000000", "00000001", "11111111", "22222222", "33333333",
+    "44444444", "55555555", "66666666", "77777777", "88888888", "99999999",
+    "12345678", "87654321", "11111110", "99990000",
+})
+
+
+def _telefone_valido(num_d: str) -> bool:
+    """Descarta números claramente falsos ou sem informação útil."""
+    if not num_d or len(num_d) < 8:
+        return False
+    if len(set(num_d)) == 1:          # todos dígitos iguais: '99999999'
+        return False
+    if num_d in _TELEFONE_INVALIDOS:
+        return False
+    return True
+
+
 def formatar_telefone(ddd: Optional[str], numero: Optional[str]) -> Optional[str]:
-    """Formata telefone no padrão +55 (DD) 99999-9999"""
+    """
+    Formata telefone no padrão +55 (DD) 99999-9999.
+    Descarta números claramente inválidos (todos iguais, listas negras, sem DDD).
+    """
     ddd_d = digits(ddd)
     num_d = digits(numero)
-    if not num_d:
+    if not num_d or not _telefone_valido(num_d):
         return None
-    if len(num_d) == 8:
-        base = f"{num_d[:4]}-{num_d[4:]}"
-    elif len(num_d) == 9:
-        base = f"{num_d[:5]}-{num_d[5:]}"
-    else:
-        base = num_d
+    # DDD fornecido separado (fonte: tabela estabele)
     if ddd_d:
+        if len(num_d) == 8:
+            base = f"{num_d[:4]}-{num_d[4:]}"
+        elif len(num_d) == 9:
+            base = f"{num_d[:5]}-{num_d[5:]}"
+        else:
+            base = num_d
         return f"+55 ({ddd_d}) {base}"
-    return f"+55 {base}"
+    # Sem DDD: só aceita se tiver DDD embutido (>= 10 dígitos)
+    if len(num_d) >= 10:
+        ddd_e = num_d[:2]
+        resto = num_d[2:]
+        if len(resto) == 8:
+            base = f"{resto[:4]}-{resto[4:]}"
+        elif len(resto) == 9:
+            base = f"{resto[:5]}-{resto[5:]}"
+        else:
+            base = resto
+        return f"+55 ({ddd_e}) {base}"
+    # 8 ou 9 dígitos sem DDD → descarta (prefixo desconhecido)
+    return None
 
 
 def as_opt_str(value: Any) -> Optional[str]:

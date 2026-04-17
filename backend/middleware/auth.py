@@ -182,6 +182,51 @@ async def optional_auth(
     return await verify_token(token)
 
 
+async def require_auth_or_api_key(
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+) -> dict:
+    """
+    Dependency que aceita autenticação via JWT Bearer OU via X-API-Key.
+
+    Permite que n8n e automações usem a N8N_SDR_API_KEY diretamente,
+    sem precisar gerar tokens JWT Supabase.
+
+    Uso (n8n / curl):
+        Authorization: Bearer <supabase_jwt>        # opção 1 – usuário logado
+        X-API-Key: <N8N_SDR_API_KEY>                # opção 2 – automações
+    """
+    import os
+    from config import settings
+
+    # Modo desenvolvimento: auth desabilitada
+    if not settings.HERMES_AUTH_REQUIRED:
+        return {"id": "anonymous", "email": None, "role": "anonymous"}
+
+    # Verifica X-API-Key (caminho rápido para automações/n8n)
+    sdr_key = os.getenv("N8N_SDR_API_KEY", "")
+    if x_api_key and sdr_key and hmac.compare_digest(x_api_key.strip(), sdr_key.strip()):
+        return {"id": "n8n-sdr", "email": "n8n@hermes", "role": "service"}
+
+    # Fallback para JWT Bearer
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ", 1)[1].strip()
+        if token:
+            user = await verify_token(token)
+            if user:
+                return user
+
+    raise HTTPException(
+        status_code=401,
+        detail=(
+            "Autenticação obrigatória. Use:\n"
+            "  Authorization: Bearer <supabase_jwt>   (usuário logado)\n"
+            "  X-API-Key: <N8N_SDR_API_KEY>           (automações/n8n)"
+        ),
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
 def validate_asaas_webhook_token(token: str, expected: str) -> bool:
     """
     Valida o token de autenticação enviado pelo Asaas nos webhooks.

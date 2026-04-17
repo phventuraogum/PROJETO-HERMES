@@ -334,6 +334,7 @@ const Configure = () => {
       excluir_cnpjs:            cnpjsExcluir,
       idade_minima_anos:        idadeMinima,
       idade_maxima_anos:        idadeMaxima,
+      subsegmento_alvo:         subsegmentoAlvo || undefined,
     };
 
     try {

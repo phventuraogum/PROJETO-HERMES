@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Body, Depends
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
-from middleware.auth import require_auth
+from middleware.auth import require_auth, require_auth_or_api_key
 from api.query_translator import query_translator_service
 from api.db_pool import get_connection
 
@@ -284,7 +284,7 @@ class PGFNRequest(BaseModel):
 @router.post("/pgfn", summary="Prospecção filtrada por Divida Ativa PGFN")
 async def prospeccao_pgfn(
     request: PGFNRequest = Body(...),
-    _user: dict = Depends(require_auth),
+    _user: dict = Depends(require_auth_or_api_key),
 ) -> Dict[str, Any]:
     """
     Cruza a base de 22M empresas ativas com a Divida Ativa da Uniao (PGFN).
@@ -509,7 +509,7 @@ class AssertivaCNPJRequest(BaseModel):
 )
 async def prospeccao_assertiva_cnpj(
     body: AssertivaCNPJRequest,
-    _user: dict = Depends(require_auth),
+    _user: dict = Depends(require_auth_or_api_key),
 ) -> Dict[str, Any]:
     """
     Recebe um CNPJ e consulta os dados cadastrais na **Assertiva Localize PJ**.
@@ -551,7 +551,7 @@ async def prospeccao_assertiva_cnpj(
 async def prospeccao_assertiva_cnpj_get(
     cnpj: str,
     id_finalidade: int = Query(5, description="Finalidade LGPD (1-5)"),
-    _user: dict = Depends(require_auth),
+    _user: dict = Depends(require_auth_or_api_key),
 ) -> Dict[str, Any]:
     """
     Versão GET para facilitar testes rápidos e integração com n8n via URL.
