@@ -96,9 +96,22 @@ def _reset_db_connections() -> None:
 
 
 def _persist_merged_snapshot(cnpj: str, merged: dict) -> None:
-    from api.db_pool import get_connection
+    """
+    Persiste dados enriquecidos DIRETAMENTE em cnpj.duckdb (onde estão as views).
 
-    with get_connection(read_only=False) as con_w:
+    Anteriormente escrevia em app.duckdb, mas as views de prospecção ficam em
+    cnpj.duckdb — então os dados nunca apareciam nas buscas. O worker RQ roda
+    em processo separado, então abrir cnpj.duckdb em modo escrita aqui não
+    conflita com as conexões read-only do servidor FastAPI.
+    """
+    import duckdb as _duckdb
+    from api.db_pool import CNPJ_DB_PATH
+
+    # Fecha conexoes read-only do pool neste thread antes de escrever
+    _reset_db_connections()
+
+    con_w = _duckdb.connect(CNPJ_DB_PATH, read_only=False)
+    try:
         con_w.execute("""
             CREATE TABLE IF NOT EXISTS empresas_enriquecidas (
                 cnpj VARCHAR PRIMARY KEY,
@@ -112,7 +125,7 @@ def _persist_merged_snapshot(cnpj: str, merged: dict) -> None:
         """)
         con_w.execute(
             """
-            INSERT OR REPLACE INTO empresas_enriquecidas (
+            INSERT INTO empresas_enriquecidas (
                 cnpj,
                 site,
                 email_enriquecido,
@@ -121,6 +134,13 @@ def _persist_merged_snapshot(cnpj: str, merged: dict) -> None:
                 whatsapp_enriquecido,
                 outras_informacoes
             ) VALUES (?,?,?,?,?,?,?)
+            ON CONFLICT (cnpj) DO UPDATE SET
+                site                 = COALESCE(excluded.site, site),
+                email_enriquecido    = COALESCE(excluded.email_enriquecido, email_enriquecido),
+                telefone_enriquecido = COALESCE(excluded.telefone_enriquecido, telefone_enriquecido),
+                whatsapp_publico     = COALESCE(excluded.whatsapp_publico, whatsapp_publico),
+                whatsapp_enriquecido = COALESCE(excluded.whatsapp_enriquecido, whatsapp_enriquecido),
+                outras_informacoes   = COALESCE(excluded.outras_informacoes, outras_informacoes)
             """,
             [
                 cnpj,
@@ -132,6 +152,8 @@ def _persist_merged_snapshot(cnpj: str, merged: dict) -> None:
                 merged.get("outras_informacoes"),
             ],
         )
+    finally:
+        con_w.close()
 
 
 def _cache_whatsapp_ultra_payload(cnpj: str, payload: dict) -> None:

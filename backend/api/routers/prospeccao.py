@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from middleware.auth import require_auth
 from api.query_translator import query_translator_service
+from api.db_pool import get_connection
 
 try:
     from api.prospeccao_service import rodar_prospeccao_otimizada
@@ -223,9 +224,13 @@ def _formatar_kommo(empresas: List[Dict]) -> List[Dict]:
             "custom_fields": {
                 "cnpj": emp.get("cnpj"),
                 "cnae": emp.get("cnae_principal"),
+                "cnae_descricao": emp.get("cnae_descricao"),
                 "capital_social": emp.get("capital_social"),
                 "porte": emp.get("porte"),
                 "segmento": emp.get("segmento"),
+                "data_abertura": emp.get("data_inicio_atividade"),
+                "socios": emp.get("socios_resumo"),
+                "whatsapp": emp.get("whatsapp_final"),
                 "score_priorizacao": emp.get("scores", {}).get("score_total", 0),
                 "score_confiabilidade": emp.get("confiabilidade", {}).get("score_total", 0)
             }
@@ -240,17 +245,249 @@ def _formatar_n8n(empresas: List[Dict]) -> List[Dict]:
         formatted.append({
             "cnpj": emp.get("cnpj"),
             "nome": emp.get("razao_social") or emp.get("nome_fantasia"),
+            "nome_fantasia": emp.get("nome_fantasia"),
             "email": emp.get("email_final") or emp.get("email_receita"),
             "telefone": emp.get("telefone_final") or emp.get("telefone_receita"),
             "whatsapp": emp.get("whatsapp_final"),
             "site": emp.get("site"),
             "cidade": emp.get("cidade"),
             "uf": emp.get("uf"),
+            "cnae": emp.get("cnae_principal"),
+            "cnae_descricao": emp.get("cnae_descricao"),
+            "segmento": emp.get("segmento"),
+            "porte": emp.get("porte"),
             "capital_social": emp.get("capital_social"),
+            "data_abertura": emp.get("data_inicio_atividade"),
+            "socios": emp.get("socios_resumo"),
             "score": emp.get("scores", {}).get("score_total", 0),
             "confiabilidade": emp.get("confiabilidade", {}).get("score_total", 0)
         })
     return formatted
+
+
+# ============================================================
+# PGFN — prospeccao filtrada por divida ativa da Uniao
+# ============================================================
+
+class PGFNRequest(BaseModel):
+    uf: Optional[str] = Field(None, description="UF (ex: SP, RJ). None = todos os estados")
+    municipio: Optional[str] = Field(None, description="Municipio (busca parcial)")
+    divida_min: float = Field(0, ge=0, description="Divida PGFN minima em R$")
+    divida_max: float = Field(10_000_000, ge=0, description="Divida PGFN maxima em R$ (default 10M)")
+    portes: Optional[List[str]] = Field(None, description="Portes: ME, EPP, Grande")
+    cnaes: Optional[List[str]] = Field(None, description="CNAEs ou segmentos")
+    limite: int = Field(200, ge=1, le=1000, description="Limite de resultados")
+    ordem: str = Field("divida_desc", description="Ordem: divida_desc, divida_asc, capital_desc, recente")
+    formato: str = Field("padrao", description="Formato: padrao, n8n, kommo")
+
+
+@router.post("/pgfn", summary="Prospecção filtrada por Divida Ativa PGFN")
+async def prospeccao_pgfn(
+    request: PGFNRequest = Body(...),
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    """
+    Cruza a base de 22M empresas ativas com a Divida Ativa da Uniao (PGFN).
+
+    Requer que a tabela `pgfn_dividas` exista em cnpj.duckdb.
+    Para importar: `python scripts/import_pgfn.py --db /data/cnpj.duckdb --dir /data/pgfn`
+
+    **Exemplos de uso:**
+    - Empresas SP com divida ate R$10M: `{"uf": "SP", "divida_max": 10000000}`
+    - EPPs/MEs no RJ com divida entre 100k e 500k: `{"uf": "RJ", "divida_min": 100000, "divida_max": 500000, "portes": ["ME", "EPP"]}`
+    """
+    from api.db_pool import get_cnpj_connection
+
+    porte_map = {"ME": "01", "EPP": "03", "Grande": "05", "Medio": "05", "grande": "05", "medio": "05"}
+    segmento_cnaes = {
+        "ti": ["6201","6202","6203","6204","6209","6311","6319","6399"],
+        "saude": ["8610","8621","8622","8630","8640","8650","8660","8690"],
+        "juridico": ["6911","6912"],
+        "contabil": ["6920"],
+        "consultoria": ["7020","7490"],
+        "logistica": ["4930","5210","5229","5250","5310","5320"],
+        "industria": ["2800","2810","2821","2822","2823","2824","2825","2829","2830","2840"],
+        "varejo": ["4711","4712","4713","4721","4722","4723","4724","4729","4731"],
+        "alimentacao": ["5611","5612","5620"],
+        "educacao": ["8511","8512","8513","8520","8531","8532","8541","8542","8550","8591","8592","8593","8599"],
+    }
+
+    try:
+        with get_connection(read_only=True) as con:
+            conditions = [
+                "p.divida_total >= ?",
+                "p.divida_total <= ?",
+                "p.divida_total > 0",
+            ]
+            params: List[Any] = [request.divida_min, request.divida_max]
+
+            if request.uf:
+                conditions.append("b.UF = ?")
+                params.append(request.uf.upper())
+
+            if request.municipio:
+                conditions.append("UPPER(b.cidade_nome) LIKE ?")
+                params.append(f"%{request.municipio.upper()}%")
+
+            # Porte
+            if request.portes:
+                codigos = list({porte_map.get(p, p) for p in request.portes})
+                placeholders = ", ".join("?" * len(codigos))
+                conditions.append(f"b.PORTE_EMPRESA IN ({placeholders})")
+                params.extend(codigos)
+
+            # CNAEs / segmentos
+            if request.cnaes:
+                cnae_codes = []
+                for c in request.cnaes:
+                    expanded = segmento_cnaes.get(c.lower())
+                    if expanded:
+                        cnae_codes.extend(expanded)
+                    else:
+                        cnae_codes.append(c)
+                if cnae_codes:
+                    phs = ", ".join("?" * len(cnae_codes))
+                    conditions.append(f"LEFT(b.CNAE_PRINCIPAL, {min(4,len(cnae_codes[0]))}) IN ({phs})")
+                    params.extend(cnae_codes)
+
+            ordem_map = {
+                "divida_desc": "p.divida_total DESC",
+                "divida_asc":  "p.divida_total ASC",
+                "capital_desc": "b.CAPITAL_SOCIAL_NUM DESC NULLS LAST",
+                "recente": "b.DATA_INICIO_ATIVIDADE DESC NULLS LAST",
+            }
+            order_clause = ordem_map.get(request.ordem, "p.divida_total DESC")
+
+            where = " AND ".join(conditions)
+            sql = f"""
+                SELECT
+                    b.cnpj,
+                    b.RAZAO_SOCIAL          AS razao_social,
+                    b.NOME_FANTASIA         AS nome_fantasia,
+                    b.cnae_descricao,
+                    b.CNAE_PRINCIPAL        AS cnae_principal,
+                    b.PORTE_EMPRESA         AS porte_cod,
+                    b.CAPITAL_SOCIAL_NUM    AS capital_social,
+                    b.email_final,
+                    b.email_receita,
+                    b.telefone_final,
+                    b.telefone_receita,
+                    b.whatsapp_final,
+                    b.site,
+                    b.cidade_nome,
+                    b.UF                    AS uf,
+                    b.LOGRADOURO            AS logradouro,
+                    b.NUMERO                AS numero,
+                    b.CEP                   AS cep,
+                    b.DATA_INICIO_ATIVIDADE AS data_abertura,
+                    p.divida_total          AS divida_pgfn,
+                    p.qtd_inscricoes
+                FROM vw_prospeccao_base AS b
+                INNER JOIN pgfn_dividas AS p ON p.cnpj = b.cnpj
+                WHERE {where}
+                ORDER BY {order_clause}
+                LIMIT {request.limite}
+            """
+
+            rows = con.execute(sql, params).fetchdf()
+
+        porte_label = {"01": "ME", "03": "EPP", "05": "Medio/Grande"}
+        empresas = []
+        for _, row in rows.iterrows():
+            e = {
+                "cnpj": row["cnpj"],
+                "razao_social": row["razao_social"],
+                "nome_fantasia": row["nome_fantasia"],
+                "cnae_principal": row["cnae_principal"],
+                "cnae_descricao": row["cnae_descricao"],
+                "porte": porte_label.get(str(row["porte_cod"]).strip(), str(row["porte_cod"])),
+                "capital_social": row["capital_social"],
+                "email_final": row["email_final"] or row["email_receita"],
+                "telefone_final": row["telefone_final"] or row["telefone_receita"],
+                "whatsapp_final": row["whatsapp_final"],
+                "site": row["site"],
+                "cidade": row["cidade_nome"],
+                "uf": row["uf"],
+                "logradouro": row["logradouro"],
+                "numero": row["numero"],
+                "cep": row["cep"],
+                "data_abertura": row["data_abertura"],
+                "divida_pgfn": float(row["divida_pgfn"]),
+                "qtd_inscricoes_pgfn": int(row["qtd_inscricoes"]),
+            }
+            empresas.append(e)
+
+        if request.formato == "n8n":
+            empresas = _formatar_n8n_pgfn(empresas)
+        elif request.formato == "kommo":
+            empresas = _formatar_kommo_pgfn(empresas)
+
+        return {
+            "success": True,
+            "total": len(empresas),
+            "empresas": empresas,
+            "metadata": {
+                "filtros": {
+                    "uf": request.uf,
+                    "municipio": request.municipio,
+                    "divida_min": request.divida_min,
+                    "divida_max": request.divida_max,
+                    "portes": request.portes,
+                    "cnaes": request.cnaes,
+                },
+                "fonte_pgfn": "PGFN - Divida Ativa da Uniao (Nao Previdenciario) - Dez/2025",
+            },
+        }
+
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+def _formatar_n8n_pgfn(empresas: List[Dict]) -> List[Dict]:
+    return [{
+        "cnpj": e.get("cnpj"),
+        "nome": e.get("razao_social") or e.get("nome_fantasia"),
+        "email": e.get("email_final"),
+        "telefone": e.get("telefone_final"),
+        "whatsapp": e.get("whatsapp_final"),
+        "site": e.get("site"),
+        "cidade": e.get("cidade"),
+        "uf": e.get("uf"),
+        "cnae": e.get("cnae_principal"),
+        "cnae_descricao": e.get("cnae_descricao"),
+        "porte": e.get("porte"),
+        "capital_social": e.get("capital_social"),
+        "data_abertura": e.get("data_abertura"),
+        "divida_pgfn": e.get("divida_pgfn"),
+        "qtd_inscricoes_pgfn": e.get("qtd_inscricoes_pgfn"),
+    } for e in empresas]
+
+
+def _formatar_kommo_pgfn(empresas: List[Dict]) -> List[Dict]:
+    return [{
+        "name": e.get("razao_social") or e.get("nome_fantasia", "Sem nome"),
+        "company_name": e.get("razao_social"),
+        "phone": e.get("telefone_final"),
+        "email": e.get("email_final"),
+        "website": e.get("site"),
+        "city": e.get("cidade"),
+        "state": e.get("uf"),
+        "zip": e.get("cep"),
+        "address": f"{e.get('logradouro', '')} {e.get('numero', '')}".strip(),
+        "custom_fields": {
+            "cnpj": e.get("cnpj"),
+            "cnae": e.get("cnae_principal"),
+            "cnae_descricao": e.get("cnae_descricao"),
+            "capital_social": e.get("capital_social"),
+            "porte": e.get("porte"),
+            "data_abertura": e.get("data_abertura"),
+            "whatsapp": e.get("whatsapp_final"),
+            "divida_pgfn": e.get("divida_pgfn"),
+            "qtd_inscricoes_pgfn": e.get("qtd_inscricoes_pgfn"),
+        },
+    } for e in empresas]
 
 
 # ============================================================

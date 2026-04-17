@@ -112,6 +112,7 @@ def rodar_prospeccao_otimizada(
             e.cidade_nome AS cidade,
             e.UF AS uf,
             e.CNAE_PRINCIPAL AS cnae_principal,
+            COALESCE(e.cnae_descricao, e.CNAE_PRINCIPAL) AS cnae_descricao,
             e.PORTE_EMPRESA AS porte_codigo,
             e.CAPITAL_SOCIAL_NUM AS capital_num,
             e.telefone_receita,
@@ -122,18 +123,20 @@ def rodar_prospeccao_otimizada(
             e.whatsapp_final,
             e.sidra_pib,
             e.sidra_populacao,
-            e.sidra_pib_per_capita
+            e.sidra_pib_per_capita,
+            e.DATA_INICIO_ATIVIDADE AS data_inicio_atividade,
+            e.NATUREZA_JURIDICA AS natureza_juridica
         FROM vw_prospeccao_base e
         WHERE 1=1
     """
-    
+
     params: List[Any] = []
-    
-    # Filtro por termo
+
+    # Filtro por termo — busca em razão social, fantasia E descrição do CNAE
     if termo:
         termo_upper = termo.strip().upper()
-        sql += " AND e.busca_texto LIKE ?"
-        params.append(f"%{termo_upper}%")
+        sql += " AND (e.busca_texto LIKE ? OR UPPER(COALESCE(e.cnae_descricao,'')) LIKE ?)"
+        params.extend([f"%{termo_upper}%", f"%{termo_upper}%"])
     
     # Filtro por UF
     if uf and uf.upper() != "TODAS":
@@ -151,21 +154,25 @@ def rodar_prospeccao_otimizada(
         params.append(float(capital_minima))
     
     # Filtro por portes
+    # Receita usa: 01=ME, 03=EPP, 05=Demais (cobre Médio e Grande)
     if portes:
-        # Mapeia portes para códigos
         PORTE_MAP = {
             "ME": ["01"],
             "EPP": ["03"],
             "Médio": ["05"],
             "Grande": ["05"],
+            "Demais": ["05"],
         }
-        codigos = []
-        for porte in portes:
-            codigos.extend(PORTE_MAP.get(porte, []))
+        codigos = list({c for p in portes for c in PORTE_MAP.get(p, [])})
         if codigos:
             placeholders = ", ".join(["?"] * len(codigos))
             sql += f" AND e.PORTE_EMPRESA IN ({placeholders})"
             params.extend(codigos)
+
+        # Se filtrou só "Grande", adiciona corte de capital para distinguir de Médio
+        if portes == ["Grande"] and capital_minima is None:
+            sql += " AND e.CAPITAL_SOCIAL_NUM >= ?"
+            params.append(1_000_000.0)
     
     # Filtro por CNAEs
     if cnaes:
@@ -248,10 +255,13 @@ def rodar_prospeccao_otimizada(
             "cidade": cidade_val,
             "uf": uf_val,
             "cnae_principal": cnae,
+            "cnae_descricao": as_opt_str(row.get("cnae_descricao")),
             "porte": porte_rotulo,
             "capital_social": capital_val,
             "segmento": segmento,
             "subsegmento": subsegmento,
+            "data_inicio_atividade": as_opt_str(row.get("data_inicio_atividade")),
+            "natureza_juridica": as_opt_str(row.get("natureza_juridica")),
             "telefone_receita": tel_receita,
             "email_receita": as_opt_str(row.get("email_receita")),
             "site": as_opt_str(row.get("site_web")),
@@ -278,9 +288,9 @@ def rodar_prospeccao_otimizada(
             fonte_dados="enriquecido" if empresa.get("site") else "receita"
         )
 
-        # 8. Assertividade Extra: Para os top 3 leads, busca dados em tempo real via BrasilAPI
-        # Isso garante que temos os sócios e contatos mais recentes da Receita Federal
-        if len(empresas) < 3:
+        # 8. Assertividade Extra: Para os top 10 leads, busca dados em tempo real via BrasilAPI
+        # Garante sócios e contatos mais recentes da Receita Federal
+        if len(empresas) < 10:
             from api.validation_service import verificar_cnpj_receita
             dados_realtime = verificar_cnpj_receita(cnpj_str)
             if dados_realtime.get("valido"):
