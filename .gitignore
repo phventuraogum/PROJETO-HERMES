@@ -82,3 +82,6 @@ Thumbs.db
 *.tmp
 *.bak
 *.cache
+
+# Senha root VPS para scripts locais (nunca commitar)
+.deploy/
