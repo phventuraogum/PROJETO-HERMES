@@ -249,103 +249,6 @@ function mergeWhatsappStrings(a: string | null | undefined, b: string | null | u
   return uniq.length ? uniq.join(" | ") : null;
 }
 
-function splitMultiContact(val?: string | null): string[] {
-  if (!val) return [];
-  return String(val)
-    .split(/\||[,;]/g)
-    .map((x) => x.trim())
-    .filter(Boolean);
-}
-
-/** Deduplica por dígitos (≥10), preservando a primeira grafia. */
-function dedupePhonesByDigits(nums: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of nums) {
-    const key = raw.replace(/\D/g, "");
-    if (key.length < 10 || seen.has(key)) continue;
-    seen.add(key);
-    out.push(raw);
-  }
-  return out;
-}
-
-/** Celulares / WhatsApp no cadastro da empresa (Assertiva nem sempre marca whatsapp:true). */
-function collectNumerosWhatsappEmpresa(
-  telefones: Array<{ numero?: string | null; tipo?: string | null; whatsapp?: boolean | null }>,
-  base: Empresa,
-): string[] {
-  const nums: string[] = [];
-  for (const t of telefones) {
-    const n = String(t.numero || "").trim();
-    if (!n) continue;
-    const tipo = String(t.tipo || "").toLowerCase();
-    if (Boolean(t.whatsapp) || tipo === "movel" || tipo === "móvel") nums.push(n);
-  }
-  for (const w of base.whatsapps_captados ?? []) {
-    const v = String(w.valor || "").trim();
-    if (v) nums.push(v);
-  }
-  for (const seg of [base.whatsapp_publico, base.whatsapp_enriquecido, base.whatsapp_final]) {
-    nums.push(...splitMultiContact(seg));
-  }
-  return dedupePhonesByDigits(nums);
-}
-
-/** Fixos e linhas sem flag de móvel (evita duplicar celular já listado como WhatsApp). */
-function collectNumerosTelefoneEmpresa(
-  telefones: Array<{ numero?: string | null; tipo?: string | null; whatsapp?: boolean | null }>,
-  base: Empresa,
-): string[] {
-  const nums: string[] = [];
-  for (const t of telefones) {
-    const n = String(t.numero || "").trim();
-    if (!n) continue;
-    const tipo = String(t.tipo || "").toLowerCase();
-    const isMovel = Boolean(t.whatsapp) || tipo === "movel" || tipo === "móvel";
-    if (!isMovel) nums.push(n);
-  }
-  for (const seg of [
-    base.telefone_enriquecido,
-    base.telefone_padrao,
-    base.telefone_final,
-  ]) {
-    nums.push(...splitMultiContact(seg));
-  }
-  return dedupePhonesByDigits(nums);
-}
-
-function mergeEmpresaTelefonesIntoSocios(socios: SocioEstruturado[], empresaTelefones: string[]): SocioEstruturado[] {
-  const tel = dedupePhonesByDigits(empresaTelefones.map((x) => String(x).trim()).filter(Boolean));
-  if (tel.length === 0) return socios;
-  const blob = tel.join(" | ");
-  return socios.map((m) => {
-    const prev = (m.telefone || "").trim();
-    const merged = mergeWhatsappStrings(m.telefone, blob);
-    if (!merged || merged === prev) return m;
-    return {
-      ...m,
-      telefone: merged,
-      fonte_contato: prev
-        ? [m.fonte_contato, "tel. cadastro empresa"].filter(Boolean).join(" · ")
-        : [m.fonte_contato, "Telefone cadastro empresa"].filter(Boolean).join(" · "),
-    };
-  });
-}
-
-function mergeEmpresaEmailIntoSocios(socios: SocioEstruturado[], email: string | null): SocioEstruturado[] {
-  const e = String(email || "").trim();
-  if (!e) return socios;
-  return socios.map((m) => {
-    if ((m.email || "").trim()) return m;
-    return {
-      ...m,
-      email: e,
-      fonte_contato: [m.fonte_contato, "e-mail cadastro empresa"].filter(Boolean).join(" · "),
-    };
-  });
-}
-
 /** Exibe datas tipo 20220902 como DD/MM/AAAA. */
 function formatSocioDataEntrada(raw?: string | null): string | null {
   const s = String(raw || "").trim();
@@ -356,6 +259,28 @@ function formatSocioDataEntrada(raw?: string | null): string | null {
     return `${d}/${mo}/${y}`;
   }
   return s;
+}
+
+function socioTemContatoIndividual(s: SocioEstruturado): boolean {
+  if ((s.email || "").trim()) return true;
+  if ((s.telefone || "").trim()) return true;
+  if ((s.whatsapp || "").trim()) return true;
+  if (s.emails_alternativos && s.emails_alternativos.length > 0) return true;
+  return false;
+}
+
+/** Legado: ruído quando o mesmo cadastro da empresa foi copiado para cada sócio. */
+function socioContatoEhSoPropagacaoEmpresa(s: SocioEstruturado): boolean {
+  const f = String(s.fonte_contato || "");
+  if (!f.trim()) return false;
+  if (/assertiva/i.test(f)) return false;
+  return /cadastro da empresa|cadastro empresa/i.test(f);
+}
+
+/** Exibir e-mail/telefone/WhatsApp no card só quando forem do sócio/decisor na fonte. */
+function socioExibirContatosNoCard(s: SocioEstruturado): boolean {
+  if (socioContatoEhSoPropagacaoEmpresa(s)) return false;
+  return socioTemContatoIndividual(s);
 }
 
 /** Nome do sócio na resposta Assertiva (campos variam por versão/tipo de sócio). */
@@ -378,33 +303,13 @@ function extractAssertivaSocioNome(socio: Record<string, unknown>): string {
   return "";
 }
 
-/** Agrega WhatsApps marcados no cadastro da empresa (Assertiva) em cada sócio, sem duplicar. */
-function mergeEmpresaWhatsappsIntoSocios(socios: SocioEstruturado[], empresaWhatsapps: string[]): SocioEstruturado[] {
-  const wa = [...new Set(empresaWhatsapps.map((x) => String(x).trim()).filter(Boolean))];
-  if (wa.length === 0) return socios;
-  const blob = wa.join(" | ");
-  return socios.map((m) => {
-    const prev = (m.whatsapp || "").trim();
-    const merged = mergeWhatsappStrings(m.whatsapp, blob);
-    if (!merged || merged === prev) return m;
-    return {
-      ...m,
-      whatsapp: merged,
-      fonte_contato: prev
-        ? [m.fonte_contato, "também no cadastro da empresa"].filter(Boolean).join(" · ")
-        : [m.fonte_contato, "WhatsApp no cadastro da empresa"].filter(Boolean).join(" · "),
-    };
-  });
-}
-
 /**
- * Mantém nomes/qualificação da Receita (`base`) e injeta WhatsApp/contatos da Assertiva.
- * Quando a API devolve sócios sem nome mas na mesma ordem da base, faz merge por índice.
+ * Mantém nomes/qualificação da Receita (`base`) e injeta contatos **por sócio/decisor** vindos da Assertiva.
+ * Contatos gerais da empresa permanecem só na seção "Contatos e presença digital" (sem duplicar em cada card).
  */
 function mergeAssertivaSociosIntoBase(
   base: SocioEstruturado[] | null | undefined,
   enriched: SocioEstruturado[],
-  empresaWhatsapps: string[],
 ): SocioEstruturado[] {
   const docKey = (s: SocioEstruturado) => normalizeSocioDoc(s.cpf_cnpj);
   const baseList = [...(base ?? [])];
@@ -429,7 +334,7 @@ function mergeAssertivaSociosIntoBase(
         fonte_contato: [b.fonte_contato, ex?.fonte_contato].filter(Boolean).join(" · ") || b.fonte_contato,
       };
     });
-    return mergeEmpresaWhatsappsIntoSocios(merged, empresaWhatsapps);
+    return merged;
   }
 
   const enrichedByDoc = new Map<string, SocioEstruturado>();
@@ -475,7 +380,7 @@ function mergeAssertivaSociosIntoBase(
       if (k && !used.has(k)) merged.push(ex);
       else if (!k && !isPlaceholderSocioNome(ex.nome)) merged.push(ex);
     }
-    return mergeEmpresaWhatsappsIntoSocios(merged, empresaWhatsapps);
+    return merged;
   }
 
   const onlyEnriched = enriched.map((e) => ({
@@ -486,7 +391,7 @@ function mergeAssertivaSociosIntoBase(
         : "Sócio"
       : e.nome,
   }));
-  return mergeEmpresaWhatsappsIntoSocios(onlyEnriched, empresaWhatsapps);
+  return onlyEnriched;
 }
 
 function mergeAssertivaIntoEmpresa(
@@ -525,9 +430,6 @@ function mergeAssertivaIntoEmpresa(
     .map((t) => String(t.numero || "").trim())
     .filter(Boolean)
     .map((numero) => ({ valor: numero, tipo: "whatsapp", origem: "enriquecimento", validado: null }));
-
-  const empresaWhatsappsLista = collectNumerosWhatsappEmpresa(telefones, base);
-  const empresaTelefonesLista = collectNumerosTelefoneEmpresa(telefones, base);
 
   const decisores = Array.isArray(decisoresData?.decisores) ? decisoresData!.decisores! : [];
   let enrichedFromApi: SocioEstruturado[] = [];
@@ -572,20 +474,7 @@ function mergeAssertivaIntoEmpresa(
     });
   }
 
-  const sociosMergedRaw = mergeAssertivaSociosIntoBase(
-    base.socios_estruturado,
-    enrichedFromApi,
-    empresaWhatsappsLista,
-  );
-  const emailEmpresaFallback =
-    primaryEmail?.trim() ||
-    base.email_enriquecido?.trim() ||
-    base.email?.trim() ||
-    null;
-  const sociosMerged = mergeEmpresaEmailIntoSocios(
-    mergeEmpresaTelefonesIntoSocios(sociosMergedRaw, empresaTelefonesLista),
-    emailEmpresaFallback,
-  );
+  const sociosMerged = mergeAssertivaSociosIntoBase(base.socios_estruturado, enrichedFromApi);
 
   const sociosResumo = sociosMerged.length
     ? sociosMerged
@@ -1051,9 +940,12 @@ function DetalheEmpresa({
       </section>
 
       {/* ── Contatos ── */}
-      <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-2.5">
+      <section id="hermes-contatos-empresa" className="rounded-xl border border-border bg-muted/20 p-4 space-y-2.5 scroll-mt-4">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
           <Globe className="h-3 w-3" /> Contatos e presença digital
+        </p>
+        <p className="text-[10px] text-muted-foreground/80 leading-relaxed">
+          Linhas gerais da empresa (telefone institucional, site, e-mails da empresa). Contatos atribuídos a uma pessoa específica aparecem em <span className="text-foreground/90">Sócios / Decisores</span>.
         </p>
         {company.site && (
           <div className="flex items-center gap-2">
@@ -1185,19 +1077,26 @@ function DetalheEmpresa({
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
             <Users className="h-3 w-3" /> Sócios / Decisores
           </p>
+          <p className="text-[10px] text-muted-foreground/80 leading-relaxed">
+            Aqui só entram contatos <strong className="font-medium text-foreground/85">atribuídos a esta pessoa</strong> na fonte (ex.: Assertiva por sócio). Para ramais e linhas da empresa, use{" "}
+            <a href="#hermes-contatos-empresa" className="text-primary hover:underline">Contatos e presença digital</a>.
+          </p>
           {company.socios_estruturado && company.socios_estruturado.length > 0 ? (
             <div className="space-y-2">
               {company.socios_estruturado.map((s: SocioEstruturado, i: number) => {
                 const linkedin = s.linkedin || company.redes_sociais_socios
                   ?.find(r => (r.nome || "").toLowerCase().slice(0,8) === s.nome.toLowerCase().slice(0,8))
                   ?.links?.find(l => /linkedin/i.test(l));
-                const whatsappList = String(s.whatsapp || "")
-                  .split(/\||[,;]/g)
-                  .map((n) => n.trim())
-                  .filter(Boolean);
+                const mostrarContatos = socioExibirContatosNoCard(s);
+                const whatsappList = mostrarContatos
+                  ? String(s.whatsapp || "")
+                      .split(/\||[,;]/g)
+                      .map((n) => n.trim())
+                      .filter(Boolean)
+                  : [];
                 const whatsappPrimary = whatsappList[0] || null;
-                const email = s.email;
-                const telefone = s.telefone;
+                const email = mostrarContatos ? s.email : null;
+                const telefone = mostrarContatos ? s.telefone : null;
                 return (
                   <div key={i} className="flex items-start justify-between gap-2 rounded-lg border border-border/50 bg-muted/30 p-2.5">
                     <div className="space-y-1">
@@ -1217,8 +1116,14 @@ function DetalheEmpresa({
                         {s.empresa_atual && <span className="text-[10px] text-muted-foreground/70">{s.empresa_atual}</span>}
                       </div>
                       <div className="space-y-1 text-[11px] text-foreground/80">
-                        {email && <p>E-mail: <a href={`mailto:${email}`} className="hover:underline">{email}</a></p>}
-                        {whatsappList.length > 0 && (
+                        {!mostrarContatos && (
+                          <p className="text-muted-foreground/80 leading-relaxed">
+                            Nenhum contato individual deste sócio/decisor na fonte.
+                            <a href="#hermes-contatos-empresa" className="text-primary hover:underline ml-1">Abrir contatos da empresa</a>
+                          </p>
+                        )}
+                        {mostrarContatos && email && <p>E-mail: <a href={`mailto:${email}`} className="hover:underline">{email}</a></p>}
+                        {mostrarContatos && whatsappList.length > 0 && (
                           <div className="space-y-0.5">
                             <p>WhatsApp:</p>
                             {whatsappList.map((wa) => (
@@ -1235,21 +1140,21 @@ function DetalheEmpresa({
                             ))}
                           </div>
                         )}
-                        {telefone && <p>Telefone: <a href={`tel:${telefone}`} className="hover:underline">{telefone}</a></p>}
-                        {s.emails_alternativos && s.emails_alternativos.length > 0 && (
+                        {mostrarContatos && telefone && <p>Telefone: <a href={`tel:${telefone}`} className="hover:underline">{telefone}</a></p>}
+                        {mostrarContatos && s.emails_alternativos && s.emails_alternativos.length > 0 && (
                           <p className="text-muted-foreground/70">Alternativos: {s.emails_alternativos.join(" · ")}</p>
                         )}
-                        {s.fonte_contato && <p className="text-muted-foreground/70">Fonte: {s.fonte_contato}</p>}
+                        {mostrarContatos && s.fonte_contato && <p className="text-muted-foreground/70">Fonte: {s.fonte_contato}</p>}
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      {email && (
+                      {mostrarContatos && email && (
                         <a href={`mailto:${email}`}
                           className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-sky-500/40 bg-sky-500/10 text-sky-600 hover:bg-sky-500/20">
                           <Mail className="h-3.5 w-3.5" />
                         </a>
                       )}
-                      {whatsappPrimary && (
+                      {mostrarContatos && whatsappPrimary && (
                         <a href={`https://wa.me/${whatsappPrimary.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
                           className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">
                           <MessageCircle className="h-3.5 w-3.5" />
