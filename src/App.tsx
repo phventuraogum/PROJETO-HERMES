@@ -15,6 +15,7 @@ import History from "./pages/History";
 import Heatmap from "./pages/Heatmap";
 import Settings from "./pages/Settings";
 import ComprarCreditos from "./pages/ComprarCreditos";
+import EnriquecerCnpj from "./pages/EnriquecerCnpj";
 import NotFound from "./pages/NotFound";
 import { RequireAuth } from "./auth/RequireAuth";
 import { RequireRole } from "./auth/RequireRole";
@@ -48,6 +49,14 @@ const App = () => (
           element={
             <AuthedLayout>
               <Configure />
+            </AuthedLayout>
+          }
+        />
+        <Route
+          path="/cnpj"
+          element={
+            <AuthedLayout>
+              <EnriquecerCnpj />
             </AuthedLayout>
           }
         />

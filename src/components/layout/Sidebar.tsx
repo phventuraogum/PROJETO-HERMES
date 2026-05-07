@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Settings, FileText, History, Map, Kanban, Building2, Coins, Plus, Sliders } from "lucide-react";
+import { LayoutDashboard, Settings, FileText, History, Map, Kanban, Building2, Coins, Plus, Sparkles } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
 import LogoutButton from "@/auth/LogoutButton";
@@ -11,13 +11,40 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-const menuItems = [
-  { icon: Settings,       label: "Configurar Prospecção", path: "/app" },
-  { icon: LayoutDashboard,label: "Dashboard",             path: "/dashboard" },
-  { icon: FileText,       label: "Resultados",            path: "/results" },
-  { icon: Kanban,         label: "Pipeline",              path: "/pipeline" },
-  { icon: History,        label: "Histórico",             path: "/history" },
+type MenuEntry = { icon: typeof Settings; label: string; path: string };
+
+const prospeccaoItems: MenuEntry[] = [
+  { icon: Settings, label: "Configurar Busca", path: "/app" },
+  { icon: Sparkles, label: "Enriquecer CNPJ", path: "/cnpj" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+  { icon: FileText, label: "Resultados", path: "/results" },
 ];
+
+const pipelineItems: MenuEntry[] = [
+  { icon: Kanban, label: "Pipeline", path: "/pipeline" },
+  { icon: History, label: "Histórico", path: "/history" },
+];
+
+function NavMenuItems({ items }: { items: MenuEntry[] }) {
+  return (
+    <>
+      {items.map((item) => (
+        <NavLink
+          key={item.path}
+          to={item.path}
+          end={item.path === "/"}
+          className={cn(
+            "flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          )}
+          activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50"
+        >
+          <item.icon className="h-5 w-5" />
+          <span className="text-sm">{item.label}</span>
+        </NavLink>
+      ))}
+    </>
+  );
+}
 
 const Sidebar = () => {
   const { orgs, orgId, setOrgId, currentOrg } = useOrg();
@@ -81,32 +108,23 @@ const Sidebar = () => {
           </div>
         </div>
       )}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {menuItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            end={item.path === "/"}
-            className={cn(
-              "flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            )}
-            activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50"
-          >
-            <item.icon className="h-5 w-5" />
-            <span className="text-sm">{item.label}</span>
-          </NavLink>
-        ))}
+      <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
+        <div className="space-y-1">
+          <p className="px-4 text-[10px] uppercase tracking-wider text-sidebar-foreground/60">Prospecção</p>
+          <NavMenuItems items={prospeccaoItems} />
+        </div>
+        <div className="space-y-1">
+          <p className="px-4 text-[10px] uppercase tracking-wider text-sidebar-foreground/60">Pipeline</p>
+          <NavMenuItems items={pipelineItems} />
+        </div>
         {isAdmin && (
-          <>
+          <div className="space-y-1">
+            <p className="px-4 text-[10px] uppercase tracking-wider text-sidebar-foreground/60">Análise</p>
             <NavLink to="/heatmap" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
               <Map className="h-5 w-5" />
               <span className="text-sm">Mapa de Calor</span>
             </NavLink>
-            <NavLink to="/settings" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
-              <Sliders className="h-5 w-5" />
-              <span className="text-sm">Configurações</span>
-            </NavLink>
-          </>
+          </div>
         )}
       </nav>
 
