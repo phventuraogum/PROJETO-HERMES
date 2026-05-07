@@ -445,6 +445,29 @@ def _upsert_socio(socios: List[Dict[str, Any]], nome: str, **updates: Any) -> Di
     return socio
 
 
+_RE_CADASTRO_EMPRESA_FONTE = re.compile(r"cadastro da empresa|cadastro empresa", re.I)
+
+
+def _fonte_socio_eh_so_propagacao_empresa(fonte: Any) -> bool:
+    """Legado: contatos da empresa copiados para cada sócio (alinhado a Results.tsx)."""
+    f = str(fonte or "").strip()
+    if not f:
+        return False
+    if re.search(r"assertiva", f, re.I):
+        return False
+    return bool(_RE_CADASTRO_EMPRESA_FONTE.search(f))
+
+
+def _strip_empresa_propagated_socio_contacts(socios: List[Dict[str, Any]]) -> None:
+    for socio in socios:
+        if not _fonte_socio_eh_so_propagacao_empresa(socio.get("fonte_contato")):
+            continue
+        for k in ("whatsapp", "telefone", "email"):
+            socio.pop(k, None)
+        socio.pop("emails_alternativos", None)
+        socio.pop("fonte_contato", None)
+
+
 def _serializar_redes_socios(socios: List[Dict[str, Any]], redes_existentes: Dict[str, List[str]]) -> List[Dict[str, Any]]:
     resultado: List[Dict[str, Any]] = []
     usados = set()
@@ -713,6 +736,8 @@ def merge_enrichment_payload(existing: Dict[str, Any], payload: Dict[str, Any]) 
             add_telefone(tel, f"Assertiva sócio ({nome})")
         for em in emails_dec:
             add_email(em, f"Assertiva sócio ({nome})", tipo="socio")
+
+    _strip_empresa_propagated_socio_contacts(socios)
 
     redes_socios_existentes = _extrair_links_existentes(existing.get("redes_sociais_socios"))
     redes_sociais_socios = _serializar_redes_socios(socios, redes_socios_existentes)

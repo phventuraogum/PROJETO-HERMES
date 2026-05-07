@@ -322,6 +322,67 @@ class EnrichmentMergeTests(unittest.TestCase):
         self.assertIsNone(merged["telefone_enriquecido"])
         self.assertIsNone(merged["whatsapp_enriquecido"])
 
+    def test_strips_empresa_propagated_contacts_from_socios(self):
+        existing = {
+            "cnpj": "12345678000199",
+            "razao_social": "ACME LTDA",
+            "nome_fantasia": "ACME",
+            "site": "https://acme.com.br",
+            "email": None,
+            "email_enriquecido": None,
+            "telefone_padrao": None,
+            "telefone_receita": None,
+            "telefone_estab1": None,
+            "telefone_estab2": None,
+            "telefone_enriquecido": None,
+            "whatsapp_publico": None,
+            "whatsapp_enriquecido": None,
+            "redes_sociais_empresa": [],
+            "redes_sociais_socios": [],
+            "socios_estruturado": [
+                {
+                    "nome": "Joao Silva",
+                    "qualificacao": "Socio",
+                    "whatsapp": "5583982121777",
+                    "telefone": "(83) 3212-1000",
+                    "email": "contato@empresa.com.br",
+                    "emails_alternativos": ["outro@empresa.com.br"],
+                    "fonte_contato": "WhatsApp no cadastro da empresa · Telefone cadastro empresa",
+                },
+                {
+                    "nome": "Maria Costa",
+                    "whatsapp": "5583982121777",
+                    "fonte_contato": "assertiva (decisor)",
+                },
+            ],
+            "outras_informacoes": None,
+            "registro_dono": None,
+            "registro_email": None,
+            "fonte_dados_prioritaria": None,
+            "emails_captados": None,
+            "telefones_captados": None,
+            "whatsapps_captados": None,
+            "linkedin_empresa": None,
+            "instagram_empresa": None,
+            "facebook_empresa": None,
+            "resumo_ia_empresa": None,
+        }
+
+        merged = self._merge(existing, {})
+
+        socios = merged["socios_estruturado"] or []
+        joao = next(s for s in socios if s.get("nome") == "Joao Silva")
+        self.assertNotIn("whatsapp", joao)
+        self.assertNotIn("telefone", joao)
+        self.assertNotIn("email", joao)
+        self.assertNotIn("emails_alternativos", joao)
+        self.assertNotIn("fonte_contato", joao)
+        self.assertEqual(joao.get("qualificacao"), "Socio")
+
+        maria = next(s for s in socios if s.get("nome") == "Maria Costa")
+        self.assertEqual(maria.get("whatsapp"), "5583982121777")
+        self.assertEqual(maria.get("fonte_contato"), "assertiva (decisor)")
+
 
 if __name__ == "__main__":
     unittest.main()
