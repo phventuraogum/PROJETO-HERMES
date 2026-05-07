@@ -449,7 +449,10 @@ _RE_CADASTRO_EMPRESA_FONTE = re.compile(r"cadastro da empresa|cadastro empresa",
 
 
 def _fonte_socio_eh_so_propagacao_empresa(fonte: Any) -> bool:
-    """Legado: contatos da empresa copiados para cada sócio (alinhado a Results.tsx)."""
+    """Legado: contatos da empresa copiados para cada sócio.
+
+    Espelho de src/lib/socioContatoLegado.ts (fonteSocioEhSoPropagacaoEmpresa).
+    """
     f = str(fonte or "").strip()
     if not f:
         return False

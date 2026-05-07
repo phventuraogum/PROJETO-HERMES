@@ -35,6 +35,7 @@ import {
   Loader2, ShieldCheck, FolderPlus, ShieldBan,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fonteSocioEhSoPropagacaoEmpresa } from "@/lib/socioContatoLegado";
 import {
   ContatoCaptado, Empresa, SocioEstruturado,
   ExecucaoResumo, getResultados, getResultadosUltimaExecucao,
@@ -88,7 +89,7 @@ function gerarCsv(empresas: Empresa[]): string {
       .map(s => `${s.nome}${s.qualificacao ? ` (${s.qualificacao})` : ""}`)
       .join(" | ");
     const sociosComWhatsapp = (e.socios_estruturado ?? [])
-      .filter((s) => Boolean(s.whatsapp))
+      .filter((s) => Boolean(s.whatsapp) && !fonteSocioEhSoPropagacaoEmpresa(s.fonte_contato))
       .map((s) => `${s.nome}: ${s.whatsapp}`)
       .join(" | ");
     const emailsCaptados = (e.emails_captados ?? []).map((x) => x.valor).filter(Boolean).join(" | ");
@@ -269,17 +270,9 @@ function socioTemContatoIndividual(s: SocioEstruturado): boolean {
   return false;
 }
 
-/** Legado: ruído quando o mesmo cadastro da empresa foi copiado para cada sócio. */
-function socioContatoEhSoPropagacaoEmpresa(s: SocioEstruturado): boolean {
-  const f = String(s.fonte_contato || "");
-  if (!f.trim()) return false;
-  if (/assertiva/i.test(f)) return false;
-  return /cadastro da empresa|cadastro empresa/i.test(f);
-}
-
 /** Exibir e-mail/telefone/WhatsApp no card só quando forem do sócio/decisor na fonte. */
 function socioExibirContatosNoCard(s: SocioEstruturado): boolean {
-  if (socioContatoEhSoPropagacaoEmpresa(s)) return false;
+  if (fonteSocioEhSoPropagacaoEmpresa(s.fonte_contato)) return false;
   return socioTemContatoIndividual(s);
 }
 
