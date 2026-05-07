@@ -251,6 +251,7 @@ APENAS JSON válido."""
             "instagram": {},
             "linkinbio": {},
             "dados_receita": {},
+            "assertiva": {},
         }
 
         socios = socios or []
@@ -363,6 +364,35 @@ APENAS JSON válido."""
                 site=site_atual,
             )
 
+        # Assertiva Localize — sócios/decisores + telefones/emails da empresa (credenciais opcionais)
+        cnpj_digits = "".join(filter(str.isdigit, cnpj))
+        if len(cnpj_digits) == 14:
+            try:
+                from api.assertiva_service import get_assertiva_service
+                from api.assertiva_decisores import extract_decisores_from_assertiva_normalizado
+
+                get_assertiva_service()
+
+                async def _assertiva_job() -> Dict[str, Any]:
+                    svc = get_assertiva_service()
+                    fin = int(os.getenv("HERMES_ASSERTIVA_FINALIDADE", "5") or "5")
+                    norm = await svc.consultar_cnpj(cnpj_digits, id_finalidade=fin)
+                    extr = extract_decisores_from_assertiva_normalizado(norm, max_decisores=None)
+                    slim = None
+                    if isinstance(norm, dict) and norm.get("encontrado"):
+                        slim = {
+                            "telefones": norm.get("telefones"),
+                            "emails": norm.get("emails"),
+                        }
+                    extr["dados_cadastrais"] = slim
+                    return extr
+
+                tarefas_paralelas["assertiva"] = _assertiva_job()
+            except RuntimeError:
+                logger.debug("Assertiva omitida no enriquecimento (sem credenciais).")
+            except Exception as exc:
+                logger.warning("Assertiva não agendada no enriquecimento: %s", exc)
+
         # Executa tudo em paralelo
         if tarefas_paralelas:
             chaves = list(tarefas_paralelas.keys())
@@ -400,6 +430,16 @@ APENAS JSON válido."""
 
         if "ia" in resultados_paralelos:
             resultado["enriquecimento_ia"] = resultados_paralelos["ia"]
+
+        if "assertiva" in resultados_paralelos:
+            blob = resultados_paralelos["assertiva"]
+            if isinstance(blob, dict):
+                resultado["assertiva"] = {
+                    "cnpj": blob.get("cnpj"),
+                    "encontrado": blob.get("encontrado"),
+                    "decisores": blob.get("decisores") or [],
+                    "dados_cadastrais": blob.get("dados_cadastrais"),
+                }
 
         # ── FASE 8: Pitch de abordagem (opcional, só para HOT) ────────────
         if gerar_pitch and score_icp >= 50 and self.openai_enabled:

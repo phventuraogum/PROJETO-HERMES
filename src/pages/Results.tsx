@@ -229,6 +229,266 @@ function normalizeAssertivaSocialLinks(input: unknown[] | null | undefined): str
   return Array.from(new Set(links));
 }
 
+function normalizeSocioDoc(doc?: string | null): string {
+  return String(doc || "").replace(/\D/g, "");
+}
+
+function isPlaceholderSocioNome(nome: string | null | undefined): boolean {
+  const t = String(nome || "").trim();
+  return !t || t === "Sócio" || t === "Decisor";
+}
+
+function mergeWhatsappStrings(a: string | null | undefined, b: string | null | undefined): string | null {
+  const parts = [
+    ...(a ? a.split(/\||[,;]/g) : []),
+    ...(b ? b.split(/\||[,;]/g) : []),
+  ]
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const uniq = [...new Set(parts)];
+  return uniq.length ? uniq.join(" | ") : null;
+}
+
+function splitMultiContact(val?: string | null): string[] {
+  if (!val) return [];
+  return String(val)
+    .split(/\||[,;]/g)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+/** Deduplica por dígitos (≥10), preservando a primeira grafia. */
+function dedupePhonesByDigits(nums: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of nums) {
+    const key = raw.replace(/\D/g, "");
+    if (key.length < 10 || seen.has(key)) continue;
+    seen.add(key);
+    out.push(raw);
+  }
+  return out;
+}
+
+/** Celulares / WhatsApp no cadastro da empresa (Assertiva nem sempre marca whatsapp:true). */
+function collectNumerosWhatsappEmpresa(
+  telefones: Array<{ numero?: string | null; tipo?: string | null; whatsapp?: boolean | null }>,
+  base: Empresa,
+): string[] {
+  const nums: string[] = [];
+  for (const t of telefones) {
+    const n = String(t.numero || "").trim();
+    if (!n) continue;
+    const tipo = String(t.tipo || "").toLowerCase();
+    if (Boolean(t.whatsapp) || tipo === "movel" || tipo === "móvel") nums.push(n);
+  }
+  for (const w of base.whatsapps_captados ?? []) {
+    const v = String(w.valor || "").trim();
+    if (v) nums.push(v);
+  }
+  for (const seg of [base.whatsapp_publico, base.whatsapp_enriquecido, base.whatsapp_final]) {
+    nums.push(...splitMultiContact(seg));
+  }
+  return dedupePhonesByDigits(nums);
+}
+
+/** Fixos e linhas sem flag de móvel (evita duplicar celular já listado como WhatsApp). */
+function collectNumerosTelefoneEmpresa(
+  telefones: Array<{ numero?: string | null; tipo?: string | null; whatsapp?: boolean | null }>,
+  base: Empresa,
+): string[] {
+  const nums: string[] = [];
+  for (const t of telefones) {
+    const n = String(t.numero || "").trim();
+    if (!n) continue;
+    const tipo = String(t.tipo || "").toLowerCase();
+    const isMovel = Boolean(t.whatsapp) || tipo === "movel" || tipo === "móvel";
+    if (!isMovel) nums.push(n);
+  }
+  for (const seg of [
+    base.telefone_enriquecido,
+    base.telefone_padrao,
+    base.telefone_final,
+  ]) {
+    nums.push(...splitMultiContact(seg));
+  }
+  return dedupePhonesByDigits(nums);
+}
+
+function mergeEmpresaTelefonesIntoSocios(socios: SocioEstruturado[], empresaTelefones: string[]): SocioEstruturado[] {
+  const tel = dedupePhonesByDigits(empresaTelefones.map((x) => String(x).trim()).filter(Boolean));
+  if (tel.length === 0) return socios;
+  const blob = tel.join(" | ");
+  return socios.map((m) => {
+    const prev = (m.telefone || "").trim();
+    const merged = mergeWhatsappStrings(m.telefone, blob);
+    if (!merged || merged === prev) return m;
+    return {
+      ...m,
+      telefone: merged,
+      fonte_contato: prev
+        ? [m.fonte_contato, "tel. cadastro empresa"].filter(Boolean).join(" · ")
+        : [m.fonte_contato, "Telefone cadastro empresa"].filter(Boolean).join(" · "),
+    };
+  });
+}
+
+function mergeEmpresaEmailIntoSocios(socios: SocioEstruturado[], email: string | null): SocioEstruturado[] {
+  const e = String(email || "").trim();
+  if (!e) return socios;
+  return socios.map((m) => {
+    if ((m.email || "").trim()) return m;
+    return {
+      ...m,
+      email: e,
+      fonte_contato: [m.fonte_contato, "e-mail cadastro empresa"].filter(Boolean).join(" · "),
+    };
+  });
+}
+
+/** Exibe datas tipo 20220902 como DD/MM/AAAA. */
+function formatSocioDataEntrada(raw?: string | null): string | null {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  if (/^\d{8}$/.test(s)) return `${s.slice(6, 8)}/${s.slice(4, 6)}/${s.slice(0, 4)}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, mo, d] = s.split("-");
+    return `${d}/${mo}/${y}`;
+  }
+  return s;
+}
+
+/** Nome do sócio na resposta Assertiva (campos variam por versão/tipo de sócio). */
+function extractAssertivaSocioNome(socio: Record<string, unknown>): string {
+  const keys = ["nome", "nomeSocio", "nomeCompleto", "razaoSocial", "nomeRazao", "razao_social"];
+  for (const k of keys) {
+    const v = socio[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  for (const nestedKey of ["dados", "pessoa", "pessoaFisica", "socio"]) {
+    const nested = socio[nestedKey];
+    if (nested && typeof nested === "object") {
+      const o = nested as Record<string, unknown>;
+      for (const k of keys) {
+        const v = o[k];
+        if (typeof v === "string" && v.trim()) return v.trim();
+      }
+    }
+  }
+  return "";
+}
+
+/** Agrega WhatsApps marcados no cadastro da empresa (Assertiva) em cada sócio, sem duplicar. */
+function mergeEmpresaWhatsappsIntoSocios(socios: SocioEstruturado[], empresaWhatsapps: string[]): SocioEstruturado[] {
+  const wa = [...new Set(empresaWhatsapps.map((x) => String(x).trim()).filter(Boolean))];
+  if (wa.length === 0) return socios;
+  const blob = wa.join(" | ");
+  return socios.map((m) => {
+    const prev = (m.whatsapp || "").trim();
+    const merged = mergeWhatsappStrings(m.whatsapp, blob);
+    if (!merged || merged === prev) return m;
+    return {
+      ...m,
+      whatsapp: merged,
+      fonte_contato: prev
+        ? [m.fonte_contato, "também no cadastro da empresa"].filter(Boolean).join(" · ")
+        : [m.fonte_contato, "WhatsApp no cadastro da empresa"].filter(Boolean).join(" · "),
+    };
+  });
+}
+
+/**
+ * Mantém nomes/qualificação da Receita (`base`) e injeta WhatsApp/contatos da Assertiva.
+ * Quando a API devolve sócios sem nome mas na mesma ordem da base, faz merge por índice.
+ */
+function mergeAssertivaSociosIntoBase(
+  base: SocioEstruturado[] | null | undefined,
+  enriched: SocioEstruturado[],
+  empresaWhatsapps: string[],
+): SocioEstruturado[] {
+  const docKey = (s: SocioEstruturado) => normalizeSocioDoc(s.cpf_cnpj);
+  const baseList = [...(base ?? [])];
+
+  const zipByIndex =
+    baseList.length > 0 &&
+    enriched.length === baseList.length &&
+    enriched.every((e) => isPlaceholderSocioNome(e.nome)) &&
+    enriched.every((e) => !docKey(e));
+
+  if (zipByIndex) {
+    const merged = baseList.map((b, i) => {
+      const ex = enriched[i];
+      return {
+        ...b,
+        qualificacao: b.qualificacao || ex?.qualificacao || null,
+        data_entrada: b.data_entrada || ex?.data_entrada || null,
+        whatsapp: mergeWhatsappStrings(b.whatsapp ?? null, ex?.whatsapp ?? null),
+        telefone: b.telefone || ex?.telefone || null,
+        email: b.email || ex?.email || null,
+        emails_alternativos: b.emails_alternativos?.length ? b.emails_alternativos : ex?.emails_alternativos ?? null,
+        fonte_contato: [b.fonte_contato, ex?.fonte_contato].filter(Boolean).join(" · ") || b.fonte_contato,
+      };
+    });
+    return mergeEmpresaWhatsappsIntoSocios(merged, empresaWhatsapps);
+  }
+
+  const enrichedByDoc = new Map<string, SocioEstruturado>();
+  for (const e of enriched) {
+    const k = docKey(e);
+    if (k) enrichedByDoc.set(k, e);
+  }
+
+  if (baseList.length > 0) {
+    const used = new Set<string>();
+    const singletonEx =
+      baseList.length === 1 && enriched.length === 1 ? enriched[0] : undefined;
+    const merged = baseList.map((b) => {
+      const k = docKey(b);
+      let ex = k ? enrichedByDoc.get(k) : undefined;
+      if (!ex && singletonEx) ex = singletonEx;
+      if (ex) {
+        const ke = docKey(ex);
+        if (ke) used.add(ke);
+      }
+      const nome =
+        !isPlaceholderSocioNome(b.nome)
+          ? b.nome
+          : ex && !isPlaceholderSocioNome(ex.nome)
+            ? ex.nome!
+            : b.nome;
+      return {
+        ...b,
+        nome,
+        qualificacao: b.qualificacao || ex?.qualificacao || null,
+        data_entrada: b.data_entrada || ex?.data_entrada || null,
+        whatsapp: mergeWhatsappStrings(b.whatsapp ?? null, ex?.whatsapp ?? null),
+        telefone: b.telefone || ex?.telefone || null,
+        email: b.email || ex?.email || null,
+        emails_alternativos: b.emails_alternativos?.length ? b.emails_alternativos : ex?.emails_alternativos ?? null,
+        fonte_contato: [b.fonte_contato, ex?.fonte_contato].filter(Boolean).join(" · ") || b.fonte_contato,
+      };
+    });
+    const enrichedTail =
+      singletonEx && enriched.length === 1 ? [] : enriched;
+    for (const ex of enrichedTail) {
+      const k = docKey(ex);
+      if (k && !used.has(k)) merged.push(ex);
+      else if (!k && !isPlaceholderSocioNome(ex.nome)) merged.push(ex);
+    }
+    return mergeEmpresaWhatsappsIntoSocios(merged, empresaWhatsapps);
+  }
+
+  const onlyEnriched = enriched.map((e) => ({
+    ...e,
+    nome: isPlaceholderSocioNome(e.nome)
+      ? docKey(e)
+        ? `Sócio (doc …${docKey(e).slice(-4)})`
+        : "Sócio"
+      : e.nome,
+  }));
+  return mergeEmpresaWhatsappsIntoSocios(onlyEnriched, empresaWhatsapps);
+}
+
 function mergeAssertivaIntoEmpresa(
   base: Empresa,
   data: Awaited<ReturnType<typeof consultarAssertivaCnpj>>,
@@ -238,7 +498,13 @@ function mergeAssertivaIntoEmpresa(
   const emails = Array.isArray(data.emails) ? data.emails : [];
 
   const primaryPhone = telefones.find((t) => (t.numero || "").trim())?.numero?.trim() || null;
-  const primaryWhatsapp = telefones.find((t) => Boolean(t.whatsapp) && (t.numero || "").trim())?.numero?.trim() || null;
+  const primaryWhatsapp =
+    telefones.find((t) => Boolean(t.whatsapp) && (t.numero || "").trim())?.numero?.trim() ||
+    telefones.find((t) => {
+      const tipo = String(t.tipo || "").toLowerCase();
+      return (tipo === "movel" || tipo === "móvel") && (t.numero || "").trim();
+    })?.numero?.trim() ||
+    null;
   const primaryEmail = emails.find((e) => (e.email || "").trim())?.email?.trim() || null;
   const sociais = normalizeAssertivaSocialLinks(data.redes_sociais);
   const emailsCaptados = emails
@@ -252,40 +518,77 @@ function mergeAssertivaIntoEmpresa(
     .map((t) => ({ valor: t.numero, tipo: t.tipo || (t.whatsapp ? "whatsapp" : "telefone"), origem: "enriquecimento", validado: null }));
 
   const whatsCaptados = telefones
-    .filter((t) => Boolean(t.whatsapp))
+    .filter((t) => {
+      const tipo = String(t.tipo || "").toLowerCase();
+      return Boolean(t.whatsapp) || tipo === "movel" || tipo === "móvel";
+    })
     .map((t) => String(t.numero || "").trim())
     .filter(Boolean)
     .map((numero) => ({ valor: numero, tipo: "whatsapp", origem: "enriquecimento", validado: null }));
 
+  const empresaWhatsappsLista = collectNumerosWhatsappEmpresa(telefones, base);
+  const empresaTelefonesLista = collectNumerosTelefoneEmpresa(telefones, base);
+
   const decisores = Array.isArray(decisoresData?.decisores) ? decisoresData!.decisores! : [];
-  const sociosEnriquecidos = decisores.length > 0
-    ? decisores.map((decisor) => {
-        const waTodos = Array.isArray(decisor.whatsapp)
-          ? Array.from(new Set(decisor.whatsapp.map((w) => String(w || "").trim()).filter(Boolean)))
-          : [];
-        return {
-          nome: String(decisor.nome || "Decisor").trim(),
-          qualificacao: decisor.cargo || null,
-          cpf_cnpj: decisor.cpf_cnpj || null,
-          whatsapp: waTodos.length > 0 ? waTodos.join(" | ") : null,
-          fonte_contato: decisor.whatsapp_fonte || "assertiva_decisores",
-        };
-      })
-    : (
-      Array.isArray(data.socios) && data.socios.length > 0
-        ? data.socios.map((socio) => ({
-            nome: String(socio.nome || "Sócio").trim(),
-            qualificacao: socio.cargo || null,
-            data_entrada: socio.data_entrada || null,
-            cpf_cnpj: socio.cpf_cnpj || null,
-            // Sem fallback de telefone geral da empresa: somente contato diretamente vinculado ao sócio.
-            whatsapp: null,
-            fonte_contato: "enriquecimento",
-          }))
-        : null
-    );
-  const sociosResumo = sociosEnriquecidos
-    ? sociosEnriquecidos
+  let enrichedFromApi: SocioEstruturado[] = [];
+
+  if (decisores.length > 0) {
+    enrichedFromApi = decisores.map((decisor) => {
+      const waTodos = Array.isArray(decisor.whatsapp)
+        ? Array.from(new Set(decisor.whatsapp.map((w) => String(w || "").trim()).filter(Boolean)))
+        : [];
+      const telTodos = Array.isArray(decisor.telefones)
+        ? Array.from(new Set(decisor.telefones.map((t) => String(t || "").trim()).filter(Boolean)))
+        : [];
+      const emailTodos = Array.isArray(decisor.emails)
+        ? Array.from(new Set(decisor.emails.map((e) => String(e || "").trim().toLowerCase()).filter(Boolean)))
+        : [];
+      const nomeDec = String(decisor.nome || "").trim();
+      return {
+        nome: nomeDec || "Decisor",
+        qualificacao: decisor.cargo || null,
+        cpf_cnpj: decisor.cpf_cnpj || null,
+        whatsapp: waTodos.length > 0 ? waTodos.join(" | ") : null,
+        telefone: telTodos.length > 0 ? telTodos.join(" | ") : null,
+        email: emailTodos[0] ?? null,
+        emails_alternativos: emailTodos.length > 1 ? emailTodos.slice(1) : null,
+        fonte_contato: decisor.whatsapp_fonte
+          ? `assertiva (${decisor.whatsapp_fonte})`
+          : "assertiva_decisores",
+      };
+    });
+  } else if (Array.isArray(data.socios) && data.socios.length > 0) {
+    enrichedFromApi = data.socios.map((socio) => {
+      const raw = socio as unknown as Record<string, unknown>;
+      const nomeApi = String(socio.nome || "").trim() || extractAssertivaSocioNome(raw);
+      return {
+        nome: nomeApi || "Sócio",
+        qualificacao: socio.cargo || null,
+        data_entrada: socio.data_entrada || null,
+        cpf_cnpj: socio.cpf_cnpj || null,
+        whatsapp: null,
+        fonte_contato: "enriquecimento",
+      };
+    });
+  }
+
+  const sociosMergedRaw = mergeAssertivaSociosIntoBase(
+    base.socios_estruturado,
+    enrichedFromApi,
+    empresaWhatsappsLista,
+  );
+  const emailEmpresaFallback =
+    primaryEmail?.trim() ||
+    base.email_enriquecido?.trim() ||
+    base.email?.trim() ||
+    null;
+  const sociosMerged = mergeEmpresaEmailIntoSocios(
+    mergeEmpresaTelefonesIntoSocios(sociosMergedRaw, empresaTelefonesLista),
+    emailEmpresaFallback,
+  );
+
+  const sociosResumo = sociosMerged.length
+    ? sociosMerged
         .map((s) => `${s.nome}${s.qualificacao ? ` (${s.qualificacao})` : ""}${s.whatsapp ? ` · WhatsApp: ${s.whatsapp}` : ""}`)
         .join("\n")
     : base.socios_resumo;
@@ -323,16 +626,7 @@ function mergeAssertivaIntoEmpresa(
     telefones_captados: telefonesCaptados.length > 0 ? telefonesCaptados : base.telefones_captados,
     whatsapps_captados: whatsCaptados.length > 0 ? whatsCaptados : base.whatsapps_captados,
     redes_sociais_empresa: sociais.length > 0 ? sociais : base.redes_sociais_empresa,
-    socios_estruturado: sociosEnriquecidos ?? (
-      Array.isArray(data.socios) && data.socios.length > 0
-        ? data.socios.map((socio) => ({
-            nome: String(socio.nome || "Sócio").trim(),
-            qualificacao: socio.cargo || null,
-            data_entrada: socio.data_entrada || null,
-            cpf_cnpj: socio.cpf_cnpj || null,
-          }))
-        : base.socios_estruturado
-    ),
+    socios_estruturado: sociosMerged.length > 0 ? sociosMerged : base.socios_estruturado,
     socios_resumo: sociosResumo,
     outras_informacoes: [base.outras_informacoes, "Enriquecido via provedor externo"].filter(Boolean).join(" · "),
     fonte_dados_prioritaria: "ENRIQUECIMENTO_EXTERNO",
@@ -898,7 +1192,7 @@ function DetalheEmpresa({
                   ?.find(r => (r.nome || "").toLowerCase().slice(0,8) === s.nome.toLowerCase().slice(0,8))
                   ?.links?.find(l => /linkedin/i.test(l));
                 const whatsappList = String(s.whatsapp || "")
-                  .split("|")
+                  .split(/\||[,;]/g)
                   .map((n) => n.trim())
                   .filter(Boolean);
                 const whatsappPrimary = whatsappList[0] || null;
@@ -914,7 +1208,11 @@ function DetalheEmpresa({
                             {s.qualificacao}
                           </Badge>
                         )}
-                        {s.data_entrada && <span className="text-[10px] text-muted-foreground/70">desde {s.data_entrada}</span>}
+                        {s.data_entrada && (
+                          <span className="text-[10px] text-muted-foreground/70">
+                            desde {formatSocioDataEntrada(s.data_entrada) ?? s.data_entrada}
+                          </span>
+                        )}
                         {s.cargo_atual && <span className="text-[10px] text-muted-foreground/70">{s.cargo_atual}</span>}
                         {s.empresa_atual && <span className="text-[10px] text-muted-foreground/70">{s.empresa_atual}</span>}
                       </div>
@@ -922,7 +1220,7 @@ function DetalheEmpresa({
                         {email && <p>E-mail: <a href={`mailto:${email}`} className="hover:underline">{email}</a></p>}
                         {whatsappList.length > 0 && (
                           <div className="space-y-0.5">
-                            <p>WhatsApp validado:</p>
+                            <p>WhatsApp:</p>
                             {whatsappList.map((wa) => (
                               <p key={`${s.nome}-${wa}`}>
                                 <a

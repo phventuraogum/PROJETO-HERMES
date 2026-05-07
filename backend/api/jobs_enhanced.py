@@ -3,6 +3,7 @@ RQ Job functions for enhanced background enrichment (hermes queue).
 Used by prospeccao_service.py's modular endpoint.
 """
 import os
+import re
 import sys
 import asyncio
 import logging
@@ -14,6 +15,23 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 WHATSAPP_ULTRA_CACHE_TTL = max(300, int(os.getenv("HERMES_WHATSAPP_ULTRA_CACHE_TTL", "21600") or 21600))
 WORKER_WHATSAPP_VERIFY_LIMIT = max(0, int(os.getenv("HERMES_WORKER_WHATSAPP_VERIFY_LIMIT", "12") or 12))
+
+
+def _iter_socio_whatsapp_pieces(val: Any) -> List[str]:
+    if val is None:
+        return []
+    if isinstance(val, list):
+        return [piece for x in val for piece in _iter_socio_whatsapp_pieces(x)]
+    s = str(val).strip()
+    if not s:
+        return []
+    parts: List[str] = []
+    for segment in re.split(r"\s*\|\s*", s):
+        for piece in re.split(r"[,;]+", segment):
+            t = piece.strip()
+            if t:
+                parts.append(t)
+    return parts
 
 
 def _load_company_snapshot(cnpj: str) -> tuple[dict, dict] | tuple[None, None]:
@@ -254,12 +272,13 @@ def _collect_whatsapp_candidates(merged: Dict[str, Any]) -> List[Dict[str, Any]]
 
     for socio in merged.get("socios_estruturado") or []:
         nome = str(socio.get("nome") or "").strip() or "Socio"
-        add_candidate(
-            socio.get("whatsapp"),
-            f"Socio {nome}",
-            validado=False,
-            tipo="socio",
-        )
+        for piece in _iter_socio_whatsapp_pieces(socio.get("whatsapp")):
+            add_candidate(
+                piece,
+                f"Socio {nome}",
+                validado=False,
+                tipo="socio",
+            )
         add_candidate(
             socio.get("telefone"),
             f"Socio {nome} telefone -> WhatsApp",

@@ -664,6 +664,56 @@ def merge_enrichment_payload(existing: Dict[str, Any], payload: Dict[str, Any]) 
             links_sociais=[rede.get("linkedin")] if rede.get("linkedin") else [],
         )
 
+    assertiva_pack = payload.get("assertiva") if isinstance(payload.get("assertiva"), dict) else {}
+    dados_as = assertiva_pack.get("dados_cadastrais") or {}
+    for t in dados_as.get("telefones") or []:
+        if not isinstance(t, dict):
+            continue
+        num = str(t.get("numero") or "").strip()
+        if not num:
+            continue
+        if t.get("whatsapp"):
+            add_whatsapp(num, "Assertiva", tipo="assertiva_empresa")
+        else:
+            add_telefone(num, "Assertiva")
+    for e in dados_as.get("emails") or []:
+        em = e.get("email") if isinstance(e, dict) else e
+        em_str = str(em or "").strip()
+        if em_str:
+            add_email(em_str, "Assertiva", tipo="empresa")
+
+    for dec in assertiva_pack.get("decisores") or []:
+        if not isinstance(dec, dict):
+            continue
+        nome = str(dec.get("nome") or "").strip()
+        if not nome:
+            continue
+        wa_list = [str(w).strip() for w in (dec.get("whatsapp") or []) if str(w).strip()]
+        wa_join = " | ".join(dict.fromkeys(wa_list)) if wa_list else None
+        tels = [str(x).strip() for x in (dec.get("telefones") or []) if str(x).strip()]
+        tel_join = tels[0] if tels else None
+        emails_dec = [str(x).strip().lower() for x in (dec.get("emails") or []) if str(x).strip()]
+        email_pri = emails_dec[0] if emails_dec else None
+        emails_alt = emails_dec[1:] if len(emails_dec) > 1 else []
+        fonte_dec = f"assertiva ({dec.get('whatsapp_fonte') or 'decisor'})"
+        _upsert_socio(
+            socios,
+            nome,
+            qualificacao=dec.get("cargo"),
+            cpf_cnpj=dec.get("cpf_cnpj"),
+            whatsapp=wa_join,
+            telefone=tel_join,
+            email=email_pri,
+            emails_alternativos=emails_alt or None,
+            fonte_contato=fonte_dec,
+        )
+        for wa in wa_list:
+            add_whatsapp(wa, f"Assertiva sócio ({nome})", tipo="socio_assertiva")
+        for tel in tels:
+            add_telefone(tel, f"Assertiva sócio ({nome})")
+        for em in emails_dec:
+            add_email(em, f"Assertiva sócio ({nome})", tipo="socio")
+
     redes_socios_existentes = _extrair_links_existentes(existing.get("redes_sociais_socios"))
     redes_sociais_socios = _serializar_redes_socios(socios, redes_socios_existentes)
 

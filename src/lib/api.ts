@@ -1785,6 +1785,8 @@ export type AssertivaDecisor = {
   cargo?: string | null;
   cpf_cnpj?: string | null;
   whatsapp?: string[] | null;
+  telefones?: string[] | null;
+  emails?: string[] | null;
   whatsapp_fonte?: string | null;
 };
 

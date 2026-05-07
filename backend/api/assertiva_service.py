@@ -159,6 +159,21 @@ class AssertivaCNPJService:
         telefones_raw = resposta.get("telefones", {})
         emails_raw = resposta.get("emails", [])
         socios_raw = resposta.get("socios", [])
+
+        def _nome_socio_assertiva(s: Dict[str, Any]) -> Any:
+            if not isinstance(s, dict):
+                return None
+            for key in ("nome", "nomeSocio", "nomeCompleto", "razaoSocial", "nomeRazao", "razao_social"):
+                val = s.get(key)
+                if isinstance(val, str) and val.strip():
+                    return val.strip()
+            nested = s.get("dados") or s.get("pessoa") or s.get("pessoaFisica") or s.get("socio")
+            if isinstance(nested, dict):
+                for key in ("nome", "nomeCompleto", "razaoSocial", "nomeSocio"):
+                    val = nested.get(key)
+                    if isinstance(val, str) and val.strip():
+                        return val.strip()
+            return s.get("nome")
         cnaes_sec = resposta.get("cnaesSecundarias", [])
         redes_sociais = resposta.get("redesSociais", [])
 
@@ -235,10 +250,10 @@ class AssertivaCNPJService:
             ],
             "socios": [
                 {
-                    "nome": s.get("nome"),
-                    "cpf_cnpj": s.get("cpfCnpj"),
-                    "cargo": s.get("cargo") or s.get("qualificacao"),
-                    "data_entrada": s.get("dataEntrada"),
+                    "nome": _nome_socio_assertiva(s) if isinstance(s, dict) else None,
+                    "cpf_cnpj": s.get("cpfCnpj") if isinstance(s, dict) else None,
+                    "cargo": (s.get("cargo") or s.get("qualificacao")) if isinstance(s, dict) else None,
+                    "data_entrada": s.get("dataEntrada") if isinstance(s, dict) else None,
                 }
                 for s in socios_raw
             ],

@@ -12,7 +12,7 @@ from api import assertiva_decisores as ad
 
 
 class AssertivaDecisoresTests(unittest.TestCase):
-    def test_extract_decisores_normalizes_whatsapp_and_fallbacks_company(self):
+    def test_extract_decisores_normalizes_whatsapp_sem_fallback_empresa(self):
         normalizado = {
             "cnpj": "12345678000199",
             "encontrado": True,
@@ -54,8 +54,8 @@ class AssertivaDecisoresTests(unittest.TestCase):
         socio2 = decisores[1]
         self.assertEqual(socio2["nome"], "Maria Souza")
         self.assertEqual(socio2["cargo"], "Diretora")
-        self.assertEqual(socio2["whatsapp_fonte"], "fallback_empresa")
-        self.assertIn("5511988887777", socio2["whatsapp"])
+        self.assertEqual(socio2["whatsapp_fonte"], "sem_whatsapp_vinculado")
+        self.assertEqual(socio2["whatsapp"], [])
 
 
 if __name__ == "__main__":
