@@ -43,6 +43,14 @@ def _read_password() -> str:
 def main() -> None:
     import paramiko  # noqa: PLC0415
 
+    # Windows (cp1252): saída do Docker pode ter caracteres fora da página de código.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if hasattr(stream, "reconfigure"):
+                stream.reconfigure(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):
+            pass
+
     host = (os.environ.get("HERMES_VPS_HOST") or "31.97.241.171").strip()
     user = (os.environ.get("HERMES_VPS_USER") or "root").strip()
     branch = (os.environ.get("HERMES_VPS_BRANCH") or "feat/pgfn-enrichment-pipeline").strip()
@@ -54,6 +62,8 @@ def main() -> None:
         set -e
         cd "{hermes_dir}"
         git fetch origin
+        # VPS às vezes tem cópia suja ou untracked que bloqueia checkout — empilha e segue.
+        git stash push -u -m "hermes-deploy-auto-$(date +%s)" || true
         git checkout "{branch}"
         git pull origin "{branch}"
         bash scripts/deploy.sh
