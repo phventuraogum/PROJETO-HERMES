@@ -21,9 +21,14 @@ import {
   MapPin, Building2, Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  getHistoricoBuscas, renomearBuscaHistorico, deletarBuscaHistorico, type BuscaSalva,
+  getHistoricoBuscas, renomearBuscaHistorico, deletarBuscaHistorico,
+  type BuscaSalva, type ProspeccaoConfig,
 } from "@/lib/api";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 function fmt(n: number) { return n.toLocaleString("pt-BR"); }
@@ -37,6 +42,29 @@ function fmtData(ts: string) {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
+}
+
+/** Faixa de métricas com altura uniforme para alinhar colunas entre cards na mesma linha da grade. */
+function MetricStrip({ busca }: { busca: BuscaSalva }) {
+  const m = busca.metricas;
+  const cells = [
+    { label: "Leads", value: fmt(busca.resultado.total_empresas) },
+    { label: "Score", value: m.score_medio.toFixed(1) },
+    { label: "E-mail", value: `${m.taxa_email.toFixed(0)}%` },
+    { label: "WA", value: `${m.taxa_whatsapp.toFixed(0)}%` },
+  ];
+  return (
+    <div className="mt-auto grid grid-cols-4 gap-1 pt-2 border-t border-border/50">
+      {cells.map(x => (
+        <div
+          key={x.label}
+          className="rounded-md bg-muted/50 px-0.5 py-1 flex flex-col justify-center gap-0.5 min-h-[44px] text-center">
+          <p className="text-xs font-semibold tabular-nums leading-none">{x.value}</p>
+          <p className="text-[9px] text-muted-foreground/55 leading-none">{x.label}</p>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 const TOOLTIP_STYLE = {
@@ -78,19 +106,17 @@ function BuscaCard({ busca, selecionada, onSelecionar, onRenomear, onDeletar }: 
     setEditando(false);
   };
 
-  const m = busca.metricas;
-
   return (
     <div
       onClick={() => !editando && onSelecionar()}
       className={cn(
-        "rounded-xl border p-3 cursor-pointer transition-all duration-150",
+        "rounded-xl border p-3 cursor-pointer transition-all duration-150 h-full min-h-[168px] flex flex-col",
         selecionada
           ? "border-primary/60 bg-primary/5"
           : "border-border bg-muted/20 hover:border-border hover:bg-muted/30"
       )}>
       {/* Nome */}
-      <div className="flex items-start justify-between gap-2 mb-2">
+      <div className="flex items-start justify-between gap-2 mb-2 shrink-0">
         {editando ? (
           <div className="flex items-center gap-1 flex-1" onClick={e => e.stopPropagation()}>
             <Input
@@ -130,14 +156,14 @@ function BuscaCard({ busca, selecionada, onSelecionar, onRenomear, onDeletar }: 
         )}
       </div>
 
-      {/* Config resumida */}
-      <div className="flex items-center gap-1 flex-wrap mb-2">
+      {/* Config resumida — altura mínima para alinhar faixa de métricas entre cards da mesma linha */}
+      <div className="flex items-start gap-1 flex-wrap mb-1 min-h-[2.75rem] content-start shrink-0">
         <Badge variant="outline" className="text-[9px] border-border text-muted-foreground py-0 px-1.5">
           <MapPin className="h-2 w-2 mr-0.5 inline" />
           {busca.config.cidade}/{busca.config.uf}
         </Badge>
         {busca.config.segmentos?.slice(0, 2).map(s => (
-          <Badge key={s} variant="outline" className="text-[9px] border-border text-muted-foreground/70 py-0 px-1.5">
+          <Badge key={s} variant="outline" className="text-[9px] border-border text-muted-foreground/70 py-0 px-1.5 max-w-[7rem] truncate">
             {s}
           </Badge>
         ))}
@@ -148,20 +174,7 @@ function BuscaCard({ busca, selecionada, onSelecionar, onRenomear, onDeletar }: 
         )}
       </div>
 
-      {/* Métricas mini */}
-      <div className="grid grid-cols-4 gap-1 text-center">
-        {[
-          { label: "Leads", value: fmt(busca.resultado.total_empresas) },
-          { label: "Score",  value: m.score_medio.toFixed(1) },
-          { label: "E-mail", value: `${m.taxa_email.toFixed(0)}%` },
-          { label: "WA",     value: `${m.taxa_whatsapp.toFixed(0)}%` },
-        ].map(x => (
-          <div key={x.label} className="rounded bg-muted/50 py-1">
-            <p className="text-xs font-semibold">{x.value}</p>
-            <p className="text-[9px] text-muted-foreground/50">{x.label}</p>
-          </div>
-        ))}
-      </div>
+      <MetricStrip busca={busca} />
     </div>
   );
 }
@@ -316,6 +329,7 @@ const History = () => {
 
   const buscaA = buscas.find(b => b.id === selecionadas[0]);
   const buscaB = buscas.find(b => b.id === selecionadas[1]);
+  const comparing = !!(buscaA && buscaB);
 
   if (buscas.length === 0) {
     return (
@@ -347,40 +361,54 @@ const History = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5">
-        {/* Lista */}
-        <div className="space-y-2">
+      <div
+        className={cn(
+          "flex gap-5",
+          comparing ? "flex-col" : "flex-col xl:flex-row xl:items-start"
+        )}>
+        {/* Grade de cards (até 4 colunas em telas grandes) */}
+        <div className={cn("min-w-0 space-y-2", !comparing && "xl:flex-1")}>
           {selecionadas.length > 0 && (
             <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary flex items-center gap-2">
-              <BarChart3 className="h-3.5 w-3.5" />
+              <BarChart3 className="h-3.5 w-3.5 shrink-0" />
               {selecionadas.length === 1
-                ? "Selecione outra busca para comparar"
-                : "Comparando as 2 buscas →"}
+                ? "Detalhes à direita · Selecione outra busca para comparar lado a lado"
+                : "Comparando as duas buscas — painel expandido abaixo"}
             </div>
           )}
-          {buscas.map(b => (
-            <BuscaCard
-              key={b.id}
-              busca={b}
-              selecionada={selecionadas.includes(b.id)}
-              onSelecionar={() => toggleSel(b.id)}
-              onRenomear={nome => { void handleRenomear(b.id, nome); }}
-              onDeletar={() => setConfirmDel(b.id)}
-            />
-          ))}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 items-stretch">
+            {buscas.map(b => (
+              <BuscaCard
+                key={b.id}
+                busca={b}
+                selecionada={selecionadas.includes(b.id)}
+                onSelecionar={() => toggleSel(b.id)}
+                onRenomear={nome => { void handleRenomear(b.id, nome); }}
+                onDeletar={() => setConfirmDel(b.id)}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Painel de detalhe / comparação */}
-        <div>
-          {buscaA && buscaB ? (
-            <Comparacao a={buscaA} b={buscaB} />
-          ) : buscaA ? (
-            <DetalheSimples busca={buscaA} />
-          ) : (
-            <div className="flex items-center justify-center h-40 rounded-xl border border-dashed border-border text-sm text-muted-foreground/50">
-              Selecione uma busca para ver detalhes
-            </div>
-          )}
+        <div
+          className={cn(
+            "rounded-xl border border-border/60 bg-muted/5",
+            comparing
+              ? "w-full"
+              : "w-full xl:w-[min(100%,440px)] xl:shrink-0 xl:sticky xl:top-4 xl:self-start xl:max-h-[calc(100vh-6rem)] xl:overflow-hidden"
+          )}>
+          <div className={cn("p-4", comparing ? "" : "min-h-[12rem] max-xl:min-h-[10rem]")}>
+            {comparing ? (
+              <Comparacao a={buscaA} b={buscaB} />
+            ) : buscaA ? (
+              <DetalheSimples busca={buscaA} />
+            ) : (
+              <div className="flex items-center justify-center min-h-[10rem] rounded-lg border border-dashed border-border text-sm text-muted-foreground/60 text-center px-4">
+                Selecione uma busca na grade para ver o histórico completo (filtros, métricas e lista, quando disponível).
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -407,9 +435,42 @@ const History = () => {
   );
 };
 
+function formatCnpjDigits(raw: string) {
+  const d = raw.replace(/\D/g, "");
+  if (d.length !== 14) return raw;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+}
+
+function buildConfigRows(config: ProspeccaoConfig): [string, string][] {
+  const rows: [string, string][] = [
+    ["Cidade / UF", `${config.cidade} / ${config.uf}`],
+    ["Termo base", config.termo_base?.trim() || "—"],
+    ["Segmentos", config.segmentos?.length ? config.segmentos.join(", ") : "Todos"],
+    ["Portes", config.portes?.length ? config.portes.join(", ") : "Todos"],
+    ["Capital mínimo", `R$ ${(config.capital_minimo ?? 0).toLocaleString("pt-BR")}`],
+    ["Capital máximo", config.capital_maximo != null ? `R$ ${Number(config.capital_maximo).toLocaleString("pt-BR")}` : "—"],
+    ["Limite de empresas", String(config.limite_empresas)],
+    ["Enriquecimento web", config.enriquecimento_web ? "Ativo" : "Desativado"],
+    ["Exigir contato acionável", config.exigir_contato_acionavel ? "Sim" : "Não"],
+    ["Priorizar com contato", config.priorizar_com_contato ? "Sim" : "Não"],
+    ["CNAE principal estrito", config.cnae_principal_estrito ? "Sim" : "Não"],
+    ["Incluir CNAE secundário", config.incluir_cnae_secundario ? "Sim" : "Não"],
+  ];
+  if (config.cidades?.length) rows.push(["Cidades (lista)", config.cidades.join(", ")]);
+  if (config.ufs?.length) rows.push(["UFs (lista)", config.ufs.join(", ")]);
+  if (config.cnaes?.length) rows.push(["CNAEs", config.cnaes.join(", ")]);
+  if (config.excluir_cnpjs?.length) rows.push(["CNPJs excluídos", config.excluir_cnpjs.map(formatCnpjDigits).join(", ")]);
+  if (config.idade_minima_anos != null) rows.push(["Idade mínima (anos)", String(config.idade_minima_anos)]);
+  if (config.idade_maxima_anos != null) rows.push(["Idade máxima (anos)", String(config.idade_maxima_anos)]);
+  if (config.subsegmento_alvo?.trim()) rows.push(["Subsegmento alvo", config.subsegmento_alvo.trim()]);
+  return rows;
+}
+
 // ─── Detalhe de busca única ───────────────────────────────────────────────────
 function DetalheSimples({ busca }: { busca: BuscaSalva }) {
+  const navigate = useNavigate();
   const m = busca.metricas;
+  const empresas = busca.resultado.empresas ?? [];
   const kpis = [
     { label: "Total de leads",   value: fmt(busca.resultado.total_empresas) },
     { label: "Score ICP médio",  value: `${m.score_medio.toFixed(1)} pts` },
@@ -420,45 +481,103 @@ function DetalheSimples({ busca }: { busca: BuscaSalva }) {
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Building2 className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold">
-          {busca.nome || fmtData(busca.timestamp)}
-        </h2>
-      </div>
-
-      {/* Filtros usados */}
-      <Card className="border-border bg-card shadow-surface-sm">
-        <CardHeader className="pb-1 pt-3 px-4">
-          <CardTitle className="text-xs text-muted-foreground/70 uppercase tracking-widest">Filtros da busca</CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-3 space-y-1.5 text-xs">
-          {[
-            ["Cidade / UF", `${busca.config.cidade} / ${busca.config.uf}`],
-            ["Termo", busca.config.termo_base || "—"],
-            ["Segmentos", busca.config.segmentos?.join(", ") || "Todos"],
-            ["Portes", busca.config.portes?.join(", ") || "Todos"],
-            ["Capital mínimo", `R$ ${(busca.config.capital_minimo || 0).toLocaleString("pt-BR")}`],
-            ["Enriquecimento", busca.config.enriquecimento_web ? "Ativo" : "Desativado"],
-            ["Limite", busca.config.limite_empresas.toString()],
-          ].map(([k, v]) => (
-            <div key={k} className="flex gap-2">
-              <span className="text-muted-foreground/70 min-w-[100px]">{k}</span>
-              <span className="text-foreground/80">{v}</span>
+    <div className="max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain pr-2">
+      <div className="space-y-4 pb-2">
+        <div className="flex flex-wrap items-center gap-2 justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold truncate">
+                {busca.nome || `Prospecção ${fmtData(busca.timestamp)}`}
+              </h2>
+              <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1 mt-0.5">
+                <Calendar className="h-3 w-3 shrink-0" />
+                {fmtData(busca.timestamp)}
+              </p>
             </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* KPIs */}
-      <div className="grid grid-cols-3 gap-2">
-        {kpis.map(k => (
-          <div key={k.label} className="rounded-lg border border-border bg-muted/20 p-3 text-center">
-            <p className="text-lg font-bold">{k.value}</p>
-            <p className="text-[10px] text-muted-foreground/70">{k.label}</p>
           </div>
-        ))}
+          <Button variant="outline" size="sm" className="text-xs shrink-0" onClick={() => navigate("/results")}>
+            Abrir resultados
+          </Button>
+        </div>
+
+        <Card className="border-border bg-card shadow-surface-sm">
+          <CardHeader className="pb-1 pt-3 px-4">
+            <CardTitle className="text-xs text-muted-foreground/70 uppercase tracking-widest">
+              Parâmetros da prospecção
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-3 space-y-1.5 text-xs">
+            {buildConfigRows(busca.config).map(([k, v]) => (
+              <div key={k} className="flex gap-2">
+                <span className="text-muted-foreground/70 min-w-[140px] shrink-0">{k}</span>
+                <span className="text-foreground/85 break-words">{v}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <div>
+          <p className="text-xs text-muted-foreground/70 uppercase tracking-widest mb-2">Métricas do resultado</p>
+          <div className="grid grid-cols-2 gap-2">
+            {kpis.map(k => (
+              <div key={k.label} className="rounded-lg border border-border bg-muted/20 p-3 text-center">
+                <p className="text-base font-bold tabular-nums">{k.value}</p>
+                <p className="text-[10px] text-muted-foreground/70 mt-0.5">{k.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Card className="border-border bg-card shadow-surface-sm">
+          <CardHeader className="pb-1 pt-3 px-4">
+            <CardTitle className="text-xs text-muted-foreground/70 uppercase tracking-widest">
+              Empresas capturadas ({empresas.length ? fmt(empresas.length) : "0"})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-3">
+            {empresas.length > 0 ? (
+              <div className="rounded-md border border-border overflow-hidden">
+                <ScrollArea className="h-[min(360px,50vh)]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="text-[10px] h-8">CNPJ</TableHead>
+                        <TableHead className="text-[10px] h-8">Razão social</TableHead>
+                        <TableHead className="text-[10px] h-8 w-14 text-right">Score</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {empresas.map(e => (
+                        <TableRow key={e.cnpj}>
+                          <TableCell className="text-[10px] tabular-nums py-1.5">{formatCnpjDigits(e.cnpj)}</TableCell>
+                          <TableCell className="text-[10px] py-1.5 max-w-[180px] truncate" title={e.razao_social}>
+                            {e.razao_social}
+                          </TableCell>
+                          <TableCell className="text-[10px] py-1.5 text-right tabular-nums">
+                            {e.score_icp != null ? e.score_icp.toFixed(1) : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                O histórico guarda só o resumo e as métricas para não estourar o armazenamento do navegador.
+                A lista completa de empresas da última execução costuma estar em{" "}
+                <button
+                  type="button"
+                  className="text-primary underline-offset-2 hover:underline"
+                  onClick={() => navigate("/results")}>
+                  Resultados
+                </button>
+                {" "}logo após a prospecção.
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -891,6 +891,180 @@ def calcular_score_confiabilidade(
     }
 
 
+_BRASILAPI_CNPJ_V2 = "https://brasilapi.com.br/api/cnpj/v2"
+
+
+def _formatar_telefone_rf(ddd: Any, numero: Any) -> str:
+    d = str(ddd or "").strip()
+    n = str(numero or "").strip()
+    if d and n:
+        return f"({d}) {n}"
+    return n or d
+
+
+def _capital_brasilapi(val: Any) -> Optional[float]:
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    s = str(val).strip().replace(".", "").replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _telefone_principal_brasilapi(data: Dict[str, Any]) -> Optional[str]:
+    tels = data.get("telefones")
+    if isinstance(tels, list) and tels:
+        first = tels[0]
+        if isinstance(first, dict):
+            num = _formatar_telefone_rf(first.get("ddd"), first.get("numero"))
+            return num or None
+    ddd1 = data.get("ddd_telefone_1")
+    num1 = data.get("telefone_1")
+    if ddd1 is not None and num1 is not None:
+        return _formatar_telefone_rf(ddd1, num1) or None
+    comb = data.get("ddd_telefone_1")
+    if isinstance(comb, str):
+        digits = re.sub(r"\D", "", comb)
+        if len(digits) >= 10:
+            return _formatar_telefone_rf(digits[:2], digits[2:]) or None
+    return None
+
+
+async def consultar_brasilapi_cnpj_v2_async(cnpj_limpo: str) -> Optional[Dict[str, Any]]:
+    """Busca cadastro na Receita via BrasilAPI v2 (JSON completo)."""
+    if len(cnpj_limpo) != 14:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=22.0, follow_redirects=True) as client:
+            r = await client.get(f"{_BRASILAPI_CNPJ_V2}/{cnpj_limpo}")
+            if r.status_code != 200:
+                logger.info("BrasilAPI v2 HTTP %s para CNPJ %s", r.status_code, cnpj_limpo)
+                return None
+            body = r.json()
+            if not isinstance(body, dict):
+                return None
+            if body.get("type") == "service_error":
+                return None
+            if body.get("errors"):
+                return None
+            return body
+    except Exception as e:
+        logger.warning("BrasilAPI v2 falhou para %s: %s", cnpj_limpo, e)
+        return None
+
+
+def company_context_from_brasilapi_v2(data: Dict[str, Any], cnpj_limpo: str) -> Dict[str, Any]:
+    """Mesmo formato de _fetch_company_context (extras / similares)."""
+    porte_raw = data.get("porte") or {}
+    porte_desc = ""
+    if isinstance(porte_raw, dict):
+        porte_desc = str(porte_raw.get("descricao") or "").strip()
+    mun = (data.get("municipio") or "").strip()
+    uf = (data.get("uf") or "").strip().upper()
+    cnae = data.get("cnae_fiscal")
+    if isinstance(cnae, int):
+        cnae_str = str(cnae)
+    else:
+        cnae_str = str(cnae).strip() if cnae else ""
+    nf = data.get("nome_fantasia")
+    nf_clean = str(nf).strip() if nf else ""
+    email_raw = data.get("email")
+    email_clean = str(email_raw).strip().lower() if email_raw else None
+    return {
+        "cnpj": cnpj_limpo,
+        "razao_social": str(data.get("razao_social") or "").strip(),
+        "nome_fantasia": nf_clean or None,
+        "cidade": mun.upper() if mun else None,
+        "uf": uf or None,
+        "cnae_principal": cnae_str or None,
+        "porte_empresa": porte_desc or None,
+        "capital_social": _capital_brasilapi(data.get("capital_social")),
+        "email": email_clean,
+        "telefone": _telefone_principal_brasilapi(data),
+        "site": None,
+        "whatsapp": None,
+    }
+
+
+def empresa_api_payload_from_brasilapi_v2(data: Dict[str, Any], cnpj_limpo: str) -> Dict[str, Any]:
+    """Payload alinhado ao GET /empresas/{cnpj} (base local)."""
+    ctx = company_context_from_brasilapi_v2(data, cnpj_limpo)
+    situacao = (
+        str(data.get("descricao_situacao_cadastral") or "").strip()
+        or str(data.get("situacao_cadastral") or "").strip()
+        or None
+    )
+    email_rec = ctx.get("email")
+    tel_rec = ctx.get("telefone")
+    cep_raw = data.get("cep")
+    cep_digits = re.sub(r"\D", "", str(cep_raw or "")) or None
+    return {
+        "cnpj": cnpj_limpo,
+        "razao_social": ctx["razao_social"] or None,
+        "nome_fantasia": ctx.get("nome_fantasia"),
+        "cidade": ctx.get("cidade"),
+        "uf": ctx.get("uf"),
+        "cnae_principal": ctx.get("cnae_principal"),
+        "cnae_descricao": (str(data.get("cnae_fiscal_descricao")).strip() if data.get("cnae_fiscal_descricao") else None),
+        "situacao_cadastral": situacao,
+        "data_abertura": data.get("data_inicio_atividade"),
+        "capital_social": ctx.get("capital_social"),
+        "telefone_receita": tel_rec,
+        "email_receita": email_rec,
+        "site": None,
+        "email_enriquecido": None,
+        "telefone_enriquecido": None,
+        "whatsapp_publico": None,
+        "whatsapp_enriquecido": None,
+        "enriquecimento_ia": None,
+        "enriquecimento_data": None,
+        "logradouro": (str(data.get("logradouro")).strip() if data.get("logradouro") else None),
+        "numero": (str(data.get("numero")).strip() if data.get("numero") else None),
+        "complemento": (str(data.get("complemento")).strip() if data.get("complemento") else None),
+        "bairro": (str(data.get("bairro")).strip() if data.get("bairro") else None),
+        "cep": cep_digits,
+        "email_final": email_rec,
+        "telefone_final": tel_rec,
+        "whatsapp_final": None,
+        "cadastro_fonte": "brasilapi_v2",
+        "fonte_dados_prioritaria": "BrasilAPI_v2",
+    }
+
+
+def receita_resumo_from_brasilapi_payload(data: Dict[str, Any]) -> Dict[str, Any]:
+    situacao = (
+        str(data.get("descricao_situacao_cadastral") or "").strip()
+        or str(data.get("situacao_cadastral") or "").strip()
+        or "DESCONHECIDA"
+    )
+    contatos: List[str] = []
+    t = _telefone_principal_brasilapi(data)
+    if t:
+        contatos.append(t)
+    return {
+        "ativo": "ATIV" in situacao.upper(),
+        "situacao": situacao,
+        "razao_social": data.get("razao_social"),
+        "nome_fantasia": data.get("nome_fantasia"),
+        "data_abertura": data.get("data_inicio_atividade"),
+        "socios": data.get("qsa") or [],
+        "email": data.get("email"),
+        "telefones": contatos,
+        "cnaes_secundarios": data.get("cnaes_secundarios") or [],
+        "cep": data.get("cep"),
+        "logradouro": data.get("logradouro"),
+        "numero": data.get("numero"),
+        "bairro": data.get("bairro"),
+        "municipio": data.get("municipio"),
+        "uf": data.get("uf"),
+        "valido": True,
+        "fonte": "BrasilAPI_v2",
+    }
+
+
 def verificar_cnpj_receita(cnpj: str) -> Dict[str, Any]:
     """
     Verifica CNPJ na Receita Federal (via BrasilAPI v2) para obter dados em tempo real.

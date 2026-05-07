@@ -171,8 +171,14 @@ def _fetch_company_context(cnpj: str) -> Optional[Dict[str, Any]]:
 
 
 class CompanyIntelligenceExtrasService:
-    def find_similar_companies(self, cnpj: str, limit: int = 12) -> List[Dict[str, Any]]:
-        company = _fetch_company_context(cnpj)
+    def find_similar_companies(
+        self,
+        cnpj: str,
+        limit: int = 12,
+        *,
+        company_context: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        company = company_context or _fetch_company_context(cnpj)
         if not company:
             raise LookupError("Empresa nao encontrada.")
 

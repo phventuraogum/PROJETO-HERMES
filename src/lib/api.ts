@@ -478,6 +478,8 @@ function mapEmpresaApi(raw: Record<string, unknown>): Empresa {
     confiabilidade,
     qualidade,
     priorizacao,
+    fonte_dados_prioritaria:
+      asNullableString(raw.fonte_dados_prioritaria) ?? asNullableString(raw.cadastro_fonte),
   };
 }
 

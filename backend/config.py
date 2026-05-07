@@ -214,7 +214,8 @@ class Settings(BaseSettings):
         default=(
             "/lead-lists,/company-watchlist,/company-signals,/company-data-health,"
             "/lead-refresh-jobs,/lead-refresh-states,/lead-suppressions,/saved-searches,"
-            "/prospeccao/resultado-atual,/prospeccao/ultima-execucao,/prospeccao/execucoes,/prospeccao/historico"
+            "/prospeccao/resultado-atual,/prospeccao/ultima-execucao,/prospeccao/execucoes,/prospeccao/historico,"
+            "/empresas,/api/empresas"
         ),
         description=(
             "Prefixos de path para os quais GET/HEAD/OPTIONS não contam no rate limit "

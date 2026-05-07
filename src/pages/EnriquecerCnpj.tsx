@@ -299,7 +299,16 @@ const EnriquecerCnpj = () => {
       const encontrada = await buscarEmpresaPorCnpj(normalized);
       if (requestId !== searchRequestRef.current) return;
       setEmpresa(encontrada);
-      toast.success("Empresa localizada.");
+      const viaBrasilApi =
+        (encontrada.fonte_dados_prioritaria ?? "").includes("BrasilAPI") ||
+        String((encontrada.validacao as { receita?: { fonte?: string } } | undefined)?.receita?.fonte ?? "").includes(
+          "BrasilAPI",
+        );
+      toast.success(
+        viaBrasilApi
+          ? "CNPJ encontrado na BrasilAPI (cadastro atualizado da Receita). Voce pode enriquecer com as mesmas ferramentas do sistema."
+          : "Empresa localizada na base interna.",
+      );
       try {
         const status = await enfileirarContactIntelligencePorCnpj(normalized, { refresh: true });
         if (requestId !== searchRequestRef.current) return;
@@ -538,7 +547,9 @@ const EnriquecerCnpj = () => {
             Fluxo Manual
           </CardTitle>
           <CardDescription>
-            Digite um CNPJ, carregue os dados da base e, se quiser, rode o enriquecimento na hora.
+            Busca primeiro na base Hermes; se nao houver cadastro, consultamos a{" "}
+            <span className="font-medium text-foreground">BrasilAPI v2</span> (Receita) em tempo real. Depois use
+            enriquecimento, Contact Intelligence, mobile e pipeline como nas prospecoes em lote.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -580,6 +591,9 @@ const EnriquecerCnpj = () => {
 
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline" className="border-border text-foreground/80">
+              Base Hermes + fallback BrasilAPI v2
+            </Badge>
+            <Badge variant="outline" className="border-border text-foreground/80">
               Busca direta por CNPJ
             </Badge>
             <Badge variant="outline" className="border-border text-foreground/80">
@@ -608,6 +622,11 @@ const EnriquecerCnpj = () => {
                     <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
                       {empresa.uf || "UF"} · {empresa.cidade || "Cidade"}
                     </Badge>
+                    {(empresa.fonte_dados_prioritaria ?? "").includes("BrasilAPI") && (
+                      <Badge className="border-sky-500/30 bg-sky-500/10 text-sky-300" title="Cadastro carregado direto da Receita Federal via BrasilAPI">
+                        Cadastro BrasilAPI
+                      </Badge>
+                    )}
                     {temEnriquecimento && (
                       <Badge className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
                         Dados enriquecidos

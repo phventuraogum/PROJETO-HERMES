@@ -34,6 +34,9 @@ type Coluna = {
   headerColor: string; badgeColor: string; dotColor: string; descricao: string;
 };
 
+/** Mesma grade para os boxes de contagem e as colunas do Kanban (alinhamento pixel-consistency). */
+const PIPELINE_GRID_CLASS = "grid w-full min-w-0 grid-cols-5 gap-2";
+
 const COLUNAS: Coluna[] = [
   { id: "novo",        label: "Novos",       headerColor: "bg-slate-50 border-slate-200",    badgeColor: "bg-slate-100 text-slate-600 border-slate-200",      dotColor: "bg-slate-400",    descricao: "Recém-adicionados" },
   { id: "em_analise",  label: "Em análise",  headerColor: "bg-blue-50 border-blue-200",      badgeColor: "bg-blue-100 text-blue-700 border-blue-200",         dotColor: "bg-blue-500",     descricao: "Pesquisando mais" },
@@ -439,24 +442,22 @@ const Pipeline = () => {
         </div>
       </div>
 
-      {/* Stats bar */}
-      <div className="grid grid-cols-5 gap-2">
+      {/*
+        Um único grid 5×2: mesmas trilhas de coluna para contadores e Kanban (alinhamento garantido).
+      */}
+      <div className={cn(PIPELINE_GRID_CLASS, "min-h-[60vh] grid-rows-[auto_1fr] pb-4")}>
         {COLUNAS.map(c => {
           const count = leads.filter(l => l.estagio === c.id).length;
           return (
-            <div key={c.id} className={cn("rounded-xl border px-3 py-2.5 text-center", c.headerColor)}>
+            <div key={`stat-${c.id}`} className={cn("min-w-0 rounded-xl border px-3 py-2.5 text-center", c.headerColor)}>
               <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                <div className={cn("h-2 w-2 rounded-full", c.dotColor)} />
-                <p className="text-[11px] text-muted-foreground font-medium">{c.label}</p>
+                <div className={cn("h-2 w-2 shrink-0 rounded-full", c.dotColor)} />
+                <p className="text-[11px] text-muted-foreground font-medium truncate">{c.label}</p>
               </div>
               <p className="text-xl font-semibold tabular-nums text-foreground">{count}</p>
             </div>
           );
         })}
-      </div>
-
-      {/* Kanban */}
-      <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: "60vh" }}>
         {COLUNAS.map(col => {
           const colLeads = leads.filter(l => l.estagio === col.id).sort((a, b) => b.score_icp - a.score_icp);
           const isOver = overCol === col.id;
@@ -465,25 +466,25 @@ const Pipeline = () => {
               onDragOver={e => onDragOver(e, col.id)}
               onDrop={e => onDrop(e, col.id)}
               className={cn(
-                "flex flex-col gap-2 min-w-[240px] w-[240px] shrink-0 rounded-xl border p-2.5 transition-all duration-150",
+                "flex min-h-0 min-w-0 flex-col gap-2 rounded-xl border p-2.5 transition-all duration-150",
                 isOver
                   ? "bg-primary/5 border-primary/30 shadow-surface-sm"
                   : "bg-muted/30 border-border/60"
               )}
             >
               {/* Col header */}
-              <div className="flex items-center justify-between px-1 pb-1.5 border-b border-border/40">
-                <div className="flex items-center gap-2">
-                  <div className={cn("h-2 w-2 rounded-full", col.dotColor)} />
-                  <span className="text-xs font-semibold text-foreground">{col.label}</span>
+              <div className="flex items-center justify-between gap-1 px-1 pb-1.5 border-b border-border/40">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className={cn("h-2 w-2 shrink-0 rounded-full", col.dotColor)} />
+                  <span className="truncate text-xs font-semibold text-foreground">{col.label}</span>
                 </div>
-                <span className={cn("text-[11px] font-semibold px-1.5 py-0.5 rounded-full border", col.badgeColor)}>
+                <span className={cn("shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded-full border", col.badgeColor)}>
                   {colLeads.length}
                 </span>
               </div>
 
               {/* Cards */}
-              <div className="flex-1 space-y-2 min-h-[120px]">
+              <div className="min-h-[120px] flex-1 space-y-2 overflow-y-auto">
                 {colLeads.map(lead => (
                   <LeadCard key={lead.id} lead={lead}
                     onMove={handleMove} onRemove={id => setConfirmRemove(id)}
@@ -492,7 +493,7 @@ const Pipeline = () => {
                 ))}
                 {colLeads.length === 0 && (
                   <div className={cn(
-                    "flex items-center justify-center h-20 rounded-xl border-2 border-dashed text-xs text-muted-foreground/50 transition-all",
+                    "flex h-20 items-center justify-center rounded-xl border-2 border-dashed text-xs text-muted-foreground/50 transition-all",
                     isOver ? "border-primary/30 bg-primary/5 text-primary" : "border-border/40"
                   )}>
                     Arraste aqui

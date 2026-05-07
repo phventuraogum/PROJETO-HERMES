@@ -7,7 +7,10 @@ from fastapi import APIRouter, HTTPException, Path, Query, Depends, Body, Reques
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel
 
-from api.company_intelligence_extras import company_intelligence_extras_service
+from api.company_intelligence_extras import (
+    company_intelligence_extras_service,
+    _fetch_company_context,
+)
 from api.db_pool import get_connection
 from api.contact_intelligence import contact_intelligence_service
 from api.contact_intelligence_queue import (
@@ -16,7 +19,15 @@ from api.contact_intelligence_queue import (
 )
 from api.lead_registry import lead_registry_service
 from api.mobile_intelligence import mobile_intelligence_service
-from api.validation_service import validar_cnpj, verificar_cnpj_receita, calcular_score_confiabilidade
+from api.validation_service import (
+    validar_cnpj,
+    verificar_cnpj_receita,
+    calcular_score_confiabilidade,
+    consultar_brasilapi_cnpj_v2_async,
+    empresa_api_payload_from_brasilapi_v2,
+    company_context_from_brasilapi_v2,
+    receita_resumo_from_brasilapi_payload,
+)
 from api.quality_service import QualityService, calcular_score_priorizacao
 from api.enrichment_service import enrichment_service
 from middleware.auth import require_auth
@@ -226,10 +237,41 @@ async def buscar_empresa(
             """
             
             row = conn.execute(query, [cnpj_limpo]).fetchone()
-            
+
             if not row:
-                raise HTTPException(status_code=404, detail="Empresa não encontrada")
-            
+                ba = await consultar_brasilapi_cnpj_v2_async(cnpj_limpo)
+                if not ba:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Empresa não encontrada na base local nem na BrasilAPI.",
+                    )
+                empresa = empresa_api_payload_from_brasilapi_v2(ba, cnpj_limpo)
+                empresa["validacao"] = {
+                    "cnpj_valido": cnpj_valido,
+                    "cnpj_limpo": cnpj_limpo,
+                    "receita": receita_resumo_from_brasilapi_payload(ba),
+                }
+                if incluir_scores:
+                    confiabilidade = calcular_score_confiabilidade(
+                        email=empresa.get("email_final"),
+                        telefone=empresa.get("telefone_final"),
+                        whatsapp=empresa.get("whatsapp_final"),
+                        cnpj=cnpj_limpo,
+                        fonte_dados="receita",
+                    )
+                    empresa["confiabilidade"] = confiabilidade
+                    qualidade = QualityService.calcular_qualidade_completa(empresa)
+                    empresa["qualidade"] = {
+                        "completude": qualidade.completude,
+                        "precisao": qualidade.precisao,
+                        "atualidade": qualidade.atualidade,
+                        "consistencia": qualidade.consistencia,
+                        "score_total": qualidade.score_total,
+                    }
+                    priorizacao = calcular_score_priorizacao(empresa)
+                    empresa["priorizacao"] = priorizacao
+                return {"success": True, "empresa": empresa}
+
             # Monta resposta
             empresa = {
                 "cnpj": str(row[0]),
@@ -312,7 +354,22 @@ async def buscar_empresas_parecidas(
         raise HTTPException(status_code=400, detail="CNPJ invalido")
 
     try:
-        similares = company_intelligence_extras_service.find_similar_companies(cnpj_limpo, limit=limit)
+        ctx = _fetch_company_context(cnpj_limpo)
+        if not ctx:
+            ba = await consultar_brasilapi_cnpj_v2_async(cnpj_limpo)
+            if ba:
+                ctx = company_context_from_brasilapi_v2(ba, cnpj_limpo)
+        if not ctx:
+            return {
+                "success": True,
+                "cnpj": cnpj_limpo,
+                "items": [],
+                "total": 0,
+                "note": "Sem cadastro local nem BrasilAPI; nao foi possivel buscar similares por CNAE.",
+            }
+        similares = company_intelligence_extras_service.find_similar_companies(
+            cnpj_limpo, limit=limit, company_context=ctx
+        )
         return {
             "success": True,
             "cnpj": cnpj_limpo,
@@ -336,7 +393,21 @@ async def buscar_sinais_externos_empresa(
         raise HTTPException(status_code=400, detail="CNPJ invalido")
 
     try:
-        signals = await company_intelligence_extras_service.fetch_external_signals(cnpj_limpo)
+        ctx = _fetch_company_context(cnpj_limpo)
+        if not ctx:
+            ba = await consultar_brasilapi_cnpj_v2_async(cnpj_limpo)
+            if ba:
+                ctx = company_context_from_brasilapi_v2(ba, cnpj_limpo)
+        if not ctx:
+            return {
+                "success": True,
+                "cnpj": cnpj_limpo,
+                "signals": [],
+                "total": 0,
+            }
+        signals = await company_intelligence_extras_service.fetch_external_signals(
+            cnpj_limpo, company=ctx
+        )
         persisted = lead_registry_service.record_company_signals(_org_id(request), cnpj_limpo, signals)
         return {
             "success": True,
@@ -391,8 +462,29 @@ async def enriquecer_empresa(
             ).fetchone()
         
         if not row:
-            raise HTTPException(status_code=404, detail="Empresa não encontrada")
-        
+            ba = await consultar_brasilapi_cnpj_v2_async(cnpj_limpo)
+            if not ba:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Empresa não encontrada na base local nem na BrasilAPI.",
+                )
+            ctx = company_context_from_brasilapi_v2(ba, cnpj_limpo)
+            resultado = await enrichment_service.enrich_company_complete(
+                cnpj=cnpj_limpo,
+                razao_social=str(ctx.get("razao_social") or ""),
+                nome_fantasia=ctx.get("nome_fantasia"),
+                cidade=ctx.get("cidade"),
+                uf=ctx.get("uf"),
+                cnae=str(ctx.get("cnae_principal") or "") or None,
+            )
+            return {
+                "success": True,
+                "cnpj": cnpj_limpo,
+                "enriquecimento": resultado,
+                "message": "Enriquecimento via cadastro BrasilAPI + pipelines Hermes (empresa fora da base local).",
+                "cadastro_fonte": "brasilapi_v2",
+            }
+
         # Enriquece
         resultado = await enrichment_service.enrich_company_complete(
             cnpj=str(row[0]),
