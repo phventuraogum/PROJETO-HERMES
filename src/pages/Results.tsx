@@ -40,6 +40,8 @@ import {
   ExecucaoResumo, getResultados, getResultadosUltimaExecucao,
   addBatchToPipeline, addToPipeline,
   addLeadListItems,
+  consultarAssertivaCnpj,
+  consultarAssertivaDecisoresCnpj,
   buscarEmpresasParecidasPorCnpj,
   buscarContactIntelligencePorCnpj,
   buscarStatusBatchContactIntelligencePorCnpj,
@@ -73,14 +75,25 @@ function gerarCsv(empresas: Empresa[]): string {
     "CNPJ","Razão Social","Nome Fantasia","Natureza Jurídica",
     "Data Abertura","Situação","Cidade","UF",
     "CNAE","Descrição CNAE","Segmento","Porte","Capital Social","Score ICP",
-    "Telefone","E-mail","WhatsApp","Site","E-mail Enriquecido",
-    "Sócios","Endereço","Bairro","CEP",
+    "Telefone","Telefone Enriquecido","Telefone Final",
+    "E-mail","E-mail Enriquecido","WhatsApp","WhatsApp Enriquecido","WhatsApp Final",
+    "Site","Fonte Dados",
+    "E-mails Captados","Telefones Captados","WhatsApps Captados",
+    "Sócios","Sócios com WhatsApp",
+    "Endereço","Bairro","CEP",
     "PIB Município (R$ mi)",
   ];
   const linhas = empresas.map(e => {
     const socios = (e.socios_estruturado ?? [])
       .map(s => `${s.nome}${s.qualificacao ? ` (${s.qualificacao})` : ""}`)
       .join(" | ");
+    const sociosComWhatsapp = (e.socios_estruturado ?? [])
+      .filter((s) => Boolean(s.whatsapp))
+      .map((s) => `${s.nome}: ${s.whatsapp}`)
+      .join(" | ");
+    const emailsCaptados = (e.emails_captados ?? []).map((x) => x.valor).filter(Boolean).join(" | ");
+    const telefonesCaptados = (e.telefones_captados ?? []).map((x) => x.valor).filter(Boolean).join(" | ");
+    const whatsCaptados = (e.whatsapps_captados ?? []).map((x) => x.valor).filter(Boolean).join(" | ");
     const end = [e.logradouro, e.numero, e.complemento].filter(Boolean).join(", ");
     const pib = e.sidra_pib ? (e.sidra_pib / 1_000_000).toFixed(1).replace(".", ",") : "";
     return [
@@ -91,10 +104,12 @@ function gerarCsv(empresas: Empresa[]): string {
       e.segmento ?? "", e.porte ?? "",
       e.capital_social != null ? e.capital_social.toString().replace(".", ",") : "",
       e.score_icp != null ? e.score_icp.toFixed(1).replace(".", ",") : "",
-      e.telefone_padrao ?? "", e.email ?? "",
-      e.whatsapp_publico ?? e.whatsapp_enriquecido ?? "",
-      e.site ?? "", e.email_enriquecido ?? "",
-      socios, end, e.bairro ?? "", e.cep ?? "", pib,
+      e.telefone_padrao ?? "", e.telefone_enriquecido ?? "", e.telefone_final ?? "",
+      e.email ?? "", e.email_enriquecido ?? "",
+      e.whatsapp_publico ?? "", e.whatsapp_enriquecido ?? "", e.whatsapp_final ?? "",
+      e.site ?? "", e.fonte_dados_prioritaria ?? "",
+      emailsCaptados, telefonesCaptados, whatsCaptados,
+      socios, sociosComWhatsapp, end, e.bairro ?? "", e.cep ?? "", pib,
     ].map(String).map(escapeCsv).join(";");
   });
   return `\ufeff${[H.map(escapeCsv).join(";"), ...linhas].join("\r\n")}`;
@@ -166,8 +181,194 @@ function extractLinks(raw?: string | null): string[] {
   if (!raw) return [];
   return Array.from(new Set((raw.match(/(https?:\/\/[^\s,]+)/g) ?? [])));
 }
-function filterSocialLinks(links: string[]) {
-  return links.filter(u => /instagram|linkedin|facebook|fb\.com/i.test(u));
+
+function sanitizeText(value?: string | null): string | null {
+  if (value == null) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  const lowered = text.toLowerCase();
+  if (lowered === "nan" || lowered === "null" || lowered === "undefined" || lowered === "none") {
+    return null;
+  }
+  return text;
+}
+
+function sanitizeNumber(value?: number | null): number | null {
+  if (value == null) return null;
+  return Number.isFinite(value) ? value : null;
+}
+
+function sanitizeEmpresa(emp: Empresa): Empresa {
+  return {
+    ...emp,
+    razao_social: sanitizeText(emp.razao_social) ?? "Empresa sem nome",
+    nome_fantasia: sanitizeText(emp.nome_fantasia),
+    cidade: sanitizeText(emp.cidade),
+    uf: sanitizeText(emp.uf),
+    segmento: sanitizeText(emp.segmento),
+    porte: sanitizeText(emp.porte),
+    capital_social: sanitizeNumber(emp.capital_social),
+    score_icp: sanitizeNumber(emp.score_icp),
+  };
+}
+
+function sanitizeEmpresas(list: Empresa[]): Empresa[] {
+  return list.map(sanitizeEmpresa);
+}
+
+function normalizeAssertivaSocialLinks(input: unknown[] | null | undefined): string[] {
+  if (!Array.isArray(input)) return [];
+  const links = input
+    .map((item) => {
+      if (typeof item === "string") return item.trim();
+      if (!item || typeof item !== "object") return "";
+      const rec = item as Record<string, unknown>;
+      return String(rec.url ?? rec.link ?? rec.perfil ?? "").trim();
+    })
+    .filter(Boolean);
+  return Array.from(new Set(links));
+}
+
+function mergeAssertivaIntoEmpresa(
+  base: Empresa,
+  data: Awaited<ReturnType<typeof consultarAssertivaCnpj>>,
+  decisoresData?: Awaited<ReturnType<typeof consultarAssertivaDecisoresCnpj>> | null,
+): Empresa {
+  const telefones = Array.isArray(data.telefones) ? data.telefones : [];
+  const emails = Array.isArray(data.emails) ? data.emails : [];
+
+  const primaryPhone = telefones.find((t) => (t.numero || "").trim())?.numero?.trim() || null;
+  const primaryWhatsapp = telefones.find((t) => Boolean(t.whatsapp) && (t.numero || "").trim())?.numero?.trim() || null;
+  const primaryEmail = emails.find((e) => (e.email || "").trim())?.email?.trim() || null;
+  const sociais = normalizeAssertivaSocialLinks(data.redes_sociais);
+  const emailsCaptados = emails
+    .map((e) => String(e.email || "").trim())
+    .filter(Boolean)
+    .map((email) => ({ valor: email, tipo: "email", origem: "enriquecimento", validado: null }));
+
+  const telefonesCaptados = telefones
+    .map((t) => ({ numero: String(t.numero || "").trim(), tipo: t.tipo || null, whatsapp: Boolean(t.whatsapp) }))
+    .filter((t) => Boolean(t.numero))
+    .map((t) => ({ valor: t.numero, tipo: t.tipo || (t.whatsapp ? "whatsapp" : "telefone"), origem: "enriquecimento", validado: null }));
+
+  const whatsCaptados = telefones
+    .filter((t) => Boolean(t.whatsapp))
+    .map((t) => String(t.numero || "").trim())
+    .filter(Boolean)
+    .map((numero) => ({ valor: numero, tipo: "whatsapp", origem: "enriquecimento", validado: null }));
+
+  const decisores = Array.isArray(decisoresData?.decisores) ? decisoresData!.decisores! : [];
+  const sociosEnriquecidos = decisores.length > 0
+    ? decisores.map((decisor) => {
+        const waTodos = Array.isArray(decisor.whatsapp)
+          ? Array.from(new Set(decisor.whatsapp.map((w) => String(w || "").trim()).filter(Boolean)))
+          : [];
+        return {
+          nome: String(decisor.nome || "Decisor").trim(),
+          qualificacao: decisor.cargo || null,
+          cpf_cnpj: decisor.cpf_cnpj || null,
+          whatsapp: waTodos.length > 0 ? waTodos.join(" | ") : null,
+          fonte_contato: decisor.whatsapp_fonte || "assertiva_decisores",
+        };
+      })
+    : (
+      Array.isArray(data.socios) && data.socios.length > 0
+        ? data.socios.map((socio) => ({
+            nome: String(socio.nome || "Sócio").trim(),
+            qualificacao: socio.cargo || null,
+            data_entrada: socio.data_entrada || null,
+            cpf_cnpj: socio.cpf_cnpj || null,
+            // Sem fallback de telefone geral da empresa: somente contato diretamente vinculado ao sócio.
+            whatsapp: null,
+            fonte_contato: "enriquecimento",
+          }))
+        : null
+    );
+  const sociosResumo = sociosEnriquecidos
+    ? sociosEnriquecidos
+        .map((s) => `${s.nome}${s.qualificacao ? ` (${s.qualificacao})` : ""}${s.whatsapp ? ` · WhatsApp: ${s.whatsapp}` : ""}`)
+        .join("\n")
+    : base.socios_resumo;
+
+  return sanitizeEmpresa({
+    ...base,
+    razao_social: data.razao_social || base.razao_social,
+    nome_fantasia: data.nome_fantasia || base.nome_fantasia,
+    situacao_cadastral: data.situacao || base.situacao_cadastral,
+    data_abertura: data.data_abertura || base.data_abertura,
+    porte: data.porte || base.porte,
+    natureza_juridica: data.natureza_juridica || base.natureza_juridica,
+    site: data.site || base.site,
+    cnae_principal: data.cnae_principal?.codigo || base.cnae_principal,
+    cnae_descricao: data.cnae_principal?.descricao || base.cnae_descricao,
+    cnaes_secundarios: data.cnaes_secundarios
+      ? data.cnaes_secundarios
+          .filter((item) => item?.codigo || item?.descricao)
+          .map((item) => ({
+            cnae: String(item.codigo || "").trim(),
+            descricao: item.descricao || null,
+          }))
+      : base.cnaes_secundarios,
+    cidade: data.endereco?.municipio || base.cidade,
+    uf: data.endereco?.uf || base.uf,
+    logradouro: data.endereco?.logradouro || base.logradouro,
+    numero: data.endereco?.numero || base.numero,
+    complemento: data.endereco?.complemento || base.complemento,
+    bairro: data.endereco?.bairro || base.bairro,
+    cep: data.endereco?.cep || base.cep,
+    telefone_enriquecido: primaryPhone || base.telefone_enriquecido,
+    whatsapp_enriquecido: primaryWhatsapp || base.whatsapp_enriquecido,
+    email_enriquecido: primaryEmail || base.email_enriquecido,
+    emails_captados: emailsCaptados.length > 0 ? emailsCaptados : base.emails_captados,
+    telefones_captados: telefonesCaptados.length > 0 ? telefonesCaptados : base.telefones_captados,
+    whatsapps_captados: whatsCaptados.length > 0 ? whatsCaptados : base.whatsapps_captados,
+    redes_sociais_empresa: sociais.length > 0 ? sociais : base.redes_sociais_empresa,
+    socios_estruturado: sociosEnriquecidos ?? (
+      Array.isArray(data.socios) && data.socios.length > 0
+        ? data.socios.map((socio) => ({
+            nome: String(socio.nome || "Sócio").trim(),
+            qualificacao: socio.cargo || null,
+            data_entrada: socio.data_entrada || null,
+            cpf_cnpj: socio.cpf_cnpj || null,
+          }))
+        : base.socios_estruturado
+    ),
+    socios_resumo: sociosResumo,
+    outras_informacoes: [base.outras_informacoes, "Enriquecido via provedor externo"].filter(Boolean).join(" · "),
+    fonte_dados_prioritaria: "ENRIQUECIMENTO_EXTERNO",
+    enriquecimento_data: new Date().toISOString(),
+  });
+}
+
+function toStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((item) => String(item ?? "").trim()).filter(Boolean);
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map((item) => String(item ?? "").trim()).filter(Boolean);
+      } catch {
+        // fallback below
+      }
+    }
+    return [trimmed];
+  }
+  return [];
+}
+function toSociaisSocios(value: unknown): { nome?: string; links?: string[] }[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((entry) => {
+    const rec = (entry ?? {}) as Record<string, unknown>;
+    return {
+      nome: typeof rec.nome === "string" ? rec.nome : undefined,
+      links: toStringArray(rec.links),
+    };
+  });
+}
+function filterSocialLinks(links: unknown) {
+  return toStringArray(links).filter(u => /instagram|linkedin|facebook|fb\.com/i.test(u));
 }
 function detectSocial(url: string): "instagram"|"linkedin"|"facebook"|"other" {
   if (/instagram/i.test(url)) return "instagram";
@@ -197,9 +398,10 @@ function normalizeCnpj(cnpj?: string | null) {
 }
 
 function primaryLinkedin(emp: Empresa) {
+  const redesSocios = toSociaisSocios(emp.redes_sociais_socios);
   return emp.linkedin_empresa
-    ?? emp.redes_sociais_empresa?.find(link => /linkedin/i.test(link))
-    ?? emp.redes_sociais_socios?.flatMap(s => s.links).find(link => /linkedin/i.test(link))
+    ?? toStringArray(emp.redes_sociais_empresa).find(link => /linkedin/i.test(link))
+    ?? redesSocios.flatMap((s) => s.links ?? []).find(link => /linkedin/i.test(link))
     ?? null;
 }
 
@@ -250,7 +452,7 @@ function formatIntelPercent(value?: number | null) {
 }
 
 function formatIntelPattern(pattern?: string | null) {
-  return pattern ? pattern.replaceAll("_", " / ").replaceAll(".", " . ") : "Não inferido";
+  return pattern ? pattern.replace(/_/g, " / ").replace(/\./g, " . ") : "Não inferido";
 }
 
 function intelStatusTone(status?: string | null) {
@@ -363,12 +565,14 @@ function ContactRow({ emp }: { emp: Empresa }) {
   const tel = emp.telefone_padrao || emp.telefone_receita;
 
   const raw = emp.outras_informacoes || "";
-  const redesRaw = (emp.redes_sociais_empresa ?? []).length
-    ? emp.redes_sociais_empresa!
+  const redesEmpresa = toStringArray(emp.redes_sociais_empresa);
+  const redesSocios = toSociaisSocios(emp.redes_sociais_socios);
+  const redesRaw = redesEmpresa.length
+    ? redesEmpresa
     : extractLinks(raw);
   const linkedin = primaryLinkedin(emp)
     ?? redesRaw.find(l => /linkedin/i.test(l))
-    ?? emp.redes_sociais_socios?.flatMap(s => s.links).find(l => /linkedin/i.test(l));
+    ?? redesSocios.flatMap((s) => s.links ?? []).find(l => /linkedin/i.test(l));
 
   return (
     <div className="flex items-center gap-1">
@@ -419,16 +623,22 @@ function DetalheEmpresa({
   contactIntel,
   isResolvingContactIntel,
   onResolveContactIntel,
+  isEnrichingAssertiva,
+  onEnrichAssertiva,
 }: {
   company: Empresa;
   contactIntel?: ContactIntelligenceResult | null;
   isResolvingContactIntel?: boolean;
   onResolveContactIntel?: () => void;
+  isEnrichingAssertiva?: boolean;
+  onEnrichAssertiva?: () => void;
 }) {
   const [crmOpen, setCrmOpen] = useState(false);
   const raw  = company.outras_informacoes || "";
-  const redesRawBase = (company.redes_sociais_empresa ?? []).length
-    ? company.redes_sociais_empresa!
+  const redesEmpresa = toStringArray(company.redes_sociais_empresa);
+  const redesSocios = toSociaisSocios(company.redes_sociais_socios);
+  const redesRawBase = redesEmpresa.length
+    ? redesEmpresa
     : filterSocialLinks(extractLinks(raw));
   const resumoIA =
     (company.resumo_ia_empresa as string | undefined) ||
@@ -685,9 +895,13 @@ function DetalheEmpresa({
             <div className="space-y-2">
               {company.socios_estruturado.map((s: SocioEstruturado, i: number) => {
                 const linkedin = s.linkedin || company.redes_sociais_socios
-                  ?.find(r => r.nome.toLowerCase().slice(0,8) === s.nome.toLowerCase().slice(0,8))
+                  ?.find(r => (r.nome || "").toLowerCase().slice(0,8) === s.nome.toLowerCase().slice(0,8))
                   ?.links?.find(l => /linkedin/i.test(l));
-                const whatsapp = s.whatsapp;
+                const whatsappList = String(s.whatsapp || "")
+                  .split("|")
+                  .map((n) => n.trim())
+                  .filter(Boolean);
+                const whatsappPrimary = whatsappList[0] || null;
                 const email = s.email;
                 const telefone = s.telefone;
                 return (
@@ -706,7 +920,23 @@ function DetalheEmpresa({
                       </div>
                       <div className="space-y-1 text-[11px] text-foreground/80">
                         {email && <p>E-mail: <a href={`mailto:${email}`} className="hover:underline">{email}</a></p>}
-                        {whatsapp && <p>WhatsApp: <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="hover:underline">{whatsapp}</a></p>}
+                        {whatsappList.length > 0 && (
+                          <div className="space-y-0.5">
+                            <p>WhatsApp validado:</p>
+                            {whatsappList.map((wa) => (
+                              <p key={`${s.nome}-${wa}`}>
+                                <a
+                                  href={`https://wa.me/${wa.replace(/\D/g, "")}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="hover:underline"
+                                >
+                                  {wa}
+                                </a>
+                              </p>
+                            ))}
+                          </div>
+                        )}
                         {telefone && <p>Telefone: <a href={`tel:${telefone}`} className="hover:underline">{telefone}</a></p>}
                         {s.emails_alternativos && s.emails_alternativos.length > 0 && (
                           <p className="text-muted-foreground/70">Alternativos: {s.emails_alternativos.join(" · ")}</p>
@@ -721,8 +951,8 @@ function DetalheEmpresa({
                           <Mail className="h-3.5 w-3.5" />
                         </a>
                       )}
-                      {whatsapp && (
-                        <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
+                      {whatsappPrimary && (
+                        <a href={`https://wa.me/${whatsappPrimary.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
                           className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">
                           <MessageCircle className="h-3.5 w-3.5" />
                         </a>
@@ -902,10 +1132,22 @@ function DetalheEmpresa({
       {/* Enviar para CRM */}
       <section className="rounded-xl border border-border bg-muted/20 p-4">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Integração</p>
-        <Button size="sm" variant="outline" className="gap-1.5 border-sky-700 text-sky-600 hover:bg-sky-900/20"
-          onClick={() => setCrmOpen(true)}>
-          <Building2 className="h-3.5 w-3.5" /> Enviar para CRM
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15"
+            onClick={onEnrichAssertiva}
+            disabled={isEnrichingAssertiva || !onEnrichAssertiva}
+          >
+            {isEnrichingAssertiva ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            {isEnrichingAssertiva ? "Enriquecendo..." : "Enriquecer"}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5 border-sky-700 text-sky-600 hover:bg-sky-900/20"
+            onClick={() => setCrmOpen(true)}>
+            <Building2 className="h-3.5 w-3.5" /> Enviar para CRM
+          </Button>
+        </div>
       </section>
 
       <CrmExportModal open={crmOpen} onClose={() => setCrmOpen(false)} empresa={company} />
@@ -921,6 +1163,8 @@ function EmpresaCard({
   contactIntel,
   isResolvingContactIntel,
   onResolveContactIntel,
+  isEnrichingAssertiva,
+  onEnrichAssertiva,
 }: {
   emp: Empresa;
   selected: boolean;
@@ -928,6 +1172,8 @@ function EmpresaCard({
   contactIntel?: ContactIntelligenceResult | null;
   isResolvingContactIntel?: boolean;
   onResolveContactIntel?: () => void;
+  isEnrichingAssertiva?: boolean;
+  onEnrichAssertiva?: () => void;
 }) {
   const [mensagemOpen, setMensagemOpen] = useState(false);
 
@@ -980,6 +1226,8 @@ function EmpresaCard({
               contactIntel={contactIntel ?? null}
               isResolvingContactIntel={isResolvingContactIntel}
               onResolveContactIntel={onResolveContactIntel}
+              isEnrichingAssertiva={isEnrichingAssertiva}
+              onEnrichAssertiva={onEnrichAssertiva}
             />
           </SheetContent>
         </Sheet>
@@ -1026,6 +1274,16 @@ function EmpresaCard({
           <Target className="h-3 w-3" /> Pipeline + SDR
         </Button>
         <Button
+          size="sm"
+          variant="ghost"
+          className="flex-1 h-6 gap-1 text-[10px] text-muted-foreground/70 hover:text-emerald-400 hover:bg-emerald-500/10"
+          onClick={(e) => { e.stopPropagation(); onEnrichAssertiva?.(); }}
+          disabled={isEnrichingAssertiva || !onEnrichAssertiva}
+        >
+          {isEnrichingAssertiva ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+          Enriquecer
+        </Button>
+        <Button
           size="sm" variant="ghost"
           className="flex-1 h-6 gap-1 text-[10px] text-muted-foreground/70 hover:text-amber-600 hover:bg-amber-400/10"
           onClick={e => { e.stopPropagation(); setMensagemOpen(true); }}>
@@ -1060,6 +1318,8 @@ const ResultsPage = () => {
   const [contactIntelByCnpj, setContactIntelByCnpj] = useState<Record<string, ContactIntelligenceResult>>({});
   const [resolvingIntelBatch, setResolvingIntelBatch] = useState(false);
   const [resolvingIntelCnpjs, setResolvingIntelCnpjs] = useState<Set<string>>(new Set());
+  const [assertivaCnpjs, setAssertivaCnpjs] = useState<Set<string>>(new Set());
+  const [enrichingAll, setEnrichingAll] = useState(false);
   const [leadLists, setLeadLists] = useState<LeadListSummary[]>([]);
   const [suppressionEntries, setSuppressionEntries] = useState<LeadSuppression[]>([]);
   const [saveListOpen, setSaveListOpen] = useState(false);
@@ -1096,10 +1356,12 @@ const ResultsPage = () => {
 
         if (resultadosResult.status === "fulfilled") {
           const p = resultadosResult.value;
-          setEmpresas((p.resultados && p.resultados.length > 0) ? p.resultados : stateResultados);
+          setEmpresas(
+            sanitizeEmpresas((p.resultados && p.resultados.length > 0) ? p.resultados : stateResultados),
+          );
           setExecucao(p.execucao);
         } else {
-          setEmpresas(stateResultados);
+          setEmpresas(sanitizeEmpresas(stateResultados));
           toast.error("Nao foi possivel carregar a ultima execucao.");
         }
 
@@ -1237,9 +1499,11 @@ const ResultsPage = () => {
     const comEmail = visibleEmpresas.filter(e => e.email || e.email_enriquecido).length;
     const comWa    = visibleEmpresas.filter(e => e.whatsapp_publico || e.whatsapp_enriquecido).length;
     const comLinkedin = visibleEmpresas.filter(e => {
+      const redesEmpresa = toStringArray(e.redes_sociais_empresa);
+      const redesSocios = toSociaisSocios(e.redes_sociais_socios);
       const links = [
-        ...(e.redes_sociais_empresa ?? []),
-        ...(e.redes_sociais_socios?.flatMap(s => s.links) ?? []),
+        ...redesEmpresa,
+        ...redesSocios.flatMap((s) => s.links ?? []),
         ...extractLinks(e.outras_informacoes),
       ];
       return links.some(l => /linkedin/i.test(l));
@@ -1270,9 +1534,11 @@ const ResultsPage = () => {
       list = list.filter(e => e.whatsapp_publico || e.whatsapp_enriquecido);
     if (activeChips.includes("com_linkedin"))
       list = list.filter(e => {
+        const redesEmpresa = toStringArray(e.redes_sociais_empresa);
+        const redesSocios = toSociaisSocios(e.redes_sociais_socios);
         const links = [
-          ...(e.redes_sociais_empresa ?? []),
-          ...(e.redes_sociais_socios?.flatMap(s => s.links) ?? []),
+          ...redesEmpresa,
+          ...redesSocios.flatMap((s) => s.links ?? []),
           ...extractLinks(e.outras_informacoes),
         ];
         return links.some(l => /linkedin/i.test(l));
@@ -1431,6 +1697,129 @@ const ResultsPage = () => {
     }
   };
 
+  const enrichOneAssertiva = async (cnpj: string, opts?: { silent?: boolean; rethrow?: boolean }) => {
+    const silent = Boolean(opts?.silent);
+    const rethrow = Boolean(opts?.rethrow);
+    setAssertivaCnpjs((prev) => {
+      const next = new Set(prev);
+      next.add(cnpj);
+      return next;
+    });
+
+    try {
+      const [empresaResult, decisoresResult] = await Promise.allSettled([
+        consultarAssertivaCnpj(cnpj, 5),
+        consultarAssertivaDecisoresCnpj(cnpj, 5),
+      ]);
+
+      if (empresaResult.status !== "fulfilled") {
+        throw empresaResult.reason;
+      }
+
+      const data = empresaResult.value;
+      const decisoresData = decisoresResult.status === "fulfilled" ? decisoresResult.value : null;
+
+      if (data?.encontrado === false && !decisoresData?.decisores?.length) {
+        if (!silent) toast.info("Não foram encontrados dados adicionais para este CNPJ.");
+        return;
+      }
+
+      setEmpresas((prev) => sanitizeEmpresas(
+        prev.map((item) => (item.cnpj === cnpj ? mergeAssertivaIntoEmpresa(item, data, decisoresData) : item)),
+      ));
+
+      if (decisoresData?.decisores?.length) {
+        if (!silent) toast.success(`Enriquecimento concluído com ${decisoresData.decisores.length} decisor(es) e WhatsApp(s).`);
+      } else {
+        if (!silent) toast.success("Enriquecimento concluído com dados completos da empresa.");
+      }
+    } catch (err: any) {
+      if (!silent) toast.error("Erro no enriquecimento: " + (err?.message || ""));
+      if (rethrow) throw err;
+    } finally {
+      setAssertivaCnpjs((prev) => {
+        const next = new Set(prev);
+        next.delete(cnpj);
+        return next;
+      });
+    }
+  };
+
+  const enrichAllFiltered = async () => {
+    if (filtered.length === 0) {
+      toast.info("Não há leads para enriquecer.");
+      return;
+    }
+    setEnrichingAll(true);
+    const targets = filtered.map((e) => e.cnpj).filter(Boolean);
+    const concurrency = 2;
+    let processed = 0;
+    let success = 0;
+    let failed = 0;
+
+    try {
+      toast.info(`Iniciando enriquecimento total de ${targets.length} lead(s).`);
+      for (let i = 0; i < targets.length; i += concurrency) {
+        const batch = targets.slice(i, i + concurrency);
+        const results = await Promise.allSettled(
+          batch.map((cnpj) => enrichOneAssertiva(cnpj, { silent: true, rethrow: true })),
+        );
+        processed += results.length;
+        success += results.filter((r) => r.status === "fulfilled").length;
+        failed += results.filter((r) => r.status === "rejected").length;
+        toast.info(`Enriquecimento em andamento: ${processed}/${targets.length}`);
+        if (i + concurrency < targets.length) {
+          await new Promise((resolve) => setTimeout(resolve, 600));
+        }
+      }
+      if (failed > 0) {
+        toast.success(`Enriquecimento finalizado: ${success} sucesso(s), ${failed} falha(s).`);
+      } else {
+        toast.success(`Enriquecimento total concluído: ${success} lead(s).`);
+      }
+    } finally {
+      setEnrichingAll(false);
+    }
+  };
+
+  const enrichSelected = async () => {
+    const targets = filtered.map((e) => e.cnpj).filter((cnpj) => selected.has(cnpj));
+    if (targets.length === 0) {
+      toast.info("Selecione pelo menos um lead para enriquecer.");
+      return;
+    }
+
+    setEnrichingAll(true);
+    const concurrency = 2;
+    let processed = 0;
+    let success = 0;
+    let failed = 0;
+
+    try {
+      toast.info(`Iniciando enriquecimento de ${targets.length} lead(s) selecionado(s).`);
+      for (let i = 0; i < targets.length; i += concurrency) {
+        const batch = targets.slice(i, i + concurrency);
+        const results = await Promise.allSettled(
+          batch.map((cnpj) => enrichOneAssertiva(cnpj, { silent: true, rethrow: true })),
+        );
+        processed += results.length;
+        success += results.filter((r) => r.status === "fulfilled").length;
+        failed += results.filter((r) => r.status === "rejected").length;
+        toast.info(`Enriquecimento selecionados: ${processed}/${targets.length}`);
+        if (i + concurrency < targets.length) {
+          await new Promise((resolve) => setTimeout(resolve, 600));
+        }
+      }
+      if (failed > 0) {
+        toast.success(`Selecionados enriquecidos: ${success} sucesso(s), ${failed} falha(s).`);
+      } else {
+        toast.success(`Selecionados enriquecidos: ${success} lead(s).`);
+      }
+    } finally {
+      setEnrichingAll(false);
+    }
+  };
+
   const expandirSelecionadasParecidas = async () => {
     const selecionadas = getSelectedCompanies();
     if (selecionadas.length === 0) {
@@ -1472,7 +1861,7 @@ const ResultsPage = () => {
       }
 
       const merged = [...empresas, ...additions];
-      setEmpresas(merged);
+      setEmpresas(sanitizeEmpresas(merged));
       setExecucao((prev) => (prev ? { ...prev, total_empresas: merged.length } : prev));
       await salvarResultadoManual(currentConfig ?? {
         termo_base: "",
@@ -1732,6 +2121,16 @@ const ResultsPage = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 h-9 border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"
+            onClick={enrichAllFiltered}
+            disabled={enrichingAll || filtered.length === 0}
+          >
+            {enrichingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            Enriquecer todos ({filtered.length})
+          </Button>
           {selected.size > 0 && (
             <>
               <Button
@@ -1761,6 +2160,16 @@ const ResultsPage = () => {
               >
                 {resolvingIntelBatch ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
                 Hunter Core ({selected.size})
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 h-9 border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"
+                onClick={enrichSelected}
+                disabled={enrichingAll}
+              >
+                {enrichingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                Enriquecer selecionados ({selected.size})
               </Button>
               <Button
                 variant="outline"
@@ -1861,6 +2270,8 @@ const ResultsPage = () => {
                 contactIntel={contactIntelByCnpj[emp.cnpj] ?? null}
                 isResolvingContactIntel={resolvingIntelCnpjs.has(emp.cnpj)}
                 onResolveContactIntel={() => void resolveOneContactIntel(emp.cnpj)}
+                isEnrichingAssertiva={assertivaCnpjs.has(emp.cnpj)}
+                onEnrichAssertiva={() => void enrichOneAssertiva(emp.cnpj)}
               />
             ))}
           </div>
@@ -1963,6 +2374,8 @@ const ResultsPage = () => {
                               contactIntel={contactIntelByCnpj[emp.cnpj] ?? null}
                               isResolvingContactIntel={resolvingIntelCnpjs.has(emp.cnpj)}
                               onResolveContactIntel={() => void resolveOneContactIntel(emp.cnpj)}
+                              isEnrichingAssertiva={assertivaCnpjs.has(emp.cnpj)}
+                              onEnrichAssertiva={() => void enrichOneAssertiva(emp.cnpj)}
                             />
                           </SheetContent>
                         </Sheet>

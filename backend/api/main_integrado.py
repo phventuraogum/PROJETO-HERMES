@@ -7,34 +7,16 @@ que ainda nao foram migrados para routers proprios.
 import os
 import asyncio
 import logging
-import warnings
-from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from importlib import import_module
 from dotenv import load_dotenv
-
-warnings.filterwarnings(
-    "ignore",
-    message=".*asyncio.iscoroutinefunction.*",
-    category=DeprecationWarning,
-)
-warnings.filterwarnings(
-    "ignore",
-    message="Please use `import python_multipart` instead.",
-    category=PendingDeprecationWarning,
-)
 
 load_dotenv()
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from pydantic import BaseModel
-from pydantic.warnings import UnsupportedFieldAttributeWarning
 
 from config import settings
-from api.result_store import result_store
-
-warnings.simplefilter("ignore", UnsupportedFieldAttributeWarning)
 
 # ============================================================
 # LOGGING ESTRUTURADO
@@ -49,37 +31,10 @@ logger = logging.getLogger("hermes.main")
 # APP PRINCIPAL
 # ============================================================
 
-# Swagger/Docs disabled in production to avoid exposing the API schema.
-_docs_url = None if settings.is_production else "/docs"
-_redoc_url = None if settings.is_production else "/redoc"
+# Swagger/Docs desabilitados em produção (não expor schema da API)
+_docs_url   = None if settings.is_production else "/docs"
+_redoc_url  = None if settings.is_production else "/redoc"
 _openapi_url = None if settings.is_production else "/openapi.json"
-
-
-async def _run_startup_checks() -> None:
-    logger.info("=" * 60)
-    logger.info("HERMES API v2.1 iniciando")
-    logger.info(f"Ambiente:       {settings.ENVIRONMENT}")
-    logger.info(f"Auth obrigatoria: {settings.HERMES_AUTH_REQUIRED}")
-    logger.info(f"Rate limiting:  {settings.RATE_LIMIT_ENABLED}")
-    logger.info(f"Swagger/Docs:   {'DESABILITADO (producao)' if settings.is_production else '/docs'}")
-    logger.info(f"CORS origens:   {settings.CORS_ORIGINS}")
-    logger.info("=" * 60)
-
-    if settings.is_production:
-        from config import validate_production_settings
-
-        try:
-            validate_production_settings()
-            logger.info("Validacao de producao: OK")
-        except ValueError as e:
-            logger.critical(f"CONFIGURACAO INVALIDA PARA PRODUCAO: {e}")
-            raise SystemExit(1)
-
-
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    await _run_startup_checks()
-    yield
 
 app = FastAPI(
     title="Hermes API - Prospecção B2B",
@@ -100,7 +55,6 @@ app = FastAPI(
     docs_url=_docs_url,
     redoc_url=_redoc_url,
     openapi_url=_openapi_url,
-    lifespan=lifespan,
 )
 
 # ============================================================
@@ -147,6 +101,13 @@ except Exception as e:
     logger.warning(f"[WARN] Prospeccao router nao disponivel: {e}")
 
 try:
+    from api.routers.assertiva_decisores import router as assertiva_decisores_router
+    app.include_router(assertiva_decisores_router)
+    logger.info("[OK] Assertiva decisores router carregado")
+except Exception as e:
+    logger.warning(f"[WARN] Assertiva decisores router nao disponivel: {e}")
+
+try:
     from api.routers.empresas import router as empresas_router
     app.include_router(empresas_router)
     logger.info("[OK] Empresas router carregado")
@@ -182,11 +143,10 @@ except Exception as e:
     logger.warning(f"[WARN] Credits router nao disponivel: {e}")
 
 try:
-    from api.routers.pipeline import router as pipeline_router, ingest_empresas_to_pipeline
+    from api.routers.pipeline import router as pipeline_router
     app.include_router(pipeline_router, prefix="/pipeline", tags=["Pipeline"])
     logger.info("[OK] Pipeline router carregado")
 except Exception as e:
-    ingest_empresas_to_pipeline = None
     logger.warning(f"[WARN] Pipeline router nao disponivel: {e}")
 
 try:
@@ -217,20 +177,14 @@ try:
 except Exception as e:
     logger.warning(f"[WARN] Lead Registry router nao disponivel: {e}")
 
-try:
-    from api.routers.fiscal_public import router as fiscal_public_router
-    app.include_router(fiscal_public_router)
-    logger.info("[OK] Fiscal Public router carregado")
-except Exception as e:
-    logger.warning(f"[WARN] Fiscal Public router nao disponivel: {e}")
-
 # ============================================================
 # ENDPOINTS LEGADOS
 # Protegidos com require_auth quando HERMES_AUTH_REQUIRED=true
 # ============================================================
 
 try:
-    from api.lead_registry import lead_registry_service
+    from pydantic import BaseModel, Field
+
     from api.main import (
         rodar_prospeccao_icp,
         gerar_mapa_calor,
@@ -246,6 +200,7 @@ try:
         _consume_credits,
         _get_credits,
     )
+    from api.result_store import result_store
     from fastapi import HTTPException, Request
     from fastapi.responses import StreamingResponse
     from middleware.auth import require_auth
@@ -253,60 +208,14 @@ try:
     import queue as _queue
     import threading as _threading
 
-    def _auto_pipeline_and_sdr_after_prospeccao_enabled() -> bool:
-        return os.getenv("AUTO_PIPELINE_AND_SDR_AFTER_PROSPECCAO", "").strip().lower() in {"1", "true", "yes", "on"}
-
-    def _extract_result_empresas(resultado: ProspeccaoResultado | dict) -> list[dict]:
-        if isinstance(resultado, dict):
-            empresas = resultado.get("empresas") or []
-        else:
-            empresas = getattr(resultado, "empresas", []) or []
-
-        payload = []
-        for empresa in empresas:
-            if hasattr(empresa, "model_dump"):
-                payload.append(empresa.model_dump())
-            elif isinstance(empresa, dict):
-                payload.append(empresa)
-        return payload
-
-    def _maybe_auto_pipeline_and_sdr(org_id: str, resultado: ProspeccaoResultado | dict) -> None:
-        if not _auto_pipeline_and_sdr_after_prospeccao_enabled():
-            return
-        if ingest_empresas_to_pipeline is None:
-            logger.warning("AUTO_PIPELINE_AND_SDR_AFTER_PROSPECCAO ativo, mas pipeline router nao esta disponivel")
-            return
-
-        empresas = _extract_result_empresas(resultado)
-        if not empresas:
-            logger.info("Auto Pipeline+SDR ignorado: nenhuma empresa no resultado")
-            return
-
-        def _run_background() -> None:
-            try:
-                auto_result = ingest_empresas_to_pipeline(org_id, empresas, auto_send_sdr=True)
-                logger.info(
-                    "Auto Pipeline+SDR pos-prospeccao | org=%s total=%s added=%s sdr=%s",
-                    org_id,
-                    auto_result.get("total", 0),
-                    auto_result.get("added", 0),
-                    auto_result.get("sdr_auto_enviados", 0),
-                )
-            except Exception as exc:
-                logger.warning("Falha no auto Pipeline+SDR pos-prospeccao: %s", exc)
-
-        _threading.Thread(target=_run_background, daemon=True).start()
-
-    def _apply_suppression_registry(config: ProspeccaoConfig, org_id: str) -> ProspeccaoConfig:
-        suppressed_cnpjs = lead_registry_service.get_suppressed_cnpjs(org_id)
-        if not suppressed_cnpjs:
-            return config
-
-        current = list(config.excluir_cnpjs or [])
-        merged = sorted({str(cnpj).strip() for cnpj in current + suppressed_cnpjs if str(cnpj).strip()})
-        next_config = config.model_copy(deep=True)
-        next_config.excluir_cnpjs = merged
-        return next_config
+    def _persist_prospeccao_result(org_id: str, config: ProspeccaoConfig, resultado: ProspeccaoResultado) -> None:
+        """Grava último resultado por organização (Redis ou arquivo) para o dashboard e GET /resultado-atual."""
+        try:
+            cfg = config.model_dump(mode="json", by_alias=True)
+            res = resultado.model_dump(mode="json", by_alias=True)
+            result_store.save_result(org_id or "default", cfg, res)
+        except Exception as exc:
+            logger.warning("Falha ao persistir resultado de prospecção (org=%s): %s", org_id, exc)
 
     @app.post("/prospeccao/run", response_model=ProspeccaoResultado, tags=["Prospecção Legado"])
     async def prospeccao_run_legacy(
@@ -318,15 +227,9 @@ try:
         org_id = get_org_id(request)
         logger.info(f"Prospecção iniciada | user={user.get('email')} | termo={getattr(config, 'termo', '')} | org={org_id}")
         try:
-            effective_config = _apply_suppression_registry(config, org_id)
-            resultado = await asyncio.to_thread(rodar_prospeccao_icp, effective_config)
-            result_store.save_result(
-                org_id,
-                config.model_dump(by_alias=True),
-                resultado.model_dump(),
-                timestamp=datetime.now(timezone.utc).isoformat(),
-            )
-            _maybe_auto_pipeline_and_sdr(org_id, resultado)
+            main_mod = import_module("api.main")
+            resultado = await asyncio.to_thread(main_mod.rodar_prospeccao_icp, config)
+            _persist_prospeccao_result(org_id, config, resultado)
             return resultado
         except Exception as e:
             logger.error(f"Erro na prospecção: {e}")
@@ -340,7 +243,6 @@ try:
     ):
         """Executa prospecção com progresso via Server-Sent Events."""
         org_id = get_org_id(request)
-        effective_config = _apply_suppression_registry(config, org_id)
 
         progress_queue: _queue.Queue = _queue.Queue()
 
@@ -352,9 +254,13 @@ try:
 
         def run_in_thread():
             try:
-                result = rodar_prospeccao_icp(effective_config, on_progress=on_progress)
-                result_holder.append(result)
-            except Exception as exc:
+                main_mod = import_module("api.main")
+                result = main_mod.rodar_prospeccao_icp(config, on_progress=on_progress)
+                if result is None:
+                    error_holder.append("Execução encerrada sem retornar resultado.")
+                else:
+                    result_holder.append(result)
+            except BaseException as exc:
                 error_holder.append(str(exc))
             finally:
                 progress_queue.put(None)
@@ -378,15 +284,16 @@ try:
             if error_holder:
                 yield f"event: error\ndata: {_json.dumps({'detail': error_holder[0]})}\n\n"
             elif result_holder:
-                payload = result_holder[0].model_dump()
-                result_store.save_result(
-                    org_id,
-                    config.model_dump(by_alias=True),
-                    payload,
-                    timestamp=datetime.now(timezone.utc).isoformat(),
-                )
-                _maybe_auto_pipeline_and_sdr(org_id, payload)
-                yield f"event: result\ndata: {_json.dumps(payload, default=str)}\n\n"
+                try:
+                    raw_result = result_holder[0]
+                    if isinstance(raw_result, ProspeccaoResultado):
+                        _persist_prospeccao_result(org_id, config, raw_result)
+                    payload = raw_result.model_dump() if hasattr(raw_result, "model_dump") else dict(raw_result)
+                    yield f"event: result\ndata: {_json.dumps(payload, default=str)}\n\n"
+                except Exception as exc:
+                    yield f"event: error\ndata: {_json.dumps({'detail': f'Falha ao serializar resultado do stream: {exc}'})}\n\n"
+            else:
+                yield f"event: error\ndata: {_json.dumps({'detail': 'Execução do stream terminou sem resultado nem erro explícito.'})}\n\n"
 
         return StreamingResponse(
             event_stream(),
@@ -397,71 +304,6 @@ try:
                 "X-Accel-Buffering": "no",
             },
         )
-
-    @app.get("/prospeccao/resultado-atual", tags=["ProspecÃ§Ã£o Legado"])
-    async def prospeccao_resultado_atual(
-        request: Request,
-        user: dict = Depends(require_auth),
-    ):
-        """Retorna o último resultado persistido para a organização atual."""
-        org_id = get_org_id(request)
-        return result_store.get_latest_result(org_id)
-
-    @app.get("/prospeccao/ultima-execucao", tags=["ProspecÃ§Ã£o Legado"])
-    async def prospeccao_ultima_execucao(
-        request: Request,
-        user: dict = Depends(require_auth),
-    ):
-        """Retorna a última execução persistida com a lista de empresas."""
-        org_id = get_org_id(request)
-        return result_store.get_latest_execution_payload(org_id)
-
-    @app.get("/prospeccao/execucoes", tags=["ProspecÃ§Ã£o Legado"])
-    async def prospeccao_execucoes(
-        request: Request,
-        user: dict = Depends(require_auth),
-    ):
-        """Lista execuções persistidas da organização atual."""
-        org_id = get_org_id(request)
-        return result_store.get_execucoes(org_id)
-
-    @app.get("/prospeccao/historico", tags=["ProspecÃ§Ã£o Legado"])
-    async def prospeccao_historico(
-        request: Request,
-        user: dict = Depends(require_auth),
-    ):
-        """Lista o histórico persistido de prospecções."""
-        org_id = get_org_id(request)
-        return result_store.get_history(org_id)
-
-    class HistoricoRenameBody(BaseModel):
-        nome: str
-
-    @app.patch("/prospeccao/historico/{entry_id}", tags=["ProspecÃ§Ã£o Legado"])
-    async def prospeccao_historico_renomear(
-        entry_id: str,
-        body: HistoricoRenameBody,
-        request: Request,
-        user: dict = Depends(require_auth),
-    ):
-        """Renomeia uma entrada do histórico."""
-        org_id = get_org_id(request)
-        updated = result_store.rename_history_entry(org_id, entry_id, body.nome.strip())
-        if not updated:
-            raise HTTPException(status_code=404, detail="Busca não encontrada")
-        return {"ok": True}
-
-    @app.delete("/prospeccao/historico/{entry_id}", status_code=204, tags=["ProspecÃ§Ã£o Legado"])
-    async def prospeccao_historico_deletar(
-        entry_id: str,
-        request: Request,
-        user: dict = Depends(require_auth),
-    ):
-        """Remove uma entrada do histórico."""
-        org_id = get_org_id(request)
-        deleted = result_store.delete_history_entry(org_id, entry_id)
-        if not deleted:
-            raise HTTPException(status_code=404, detail="Busca não encontrada")
 
     @app.post("/mapa-calor", response_model=MapaCalorResponse, tags=["Mapa de Calor"])
     async def mapa_calor_legacy(
@@ -485,15 +327,12 @@ try:
 
     @app.post("/prospeccao/insights-ia", tags=["Prospecção Legado"])
     async def insights_ia_legacy(
-        request: Request,
         config: ProspeccaoConfig,
         user: dict = Depends(require_auth),
     ):
         """Gera insights de IA sobre os leads prospectados."""
         from api.main import AI_API_KEY
-        org_id = get_org_id(request)
-        effective_config = _apply_suppression_registry(config, org_id)
-        resultado_base = await asyncio.to_thread(rodar_prospeccao_icp, effective_config)
+        resultado_base = await asyncio.to_thread(rodar_prospeccao_icp, config)
         if not AI_API_KEY:
             return {
                 "ia_ativa": False,
@@ -523,6 +362,68 @@ try:
             "empresas_com_insights": empresas_com_insights,
         }
 
+    class HistoricoRenameBody(BaseModel):
+        nome: str = Field(..., min_length=1, max_length=200)
+
+    @app.get("/prospeccao/resultado-atual", tags=["Prospecção Legado"])
+    async def prospeccao_resultado_atual(request: Request, user: dict = Depends(require_auth)):
+        """Último resultado completo persistido para o tenant (usado pelo frontend / dashboard)."""
+        org_id = get_org_id(request)
+        latest = result_store.get_latest_result(org_id)
+        if not latest:
+            raise HTTPException(status_code=404, detail="Nenhum resultado armazenado para esta organização.")
+        return latest
+
+    @app.get("/prospeccao/ultima-execucao", tags=["Prospecção Legado"])
+    async def prospeccao_ultima_execucao(request: Request, user: dict = Depends(require_auth)):
+        """Resumo da última execução + lista de empresas (último resultado salvo)."""
+        org_id = get_org_id(request)
+        return result_store.get_latest_execution_payload(org_id)
+
+    @app.get("/prospeccao/execucoes", tags=["Prospecção Legado"])
+    async def prospeccao_execucoes(request: Request, user: dict = Depends(require_auth)):
+        org_id = get_org_id(request)
+        return result_store.get_execucoes(org_id)
+
+    @app.get("/prospeccao/historico", tags=["Prospecção Legado"])
+    async def prospeccao_historico(request: Request, user: dict = Depends(require_auth)):
+        org_id = get_org_id(request)
+        rows = result_store.get_history(org_id)
+        return [
+            {
+                "id": str(item.get("id", "")),
+                "nome": item.get("nome"),
+                "timestamp": item.get("timestamp", ""),
+                "config": item.get("config") or {},
+                "resultado": item.get("resultado") or {},
+                "metricas": item.get("metricas") or {},
+            }
+            for item in rows
+        ]
+
+    @app.patch("/prospeccao/historico/{entry_id}", tags=["Prospecção Legado"])
+    async def prospeccao_historico_rename(
+        entry_id: str,
+        request: Request,
+        body: HistoricoRenameBody,
+        user: dict = Depends(require_auth),
+    ):
+        org_id = get_org_id(request)
+        if not result_store.rename_history_entry(org_id, entry_id, body.nome):
+            raise HTTPException(status_code=404, detail="Entrada de histórico não encontrada.")
+        return {"ok": True}
+
+    @app.delete("/prospeccao/historico/{entry_id}", tags=["Prospecção Legado"])
+    async def prospeccao_historico_delete(
+        entry_id: str,
+        request: Request,
+        user: dict = Depends(require_auth),
+    ):
+        org_id = get_org_id(request)
+        if not result_store.delete_history_entry(org_id, entry_id):
+            raise HTTPException(status_code=404, detail="Entrada de histórico não encontrada.")
+        return {"ok": True}
+
     @app.get("/admin/orgs", tags=["Admin"])
     async def list_orgs_legacy(
         request: Request,
@@ -542,6 +443,32 @@ except Exception as e:
 def health_check():
     """Health check básico (público — usado pelo Docker/load balancer)."""
     return {"status": "ok", "version": "2.1.0", "environment": settings.ENVIRONMENT}
+
+# ============================================================
+# STARTUP
+# ============================================================
+
+@app.on_event("startup")
+async def startup():
+    logger.info("=" * 60)
+    logger.info("HERMES API v2.1 iniciando")
+    logger.info(f"Ambiente:       {settings.ENVIRONMENT}")
+    logger.info(f"Auth obrigatória: {settings.HERMES_AUTH_REQUIRED}")
+    logger.info(f"Rate limiting:  {settings.RATE_LIMIT_ENABLED}")
+    logger.info(f"Swagger/Docs:   {'DESABILITADO (produção)' if settings.is_production else '/docs'}")
+    logger.info(f"CORS origens:   {settings.CORS_ORIGINS}")
+    logger.info("=" * 60)
+
+    # Valida configurações críticas em produção
+    if settings.is_production:
+        from config import validate_production_settings
+        try:
+            validate_production_settings()
+            logger.info("Validação de produção: OK")
+        except ValueError as e:
+            logger.critical(f"CONFIGURAÇÃO INVÁLIDA PARA PRODUÇÃO: {e}")
+            raise SystemExit(1)
+
 
 if __name__ == "__main__":
     import uvicorn

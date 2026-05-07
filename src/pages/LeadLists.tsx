@@ -7,6 +7,7 @@ import {
   FolderPlus,
   Loader2,
   Mail,
+  MessageCircle,
   MessageCircleOff,
   Phone,
   Radar,
@@ -35,6 +36,7 @@ import {
   createLeadSuppressions,
   deleteLeadList,
   deleteSavedSearch,
+  getResultados,
   getLeadRefreshJobTargets,
   getLeadRefreshJobs,
   getLeadRefreshStates,
@@ -60,8 +62,10 @@ import {
   type LeadListItem,
   type LeadListSummary,
   type LeadSuppression,
+  type ResultadoSalvo,
   type SavedSearchSummary,
   type WatchCompany,
+  type Empresa,
 } from "@/lib/api";
 
 function formatDate(value?: string | null): string {
@@ -71,6 +75,50 @@ function formatDate(value?: string | null): string {
   } catch {
     return value;
   }
+}
+
+function normalizeCnpjDigits(value: string | undefined | null): string {
+  return String(value || "").replace(/\D/g, "").slice(0, 14);
+}
+
+function empresaTemWhatsappAcionavel(e: Empresa): boolean {
+  if (Array.isArray(e.whatsapps_captados) && e.whatsapps_captados.length > 0) return true;
+  for (const f of [e.whatsapp_final, e.whatsapp_enriquecido, e.whatsapp_publico]) {
+    const s = String(f || "").trim().toLowerCase();
+    if (s && s !== "nan" && s !== "null" && s !== "none") return true;
+  }
+  return false;
+}
+
+function buildProspectionKpis(saved: ResultadoSalvo | null): {
+  total: number;
+  comWhatsapp: number;
+  semWhatsapp: number;
+  duplicadosCnpj: number;
+  timestamp?: string | null;
+  termo?: string | null;
+} | null {
+  const empresas = saved?.resultado?.empresas;
+  if (!saved || !Array.isArray(empresas) || empresas.length === 0) return null;
+  const total = empresas.length;
+  const comWhatsapp = empresas.filter((e) => empresaTemWhatsappAcionavel(e)).length;
+  const semWhatsapp = Math.max(0, total - comWhatsapp);
+  const seen = new Set<string>();
+  let dup = 0;
+  for (const e of empresas) {
+    const c = normalizeCnpjDigits(e.cnpj);
+    if (!c) continue;
+    if (seen.has(c)) dup += 1;
+    else seen.add(c);
+  }
+  return {
+    total,
+    comWhatsapp,
+    semWhatsapp,
+    duplicadosCnpj: dup,
+    timestamp: saved.timestamp,
+    termo: saved.config?.termo_base ?? null,
+  };
 }
 
 const LeadLists = () => {
@@ -105,6 +153,8 @@ const LeadLists = () => {
   const [runningSavedSearchId, setRunningSavedSearchId] = useState<string | null>(null);
   const [refreshingWatchCnpj, setRefreshingWatchCnpj] = useState<string | null>(null);
   const [queueingRefreshKey, setQueueingRefreshKey] = useState<string | null>(null);
+  const [reloadingSignals, setReloadingSignals] = useState(false);
+  const [ultimaProspeccao, setUltimaProspeccao] = useState<ResultadoSalvo | null>(null);
 
   const selectedList = useMemo(
     () => lists.find((list) => list.id === selectedListId) ?? null,
@@ -132,7 +182,7 @@ const LeadLists = () => {
   const reloadSavedSearches = async () => setSavedSearches(await getSavedSearches());
   const reloadWatchlist = async () => setWatchlist(await getCompanyWatchlist());
   const reloadCompanyDataHealth = async () => setCompanyDataHealth(await getCompanyDataHealth(8));
-  const reloadSignals = async () => setSignals(await getCompanySignals({ limit: 30 }));
+  const reloadSignals = async () => setSignals(await getCompanySignals({ limit: 200 }));
   const reloadRefreshJobs = async () => {
     const jobs = await getLeadRefreshJobs(20);
     setRefreshJobs(jobs);
@@ -156,15 +206,17 @@ const LeadLists = () => {
           nextSignals,
           nextRefreshJobs,
           nextRefreshStates,
+          nextUltima,
         ] = await Promise.all([
           getLeadLists(),
           getLeadSuppressions(),
           getSavedSearches(),
           getCompanyWatchlist(),
           getCompanyDataHealth(8),
-          getCompanySignals({ limit: 30 }),
+          getCompanySignals({ limit: 200 }),
           getLeadRefreshJobs(20),
           getLeadRefreshStates({ dueOnly: true, limit: 20 }),
+          getResultados(),
         ]);
         setLists(nextLists);
         setSuppressions(nextSuppressions);
@@ -174,6 +226,7 @@ const LeadLists = () => {
         setSignals(nextSignals);
         setRefreshJobs(nextRefreshJobs);
         setRefreshStates(nextRefreshStates);
+        setUltimaProspeccao(nextUltima);
         if (nextRefreshJobs.length > 0) {
           setSelectedRefreshJobId((current) => current || nextRefreshJobs[0].id);
         }
@@ -267,6 +320,36 @@ const LeadLists = () => {
       setCreating(false);
     }
   };
+
+  const handleReloadSignals = async () => {
+    try {
+      setReloadingSignals(true);
+      await Promise.all([reloadSignals(), reloadWatchlist()]);
+      toast.success("Sinais atualizados.");
+    } catch (err: any) {
+      toast.error(err?.message || "Nao foi possivel atualizar os sinais.");
+    } finally {
+      setReloadingSignals(false);
+    }
+  };
+
+  const watchByCnpj = useMemo(
+    () =>
+      watchlist.reduce<Record<string, WatchCompany>>((acc, entry) => {
+        if (entry.cnpj) acc[entry.cnpj] = entry;
+        return acc;
+      }, {}),
+    [watchlist],
+  );
+
+  const prospectKpis = useMemo(() => buildProspectionKpis(ultimaProspeccao), [ultimaProspeccao]);
+
+  const registryVazio =
+    lists.length === 0 &&
+    watchlist.length === 0 &&
+    refreshJobs.length === 0 &&
+    savedSearches.length === 0 &&
+    signals.length === 0;
 
   const handleDeleteList = async (listId: string) => {
     try {
@@ -504,6 +587,96 @@ const LeadLists = () => {
         </Button>
       </div>
 
+      {registryVazio && (
+        <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/5 p-4 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">Por que está tudo em zero?</p>
+          <p className="mt-2">
+            Esta página usa o <strong className="text-foreground">registry operacional</strong> (listas salvas,
+            watchlist, jobs de reverificação e sinais). Ela <strong className="text-foreground">não importa
+            automaticamente</strong> os leads da última prospecção.
+          </p>
+          <p className="mt-2">
+            Depois de prospectar em <strong className="text-foreground">Resultados</strong>, use{" "}
+            <strong className="text-foreground">adicionar à lista</strong> ou crie uma lista e envie os selecionados —
+            ou acrescente CNPJs na <strong className="text-foreground">watchlist</strong> abaixo para gerar sinais e
+            métricas de saúde.
+          </p>
+        </div>
+      )}
+
+      {prospectKpis && (
+        <Card className="border-border bg-card shadow-surface-sm">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <CardTitle className="text-lg">Última prospecção (Resultados)</CardTitle>
+              <CardDescription>
+                Resumo do último lote disponível no app (local ou servidor).{" "}
+                {prospectKpis.termo ? (
+                  <>
+                    Busca: <span className="text-foreground/90">{prospectKpis.termo}</span>
+                  </>
+                ) : null}
+                {prospectKpis.timestamp ? (
+                  <>
+                    {" "}
+                    · {formatDate(prospectKpis.timestamp)}
+                  </>
+                ) : null}
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-border bg-muted/20"
+              onClick={() => navigate("/results")}
+            >
+              Abrir Resultados
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                {
+                  label: "Total de leads",
+                  value: prospectKpis.total,
+                  tone: "border-slate-500/30 bg-slate-500/10 text-slate-200",
+                  icon: Radar,
+                },
+                {
+                  label: "Leads com WhatsApp",
+                  value: prospectKpis.comWhatsapp,
+                  tone: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+                  icon: MessageCircle,
+                },
+                {
+                  label: "Leads sem WhatsApp",
+                  value: prospectKpis.semWhatsapp,
+                  tone: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+                  icon: MessageCircleOff,
+                },
+                {
+                  label: "CNPJ duplicado no lote",
+                  value: prospectKpis.duplicadosCnpj,
+                  tone: "border-violet-500/30 bg-violet-500/10 text-violet-300",
+                  icon: Archive,
+                },
+              ].map((tile) => (
+                <div key={tile.label} className={`rounded-xl border p-4 ${tile.tone}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.18em] opacity-90">{tile.label}</p>
+                      <p className="mt-2 text-2xl font-display">{tile.value}</p>
+                    </div>
+                    <tile.icon className="mt-0.5 h-4 w-4 opacity-90" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="border-border bg-card shadow-surface-sm">
         <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
@@ -513,6 +686,9 @@ const LeadLists = () => {
             </CardTitle>
             <CardDescription>
               Leitura Apollo-style da watchlist para detectar gaps de mobile e WhatsApp acionavel antes do outreach.
+              {(companyDataHealth?.summary.watchlist_total ?? 0) === 0
+                ? " Com watchlist vazia, os cartões abaixo ficam em zero — use o resumo da prospecção acima ou adicione empresas à watchlist."
+                : ""}
             </CardDescription>
           </div>
           <Badge variant="outline" className="border-border bg-muted/20 text-foreground/80">
@@ -1225,9 +1401,22 @@ const LeadLists = () => {
 
         <Card className="border-border bg-card shadow-surface-sm">
           <CardHeader>
-            <CardTitle className="text-lg">Signals recentes</CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="text-lg">Signals recentes</CardTitle>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2 border-border bg-muted/20"
+                onClick={() => void handleReloadSignals()}
+                disabled={reloadingSignals}
+              >
+                {reloadingSignals ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Atualizar sinais
+              </Button>
+            </div>
             <CardDescription>
-              Eventos internos do Hermes para timing de abordagem e cobertura de contato.
+              Eventos internos do Hermes para timing de abordagem e cobertura de contato (ultimos 200 sinais).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -1241,11 +1430,20 @@ const LeadLists = () => {
                 Nenhum sinal registrado ainda.
               </div>
             ) : (
-              signals.map((signal) => (
+              signals.map((signal) => {
+                const watch = watchByCnpj[signal.cnpj];
+                const nomeEmpresa = watch?.nome_fantasia || watch?.razao_social || null;
+                return (
                 <div key={signal.id} className="rounded-xl border border-border bg-muted/20/50 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
                       <p className="text-sm font-semibold text-foreground">{signal.title}</p>
+                      {nomeEmpresa && (
+                        <p className="text-xs text-muted-foreground/80">
+                          {nomeEmpresa}
+                          {(watch?.cidade || watch?.uf) ? ` . ${watch?.cidade || "-"}${watch?.uf ? `/${watch.uf}` : ""}` : ""}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground/70">
                         {signal.cnpj} . {formatDate(signal.created_at)}
                       </p>
@@ -1260,7 +1458,8 @@ const LeadLists = () => {
                     </pre>
                   )}
                 </div>
-              ))
+              );
+              })
             )}
           </CardContent>
         </Card>

@@ -26,6 +26,7 @@ export type ProspeccaoConfig = {
   portes: string[];
   segmentos: string[];
   cnaes?: string[];
+  cnae_principal_estrito?: boolean;
   incluir_cnae_secundario?: boolean;
   enriquecimento_web: boolean;
   exigir_contato_acionavel?: boolean;
@@ -1006,12 +1007,22 @@ export type FiscalPublicLookup = {
   records: FiscalPublicRecord[];
 };
 
+export type DossieHermes = Record<string, unknown>;
+
 export async function buscarEmpresaPorCnpj(cnpj: string): Promise<Empresa> {
   const data = await hermesFetch<BuscarEmpresaResponse>(
     appendFreshQuery(`/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}`),
     { cache: "no-store" },
   );
   return mapEmpresaApi(data.empresa ?? {});
+}
+
+// Compat: algumas telas legadas importam este helper.
+export async function buscarDossieEmpresa(cnpj: string): Promise<DossieHermes> {
+  return hermesFetch<DossieHermes>(
+    appendFreshQuery(`/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/dossie`),
+    { cache: "no-store" },
+  );
 }
 
 export async function enriquecerEmpresaPorCnpj(
@@ -1712,6 +1723,75 @@ export type QueryTranslationResult = {
   warnings: string[];
 };
 
+export type AssertivaTelefone = {
+  numero?: string | null;
+  tipo?: string | null;
+  whatsapp?: boolean | null;
+};
+
+export type AssertivaEmail = {
+  email?: string | null;
+  tipo?: string | null;
+};
+
+export type AssertivaSocio = {
+  nome?: string | null;
+  cargo?: string | null;
+  data_entrada?: string | null;
+  cpf_cnpj?: string | null;
+};
+
+export type AssertivaCnaeSecundario = {
+  codigo?: string | null;
+  descricao?: string | null;
+};
+
+export type AssertivaCnpjData = {
+  encontrado?: boolean;
+  fonte?: string | null;
+  cnpj?: string | null;
+  razao_social?: string | null;
+  nome_fantasia?: string | null;
+  situacao?: string | null;
+  data_abertura?: string | null;
+  porte?: string | null;
+  natureza_juridica?: string | null;
+  site?: string | null;
+  cnae_principal?: {
+    codigo?: string | null;
+    descricao?: string | null;
+  } | null;
+  cnaes_secundarios?: AssertivaCnaeSecundario[] | null;
+  endereco?: {
+    logradouro?: string | null;
+    numero?: string | null;
+    complemento?: string | null;
+    bairro?: string | null;
+    municipio?: string | null;
+    uf?: string | null;
+    cep?: string | null;
+  } | null;
+  telefones?: AssertivaTelefone[] | null;
+  emails?: AssertivaEmail[] | null;
+  socios?: AssertivaSocio[] | null;
+  redes_sociais?: unknown[] | null;
+  raw?: Record<string, unknown> | null;
+};
+
+export type AssertivaDecisor = {
+  nome?: string | null;
+  cargo?: string | null;
+  cpf_cnpj?: string | null;
+  whatsapp?: string[] | null;
+  whatsapp_fonte?: string | null;
+};
+
+export type AssertivaDecisoresData = {
+  cnpj?: string | null;
+  encontrado?: boolean;
+  decisores?: AssertivaDecisor[] | null;
+};
+
 export async function runProspeccaoStream(
   configFront: ProspeccaoConfig,
   onProgress: (evt: ProgressEvent) => void,
@@ -1743,69 +1823,116 @@ export async function runProspeccaoStream(
     throw new Error(errText);
   }
 
-  return new Promise<ProspeccaoResultado>((resolve, reject) => {
-    const reader = res.body?.getReader();
-    if (!reader) { reject(new Error("Sem body na resposta SSE")); return; }
+  try {
+    return await new Promise<ProspeccaoResultado>((resolve, reject) => {
+      const reader = res.body?.getReader();
+      if (!reader) { reject(new Error("Sem body na resposta SSE")); return; }
 
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let resolved = false;
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let resolved = false;
 
-    function processLines(lines: string[]): boolean {
-      for (const line of lines) {
-        if (line.startsWith("event: ")) continue;
-        if (line.startsWith("data: ")) {
-          const jsonStr = line.slice(6);
-          try {
-            const parsed = JSON.parse(jsonStr);
-            if (parsed.stage) {
-              onProgress(parsed as ProgressEvent);
-            } else if (parsed.detail && !parsed.empresas) {
-              reject(new Error(parsed.detail));
-              return true;
-            } else if (parsed.empresas !== undefined) {
-              resolved = true;
-              const data = parsed as ProspeccaoResultado;
-              void salvarResultadoLocal({
-                timestamp: new Date().toISOString(),
-                config: configFront,
-                resultado: data,
-              }).catch((err) => {
-                console.error("[Hermes] Falha ao persistir resultado da prospecção:", err);
-              });
-              resolve(data);
-              return true;
+      function processLines(lines: string[]): boolean {
+        for (const line of lines) {
+          if (line.startsWith("event: ")) continue;
+          if (line.startsWith("data: ")) {
+            const jsonStr = line.slice(6);
+            try {
+              const parsed = JSON.parse(jsonStr);
+              if (parsed.stage) {
+                onProgress(parsed as ProgressEvent);
+              } else if (parsed.detail && !parsed.empresas) {
+                reject(new Error(parsed.detail));
+                return true;
+              } else if (parsed.empresas !== undefined) {
+                resolved = true;
+                const data = parsed as ProspeccaoResultado;
+                void salvarResultadoLocal({
+                  timestamp: new Date().toISOString(),
+                  config: configFront,
+                  resultado: data,
+                }).catch((err) => {
+                  console.error("[Hermes] Falha ao persistir resultado da prospecção:", err);
+                });
+                resolve(data);
+                return true;
+              }
+            } catch {
+              // ignore malformed SSE lines and keep streaming
             }
-          } catch {
-            // ignore malformed SSE lines and keep streaming
           }
         }
+        return false;
       }
-      return false;
+
+      function pump(): void {
+        reader!.read().then(({ done, value }) => {
+          if (value) {
+            buffer += decoder.decode(value, { stream: !done });
+          }
+          const lines = buffer.split("\n");
+          buffer = done ? "" : (lines.pop() || "");
+
+          if (processLines(lines)) return;
+
+          if (done) {
+            if (buffer) processLines([buffer]);
+            if (!resolved) reject(new Error("Stream encerrado sem resultado"));
+            return;
+          }
+          pump();
+        }).catch((err) => {
+          if (!resolved) reject(err);
+        });
+      }
+      pump();
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err ?? "");
+    if (msg === "Stream encerrado sem resultado" || msg === "Sem body na resposta SSE") {
+      onProgress({ stage: "processing", current: 0, total: 0, detail: "Reconectando via modo compatível..." });
+      console.warn("[Hermes] SSE indisponível, executando fallback em /prospeccao/run");
+      return runProspeccao(configFront);
     }
+    throw err;
+  }
+}
 
-    function pump(): void {
-      reader!.read().then(({ done, value }) => {
-        if (value) {
-          buffer += decoder.decode(value, { stream: !done });
-        }
-        const lines = buffer.split("\n");
-        buffer = done ? "" : (lines.pop() || "");
+export async function consultarAssertivaCnpj(
+  cnpj: string,
+  idFinalidade = 5,
+): Promise<AssertivaCnpjData> {
+  const resp = await hermesFetch<{ success?: boolean; data?: AssertivaCnpjData; detail?: string }>(
+    "/prospeccao/assertiva/cnpj",
+    {
+      method: "POST",
+      body: JSON.stringify({ cnpj, id_finalidade: idFinalidade }),
+    },
+  );
+  if (!resp?.data) {
+    throw new Error(resp?.detail || "Resposta inválida da Assertiva.");
+  }
+  return resp.data;
+}
 
-        if (processLines(lines)) return;
-
-        if (done) {
-          if (buffer) processLines([buffer]);
-          if (!resolved) reject(new Error("Stream encerrado sem resultado"));
-          return;
-        }
-        pump();
-      }).catch((err) => {
-        if (!resolved) reject(err);
-      });
-    }
-    pump();
-  });
+export async function consultarAssertivaDecisoresCnpj(
+  cnpj: string,
+  idFinalidade = 5,
+  maxDecisores?: number,
+): Promise<AssertivaDecisoresData> {
+  const payload: Record<string, unknown> = { cnpj, id_finalidade: idFinalidade };
+  if (typeof maxDecisores === "number") payload.max_decisores = maxDecisores;
+  const resp = await hermesFetch<{ success?: boolean; data?: AssertivaDecisoresData; detail?: string }>(
+    "/prospeccao/assertiva/decisores/cnpj",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+  if (!resp?.data) {
+    throw new Error(resp?.detail || "Resposta inválida da Assertiva (decisores).");
+  }
+  return resp.data;
 }
 
 export async function getResultados(): Promise<ResultadoSalvo | null> {

@@ -5,6 +5,7 @@ Consulta de CNPJ para prospecção e enriquecimento de leads.
 """
 import logging
 import time
+import asyncio
 from typing import Optional, Dict, Any
 
 import httpx
@@ -83,18 +84,49 @@ class AssertivaCNPJService:
         if len(cnpj_limpo) != 14:
             raise ValueError(f"CNPJ inválido: '{cnpj}'")
 
-        token = await self._get_token()
+        max_attempts = 4
+        resp: Optional[httpx.Response] = None
 
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(
-                ASSERTIVA_CNPJ_URL,
-                params={"cnpj": cnpj_limpo, "idFinalidade": id_finalidade},
-                headers={"Authorization": f"Bearer {token}"},
+        for attempt in range(1, max_attempts + 1):
+            token = await self._get_token()
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get(
+                    ASSERTIVA_CNPJ_URL,
+                    params={"cnpj": cnpj_limpo, "idFinalidade": id_finalidade},
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+
+            if resp.status_code != 429:
+                break
+
+            if attempt >= max_attempts:
+                break
+
+            retry_after_raw = resp.headers.get("Retry-After", "").strip()
+            try:
+                retry_after = float(retry_after_raw) if retry_after_raw else 0.0
+            except ValueError:
+                retry_after = 0.0
+            backoff = retry_after if retry_after > 0 else min(2 ** (attempt - 1), 8)
+            logger.warning(
+                "Assertiva rate limit (429) para CNPJ %s. Tentativa %s/%s. Aguardando %.1fs",
+                cnpj_limpo,
+                attempt,
+                max_attempts,
+                backoff,
             )
+            await asyncio.sleep(backoff)
 
         if resp.status_code == 404:
             logger.info("CNPJ %s não encontrado na Assertiva", cnpj_limpo)
             return {"encontrado": False, "cnpj": cnpj_limpo}
+
+        if resp.status_code == 429:
+            logger.warning("Assertiva limitou requisições para CNPJ %s", cnpj_limpo)
+            raise RuntimeError(
+                "Limite temporário da Assertiva atingido (HTTP 429). "
+                "Aguarde alguns segundos e tente novamente."
+            )
 
         if resp.status_code != 200:
             logger.error(

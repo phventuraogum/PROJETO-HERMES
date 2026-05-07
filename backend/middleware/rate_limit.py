@@ -8,11 +8,37 @@ from starlette.responses import JSONResponse
 import redis
 import time
 import logging
-from typing import Optional
+from typing import Optional, Sequence
 
 from config import settings
 
 logger = logging.getLogger(__name__)
+
+_HEALTH_PATHS = frozenset({"/health", "/health/detailed", "/docs", "/openapi.json", "/redoc"})
+
+
+def _parse_exempt_get_prefixes(raw: str) -> tuple[str, ...]:
+    text = (raw or "").strip()
+    if not text:
+        return ()
+    return tuple(p.strip() for p in text.split(",") if p.strip())
+
+
+def _path_matches_prefix(path: str, prefix: str) -> bool:
+    return path == prefix or path.startswith(prefix + "/")
+
+
+def _is_exempt_from_rate_limit(request: Request, exempt_prefixes: Sequence[str]) -> bool:
+    path = request.url.path
+    if path in _HEALTH_PATHS:
+        return True
+    method = request.method.upper()
+    if method not in ("GET", "HEAD", "OPTIONS"):
+        return False
+    for prefix in exempt_prefixes:
+        if _path_matches_prefix(path, prefix):
+            return True
+    return False
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -29,6 +55,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.enabled = settings.RATE_LIMIT_ENABLED
         self.limit_per_minute = settings.RATE_LIMIT_PER_MINUTE
         self.redis_url = redis_url or settings.REDIS_URL
+        self._exempt_get_prefixes = _parse_exempt_get_prefixes(settings.RATE_LIMIT_EXEMPT_GET_PREFIXES)
         
         # Conecta ao Redis
         self.redis_client = None
@@ -100,8 +127,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         """Processa requisição com rate limiting"""
         
-        # Pula rate limiting para healthcheck
-        if request.url.path in ["/health", "/docs", "/openapi.json"]:
+        if _is_exempt_from_rate_limit(request, self._exempt_get_prefixes):
             return await call_next(request)
         
         # Obtém IP

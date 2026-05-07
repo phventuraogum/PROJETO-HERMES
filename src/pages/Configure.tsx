@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { runProspeccaoStream, salvarBuscaHistorico, getStorageKey, getPipeline, getKommoIntegration, setKommoIntegration, type KommoIntegration, type ProspeccaoResultado, type Empresa, type ProspeccaoConfig, type ProgressEvent as HermesProgress } from "@/lib/api";
+import { runProspeccaoStream, salvarBuscaHistorico, getStorageKey, getPipeline, type ProspeccaoResultado, type Empresa, type ProspeccaoConfig, type ProgressEvent as HermesProgress } from "@/lib/api";
 import { useOrg } from "@/tenancy/OrgContext";
 
 // ─── constantes ───────────────────────────────────────────────────────────────
@@ -70,6 +70,13 @@ const PRESETS: Preset[] = [
   { label: "Varejo RJ",   icon: ShoppingCart, config: { cidade: "RIO DE JANEIRO",  uf: "RJ", capitalMin: 50_000,  capitalMax: 2_000_000, portes: ["ME","EPP","Médio/Grande"], segmentos: ["Supermercados","Farmácias"],           limite: 25 } },
   { label: "Logística PR", icon: Truck,        config: { cidade: "CURITIBA",         uf: "PR", capitalMin: 200_000, capitalMax: null,      portes: ["EPP","Médio/Grande"],   segmentos: ["Logística"],                             limite: 25 } },
 ];
+
+function normalizarCNAEParaFiltro(input: string): string {
+  const digits = (input || "").replace(/\D/g, "");
+  if (digits.length >= 7) return digits.slice(0, 7); // subclasse (ex: 9200399)
+  if (digits.length >= 4) return digits.slice(0, 4); // classe (ex: 9200)
+  return "";
+}
 
 function formatBRL(n: number | null | undefined): string {
   if (n == null) return "—";
@@ -125,28 +132,20 @@ function Section({
 
 // ─── componente principal ────────────────────────────────────────────────────
 const Configure = () => {
-  const { orgId, currentOrg } = useOrg();
+  const { orgId } = useOrg();
   const navigate = useNavigate();
 
   // ── TODOS os estados declarados primeiro ──────────────────────────────────
-  const [kommoOpen, setKommoOpen] = useState(true);
-  const [kommoLoading, setKommoLoading] = useState(false);
-  const [kommoSaving, setKommoSaving] = useState(false);
-  const [kommo, setKommo] = useState<KommoIntegration>({
-    kommo_webhook: null,
-    kommo_pipeline_id: null,
-    kommo_status_id: null,
-  });
   const [termoBase,              setTermoBase]              = useState("");
   const [cidade,                 setCidade]                 = useState("");
   const [cidadeInput,            setCidadeInput]            = useState("");
   const [cidades,                setCidades]                = useState<string[]>([]);
-  const [uf,                     setUf]                     = useState("MG");
-  const [ufs,                    setUfs]                    = useState<string[]>(["MG"]);
+  const [uf,                     setUf]                     = useState("");
+  const [ufs,                    setUfs]                    = useState<string[]>([]);
   const [capitalMinimo,          setCapitalMinimo]          = useState<number>(0);
   const [capitalMaximo,          setCapitalMaximo]          = useState<number | null>(null);
   const [limiteEmpresas,         setLimiteEmpresas]         = useState<number>(50);
-  const [portesSelecionados,     setPortesSelecionados]     = useState<string[]>(["ME", "EPP", "Médio/Grande"]);
+  const [portesSelecionados,     setPortesSelecionados]     = useState<string[]>([]);
   const [segmentosSelecionados,  setSegmentosSelecionados]  = useState<string[]>([]);
   const [enriquecimentoWeb,      setEnriquecimentoWeb]      = useState(false);
   const [exigirContatoAcionavel, setExigirContatoAcionavel] = useState(false);
@@ -155,6 +154,7 @@ const Configure = () => {
   const [idadeMinima,            setIdadeMinima]            = useState<number | null>(null);
   const [idadeMaxima,            setIdadeMaxima]            = useState<number | null>(null);
   const [subsegmentoAlvo,        setSubsegmentoAlvo]        = useState("");
+  const [cnaePrincipalEstrito,   setCnaePrincipalEstrito]   = useState(true);
   const [cnaeInput,              setCnaeInput]              = useState("");
   const [cnaes,                  setCnaes]                  = useState<string[]>([]);
   const [avancadoAberto,         setAvancadoAberto]         = useState(false);
@@ -183,16 +183,6 @@ const Configure = () => {
       }]);
     } catch { /* ignore */ }
   }, [resultado]);
-
-  // ── Carrega integração Kommo da org ───────────────────────────────────────
-  useEffect(() => {
-    if (!orgId) return;
-    setKommoLoading(true);
-    getKommoIntegration(orgId)
-      .then(setKommo)
-      .catch(() => null)
-      .finally(() => setKommoLoading(false));
-  }, [orgId]);
 
   // ── Preview de qualidade a partir do último lote salvo ───────────────────
   useEffect(() => {
@@ -236,8 +226,18 @@ const Configure = () => {
       prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
 
   const addCNAE = () => {
-    const raw = cnaeInput.trim().replace(/\D/g, "");
-    if (!raw || cnaes.includes(raw)) { setCnaeInput(""); return; }
+    const raw = normalizarCNAEParaFiltro(cnaeInput.trim());
+    if (!raw) {
+      toast.error("Informe um CNAE válido (4 ou 7 dígitos). Ex.: 9200 ou 9200-3/99.");
+      setCnaeInput("");
+      return;
+    }
+    if (cnaes.includes(raw)) {
+      setCnaeInput("");
+      return;
+    }
+    // Quando há CNAE explícito, removemos segmentos para evitar prospecção "suja".
+    setSegmentosSelecionados([]);
     setCnaes(prev => [...prev, raw]);
     setCnaeInput("");
   };
@@ -245,6 +245,7 @@ const Configure = () => {
   const handleCNAEKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") { e.preventDefault(); addCNAE(); }
   };
+  const modoAmploCnae = cnaes.length > 0;
 
   const applyPreset = (p: Preset) => {
     const c = p.config;
@@ -259,28 +260,14 @@ const Configure = () => {
 
   const resetForm = () => {
     setTermoBase(""); setCidade(""); setCidadeInput(""); setCidades([]);
-    setUf("MG"); setUfs(["MG"]);
+    setUf(""); setUfs([]);
     setCapitalMinimo(0); setCapitalMaximo(null); setLimiteEmpresas(50);
-    setPortesSelecionados(["ME", "EPP", "Médio/Grande"]); setSegmentosSelecionados([]);
+    setPortesSelecionados([]); setSegmentosSelecionados([]);
     setEnriquecimentoWeb(false); setExigirContatoAcionavel(false);
     setPriorizarComContato(true); setExcluirJaProspectados(true);
     setIdadeMinima(null); setIdadeMaxima(null);
+    setCnaePrincipalEstrito(true);
     setSubsegmentoAlvo(""); setCnaes([]); setResultado(null);
-  };
-
-  const saveKommo = async () => {
-    if (!orgId) return;
-    setKommoSaving(true);
-    try {
-      const saved = await setKommoIntegration(orgId, kommo);
-      setKommo(saved);
-      toast.success("Integração Kommo salva.");
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Erro ao salvar integração Kommo.";
-      toast.error(msg);
-    } finally {
-      setKommoSaving(false);
-    }
   };
 
   // ── Resumo das tags ────────────────────────────────────────────────────────
@@ -300,10 +287,14 @@ const Configure = () => {
 
   // ── Execução ───────────────────────────────────────────────────────────────
   const handleExecutar = async () => {
-    if (ufs.length === 0 && !uf) { toast.error("Selecione pelo menos um estado (UF)."); return; }
+    if (cnaes.length === 0 && cnaeInput.trim()) {
+      toast.error("Você digitou um CNAE, mas não adicionou. Pressione Enter ou clique em Adicionar.");
+      return;
+    }
 
     const cidadesFinais = cidades.length > 0 ? cidades : (cidade ? [cidade] : []);
     const ufsFinais = ufs.length > 0 ? ufs : (uf ? [uf] : []);
+    const buscaAmplaPorCnae = cnaes.length > 0;
 
     let cnpjsExcluir: string[] | undefined;
     if (excluirJaProspectados) {
@@ -322,22 +313,29 @@ const Configure = () => {
       uf:                       ufsFinais[0] ?? "",
       cidades:                  cidadesFinais,
       ufs:                      ufsFinais,
-      capital_minimo:           capitalMinimo,
-      capital_maximo:           capitalMaximo,
+      // ICP desativado por padrão: não bloquear por faixa de capital.
+      capital_minimo:           0,
+      capital_maximo:           null,
       limite_empresas:          limiteEmpresas,
-      portes:                   portesSelecionados,
-      segmentos:                segmentosSelecionados,
+      // ICP desativado por padrão: não bloquear por porte/segmento.
+      portes:                   [],
+      segmentos:                [],
       cnaes,
       enriquecimento_web:       enriquecimentoWeb,
       exigir_contato_acionavel: exigirContatoAcionavel,
       priorizar_com_contato:    priorizarComContato,
       excluir_cnpjs:            cnpjsExcluir,
-      idade_minima_anos:        idadeMinima,
-      idade_maxima_anos:        idadeMaxima,
-      subsegmento_alvo:         subsegmentoAlvo || undefined,
+      idade_minima_anos:        null,
+      idade_maxima_anos:        null,
+      subsegmento_alvo:         undefined,
+      cnae_principal_estrito:   cnaePrincipalEstrito,
+      incluir_cnae_secundario:  cnaes.length > 0,
     };
 
     try {
+      if (buscaAmplaPorCnae) {
+        toast.info("CNAE ativo com localização habilitada. Se zerar, o sistema tenta uma busca mais ampla automaticamente.");
+      }
       setIsLoading(true);
       setResultado(null);
       setProgressPct(0);
@@ -371,13 +369,31 @@ const Configure = () => {
         else if (evt.stage === "done") { setLoadingStep(5); setProgressPct(100); }
       };
 
-      const data = await runProspeccaoStream(configPayload, onProgress);
+      let payloadFinal = configPayload;
+      let data = await runProspeccaoStream(payloadFinal, onProgress);
+
+      // Busca automática mais ampla quando CNAE está definido e os filtros locais zeram.
+      if (data.total_empresas === 0 && cnaes.length > 0 && (cidadesFinais.length > 0 || ufsFinais.length > 0 || portesSelecionados.length > 0)) {
+        const payloadRelaxado: ProspeccaoConfig = {
+          ...configPayload,
+          cidade: "",
+          uf: "",
+          cidades: [],
+          ufs: [],
+          portes: [],
+          segmentos: [],
+          subsegmento_alvo: undefined,
+        };
+        toast.info("Nenhum resultado com localização/porte atual. Reexecutando busca ampla por CNAE...");
+        data = await runProspeccaoStream(payloadRelaxado, onProgress);
+        payloadFinal = payloadRelaxado;
+      }
 
       setResultado(data);
       toast.success(`${data.total_empresas} empresas encontradas!`);
 
       salvarBuscaHistorico(
-        configPayload,
+        payloadFinal,
         { total_empresas: data.total_empresas, empresas: data.empresas }
       );
     } catch (e: unknown) {
@@ -411,60 +427,6 @@ const Configure = () => {
           <RotateCcw className="w-3.5 h-3.5" /> Limpar
         </Button>
       </div>
-
-      {/* ── Kommo por empresa (via n8n) ─────────────────────────────────────── */}
-      <Section
-        icon={SlidersHorizontal}
-        title="Integração Kommo (por empresa)"
-        hint={currentOrg?.name ? `Org: ${currentOrg.name}` : undefined}
-        open={kommoOpen}
-        onToggle={() => setKommoOpen(v => !v)}
-      >
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="md:col-span-2">
-            <Label>Webhook n8n do Kommo</Label>
-            <Input
-              value={kommo.kommo_webhook ?? ""}
-              onChange={(e) => setKommo(k => ({ ...k, kommo_webhook: e.target.value }))}
-              placeholder="https://n8n.seu-dominio/webhook/kommo"
-              disabled={kommoLoading}
-            />
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Cada empresa deve usar o seu próprio workflow no n8n (com as credenciais Kommo dela).
-            </p>
-          </div>
-
-          <div>
-            <Label>Pipeline ID</Label>
-            <Input
-              value={kommo.kommo_pipeline_id ?? ""}
-              onChange={(e) => setKommo(k => ({ ...k, kommo_pipeline_id: e.target.value ? Number(e.target.value) : null }))}
-              placeholder="13230435"
-              disabled={kommoLoading}
-            />
-          </div>
-
-          <div>
-            <Label>Status ID</Label>
-            <Input
-              value={kommo.kommo_status_id ?? ""}
-              onChange={(e) => setKommo(k => ({ ...k, kommo_status_id: e.target.value ? Number(e.target.value) : null }))}
-              placeholder="60307615"
-              disabled={kommoLoading}
-            />
-          </div>
-
-          <div className="md:col-span-3 flex items-center gap-2">
-            <Button onClick={saveKommo} disabled={kommoLoading || kommoSaving}>
-              {kommoSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              Salvar integração
-            </Button>
-            <Badge variant="outline" className="border-zinc-800 text-muted-foreground">
-              Usado em: Pipeline → Enviar pro Kommo
-            </Badge>
-          </div>
-        </div>
-      </Section>
 
       {/* ── Última busca ───────────────────────────────────────────────────── */}
       {recentes.length > 0 && (
@@ -514,6 +476,11 @@ const Configure = () => {
 
       {/* ── 1. Localização ─────────────────────────────────────────────────── */}
       <Section icon={MapPin} title="Localização">
+        {modoAmploCnae && (
+          <div className="mb-3 rounded-lg border border-amber-300/50 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700">
+            CNAE ativo: localização também será aplicada. Se não houver resultados, o Hermes reexecuta em modo mais amplo.
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="termo" className="text-xs">Palavra-chave <span className="text-muted-foreground">(opcional)</span></Label>
@@ -605,10 +572,11 @@ const Configure = () => {
           {PORTES.map(p => {
             const on = portesSelecionados.includes(p.id);
             return (
-              <button key={p.id} type="button" onClick={() => togglePorte(p.id)}
+              <button key={p.id} type="button" disabled={modoAmploCnae} onClick={() => togglePorte(p.id)}
                 className={cn(
                   "flex flex-col items-start gap-0.5 rounded-lg border px-3 py-3 transition-all text-left",
-                  on ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-border"
+                  on ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-border",
+                  modoAmploCnae && "opacity-45 cursor-not-allowed"
                 )}>
                 <span className="text-sm font-semibold">{p.label}</span>
                 <span className="text-[10px] opacity-70">{p.desc}</span>
@@ -624,10 +592,11 @@ const Configure = () => {
           {SEGMENTOS.map(seg => {
             const on = segmentosSelecionados.includes(seg.id);
             return (
-              <button key={seg.id} type="button" onClick={() => toggleSegmento(seg.id)}
+              <button key={seg.id} type="button" disabled={modoAmploCnae} onClick={() => toggleSegmento(seg.id)}
                 className={cn(
                   "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
-                  on ? `border ${seg.color}` : "border-border bg-muted/30 text-muted-foreground hover:border-border"
+                  on ? `border ${seg.color}` : "border-border bg-muted/30 text-muted-foreground hover:border-border",
+                  modoAmploCnae && "opacity-45 cursor-not-allowed"
                 )}>
                 <seg.icon className={cn("w-4 h-4 flex-shrink-0", !on && "opacity-40")} />
                 {seg.label}
@@ -679,6 +648,19 @@ const Configure = () => {
           )}
         </div>
 
+        <div className="rounded-lg border border-border bg-muted/20 p-3 flex items-center justify-between gap-3 mb-4">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-1.5 text-xs font-medium">
+              <Tag className="w-3.5 h-3.5 text-primary" />
+              CNAE principal estrito
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Ligado: foca na atividade principal (exato para 7 dígitos; classe para 4). Evita resultados fora do foco.
+            </p>
+          </div>
+          <Switch checked={cnaePrincipalEstrito} onCheckedChange={setCnaePrincipalEstrito} />
+        </div>
+
         <Separator className="bg-muted my-4" />
 
         {/* Subsegmento / nicho */}
@@ -689,6 +671,7 @@ const Configure = () => {
           </Label>
           <Input id="subseg" placeholder="Ex.: oncologia, diagnóstico por imagem, construção civil pesada..."
             value={subsegmentoAlvo}
+            disabled={modoAmploCnae}
             onChange={e => setSubsegmentoAlvo(e.target.value)}
             className="h-9 bg-background border-border focus:border-primary/40" />
           <p className="text-[10px] text-muted-foreground">
@@ -887,7 +870,7 @@ const Configure = () => {
           </Button>
           {resultado && !isLoading && (
             <span className="text-xs text-muted-foreground">
-              {cidades.length > 0 ? cidades.join(", ") : cidade} / {uf} · {resultado.total_empresas} leads
+              {cidades.length > 0 ? cidades.join(", ") : (cidade || "Todas as cidades")} / {ufs.length > 0 ? ufs.join(", ") : (uf || "Brasil")} · {resultado.total_empresas} leads
             </span>
           )}
         </div>

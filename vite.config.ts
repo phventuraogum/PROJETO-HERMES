@@ -9,6 +9,13 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     allowedHosts: true,
     proxy: {
+      // Frontend usa API_BASE = origin + "/api" — repassa para o FastAPI (prefixo é removido pelo backend/nginx em prod)
+      "/api": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, ""),
+      },
       "/prospeccao": {
         target: "http://127.0.0.1:8000",
         changeOrigin: true,

@@ -221,6 +221,7 @@ class ProspeccaoConfig(BaseModel):
     portes: Optional[List[str]] = None
     segmentos: Optional[List[str]] = None
     cnaes: Optional[List[str]] = None
+    cnae_principal_estrito: bool = True
     incluir_cnae_secundario: bool = False
     enriquecer_web: bool = Field(False, alias="enriquecimento_web")
     exigir_contato: bool = Field(False, alias="exigir_contato_acionavel")
@@ -1068,10 +1069,14 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
     Stages: 'db_query', 'building', 'enriching', 'enriching_socials', 'done'
     """
     # --- Cache Lookup ---
+    # Para buscas por CNAE específico, evitamos cache para não "grudar"
+    # resultados antigos (ex.: execuções com regras temporariamente mais rígidas).
+    use_cache = not (config.cnaes and len(config.cnaes) > 0)
     cache_key = config.model_dump()
-    cached = cache_service.get("prospeccao_icp", **cache_key)
-    if cached:
-        return ProspeccaoResultado(**cached)
+    if use_cache:
+        cached = cache_service.get("prospeccao_icp", **cache_key)
+        if cached:
+            return ProspeccaoResultado(**cached)
 
     def _emit(stage, current=0, total=0, detail=""):
         if on_progress:
@@ -1098,6 +1103,7 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
 
     _valid_col = "(TRIM({col}) != '' AND LOWER(TRIM({col})) != 'nan')"
 
+    cnaes_limpos_for_fallback: List[str] = []
     with get_connection(read_only=True) as con:
         sql = """
             SELECT
@@ -1223,12 +1229,46 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
             params.append(like_sub)
 
         # ----- cnaes / segmentos -----
-        cnae_col = "e.CNAE_PRINCIPAL"
+        bet_focus_9200399 = False
+        # Normaliza comparação de CNAE via texto para evitar diferenças de tipo
+        # (algumas bases expõem CNAE como número, outras como string).
+        cnae_col = "CAST(e.CNAE_PRINCIPAL AS VARCHAR)"
         if config.cnaes:
-            cnaes_limpos = [re.sub(r"\D", "", str(c)) for c in config.cnaes if str(c).strip() and str(c).lower() != "string"]
+            cnaes_limpos: List[str] = []
+            for c in config.cnaes:
+                raw = re.sub(r"\D", "", str(c))
+                if not raw or str(c).lower() == "string":
+                    continue
+                # Normaliza para os formatos oficiais mais úteis no filtro:
+                # 4 dígitos (classe) ou 7 dígitos (subclasse).
+                if len(raw) >= 7:
+                    cnaes_limpos.append(raw[:7])
+                elif len(raw) >= 4:
+                    cnaes_limpos.append(raw[:4])
+
+            cnaes_limpos = list(set(cnaes_limpos))
+            cnaes_limpos_for_fallback = cnaes_limpos[:]
             if cnaes_limpos:
-                sql += " AND (" + " OR ".join([f"{cnae_col} LIKE ?"] * len(cnaes_limpos)) + ")"
-                params.extend([f"{c}%" for c in cnaes_limpos])
+                if config.cnae_principal_estrito:
+                    clauses = []
+                    for cod in cnaes_limpos:
+                        if len(cod) == 7:
+                            clauses.append(f"{cnae_col} = ?")
+                            params.append(cod)
+                        else:
+                            clauses.append(f"LEFT({cnae_col}, 4) = ?")
+                            params.append(cod[:4])
+                    sql += " AND (" + " OR ".join(clauses) + ")"
+                else:
+                    sql += " AND (" + " OR ".join([f"{cnae_col} LIKE ?"] * len(cnaes_limpos)) + ")"
+                    params.extend([f"{c}%" for c in cnaes_limpos])
+
+                # Regra de foco para Bets:
+                # quando o filtro inclui a subclasse 9200399, ativamos apenas
+                # ordenação especializada (sem podar agressivamente o universo),
+                # para manter volume alto de resultados.
+                if "9200399" in cnaes_limpos:
+                    bet_focus_9200399 = True
         elif config.segmentos:
             prefixes: List[str] = []
             for seg in config.segmentos:
@@ -1267,7 +1307,10 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
                 tr=_valid_col.format(col="e.telefone_receita"),
                 er=_valid_col.format(col="e.email_receita"),
             )
-            sql += f" ORDER BY ({contact_score}) DESC, capital_num DESC NULLS LAST"
+            if bet_focus_9200399:
+                sql += f" ORDER BY capital_num DESC NULLS LAST, ({contact_score}) DESC"
+            else:
+                sql += f" ORDER BY ({contact_score}) DESC, capital_num DESC NULLS LAST"
         else:
             sql += " ORDER BY capital_num DESC NULLS LAST"
 
@@ -1276,6 +1319,71 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
         params.append(limit)
 
         df = con.execute(sql, params).fetchdf()
+        try:
+            if cnaes_limpos_for_fallback:
+                print(f"[PROSPECCAO][CNAE] cnaes={cnaes_limpos_for_fallback} rows_sql={len(df)}")
+        except Exception:
+            pass
+
+        # Fallback de segurança:
+        # se o pipeline completo voltar vazio com CNAE explícito, roda uma consulta
+        # direta por CNAE para evitar falsos "zerados" por combinações residuais.
+        if df.empty and cnaes_limpos_for_fallback:
+            fallback_clauses: List[str] = []
+            fallback_params: List[object] = []
+            for cod in cnaes_limpos_for_fallback:
+                if len(cod) >= 7:
+                    fallback_clauses.append("CAST(e.CNAE_PRINCIPAL AS VARCHAR) = ?")
+                    fallback_params.append(cod[:7])
+                else:
+                    fallback_clauses.append("LEFT(CAST(e.CNAE_PRINCIPAL AS VARCHAR), 4) = ?")
+                    fallback_params.append(cod[:4])
+
+            fallback_limit = min(config.limite_empresas or 50, 2000)
+            fallback_sql = """
+                SELECT
+                    e.cnpj,
+                    e.RAZAO_SOCIAL                                      AS razao_social,
+                    e.NOME_FANTASIA                                     AS nome_fantasia,
+                    e.cidade_nome                                       AS cidade,
+                    e.UF                                                AS uf,
+                    e.CNAE_PRINCIPAL                                    AS cnae_principal,
+                    e.cnae_descricao                                    AS cnae_descricao,
+                    e.PORTE_EMPRESA                                     AS porte_codigo,
+                    e.CAPITAL_SOCIAL_NUM                                AS capital_num,
+                    e.telefone_receita                                  AS tel_receita_raw,
+                    e.email_receita                                     AS email,
+                    e.site,
+                    e.email_enriquecido                                 AS email_web,
+                    e.telefone_enriquecido                              AS telefone_web,
+                    e.whatsapp_publico                                  AS whatsapp_publico_web,
+                    e.whatsapp_enriquecido                              AS whatsapp_enriq,
+                    e.outras_informacoes                                AS outras_info_web,
+                    e.email_final,
+                    e.telefone_final,
+                    e.whatsapp_final,
+                    e.sidra_pib                                         AS sidra_pib_corrente,
+                    e.sidra_populacao                                   AS sidra_pop_residente,
+                    e.sidra_pib_per_capita                              AS sidra_pib_per_capita,
+                    e.LOGRADOURO                                        AS estab_logradouro,
+                    e.NUMERO                                            AS estab_numero,
+                    e.COMPLEMENTO                                       AS estab_complemento,
+                    e.BAIRRO                                            AS estab_bairro,
+                    e.CEP                                               AS estab_cep,
+                    e.DATA_INICIO_ATIVIDADE                             AS data_abertura,
+                    e.NATUREZA_JURIDICA                                 AS natureza_juridica_cod,
+                    e.SITUACAO_CADASTRAL                                AS situacao_cadastral_cod
+                FROM vw_prospeccao_base e
+                WHERE (""" + " OR ".join(fallback_clauses) + """)
+                ORDER BY e.CAPITAL_SOCIAL_NUM DESC NULLS LAST
+                LIMIT ?
+            """
+            fallback_params.append(fallback_limit)
+            df = con.execute(fallback_sql, fallback_params).fetchdf()
+            try:
+                print(f"[PROSPECCAO][CNAE][FALLBACK] cnaes={cnaes_limpos_for_fallback} rows_fallback={len(df)}")
+            except Exception:
+                pass
 
     if df.empty:
         filtros_icp = FiltrosICP(
@@ -1698,7 +1806,8 @@ def rodar_prospeccao_icp(config: ProspeccaoConfig, on_progress=None) -> Prospecc
     _emit("done", total_empresas, total_empresas, f"{total_empresas} empresas encontradas")
 
     # --- Cache Save ---
-    cache_service.set("prospeccao_icp", result.model_dump(), **cache_key)
+    if use_cache:
+        cache_service.set("prospeccao_icp", result.model_dump(), **cache_key)
 
     return result
 

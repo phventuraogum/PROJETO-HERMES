@@ -28,6 +28,27 @@ def _org_id(x_org_id: str | None) -> str:
     return (x_org_id or "").strip() or "default"
 
 
+def _raise_supabase_rest(r: requests.Response, *, acao: str) -> None:
+    """Converte falhas do PostgREST em HTTPException com mensagem acionável."""
+    if r.status_code < 300:
+        return
+    body = (r.text or "").strip()
+    if r.status_code == 404:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"{acao}: recurso não encontrado no Supabase (404). "
+                "Para pipeline, crie a tabela public.pipeline_leads neste projeto "
+                "(ex.: scripts/all_migrations.sql) e confira X-Org-Id + SUPABASE_TENANTS_JSON. "
+                f"Resposta: {body[:800]}"
+            ),
+        )
+    raise HTTPException(
+        status_code=r.status_code,
+        detail=body[:2000] or r.reason or "Erro Supabase",
+    )
+
+
 # ─── MODELS ────────────────────────────────────────────────
 
 class EmpresaData(BaseModel):
@@ -247,8 +268,7 @@ def list_pipeline(
         params=params,
         timeout=15,
     )
-    if r.status_code >= 300:
-        raise HTTPException(status_code=r.status_code, detail=r.text)
+    _raise_supabase_rest(r, acao="Listar pipeline")
     return r.json()
 
 
@@ -312,8 +332,7 @@ def add_to_pipeline(
         json=row,
         timeout=10,
     )
-    if r.status_code >= 300:
-        raise HTTPException(status_code=r.status_code, detail=r.text)
+    _raise_supabase_rest(r, acao="Adicionar ao pipeline")
 
     created = r.json()
     return {"status": "added", "id": created[0]["id"] if created else None}

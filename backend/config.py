@@ -210,6 +210,18 @@ class Settings(BaseSettings):
         description="Requisições permitidas por minuto por IP"
     )
 
+    RATE_LIMIT_EXEMPT_GET_PREFIXES: str = Field(
+        default=(
+            "/lead-lists,/company-watchlist,/company-signals,/company-data-health,"
+            "/lead-refresh-jobs,/lead-refresh-states,/lead-suppressions,/saved-searches,"
+            "/prospeccao/resultado-atual,/prospeccao/ultima-execucao,/prospeccao/execucoes,/prospeccao/historico"
+        ),
+        description=(
+            "Prefixos de path para os quais GET/HEAD/OPTIONS não contam no rate limit "
+            "(lista separada por vírgula). Reduz 429 ao carregar Listas & Sinais em paralelo."
+        ),
+    )
+
     # ============================================================
     # ENVIRONMENT
     # ============================================================
