@@ -52,17 +52,17 @@ export function HealthIndicator({ title, items, delay = 0 }: HealthIndicatorProp
 
   return (
     <div
-      className="animate-fade-in-up rounded-lg border border-border bg-card p-5"
+      className="animate-pinn-fade-in rounded-pinn-3 border border-border bg-card p-5 shadow-pinn-1"
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+        <h3 className="pinn-eyebrow !text-muted-foreground">{title}</h3>
         <div
           className={cn(
-            "flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium",
-            overallStatus === "success" && "bg-success/10 text-success",
-            overallStatus === "warning" && "bg-warning/10 text-warning",
-            overallStatus === "destructive" && "bg-destructive/10 text-destructive"
+            "flex items-center gap-1.5 rounded-pinn-pill px-2.5 py-1 text-xs font-semibold font-mono-pinn",
+            overallStatus === "success" && "bg-success/12 text-success",
+            overallStatus === "warning" && "bg-warning/12 text-warning",
+            overallStatus === "destructive" && "bg-destructive/12 text-destructive"
           )}
         >
           {getIcon(overallStatus)}
@@ -77,18 +77,21 @@ export function HealthIndicator({ title, items, delay = 0 }: HealthIndicatorProp
 
           return (
             <div key={index}>
-              <div className="mb-1.5 flex items-center justify-between text-sm">
+              <div className="mb-1.5 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
                   {getIcon(status)}
                   <span className="text-foreground">{item.label}</span>
                 </div>
-                <span className="font-medium text-foreground">
+                <span className="font-mono-pinn font-semibold text-foreground">
                   {item.value}{item.unit || "%"} / {item.target}{item.unit || "%"}
                 </span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-secondary">
+              <div className="h-1.5 overflow-hidden rounded-pinn-pill bg-muted">
                 <div
-                  className={cn("h-full rounded-full transition-all duration-500", getBarColor(status))}
+                  className={cn(
+                    "h-full rounded-pinn-pill transition-[width] duration-500 ease-pinn-out",
+                    getBarColor(status)
+                  )}
                   style={{ width: `${percentage}%` }}
                 />
               </div>

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Target, Mail, Lock, ArrowRight, Eye, EyeOff, Loader2,
-  Search, BarChart3, Layers, Brain, Shield, Database, Filter,
+  Search, BarChart3, Layers, Workflow, Shield, Database, Filter,
   Zap, Users, Globe, Activity, CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,7 +26,7 @@ const STATS = [
 ];
 
 const CAPABILITIES = [
-  { icon: Brain, text: "IA generativa para score ICP e abordagens personalizadas" },
+  { icon: Workflow, text: "IA generativa para score ICP e abordagens personalizadas" },
   { icon: Search, text: "Busca avancada com CNAE, capital, segmento e localizacao" },
   { icon: BarChart3, text: "Dashboard com mapa de calor e metricas de prospeccao" },
   { icon: Layers, text: "Pipeline Kanban integrado com status e notas" },

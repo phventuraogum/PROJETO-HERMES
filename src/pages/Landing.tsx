@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Target, Zap, Search, BarChart3, Shield, Globe, Users, ArrowRight, Check, Mail,
   Lock, Eye, EyeOff, User, Building2, Loader2, QrCode, CreditCard, ChevronRight,
-  ChevronDown, Sparkles, Database, Brain, FileSpreadsheet, TrendingUp,
+  ChevronDown, Cpu, Database, Workflow, FileSpreadsheet, TrendingUp,
   MousePointerClick, MessageSquare, X, Star, Rocket, Filter, Linkedin, Phone,
   MapPin, PlayCircle, Layers, Send, Activity, Network,
 } from "lucide-react";
@@ -98,14 +98,14 @@ const PLANS: Plan[] = [
 
 const WORKFLOW_STEPS = [
   { icon: Filter, num: "01", title: "Configure sua busca", desc: "Defina CNAE, cidade, porte, capital e segmento. Use mais de 30 filtros para refinar o ICP perfeito.", color: "from-primary to-cyan-400" },
-  { icon: Brain, num: "02", title: "IA enriquece tudo", desc: "Nosso motor encontra sites, e-mails, telefones, WhatsApp e redes sociais automaticamente.", color: "from-violet-500 to-secondary" },
+  { icon: Workflow, num: "02", title: "IA enriquece tudo", desc: "Nosso motor encontra sites, e-mails, telefones, WhatsApp e redes sociais automaticamente.", color: "from-violet-500 to-secondary" },
   { icon: Send, num: "03", title: "Aborde e converta", desc: "Exporte para o CRM, gere mensagens com IA e gerencie tudo no pipeline integrado.", color: "from-amber-500 to-orange-400" },
 ];
 
 const FEATURES_GRID = [
   { icon: Database, title: "56M+ CNPJs", desc: "Base completa da Receita Federal com sócios, capital e CNAE." },
   { icon: Filter, title: "30+ filtros", desc: "Cidade, UF, CNAE, porte, capital, segmento — combine como quiser." },
-  { icon: Brain, title: "IA generativa", desc: "Resumos, scores e abordagens criadas por inteligência artificial." },
+  { icon: Workflow, title: "IA generativa", desc: "Resumos, scores e abordagens criadas por inteligência artificial." },
   { icon: BarChart3, title: "Dashboard", desc: "Métricas de ICP, mapa de calor e distribuição por segmento." },
   { icon: FileSpreadsheet, title: "Exportar para CRM", desc: "Integre com os principais CRMs do mercado em 1 clique." },
   { icon: MessageSquare, title: "Mensagens com IA", desc: "Abordagens personalizadas por WhatsApp, e-mail e LinkedIn." },

@@ -10,10 +10,10 @@ import {
 
 export function FilterBar() {
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card/50 p-4 backdrop-blur-sm">
+    <div className="flex flex-wrap items-center gap-3 rounded-pinn-3 border border-border bg-card p-4">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Filter className="h-4 w-4" />
-        <span className="font-medium">Filtros</span>
+        <Filter className="h-4 w-4" strokeWidth={1.7} />
+        <span className="font-semibold">Filtros</span>
       </div>
 
       <div className="h-6 w-px bg-border" />

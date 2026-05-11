@@ -1,164 +1,298 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+/* ============================================================================
+   HERMES — Design System v4 · Pinn Identity (oficial)
+   Source: Pinn Design System v1.0 (Maio/2026) — colors_and_type.css canônico
+   Família: produto irmão de Pinn BAI (mesma identidade visual)
+   Modos: light (paper-white premium B2B) + dark (night canvas BAI-style)
+   ============================================================================ */
+
+/* JetBrains Mono Variable — self-hosted via fontsource (mono accent: stats, métricas) */
+@import "@fontsource-variable/jetbrains-mono/index.css";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/*
-  HERMES — Design System v3 · Pinn Identity
-  Tipografia: Inter (400–900)
-  Paleta: Laranja #F97316 · Preto #1A1A1A · Off-white #F5F5F3
-*/
+/* ── Inter Variable — brand-supplied, local (zero dep externa) ─────────────── */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/Inter-VariableFont_opsz_wght.ttf") format("truetype-variations");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/Inter-Italic-VariableFont_opsz_wght.ttf") format("truetype-variations");
+}
 
 @layer base {
   :root {
-    /* ── Superfícies ── */
-    --background: 40 10% 96%;
-    --foreground: 0 0% 10%;
+    /* ════════════════════════════════════════════════════════════════════════
+       PINN BRAND TOKENS — diretos do DS oficial
+       ════════════════════════════════════════════════════════════════════════ */
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
+    /* Orange (alma da marca) */
+    --pinn-orange:        #FF6B35;
+    --pinn-orange-dark:   #E55A2B;
+    --pinn-orange-light:  #FFF3ED;
+    --pinn-orange-700:    #B8431F;
+    --pinn-orange-50:     #FFF8F4;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
+    /* Neutrals (premium B2B; nunca #000) */
+    --pinn-ink:           #1A1A1A;
+    --pinn-ink-2:         #2C2C2C;
+    --pinn-graphite:      #555555;
+    --pinn-mute:          #999999;
+    --pinn-rule:          #E6E4E0;
+    --pinn-surface:       #F6F4EF;
+    --pinn-paper:         #FAF8F4;
+    --pinn-white:         #FFFFFF;
 
-    /* ── Brand: Laranja Pinn ── */
-    --primary: 25 95% 53%;
-    --primary-foreground: 0 0% 100%;
+    /* Night family (Hermes dark mode + BAI) */
+    --pinn-night:         #0E0E0E;
+    --pinn-night-2:       #161616;
+    --pinn-night-3:       #1F1F1F;
+    --pinn-night-rule:    #2A2A2A;
+    --pinn-night-mute:    #6B6B6B;
+    --pinn-night-fg:      #F2F2F2;
+    --pinn-night-fg-2:    #C9C9C9;
+    --pinn-night-fg-3:    #6B6B6B;
 
-    /* ── Secundária: Preto Pinn ── */
-    --secondary: 0 0% 10%;
+    /* Functional */
+    --pinn-success:       #2E7D32;
+    --pinn-error:         #C62828;
+    --pinn-warning:       #F57C00;
+
+    /* ════════════════════════════════════════════════════════════════════════
+       FONTS
+       ════════════════════════════════════════════════════════════════════════ */
+    --font-sans:  "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+                  "Helvetica Neue", Arial, sans-serif;
+    --font-mono:  "JetBrains Mono Variable", ui-monospace, SFMono-Regular,
+                  Menlo, monospace;
+    --font-doc:   Arial, "Helvetica Neue", sans-serif;
+
+    /* ════════════════════════════════════════════════════════════════════════
+       TYPE SCALE (px-based, do DS)
+       ════════════════════════════════════════════════════════════════════════ */
+    --fs-hero:    72px;
+    --fs-display: 56px;
+    --fs-h1:      36px;
+    --fs-h2:      28px;
+    --fs-h3:      22px;
+    --fs-h4:      18px;
+    --fs-body:    16px;
+    --fs-body-sm: 14px;
+    --fs-caption: 12px;
+    --fs-quote:   22px;
+    --fs-eyebrow: 12px;
+
+    --fw-light:    300;
+    --fw-regular:  400;
+    --fw-medium:   500;
+    --fw-semibold: 600;
+    --fw-bold:     700;
+
+    --lh-tight:  1.05;
+    --lh-snug:   1.15;
+    --lh-normal: 1.45;
+    --lh-loose:  1.6;
+
+    --tr-tight:  -0.02em;
+    --tr-snug:   -0.01em;
+    --tr-normal: 0;
+    --tr-wide:   0.08em;
+
+    /* ════════════════════════════════════════════════════════════════════════
+       SPACING (8pt baseline; "premium B2B respira")
+       ════════════════════════════════════════════════════════════════════════ */
+    --sp-1:  4px;
+    --sp-2:  8px;
+    --sp-3:  12px;
+    --sp-4:  16px;
+    --sp-5:  24px;
+    --sp-6:  32px;
+    --sp-7:  48px;
+    --sp-8:  64px;
+    --sp-9:  96px;
+    --sp-10: 128px;
+    --sp-section:   var(--sp-9);
+    --sp-paragraph: var(--sp-5);
+
+    /* ════════════════════════════════════════════════════════════════════════
+       RADII (restritos — 0/2/4/8/12/20)
+       ════════════════════════════════════════════════════════════════════════ */
+    --r-0:    0px;
+    --r-1:    2px;
+    --r-2:    4px;
+    --r-3:    8px;
+    --r-4:    12px;
+    --r-5:    20px;
+    --r-pill: 999px;
+    --radius: 0.5rem; /* 8px = card default (compat shadcn) */
+
+    /* ════════════════════════════════════════════════════════════════════════
+       SHADOWS (low-key, executive). --sh-orange = exclusiva CTA primário.
+       ════════════════════════════════════════════════════════════════════════ */
+    --sh-0: 0 0 0 1px rgba(26,26,26,0.04);
+    --sh-1: 0 1px 2px rgba(26,26,26,0.06), 0 0 0 1px rgba(26,26,26,0.04);
+    --sh-2: 0 4px 16px rgba(26,26,26,0.06), 0 0 0 1px rgba(26,26,26,0.04);
+    --sh-3: 0 12px 32px rgba(26,26,26,0.08), 0 0 0 1px rgba(26,26,26,0.04);
+    --sh-orange: 0 8px 24px rgba(255,107,53,0.22);
+
+    /* ════════════════════════════════════════════════════════════════════════
+       MOTION (cirúrgico — sem bounce, sem overshoot)
+       ════════════════════════════════════════════════════════════════════════ */
+    --ease:     cubic-bezier(.2,.7,.2,1);
+    --ease-out: cubic-bezier(.16,1,.3,1);
+    --dur-fast: 120ms;
+    --dur-base: 200ms;
+    --dur-slow: 360ms;
+
+    /* ════════════════════════════════════════════════════════════════════════
+       LAYOUT
+       ════════════════════════════════════════════════════════════════════════ */
+    --measure-narrow: 36rem;
+    --measure-text:   42rem;
+    --measure-wide:   62rem;
+    --measure-page:   76rem;
+    --grid-gutter:    24px;
+    --grid-cols:      12;
+
+    /* ════════════════════════════════════════════════════════════════════════
+       LIGHT MODE — paper-white premium B2B (DS marketing site style)
+       Mapping shadcn (HSL) → tokens Pinn
+       ════════════════════════════════════════════════════════════════════════ */
+
+    /* Surfaces */
+    --background:           38 33% 97%;   /* #FAF8F4 paper */
+    --foreground:           0 0% 10%;     /* #1A1A1A ink */
+    --card:                 0 0% 100%;    /* #FFFFFF white */
+    --card-foreground:      0 0% 10%;
+    --popover:              0 0% 100%;
+    --popover-foreground:   0 0% 10%;
+
+    /* Brand */
+    --primary:              16 100% 60%;  /* #FF6B35 */
+    --primary-foreground:   0 0% 100%;
+
+    /* Secondary = ink */
+    --secondary:            0 0% 10%;
     --secondary-foreground: 0 0% 100%;
 
-    /* ── Muted ── */
-    --muted: 40 8% 93%;
-    --muted-foreground: 0 0% 42%;
+    /* Muted = surface warm */
+    --muted:                40 23% 95%;   /* #F6F4EF surface */
+    --muted-foreground:     0 0% 33%;     /* #555 graphite */
 
-    /* ── Accent: Laranja pastel ── */
-    --accent: 27 100% 95%;
-    --accent-foreground: 21 90% 40%;
+    /* Accent = orange wash */
+    --accent:               21 100% 96%;  /* #FFF3ED orange-light */
+    --accent-foreground:    16 100% 42%;  /* #B8431F orange-700 */
 
-    /* ── Status ── */
-    --success: 152 57% 36%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 32 94% 46%;
-    --warning-foreground: 0 0% 100%;
-
-    --destructive: 0 72% 51%;
+    /* Status */
+    --success:              123 46% 34%;  /* #2E7D32 */
+    --success-foreground:   0 0% 100%;
+    --warning:              30 100% 48%;  /* #F57C00 */
+    --warning-foreground:   0 0% 100%;
+    --destructive:          0 65% 47%;    /* #C62828 */
     --destructive-foreground: 0 0% 100%;
 
-    /* ── Estrutura ── */
-    --border: 40 8% 88%;
-    --input: 40 8% 88%;
-    --ring: 25 95% 53%;
+    /* Structure */
+    --border:               34 18% 89%;   /* #E6E4E0 rule */
+    --input:                34 18% 89%;
+    --ring:                 16 100% 60%;  /* orange */
 
-    --radius: 0.625rem;
-
-    /* ── Sidebar ── */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 38%;
-    --sidebar-primary: 25 95% 53%;
+    /* Sidebar — light = white com hairlines */
+    --sidebar-background:        0 0% 100%;       /* white */
+    --sidebar-foreground:        0 0% 33%;        /* graphite */
+    --sidebar-primary:           16 100% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 25 95% 53%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 40 8% 90%;
-    --sidebar-ring: 25 95% 53%;
+    --sidebar-accent:            21 100% 96%;     /* orange-light wash */
+    --sidebar-accent-foreground: 16 100% 42%;     /* orange-700 */
+    --sidebar-border:            34 18% 89%;
+    --sidebar-ring:              16 100% 60%;
 
-    /* ── Sombras ── */
-    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
-    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.04);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.04);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.04);
-
-    /* ── Gradientes ── */
-    --gradient-primary: linear-gradient(135deg, hsl(25 95% 53%), hsl(20 90% 45%));
-    --gradient-surface: linear-gradient(180deg, hsl(0 0% 100%), hsl(40 10% 97%));
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(40 8% 98%));
-    --glow-primary: 0 0 0 3px hsl(25 95% 53% / 0.15);
-    --glow-secondary: 0 0 0 3px hsl(0 0% 10% / 0.10);
-
-    /* ── Pinn brand extras ── */
-    --pinn-orange: #F97316;
-    --pinn-orange-light: #FEF0E6;
-    --pinn-orange-border: #FDBA74;
-    --pinn-orange-dark: #C2410C;
-    --pinn-black: #1A1A1A;
-    --pinn-black2: #2C2C2C;
-    --pinn-bg: #F5F5F3;
+    /* Charts (single-accent series, pinn-aware) */
+    --chart-1: 16 100% 60%;   /* pinn orange */
+    --chart-2: 16 100% 42%;   /* orange-700 deep */
+    --chart-3: 0 0% 33%;      /* graphite */
+    --chart-4: 0 0% 60%;      /* mute */
+    --chart-5: 0 0% 10%;      /* ink */
   }
 
   .dark {
-    --background: 0 0% 8%;
-    --foreground: 0 0% 94%;
+    /* ════════════════════════════════════════════════════════════════════════
+       DARK MODE — night canvas (DS BAI-style)
+       --pinn-night #0E0E0E como background, mesma família do Pinn BAI
+       ════════════════════════════════════════════════════════════════════════ */
 
-    --card: 0 0% 11%;
-    --card-foreground: 0 0% 94%;
+    --background:           0 0% 5%;      /* #0E0E0E night */
+    --foreground:            0 0% 95%;     /* #F2F2F2 night-fg */
+    --card:                 0 0% 9%;      /* #161616 night-2 */
+    --card-foreground:      0 0% 95%;
+    --popover:              0 0% 12%;     /* #1F1F1F night-3 */
+    --popover-foreground:   0 0% 95%;
 
-    --popover: 0 0% 12%;
-    --popover-foreground: 0 0% 94%;
+    --primary:              16 100% 60%;
+    --primary-foreground:   0 0% 100%;
 
-    --primary: 25 95% 58%;
-    --primary-foreground: 0 0% 100%;
+    --secondary:            0 0% 12%;     /* night-3 */
+    --secondary-foreground: 0 0% 95%;
 
-    --secondary: 0 0% 18%;
-    --secondary-foreground: 0 0% 90%;
+    --muted:                0 0% 9%;      /* night-2 */
+    --muted-foreground:     0 0% 42%;     /* night-mute #6B6B6B */
 
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 55%;
+    --accent:               16 100% 60% / 0.12;   /* orange wash on dark */
+    --accent-foreground:    16 100% 60%;
 
-    --accent: 0 0% 18%;
-    --accent-foreground: 0 0% 90%;
-
-    --success: 152 57% 40%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 32 94% 50%;
-    --warning-foreground: 0 0% 10%;
-
-    --destructive: 0 72% 56%;
+    --success:              123 35% 50%;
+    --success-foreground:   0 0% 100%;
+    --warning:              30 100% 55%;
+    --warning-foreground:   0 0% 10%;
+    --destructive:          0 65% 56%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
-    --ring: 25 95% 58%;
+    --border:               0 0% 16%;     /* #2A2A2A night-rule */
+    --input:                0 0% 16%;
+    --ring:                 16 100% 60%;
 
-    --sidebar-background: 0 0% 7%;
-    --sidebar-foreground: 0 0% 62%;
-    --sidebar-primary: 25 95% 58%;
+    --sidebar-background:        0 0% 5%;     /* night */
+    --sidebar-foreground:        0 0% 78%;    /* night-fg-2 dimmed */
+    --sidebar-primary:           16 100% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 25 95% 58%;
+    --sidebar-accent:            0 0% 9%;     /* night-2 hover */
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 15%;
-    --sidebar-ring: 25 95% 58%;
+    --sidebar-border:            0 0% 16%;
+    --sidebar-ring:              16 100% 60%;
 
-    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.20);
-    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.26), 0 1px 2px -1px rgb(0 0 0 / 0.18);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.28), 0 2px 4px -2px rgb(0 0 0 / 0.20);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.32), 0 4px 6px -4px rgb(0 0 0 / 0.22);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.36), 0 8px 10px -6px rgb(0 0 0 / 0.24);
+    /* Sombras invertidas — night canvas + ring sutil */
+    --sh-0: 0 0 0 1px rgba(255,255,255,0.04);
+    --sh-1: 0 1px 2px rgba(0,0,0,0.30), 0 0 0 1px rgba(255,255,255,0.04);
+    --sh-2: 0 4px 16px rgba(0,0,0,0.36), 0 0 0 1px rgba(255,255,255,0.04);
+    --sh-3: 0 12px 32px rgba(0,0,0,0.42), 0 0 0 1px rgba(255,255,255,0.04);
+    --sh-orange: 0 8px 24px rgba(255,107,53,0.30);
 
-    --gradient-primary: linear-gradient(135deg, hsl(25 95% 58%), hsl(20 90% 50%));
-    --gradient-surface: linear-gradient(180deg, hsl(0 0% 11%), hsl(0 0% 10%));
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 11%), hsl(0 0% 10%));
-    --glow-primary: 0 0 0 3px hsl(25 95% 58% / 0.20);
-    --glow-secondary: 0 0 0 3px hsl(0 0% 100% / 0.08);
-
-    --pinn-orange-light: rgb(249 115 22 / 0.12);
-    --pinn-orange-border: rgb(249 115 22 / 0.30);
-    --pinn-orange-dark: #ffd2b0;
-    --pinn-bg: hsl(0 0% 9%);
+    --chart-1: 16 100% 60%;
+    --chart-2: 21 100% 70%;
+    --chart-3: 0 0% 78%;
+    --chart-4: 0 0% 42%;
+    --chart-5: 0 0% 95%;
   }
 }
 
+/* ============================================================================
+   BASE — html / body / typography
+   ============================================================================ */
 @layer base {
   * {
     @apply border-border;
   }
 
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11"; /* Inter humanist alts */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -166,255 +300,631 @@
 
   body {
     @apply bg-background text-foreground;
-    background: var(--gradient-surface);
-    background-attachment: fixed;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    font-size: var(--fs-body);
+    line-height: var(--lh-normal);
+    transition: background-color var(--dur-base) var(--ease),
+                color var(--dur-base) var(--ease);
   }
 
-  /* Headings — Inter bold/black como Pinn */
-  h1 {
-    font-family: 'Inter', system-ui, sans-serif;
-    font-weight: 900;
-    letter-spacing: -0.04em;
+  /* Headings — pesos do DS (bold/semibold premium B2B) */
+  h1, .h1 {
+    font-size: var(--fs-h1);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-snug);
+    letter-spacing: var(--tr-snug);
+    text-wrap: balance;
   }
-  h2 {
-    font-family: 'Inter', system-ui, sans-serif;
-    font-weight: 800;
-    letter-spacing: -0.03em;
+  h2, .h2 {
+    font-size: var(--fs-h2);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-snug);
+    letter-spacing: var(--tr-snug);
   }
-  h3 {
-    font-family: 'Inter', system-ui, sans-serif;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+  h3, .h3 {
+    font-size: var(--fs-h3);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-snug);
   }
   h4, h5, h6 {
-    font-family: 'Inter', system-ui, sans-serif;
-    font-weight: 600;
+    font-size: var(--fs-h4);
+    font-weight: var(--fw-semibold);
+    line-height: var(--lh-normal);
   }
 
-  /* Scrollbar refinada */
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  /* Scrollbar refinada (mantém token-based) */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
     background: hsl(var(--border));
     border-radius: 99px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.4);
+    background: hsl(var(--muted-foreground) / 0.5);
   }
 
+  /* Focus visible — hairline orange (sem glow) */
   :focus-visible {
-    outline: 2px solid hsl(var(--ring) / 0.6);
+    outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
   }
 }
 
-/* ── Utilitários ──────────────────────────────────────────────────────────── */
+/* ============================================================================
+   COMPONENT UTILITIES — assinados Pinn
+   ============================================================================ */
+@layer components {
+
+  /* Hero / display headlines */
+  .pinn-hero {
+    font-size: var(--fs-hero);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-tight);
+    letter-spacing: var(--tr-tight);
+    text-wrap: balance;
+  }
+  .pinn-display {
+    font-size: var(--fs-display);
+    font-weight: var(--fw-bold);
+    line-height: var(--lh-tight);
+    letter-spacing: var(--tr-tight);
+  }
+
+  /* Eyebrow — uppercase tag (label de seção, breadcrumb section) */
+  .pinn-eyebrow {
+    font-size: var(--fs-eyebrow);
+    font-weight: var(--fw-semibold);
+    letter-spacing: var(--tr-wide);
+    text-transform: uppercase;
+    color: hsl(var(--primary));
+  }
+
+  /* Lede — parágrafo de abertura, mais leve */
+  .pinn-lede {
+    font-size: var(--fs-h4);
+    line-height: var(--lh-normal);
+    color: hsl(var(--muted-foreground));
+    max-width: var(--measure-text);
+  }
+
+  /* Stat number — JetBrains Mono pra métricas (tabular nums) */
+  .pinn-stat {
+    font-family: var(--font-mono);
+    font-weight: var(--fw-bold);
+    letter-spacing: var(--tr-tight);
+    line-height: 1;
+    font-feature-settings: "tnum" 1;
+  }
+
+  /* Quote / blockquote */
+  .pinn-quote {
+    font-size: var(--fs-quote);
+    line-height: var(--lh-snug);
+    font-style: italic;
+    border-left: 2px solid hsl(var(--primary));
+    padding-left: var(--sp-5);
+    max-width: var(--measure-text);
+  }
+
+  /* Tagline — Revenue OS. */
+  .pinn-tagline {
+    font-weight: var(--fw-medium);
+    letter-spacing: var(--tr-wide);
+  }
+
+  /* ── Surfaces ─────────────────────────────────────────────────────────── */
+  .surface-card {
+    background: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--r-3);
+    box-shadow: var(--sh-1);
+  }
+
+  .surface-elevated {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--r-4);
+    box-shadow: var(--sh-2);
+  }
+
+  .surface-wash {
+    background: var(--pinn-orange-light);
+    color: var(--pinn-orange-700);
+    border: 1px solid var(--pinn-orange-light);
+    border-radius: var(--r-3);
+  }
+  .dark .surface-wash {
+    background: hsl(var(--primary) / 0.10);
+    color: hsl(var(--primary));
+    border-color: hsl(var(--primary) / 0.20);
+  }
+
+  /* ── KPI / stat tile (BAI-style) ─────────────────────────────────────── */
+  .pinn-kpi {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--r-3);
+    padding: var(--sp-5);
+    transition: border-color var(--dur-base) var(--ease),
+                box-shadow var(--dur-base) var(--ease),
+                transform var(--dur-fast) var(--ease);
+  }
+  .pinn-kpi:hover {
+    box-shadow: var(--sh-2);
+    transform: translateY(-2px);
+  }
+  .pinn-kpi__label {
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: var(--tr-wide);
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+    margin-bottom: var(--sp-3);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+  .pinn-kpi__value {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: var(--fw-bold);
+    letter-spacing: var(--tr-tight);
+    color: hsl(var(--foreground));
+    font-feature-settings: "tnum" 1;
+  }
+  .pinn-kpi__delta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    margin-top: var(--sp-2);
+  }
+  .pinn-kpi__delta--up   { color: hsl(var(--success)); }
+  .pinn-kpi__delta--down { color: hsl(var(--destructive)); }
+
+  /* ── Pipeline / kanban card (Hermes-only — segue princípios DS) ──────── */
+  .pinn-pipeline-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--r-3);
+    padding: var(--sp-3);
+    box-shadow: var(--sh-0);
+    cursor: grab;
+    user-select: none;
+    transition: border-color var(--dur-base) var(--ease),
+                box-shadow var(--dur-base) var(--ease),
+                transform var(--dur-fast) var(--ease);
+  }
+  .pinn-pipeline-card:hover {
+    border-color: hsl(var(--primary) / 0.50);
+    box-shadow: var(--sh-1);
+    transform: translateY(-2px);
+  }
+  .pinn-pipeline-card:active { cursor: grabbing; }
+
+  /* ── Score badges (funcionais, semânticos — não são pills) ───────────── */
+  .pinn-score {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: 2px 8px;
+    border-radius: var(--r-2);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    border: 1px solid;
+  }
+  .pinn-score--high {
+    background: hsl(var(--success) / 0.12);
+    color: hsl(var(--success));
+    border-color: hsl(var(--success) / 0.30);
+  }
+  .pinn-score--mid {
+    background: hsl(var(--primary) / 0.12);
+    color: hsl(var(--primary));
+    border-color: hsl(var(--primary) / 0.30);
+  }
+  .pinn-score--low {
+    background: hsl(var(--warning) / 0.12);
+    color: hsl(var(--warning));
+    border-color: hsl(var(--warning) / 0.30);
+  }
+  .pinn-score--danger {
+    background: hsl(var(--destructive) / 0.12);
+    color: hsl(var(--destructive));
+    border-color: hsl(var(--destructive) / 0.30);
+  }
+
+  /* ── Pills / chips / tags (apenas estes ganham pill 999px) ───────────── */
+  .pinn-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border-radius: var(--r-pill);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+  }
+  .pinn-pill--orange {
+    background: hsl(var(--primary) / 0.12);
+    color: hsl(var(--primary));
+  }
+  .pinn-pill--success {
+    background: hsl(var(--success) / 0.14);
+    color: hsl(var(--success));
+  }
+  .pinn-pill--neutral {
+    background: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
+  }
+  .pinn-pill__dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 99px;
+    background: currentColor;
+  }
+
+  /* ── CTA primário (única superfície que usa --sh-orange) ─────────────── */
+  .btn-cta {
+    background: var(--pinn-orange);
+    color: var(--pinn-white);
+    font-weight: var(--fw-semibold);
+    font-size: var(--fs-body-sm);
+    padding: 12px 20px;
+    border-radius: var(--r-2);
+    border: 1px solid var(--pinn-orange);
+    box-shadow: var(--sh-orange);
+    cursor: pointer;
+    transition: background-color var(--dur-base) var(--ease),
+                transform var(--dur-fast) var(--ease);
+  }
+  .btn-cta:hover  { background: var(--pinn-orange-dark); border-color: var(--pinn-orange-dark); }
+  .btn-cta:active { transform: scale(0.98); }
+
+  /* ── Capsule (alternativa Pinn ao protection gradient sobre imagem) ──── */
+  .pinn-capsule {
+    background: var(--pinn-orange-light);
+    border: 1px solid var(--pinn-rule);
+    border-radius: var(--r-3);
+    padding: var(--sp-4);
+  }
+  .dark .pinn-capsule {
+    background: hsl(var(--card));
+    border-color: hsl(var(--border));
+  }
+
+  /* ── Skeleton loader ──────────────────────────────────────────────────── */
+  .pinn-skeleton {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 25%,
+      hsl(var(--muted) / 0.5) 50%,
+      hsl(var(--muted)) 75%
+    );
+    background-size: 400% 100%;
+    animation: pinn-shimmer 1.8s ease-in-out infinite;
+    border-radius: var(--r-2);
+  }
+}
+
+/* ============================================================================
+   UTILITY HELPERS
+   ============================================================================ */
 @layer utilities {
 
-  /* Tipografia Pinn */
-  .font-black-pinn {
-    font-weight: 900;
-    letter-spacing: -0.04em;
-  }
+  /* Sombras semânticas DS */
+  .shadow-pinn-0 { box-shadow: var(--sh-0); }
+  .shadow-pinn-1 { box-shadow: var(--sh-1); }
+  .shadow-pinn-2 { box-shadow: var(--sh-2); }
+  .shadow-pinn-3 { box-shadow: var(--sh-3); }
+  .shadow-pinn-orange { box-shadow: var(--sh-orange); }
 
-  /* Sombras */
-  .shadow-surface-xs { box-shadow: var(--shadow-xs); }
-  .shadow-surface-sm { box-shadow: var(--shadow-sm); }
-  .shadow-surface-md { box-shadow: var(--shadow-md); }
-  .shadow-surface-lg { box-shadow: var(--shadow-lg); }
-  .shadow-surface-xl { box-shadow: var(--shadow-xl); }
+  /* Hairline rule */
+  .pinn-rule { border-color: hsl(var(--border)); }
 
-  /* Gradientes */
-  .gradient-primary { background: var(--gradient-primary); }
-  .gradient-surface { background: var(--gradient-surface); }
-  .gradient-card    { background: var(--gradient-card); }
-  .glow-primary     { box-shadow: var(--glow-primary); }
-  .glow-secondary   { box-shadow: var(--glow-secondary); }
+  /* Mono utility direto */
+  .font-mono-pinn { font-family: var(--font-mono); font-feature-settings: "tnum" 1; }
 
-  .app-shell {
-    background:
-      radial-gradient(circle at top right, hsl(var(--primary) / 0.08), transparent 28%),
-      radial-gradient(circle at top left, hsl(var(--foreground) / 0.04), transparent 22%),
-      hsl(var(--background));
-  }
+  /* Measure widths (legibilidade 65-75ch) */
+  .max-w-measure-narrow { max-width: var(--measure-narrow); }
+  .max-w-measure-text   { max-width: var(--measure-text); }
+  .max-w-measure-wide   { max-width: var(--measure-wide); }
+  .max-w-measure-page   { max-width: var(--measure-page); }
 
-  /* Card padrão */
+  /* Animation tokens */
+  .animate-fade-in  { animation: pinn-fade-in    var(--dur-slow) var(--ease-out) forwards; }
+  .animate-pinn-pulse { animation: pinn-pulse-orange 2.5s ease-in-out infinite; }
+}
+
+/* ============================================================================
+   COMPAT ALIASES — mapeia classes do design system v3 (legacy) → tokens v4 Pinn DS.
+   NÃO ADICIONAR NADA NOVO AQUI. Estas classes são *deprecated*; serão removidas
+   conforme as páginas forem refatoradas nas Fases 2–4.
+   ============================================================================ */
+@layer components {
+  /* Shadows legacy → DS oficial */
+  .shadow-surface-xs { box-shadow: var(--sh-0); }
+  .shadow-surface-sm { box-shadow: var(--sh-1); }
+  .shadow-surface-md { box-shadow: var(--sh-2); }
+  .shadow-surface-lg { box-shadow: var(--sh-3); }
+  .shadow-surface-xl { box-shadow: var(--sh-3); }
+
+  /* Card legacy → surface-card */
   .card-surface {
-    @apply bg-card border border-border rounded-xl;
-    box-shadow: var(--shadow-sm);
+    background: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--r-3);
+    box-shadow: var(--sh-1);
   }
 
-  /* KPI / stat card — hover lift */
-  .stat-card {
-    @apply bg-card border border-border rounded-xl p-5;
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow 0.2s, transform 0.15s;
-  }
-  .stat-card:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
+  /* Surface panel legacy → surface-elevated */
+  .surface-panel {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--r-4);
+    box-shadow: var(--sh-1);
   }
 
-  /* Pipeline card */
+  /* Pipeline card legacy → pinn-pipeline-card */
   .pipeline-card {
-    @apply bg-card border border-border rounded-xl p-3.5 cursor-grab active:cursor-grabbing select-none;
-    box-shadow: var(--shadow-xs);
-    transition: box-shadow 0.15s, border-color 0.15s, transform 0.15s;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--r-3);
+    padding: 14px;
+    box-shadow: var(--sh-0);
+    cursor: grab;
+    user-select: none;
+    transition: border-color var(--dur-base) var(--ease),
+                box-shadow var(--dur-base) var(--ease),
+                transform var(--dur-fast) var(--ease);
   }
   .pipeline-card:hover {
-    border-color: var(--pinn-orange-border);
-    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.1), var(--shadow-sm);
+    border-color: hsl(var(--primary) / 0.50);
+    box-shadow: var(--sh-1);
+    transform: translateY(-2px);
+  }
+  .pipeline-card:active { cursor: grabbing; }
+
+  /* Score badges legacy → pinn-score variants */
+  .score-badge-high {
+    background: hsl(var(--success) / 0.12);
+    color: hsl(var(--success));
+    border: 1px solid hsl(var(--success) / 0.30);
+    border-radius: var(--r-2);
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: var(--fw-bold);
+    font-family: var(--font-mono);
+    display: inline-flex;
+    align-items: center;
+  }
+  .score-badge-mid {
+    background: hsl(var(--primary) / 0.12);
+    color: hsl(var(--primary));
+    border: 1px solid hsl(var(--primary) / 0.30);
+    border-radius: var(--r-2);
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: var(--fw-bold);
+    font-family: var(--font-mono);
+    display: inline-flex;
+    align-items: center;
+  }
+  .score-badge-low {
+    background: hsl(var(--warning) / 0.12);
+    color: hsl(var(--warning));
+    border: 1px solid hsl(var(--warning) / 0.30);
+    border-radius: var(--r-2);
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: var(--fw-bold);
+    font-family: var(--font-mono);
+    display: inline-flex;
+    align-items: center;
+  }
+  .score-badge-danger {
+    background: hsl(var(--destructive) / 0.12);
+    color: hsl(var(--destructive));
+    border: 1px solid hsl(var(--destructive) / 0.30);
+    border-radius: var(--r-2);
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: var(--fw-bold);
+    font-family: var(--font-mono);
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Stat card legacy */
+  .stat-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--r-3);
+    padding: var(--sp-5);
+    box-shadow: var(--sh-1);
+    transition: box-shadow var(--dur-base) var(--ease),
+                transform var(--dur-fast) var(--ease);
+  }
+  .stat-card:hover {
+    box-shadow: var(--sh-2);
     transform: translateY(-1px);
   }
 
-  /* Score badges */
-  .score-badge-high   { @apply bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md px-2 py-0.5 text-xs font-bold; }
-  .score-badge-mid    { @apply bg-blue-50 text-blue-700 border border-blue-200 rounded-md px-2 py-0.5 text-xs font-bold; }
-  .score-badge-low    { @apply bg-amber-50 text-amber-700 border border-amber-200 rounded-md px-2 py-0.5 text-xs font-bold; }
-  .score-badge-danger { @apply bg-red-50 text-red-700 border border-red-200 rounded-md px-2 py-0.5 text-xs font-bold; }
-
-  /* Pinn orange badge */
-  .badge-pinn {
-    background: var(--pinn-orange-light);
-    color: var(--pinn-orange-dark);
-    border: 1px solid var(--pinn-orange-border);
-    @apply rounded-full px-2.5 py-0.5 text-xs font-bold;
+  /* Interactive surface legacy */
+  .interactive-surface {
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    border: 1px solid hsl(var(--border));
+    box-shadow: var(--sh-0);
+    transition: background-color var(--dur-base) var(--ease),
+                color var(--dur-base) var(--ease),
+                border-color var(--dur-base) var(--ease),
+                box-shadow var(--dur-base) var(--ease),
+                transform var(--dur-fast) var(--ease);
+  }
+  .interactive-surface:hover {
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+    box-shadow: var(--sh-1);
   }
 
-  /* Pinn black badge */
-  .badge-pinn-dark {
-    background: var(--pinn-black);
-    color: white;
-    @apply rounded-full px-2.5 py-0.5 text-xs font-bold;
+  /* Gradients legacy → fundos sólidos (DS proíbe gradient em produto UI) */
+  .gradient-primary { background: var(--pinn-orange); color: var(--pinn-white); }
+  .gradient-surface { background: hsl(var(--background)); }
+  .gradient-card    { background: hsl(var(--card)); }
+  .glow-primary     { box-shadow: var(--sh-orange); }
+  .glow-secondary   { box-shadow: var(--sh-1); }
+
+  /* Skeleton legacy */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 25%,
+      hsl(var(--muted) / 0.5) 50%,
+      hsl(var(--muted)) 75%
+    );
+    background-size: 400% 100%;
+    animation: pinn-shimmer 1.8s ease-in-out infinite;
+    border-radius: var(--r-2);
   }
 
-  /* Botão CTA Pinn */
+  /* Pinn legacy buttons → tokens novos */
   .btn-pinn {
     background: var(--pinn-orange);
-    color: white;
-    @apply rounded-lg px-4 py-2 text-sm font-bold border-0 cursor-pointer;
-    transition: opacity 0.15s;
+    color: var(--pinn-white);
+    font-weight: var(--fw-bold);
+    font-size: var(--fs-body-sm);
+    padding: 8px 16px;
+    border-radius: var(--r-2);
+    border: 0;
+    cursor: pointer;
+    transition: background-color var(--dur-base) var(--ease);
   }
-  .btn-pinn:hover { opacity: 0.9; }
+  .btn-pinn:hover { background: var(--pinn-orange-dark); }
 
-  /* Botão dark Pinn */
   .btn-pinn-dark {
-    background: var(--pinn-black);
-    color: white;
-    @apply rounded-lg px-4 py-2 text-sm font-bold border-0 cursor-pointer;
-    transition: opacity 0.15s;
+    background: var(--pinn-ink);
+    color: var(--pinn-white);
+    font-weight: var(--fw-bold);
+    font-size: var(--fs-body-sm);
+    padding: 8px 16px;
+    border-radius: var(--r-2);
+    border: 0;
+    cursor: pointer;
+    transition: opacity var(--dur-base) var(--ease);
   }
   .btn-pinn-dark:hover { opacity: 0.85; }
 
-  /* Nav item ativo — sólido laranja */
+  /* Pinn badges legacy */
+  .badge-pinn {
+    background: var(--pinn-orange-light);
+    color: var(--pinn-orange-700);
+    border: 1px solid var(--pinn-orange-light);
+    border-radius: var(--r-pill);
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: var(--fw-bold);
+  }
+  .dark .badge-pinn {
+    background: hsl(var(--primary) / 0.12);
+    color: hsl(var(--primary));
+    border-color: hsl(var(--primary) / 0.30);
+  }
+  .badge-pinn-dark {
+    background: var(--pinn-ink);
+    color: var(--pinn-white);
+    border-radius: var(--r-pill);
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: var(--fw-bold);
+  }
+
+  /* App shell legacy → fundo sólido (radial gradient removido) */
+  .app-shell { background: hsl(var(--background)); }
+
+  /* Nav active legacy */
   .nav-item-active {
     background: var(--pinn-orange) !important;
-    color: white !important;
-    font-weight: 600;
+    color: var(--pinn-white) !important;
+    font-weight: var(--fw-semibold);
   }
 
-  /* Seção dark Pinn — para cards de destaque */
+  /* Pinn dark section legacy */
   .pinn-dark-section {
-    background: var(--pinn-black);
-    @apply rounded-xl p-5;
+    background: var(--pinn-ink);
+    color: var(--pinn-white);
+    border-radius: var(--r-3);
+    padding: var(--sp-5);
   }
 
-  /* Credits widget */
+  /* Credits widget legacy */
   .credits-widget {
     background: var(--pinn-orange-light);
-    border: 1px solid var(--pinn-orange-border);
-    @apply mx-3 my-2.5 rounded-xl px-3 py-2 flex items-center justify-between;
+    border: 1px solid var(--pinn-rule);
+    margin: 10px 12px;
+    border-radius: var(--r-3);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .dark .credits-widget {
+    background: hsl(var(--primary) / 0.10);
+    border-color: hsl(var(--primary) / 0.20);
   }
 
-  .surface-panel {
-    @apply rounded-2xl border border-border bg-card;
-    box-shadow: var(--shadow-sm);
+  /* Progress legacy */
+  .progress-pinn {
+    height: 5px;
+    background: hsl(var(--muted));
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .progress-pinn-fill {
+    height: 100%;
+    background: var(--pinn-orange);
+    border-radius: 99px;
+    transition: width 0.5s var(--ease);
   }
 
-  .interactive-surface {
-    @apply border border-border bg-card text-foreground;
-    box-shadow: var(--shadow-xs);
-    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
-  }
-  .interactive-surface:hover {
-    @apply bg-accent text-accent-foreground;
-    box-shadow: var(--shadow-sm);
+  /* Pinn tooltip legacy */
+  .pinn-tooltip {
+    background: var(--pinn-ink);
+    color: var(--pinn-white);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    padding: 4px 10px;
+    border-radius: var(--r-2);
   }
 
-  /* Animations */
-  .animate-in-fade  { animation: fadeSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-  .animate-in-slide { animation: fadeSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  /* Font black legacy */
+  .font-black-pinn { font-weight: 900; letter-spacing: var(--tr-tight); }
+
+  /* Animations legacy → tokens novos */
+  .animate-in-fade  { animation: pinn-fade-in 0.3s var(--ease-out) forwards; }
+  .animate-in-slide { animation: pinn-fade-in 0.4s var(--ease-out) forwards; }
+  .animate-marquee  { animation: pinn-marquee 30s linear infinite; }
+  .animate-pulse-pinn { animation: pinn-pulse-orange 2.5s ease-in-out infinite; }
 }
 
-/* ── Keyframes ────────────────────────────────────────────────────────────── */
-@keyframes fadeSlideIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes shimmer {
-  from { background-position: 200% 0; }
-  to   { background-position: -200% 0; }
-}
-
-@keyframes marquee {
+@keyframes pinn-marquee {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
 
-@keyframes pulse-orange {
-  0%, 100% { opacity: 0.5; }
-  50%       { opacity: 1; }
+/* ============================================================================
+   KEYFRAMES (motion canônico — sem bounce)
+   ============================================================================ */
+@keyframes pinn-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.animate-marquee    { animation: marquee 30s linear infinite; }
-.animate-pulse-pinn { animation: pulse-orange 2.5s ease-in-out infinite; }
-
-/* ── Skeleton ─────────────────────────────────────────────────────────────── */
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    hsl(var(--muted)) 25%,
-    hsl(var(--muted) / 0.5) 50%,
-    hsl(var(--muted)) 75%
-  );
-  background-size: 400% 100%;
-  animation: shimmer 1.8s ease-in-out infinite;
-  border-radius: 0.375rem;
+@keyframes pinn-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
 }
 
-/* ── Overrides de componentes shadcn para identidade Pinn ─────────────────── */
-
-/* Botão primário */
-.btn-primary-pinn,
-button[data-variant="default"] {
-  background: var(--pinn-orange) !important;
-  color: white !important;
-  font-weight: 700 !important;
-  border-radius: 0.5rem !important;
-}
-
-/* Progress bar laranja */
-.progress-pinn {
-  height: 5px;
-  background: hsl(var(--muted));
-  border-radius: 99px;
-  overflow: hidden;
-}
-.progress-pinn-fill {
-  height: 100%;
-  background: var(--pinn-orange);
-  border-radius: 99px;
-  transition: width 0.5s ease;
-}
-
-/* Tooltip / popover refinado */
-.pinn-tooltip {
-  background: var(--pinn-black);
-  color: white;
-  font-size: 11px;
-  font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 6px;
+@keyframes pinn-pulse-orange {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
 }

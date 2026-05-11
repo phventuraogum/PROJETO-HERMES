@@ -37,12 +37,21 @@ type Coluna = {
 /** Mesma grade para os boxes de contagem e as colunas do Kanban (alinhamento pixel-consistency). */
 const PIPELINE_GRID_CLASS = "grid w-full min-w-0 grid-cols-5 gap-2";
 
+/**
+ * Mapeamento Pinn DS oficial:
+ *  - Novos       → neutro (mute)        — ainda sem ação
+ *  - Em análise  → primary (orange)     — em foco no funil
+ *  - Contactado  → warning              — em progresso, requer atenção
+ *  - Qualificado → success              — resultado positivo
+ *  - Descartado  → destructive          — fora do perfil
+ * Single accent (orange) + functional status (success/warning/error). Sem paleta Tailwind genérica.
+ */
 const COLUNAS: Coluna[] = [
-  { id: "novo",        label: "Novos",       headerColor: "bg-slate-50 border-slate-200",    badgeColor: "bg-slate-100 text-slate-600 border-slate-200",      dotColor: "bg-slate-400",    descricao: "Recém-adicionados" },
-  { id: "em_analise",  label: "Em análise",  headerColor: "bg-blue-50 border-blue-200",      badgeColor: "bg-blue-100 text-blue-700 border-blue-200",         dotColor: "bg-blue-500",     descricao: "Pesquisando mais" },
-  { id: "contactado",  label: "Contactado",  headerColor: "bg-amber-50 border-amber-200",    badgeColor: "bg-amber-100 text-amber-700 border-amber-200",      dotColor: "bg-amber-500",    descricao: "Primeiro contato feito" },
-  { id: "qualificado", label: "Qualificado", headerColor: "bg-emerald-50 border-emerald-200", badgeColor: "bg-emerald-100 text-emerald-700 border-emerald-200", dotColor: "bg-emerald-500",  descricao: "Lead confirmado" },
-  { id: "descartado",  label: "Descartado",  headerColor: "bg-red-50 border-red-200",        badgeColor: "bg-red-100 text-red-700 border-red-200",            dotColor: "bg-red-400",      descricao: "Fora do perfil" },
+  { id: "novo",        label: "Novos",       headerColor: "bg-muted/50 border-border",                   badgeColor: "bg-muted text-muted-foreground border-border",                          dotColor: "bg-muted-foreground/60", descricao: "Recém-adicionados" },
+  { id: "em_analise",  label: "Em análise",  headerColor: "bg-primary/5 border-primary/20",              badgeColor: "bg-primary/12 text-primary border-primary/30",                          dotColor: "bg-primary",             descricao: "Pesquisando mais" },
+  { id: "contactado",  label: "Contactado",  headerColor: "bg-warning/8 border-warning/25",              badgeColor: "bg-warning/12 text-warning border-warning/30",                          dotColor: "bg-warning",             descricao: "Primeiro contato feito" },
+  { id: "qualificado", label: "Qualificado", headerColor: "bg-success/8 border-success/25",              badgeColor: "bg-success/12 text-success border-success/30",                          dotColor: "bg-success",             descricao: "Lead confirmado" },
+  { id: "descartado",  label: "Descartado",  headerColor: "bg-destructive/8 border-destructive/25",      badgeColor: "bg-destructive/12 text-destructive border-destructive/30",             dotColor: "bg-destructive",         descricao: "Fora do perfil" },
 ];
 
 function scoreLabel(s: number) {
@@ -69,7 +78,7 @@ function LeadCard({ lead, onMove, onRemove, onDetail, isDragging, onDragStart, o
       onDragEnd={onDragEnd}
       onClick={() => onDetail(lead)}
       className={cn(
-        "group pipeline-card",
+        "group pinn-pipeline-card",
         isDragging && "opacity-40 rotate-1 scale-95"
       )}
     >
@@ -84,7 +93,7 @@ function LeadCard({ lead, onMove, onRemove, onDetail, isDragging, onDragStart, o
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <span className={cn("score-badge-high text-[11px] px-1.5 py-0 border rounded font-semibold tabular-nums", scoreLabel(lead.score_icp))}>
+          <span className={cn("text-[11px] px-1.5 py-0 border rounded-pinn-2 font-semibold font-mono-pinn", scoreLabel(lead.score_icp))}>
             {lead.score_icp.toFixed(0)}
           </span>
           <DropdownMenu>
@@ -93,7 +102,7 @@ function LeadCard({ lead, onMove, onRemove, onDetail, isDragging, onDragStart, o
                 <MoreHorizontal className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 shadow-surface-lg">
+            <DropdownMenuContent align="end" className="w-44 shadow-pinn-3">
               <DropdownMenuItem onClick={e => { e.stopPropagation(); onDetail(lead); }}>Ver detalhes</DropdownMenuItem>
               {COLUNAS.filter(c => c.id !== lead.estagio).map(c => (
                 <DropdownMenuItem key={c.id} onClick={e => { e.stopPropagation(); onMove(lead.id, c.id); }}>
@@ -188,7 +197,7 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
   return (
     <>
       <Sheet open={!!lead} onOpenChange={v => !v && onClose()}>
-        <SheetContent className="w-full max-w-md overflow-y-auto bg-background border-border shadow-surface-xl">
+        <SheetContent className="w-full max-w-md overflow-y-auto bg-background border-border shadow-pinn-3">
           <SheetHeader className="pb-4 border-b border-border">
             <SheetTitle className="text-base font-display leading-tight text-foreground">
               {emp.nome_fantasia || emp.razao_social}
@@ -229,7 +238,7 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
             )}
 
             {/* Dados */}
-            <div className="card-surface p-4 space-y-2">
+            <div className="rounded-pinn-3 border border-border bg-card shadow-pinn-1 p-4 space-y-2">
               {[
                 ["Cidade / UF", `${emp.cidade || "—"} / ${emp.uf || "—"}`],
                 ["Segmento", emp.segmento],
@@ -248,7 +257,7 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
             </div>
 
             {/* Contatos */}
-            <div className="card-surface p-4">
+            <div className="rounded-pinn-3 border border-border bg-card shadow-pinn-1 p-4">
               <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-3">
                 <Send className="h-3.5 w-3.5 text-violet-500" /> Contatos disponíveis
               </p>
@@ -409,7 +418,7 @@ const Pipeline = () => {
         <p className="text-lg font-display text-foreground">Pipeline vazio</p>
         <p className="text-sm text-muted-foreground max-w-xs">Adicione empresas da tela de Resultados para começar.</p>
       </div>
-      <Button onClick={() => navigate("/results")} className="gap-2 text-white shadow-surface-sm" style={{ background: "var(--pinn-orange)" }}>
+      <Button onClick={() => navigate("/results")} className="gap-2">
         <Plus className="h-4 w-4" /> Ir para Resultados
       </Button>
     </div>
@@ -418,26 +427,26 @@ const Pipeline = () => {
   const leadsParaSDR = leads.filter(l => (l.estagio === "novo" || l.estagio === "em_analise") && !l.sdr_status).length;
 
   return (
-    <div className="space-y-5 animate-in-fade">
+    <div className="space-y-5 animate-pinn-fade-in">
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tighter text-foreground">Pipeline de Leads</h1>
+          <h1 className="text-pinn-h2 font-bold tracking-tighter text-foreground">Pipeline de Leads</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {leads.length} lead{leads.length !== 1 ? "s" : ""} · Arraste para mover entre estágios
+            <span className="font-mono-pinn">{leads.length}</span> lead{leads.length !== 1 ? "s" : ""} · Arraste para mover entre estágios
           </p>
         </div>
         <div className="flex gap-2">
           {leadsParaSDR > 0 && (
-            <Button size="sm" className="gap-1.5 shadow-surface-sm"
+            <Button size="sm" className="gap-1.5"
               disabled={sdrLoading} onClick={handleEnviarTodosSDR}>
-              {sdrLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+              {sdrLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.7} /> : <Zap className="h-3.5 w-3.5" strokeWidth={1.7} />}
               Enviar {leadsParaSDR} ao SDR
             </Button>
           )}
-          <Button size="sm" variant="outline" className="gap-1.5 shadow-surface-xs" onClick={() => navigate("/results")}>
-            <Plus className="h-3.5 w-3.5" /> Adicionar leads
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => navigate("/results")}>
+            <Plus className="h-3.5 w-3.5" strokeWidth={1.7} /> Adicionar leads
           </Button>
         </div>
       </div>
@@ -449,12 +458,12 @@ const Pipeline = () => {
         {COLUNAS.map(c => {
           const count = leads.filter(l => l.estagio === c.id).length;
           return (
-            <div key={`stat-${c.id}`} className={cn("min-w-0 rounded-xl border px-3 py-2.5 text-center", c.headerColor)}>
+            <div key={`stat-${c.id}`} className={cn("min-w-0 rounded-pinn-3 border px-3 py-2.5 text-center", c.headerColor)}>
               <div className="flex items-center justify-center gap-1.5 mb-0.5">
                 <div className={cn("h-2 w-2 shrink-0 rounded-full", c.dotColor)} />
-                <p className="text-[11px] text-muted-foreground font-medium truncate">{c.label}</p>
+                <p className="text-[11px] text-muted-foreground font-semibold truncate">{c.label}</p>
               </div>
-              <p className="text-xl font-semibold tabular-nums text-foreground">{count}</p>
+              <p className="text-xl font-bold font-mono-pinn text-foreground">{count}</p>
             </div>
           );
         })}
@@ -466,9 +475,9 @@ const Pipeline = () => {
               onDragOver={e => onDragOver(e, col.id)}
               onDrop={e => onDrop(e, col.id)}
               className={cn(
-                "flex min-h-0 min-w-0 flex-col gap-2 rounded-xl border p-2.5 transition-all duration-150",
+                "flex min-h-0 min-w-0 flex-col gap-2 rounded-pinn-3 border p-2.5 transition-[background-color,border-color,box-shadow] duration-pinn-base ease-pinn",
                 isOver
-                  ? "bg-primary/5 border-primary/30 shadow-surface-sm"
+                  ? "bg-primary/5 border-primary/30 shadow-pinn-1"
                   : "bg-muted/30 border-border/60"
               )}
             >
@@ -478,7 +487,7 @@ const Pipeline = () => {
                   <div className={cn("h-2 w-2 shrink-0 rounded-full", col.dotColor)} />
                   <span className="truncate text-xs font-semibold text-foreground">{col.label}</span>
                 </div>
-                <span className={cn("shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded-full border", col.badgeColor)}>
+                <span className={cn("shrink-0 text-[11px] font-bold font-mono-pinn px-1.5 py-0.5 rounded-pinn-pill border", col.badgeColor)}>
                   {colLeads.length}
                 </span>
               </div>
@@ -493,8 +502,8 @@ const Pipeline = () => {
                 ))}
                 {colLeads.length === 0 && (
                   <div className={cn(
-                    "flex h-20 items-center justify-center rounded-xl border-2 border-dashed text-xs text-muted-foreground/50 transition-all",
-                    isOver ? "border-primary/30 bg-primary/5 text-primary" : "border-border/40"
+                    "flex h-20 items-center justify-center rounded-pinn-3 border border-dashed text-xs text-muted-foreground/55 transition-[background-color,border-color,color] duration-pinn-base ease-pinn",
+                    isOver ? "border-primary/40 bg-primary/5 text-primary" : "border-border/50"
                   )}>
                     Arraste aqui
                   </div>
@@ -510,7 +519,7 @@ const Pipeline = () => {
         onEnviarSDR={handleEnviarSDR} sdrLoading={sdrLoading} />
 
       <AlertDialog open={!!confirmRemove} onOpenChange={v => !v && setConfirmRemove(null)}>
-        <AlertDialogContent className="shadow-surface-xl">
+        <AlertDialogContent className="shadow-pinn-3">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display">Remover do pipeline?</AlertDialogTitle>
             <AlertDialogDescription>

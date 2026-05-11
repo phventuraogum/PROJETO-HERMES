@@ -17,6 +17,7 @@
     "smoke:backend": "cd backend && python -m unittest discover -s tests -p \"test_*.py\" -v"
   },
   "dependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",

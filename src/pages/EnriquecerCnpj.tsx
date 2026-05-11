@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   BadgeCheck,
-  Brain,
+  Workflow,
   Building2,
   Factory,
   Globe,
@@ -15,7 +15,7 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
-  Sparkles,
+  Cpu,
   Target,
   TrendingUp,
   Users,
@@ -543,7 +543,7 @@ const EnriquecerCnpj = () => {
       <Card className="border-border bg-card shadow-surface-sm">
         <CardHeader className="space-y-2">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Sparkles className="h-4 w-4 text-cyan-300" />
+            <Cpu className="h-4 w-4 text-cyan-300" />
             Fluxo Manual
           </CardTitle>
           <CardDescription>
@@ -584,7 +584,7 @@ const EnriquecerCnpj = () => {
               onClick={() => void handleEnriquecer()}
               disabled={isFetching || isEnriching}
             >
-              {isEnriching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+              {isEnriching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Cpu className="mr-2 h-4 w-4" />}
               Enriquecer agora
             </Button>
           </div>
@@ -765,7 +765,7 @@ const EnriquecerCnpj = () => {
             <Card className="border-border bg-card shadow-surface-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <Brain className="h-4 w-4 text-violet-300" />
+                  <Workflow className="h-4 w-4 text-violet-300" />
                   Leitura Rapida
                 </CardTitle>
                 <CardDescription>

@@ -6,9 +6,13 @@ interface LayoutProps {
   children: ReactNode;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Layout — Pinn DS oficial v1.0
+ * Background sólido (sem radial gradient — DS proíbe). Container 1480px.
+ * ────────────────────────────────────────────────────────────────────────── */
 const Layout = ({ children }: LayoutProps) => {
   return (
-    <div className="app-shell min-h-screen flex w-full text-foreground">
+    <div className="min-h-screen flex w-full bg-background text-foreground">
       <Sidebar />
       <div className="flex flex-col flex-1 min-w-0">
         <Header />

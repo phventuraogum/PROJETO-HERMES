@@ -28,7 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Search, Download, ExternalLink, Globe,
   MapPin, Building2, Users, Instagram, Linkedin, Facebook,
-  Tag, Link2, MessageCircle, Share2, Sparkles,
+  Tag, Link2, MessageCircle, Share2, Cpu,
   Mail, Phone, LayoutGrid, List, ChevronDown,
   ArrowUpDown, CheckSquare2, X, Copy, Check,
   TrendingUp, Percent, Wallet, Target, Wand2,
@@ -1058,7 +1058,7 @@ function DetalheEmpresa({
 
         {resumoIA && (
           <div className="border-t border-border pt-2 space-y-1">
-            <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1"><Sparkles className="h-3 w-3" /> Resumo IA</p>
+            <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1"><Cpu className="h-3 w-3" /> Resumo IA</p>
             <p className="text-xs leading-relaxed text-foreground/80">{resumoIA}</p>
           </div>
         )}
@@ -1336,7 +1336,7 @@ function DetalheEmpresa({
             onClick={onEnrichAssertiva}
             disabled={isEnrichingAssertiva || !onEnrichAssertiva}
           >
-            {isEnrichingAssertiva ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            {isEnrichingAssertiva ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cpu className="h-3.5 w-3.5" />}
             {isEnrichingAssertiva ? "Enriquecendo..." : "Enriquecer"}
           </Button>
           <Button size="sm" variant="outline" className="gap-1.5 border-sky-700 text-sky-600 hover:bg-sky-900/20"
@@ -1476,7 +1476,7 @@ function EmpresaCard({
           onClick={(e) => { e.stopPropagation(); onEnrichAssertiva?.(); }}
           disabled={isEnrichingAssertiva || !onEnrichAssertiva}
         >
-          {isEnrichingAssertiva ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+          {isEnrichingAssertiva ? <Loader2 className="h-3 w-3 animate-spin" /> : <Cpu className="h-3 w-3" />}
           Enriquecer
         </Button>
         <Button
@@ -2324,7 +2324,7 @@ const ResultsPage = () => {
             onClick={enrichAllFiltered}
             disabled={enrichingAll || filtered.length === 0}
           >
-            {enrichingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            {enrichingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cpu className="h-3.5 w-3.5" />}
             Enriquecer todos ({filtered.length})
           </Button>
           {selected.size > 0 && (
@@ -2364,7 +2364,7 @@ const ResultsPage = () => {
                 onClick={enrichSelected}
                 disabled={enrichingAll}
               >
-                {enrichingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                {enrichingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Cpu className="h-3.5 w-3.5" />}
                 Enriquecer selecionados ({selected.size})
               </Button>
               <Button

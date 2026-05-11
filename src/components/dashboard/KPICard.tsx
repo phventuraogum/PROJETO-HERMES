@@ -1,6 +1,13 @@
-import { LucideIcon } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { LucideIcon, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * KPICard — Pinn DS oficial v1.0 (BAI tile)
+ * - JetBrains Mono no número (font-feature-settings tnum 1)
+ * - Label uppercase tracking 0.08em (eyebrow style)
+ * - Delta com arrow Lucide line-style 1.7
+ * - Sem gradient overlay; surface sólida; lift translateY no hover
+ * ────────────────────────────────────────────────────────────────────────── */
 
 interface KPICardProps {
   title: string;
@@ -14,42 +21,69 @@ interface KPICardProps {
   variant?: "default" | "primary" | "success" | "warning";
 }
 
-const KPICard = ({ title, value, subtitle, icon: Icon, trend, variant = "default" }: KPICardProps) => {
-  const variantClasses = {
+const KPICard = ({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  trend,
+  variant = "default",
+}: KPICardProps) => {
+  const accentBorder = {
     default: "border-border",
-    primary: "border-primary/30 bg-primary/5",
-    success: "border-success/30 bg-success/5",
-    warning: "border-warning/30 bg-warning/5",
-  };
+    primary: "border-primary/30",
+    success: "border-success/30",
+    warning: "border-warning/30",
+  }[variant];
+
+  const iconColor = {
+    default: "text-muted-foreground",
+    primary: "text-primary",
+    success: "text-success",
+    warning: "text-warning",
+  }[variant];
 
   return (
-    <Card className={cn("relative overflow-hidden transition-all hover:shadow-lg", variantClasses[variant])}>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
-            <p className="text-3xl font-bold tracking-tight mb-1">{value}</p>
-            {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
-            {trend && (
-              <p className={cn("text-xs mt-2 font-medium", trend.positive ? "text-success" : "text-destructive")}>
-                {trend.positive ? "↑" : "↓"} {trend.value}
-              </p>
+    <div className={cn("pinn-kpi", accentBorder)}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="pinn-kpi__label">
+            <Icon
+              className={cn("h-3.5 w-3.5 shrink-0", iconColor)}
+              strokeWidth={1.7}
+            />
+            <span className="truncate">{title}</span>
+          </div>
+
+          <div className="flex items-baseline gap-1.5">
+            <span className="pinn-kpi__value">{value}</span>
+            {subtitle && (
+              <span className="text-xs font-medium text-muted-foreground">
+                {subtitle}
+              </span>
             )}
           </div>
-          <div
-            className={cn(
-              "p-3 rounded-lg",
-              variant === "primary" && "bg-primary/20 text-primary",
-              variant === "success" && "bg-success/20 text-success",
-              variant === "warning" && "bg-warning/20 text-warning",
-              variant === "default" && "bg-muted text-muted-foreground"
-            )}
-          >
-            <Icon className="h-6 w-6" />
-          </div>
+
+          {trend && (
+            <div
+              className={cn(
+                "pinn-kpi__delta flex items-center gap-1",
+                trend.positive
+                  ? "pinn-kpi__delta--up"
+                  : "pinn-kpi__delta--down"
+              )}
+            >
+              {trend.positive ? (
+                <ArrowUp className="h-3 w-3" strokeWidth={2} />
+              ) : (
+                <ArrowDown className="h-3 w-3" strokeWidth={2} />
+              )}
+              <span>{trend.value}</span>
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 

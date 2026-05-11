@@ -1,21 +1,38 @@
-import { useEffect, useState } from "react";
-import { LayoutDashboard, Settings, FileText, History, Map, Kanban, Building2, Coins, Plus, Sparkles } from "lucide-react";
+import {
+  LayoutDashboard,
+  Settings,
+  FileText,
+  History,
+  Map,
+  Kanban,
+  Building2,
+  ScanSearch,
+} from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
 import LogoutButton from "@/auth/LogoutButton";
 import { useOrg } from "@/tenancy/OrgContext";
-import { getCredits, addCredits } from "@/lib/api";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 
 type MenuEntry = { icon: typeof Settings; label: string; path: string };
 
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Sidebar — Pinn DS oficial v1.0 (família Pinn BAI)
+ * - Largura 232px (alinhado ao BAI)
+ * - Surface dark (--pinn-night) no dark; white com hairlines no light
+ * - Sem AI-cliché icons (Sparkles → ScanSearch para "Enriquecer CNPJ")
+ * - Nav active: bg accent + ink/orange-700 (light) ou night-2 (dark)
+ * ────────────────────────────────────────────────────────────────────────── */
+
 const prospeccaoItems: MenuEntry[] = [
   { icon: Settings, label: "Configurar Busca", path: "/app" },
-  { icon: Sparkles, label: "Enriquecer CNPJ", path: "/cnpj" },
+  { icon: ScanSearch, label: "Enriquecer CNPJ", path: "/cnpj" },
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: FileText, label: "Resultados", path: "/results" },
 ];
@@ -34,12 +51,13 @@ function NavMenuItems({ items }: { items: MenuEntry[] }) {
           to={item.path}
           end={item.path === "/"}
           className={cn(
-            "flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            "flex items-center gap-3 px-3 py-2.5 rounded-pinn-2 transition-colors duration-pinn-base ease-pinn",
+            "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
           )}
-          activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50"
+          activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
         >
-          <item.icon className="h-5 w-5" />
-          <span className="text-sm">{item.label}</span>
+          <item.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.7} />
+          <span className="text-[13.5px]">{item.label}</span>
         </NavLink>
       ))}
     </>
@@ -48,92 +66,99 @@ function NavMenuItems({ items }: { items: MenuEntry[] }) {
 
 const Sidebar = () => {
   const { orgs, orgId, setOrgId, currentOrg } = useOrg();
-  const [credits, setCredits] = useState<number | null>(null);
   const role = currentOrg?.role || "member";
   const isAdmin = role === "admin" || role === "owner";
 
-  useEffect(() => {
-    if (!isAdmin) { setCredits(null); return; }
-    getCredits().then(r => setCredits(r.saldo)).catch(() => setCredits(null));
-  }, [orgId, isAdmin]);
-
-  const handleAddCredits = async () => {
-    try {
-      const r = await addCredits(100);
-      setCredits(r.saldo);
-      toast.success(`+100 créditos. Saldo: ${r.saldo}`);
-    } catch {
-      toast.error("Erro ao adicionar créditos.");
-    }
-  };
-
   return (
-    <aside className="w-64 border-r border-sidebar-border bg-sidebar flex flex-col">
+    <aside className="w-[232px] shrink-0 border-r border-sidebar-border bg-sidebar flex flex-col">
+      {/* Brand block */}
+      <div className="flex items-center gap-2.5 px-4 pt-5 pb-4 border-b border-sidebar-border">
+        <svg
+          viewBox="0 0 200 200"
+          className="h-5 w-5 text-pinn-orange shrink-0"
+          fill="currentColor"
+          aria-hidden
+        >
+          <path d="M70 50 L130 50 L130 80 L100 80 L100 120 L70 120 Z" />
+          <path d="M130 80 L130 150 L70 150 L70 120 L100 120 L100 80 Z" />
+        </svg>
+        <span className="text-[15px] font-bold tracking-tight text-foreground">
+          Hermes
+        </span>
+        <span className="ml-auto font-mono-pinn text-[10px] tracking-wider text-muted-foreground">
+          v1.0
+        </span>
+      </div>
+
+      {/* Org selector */}
       {orgs.length > 1 && (
-        <div className="p-3 border-b border-sidebar-border">
-          <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60 mb-1.5">Organização</p>
+        <div className="px-3 pt-3 pb-2 border-b border-sidebar-border">
+          <p className="font-mono-pinn text-[10px] uppercase tracking-wider text-sidebar-foreground/55 mb-1.5">
+            Organização
+          </p>
           <Select value={orgId ?? "default"} onValueChange={setOrgId}>
-            <SelectTrigger className="h-8 text-xs border-sidebar-border bg-sidebar-accent/30">
+            <SelectTrigger className="h-8 text-xs border-sidebar-border bg-transparent">
               <Building2 className="h-3 w-3 mr-1.5" />
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
-              {orgs.map(o => (
-                <SelectItem key={o.id} value={o.id} className="text-xs">{o.name}</SelectItem>
+              {orgs.map((o) => (
+                <SelectItem key={o.id} value={o.id} className="text-xs">
+                  {o.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
       )}
       {orgs.length === 1 && currentOrg && (
-        <div className="px-3 py-2 border-b border-sidebar-border flex items-center gap-2 text-xs text-sidebar-foreground/70">
-          <Building2 className="h-3.5 w-3.5" />
+        <div className="px-4 py-2.5 border-b border-sidebar-border flex items-center gap-2 text-xs text-sidebar-foreground/70">
+          <Building2 className="h-3.5 w-3.5" strokeWidth={1.7} />
           <span className="truncate">{currentOrg.name}</span>
         </div>
       )}
-      {/* Créditos (admin only) */}
-      {isAdmin && (
-        <div className="px-3 py-2 border-b border-sidebar-border flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-sidebar-foreground/80">
-            <Coins className="h-3.5 w-3.5 text-amber-500" />
-            <span>{credits !== null ? credits : "—"} créditos</span>
-          </div>
-          <div className="flex items-center gap-0.5">
-            <Button variant="ghost" size="icon" className="h-6 w-6 text-sidebar-foreground/70 hover:text-amber-400" onClick={handleAddCredits} title="Adicionar 100 créditos (demo)">
-              <Plus className="h-3 w-3" />
-            </Button>
-            <NavLink to="/comprar-creditos" className="text-[10px] font-medium text-amber-400 hover:text-amber-300">
-              Comprar
-            </NavLink>
-          </div>
-        </div>
-      )}
-      <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
-        <div className="space-y-1">
-          <p className="px-4 text-[10px] uppercase tracking-wider text-sidebar-foreground/60">Prospecção</p>
+
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
+        <div className="space-y-0.5">
+          <p className="px-3 mb-1.5 font-mono-pinn text-[10px] uppercase tracking-wider text-sidebar-foreground/55">
+            Prospecção
+          </p>
           <NavMenuItems items={prospeccaoItems} />
         </div>
-        <div className="space-y-1">
-          <p className="px-4 text-[10px] uppercase tracking-wider text-sidebar-foreground/60">Pipeline</p>
+        <div className="space-y-0.5">
+          <p className="px-3 mb-1.5 font-mono-pinn text-[10px] uppercase tracking-wider text-sidebar-foreground/55">
+            Pipeline
+          </p>
           <NavMenuItems items={pipelineItems} />
         </div>
         {isAdmin && (
-          <div className="space-y-1">
-            <p className="px-4 text-[10px] uppercase tracking-wider text-sidebar-foreground/60">Análise</p>
-            <NavLink to="/heatmap" className={cn("flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium border border-sidebar-border/50">
-              <Map className="h-5 w-5" />
-              <span className="text-sm">Mapa de Calor</span>
+          <div className="space-y-0.5">
+            <p className="px-3 mb-1.5 font-mono-pinn text-[10px] uppercase tracking-wider text-sidebar-foreground/55">
+              Análise
+            </p>
+            <NavLink
+              to="/heatmap"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-pinn-2 transition-colors duration-pinn-base ease-pinn",
+                "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              )}
+              activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+            >
+              <Map className="h-[18px] w-[18px] shrink-0" strokeWidth={1.7} />
+              <span className="text-[13.5px]">Mapa de Calor</span>
             </NavLink>
           </div>
         )}
       </nav>
 
-      {/* Rodapé fixo do sidebar */}
-      <div className="p-4 border-t border-sidebar-border space-y-3">
+      {/* Rodapé fixo */}
+      <div className="px-3 py-4 border-t border-sidebar-border space-y-3">
         <LogoutButton />
-
-        <div className="p-3 rounded-lg bg-sidebar-accent/50 text-xs text-sidebar-foreground/70">
-          <p className="font-medium mb-1">Projeto Hermes v1.0</p>
+        <div className="px-3 py-2.5 rounded-pinn-2 border border-sidebar-border text-[11px] text-sidebar-foreground/65 leading-snug">
+          <p className="font-semibold text-sidebar-foreground/85 mb-0.5">
+            Hermes <span className="font-mono-pinn text-[10px] text-sidebar-foreground/55">v1.0</span>
+          </p>
           <p>Plataforma de prospecção B2B data-driven</p>
         </div>
       </div>

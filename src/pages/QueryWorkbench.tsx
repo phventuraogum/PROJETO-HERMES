@@ -9,7 +9,7 @@ import {
   Loader2,
   Play,
   RefreshCw,
-  Sparkles,
+  Cpu,
   TerminalSquare,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -344,7 +344,7 @@ const QueryWorkbench = () => {
       <Card className="border-border bg-card shadow-surface-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Sparkles className="h-4 w-4 text-cyan-300" />
+            <Cpu className="h-4 w-4 text-cyan-300" />
             Tradutor de Query
           </CardTitle>
           <CardDescription>
@@ -365,7 +365,7 @@ const QueryWorkbench = () => {
               onClick={() => void handleTranslateQuery()}
               disabled={translatingPrompt}
             >
-              {translatingPrompt ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+              {translatingPrompt ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Cpu className="mr-2 h-4 w-4" />}
               Aplicar query IA
             </Button>
             <Button
@@ -627,7 +627,7 @@ const QueryWorkbench = () => {
                     {progress?.detail || "Pronto para disparar a prospeccao."}
                   </p>
                 </div>
-                <Sparkles className="h-4 w-4 text-amber-300" />
+                <Cpu className="h-4 w-4 text-amber-300" />
               </div>
               <Progress value={isRunning ? progressPct : ultimoResultado ? 100 : 0} />
               {ultimoResultado && (
