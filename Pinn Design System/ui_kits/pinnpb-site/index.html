@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>Pinn — Revenue OS para indústrias B2B</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  :root { --page: 1180px; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family:var(--font-sans); }
+  a { color: inherit; text-decoration: none; }
+  .container { max-width: var(--page); margin: 0 auto; padding: 0 32px; }
+
+  /* Nav */
+  .nav { position:sticky; top:0; z-index:50; background:rgba(255,255,255,0.78); backdrop-filter:blur(12px) saturate(1.05); border-bottom:1px solid var(--rule); }
+  .nav-inner { display:flex; align-items:center; justify-content:space-between; padding:16px 32px; max-width:var(--page); margin:0 auto; }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:700; font-size:18px; letter-spacing:-0.02em; }
+  .brand svg { width:22px; height:22px; }
+  .nav-links { display:flex; gap:28px; font-size:14px; color:var(--fg-2); }
+  .nav-links a:hover { color: var(--fg); }
+  .nav-cta { font-size:13px; font-weight:600; color:#fff; background:var(--accent); padding:9px 16px; border-radius:4px; }
+  .nav-cta:hover { background: var(--accent-hover); }
+
+  /* Hero */
+  .hero { padding: 96px 0 80px; }
+  .hero .eyebrow { font-size:12px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); margin-bottom:24px; display:flex; align-items:center; gap:10px; }
+  .hero .eyebrow::before { content:""; width:24px; height:1px; background:var(--accent); }
+  .hero h1 { font-size:64px; font-weight:700; letter-spacing:-0.025em; line-height:1.05; max-width:920px; margin:0 0 32px; text-wrap:balance; }
+  .hero h1 .accent { color: var(--accent); }
+  .hero .lede { font-size:20px; line-height:1.5; color:var(--fg-2); max-width:640px; margin:0 0 40px; }
+  .hero .ctas { display:flex; gap:14px; align-items:center; }
+  .btn { display:inline-flex; align-items:center; gap:8px; font-family:var(--font-sans); font-weight:600; font-size:15px; padding:14px 22px; border-radius:4px; border:1px solid transparent; cursor:pointer; transition: all 200ms var(--ease); }
+  .btn-primary { background:var(--accent); color:#fff; box-shadow: var(--sh-orange); }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-secondary { background:transparent; color:var(--fg); border-color:var(--fg); }
+  .btn-secondary:hover { background:var(--fg); color:#fff; }
+  .hero .meta { margin-top:64px; display:flex; gap:48px; padding-top:32px; border-top:1px solid var(--rule); color:var(--fg-3); font-size:13px; font-family:var(--font-mono); }
+
+  /* Slogan band */
+  .slogan { background:var(--pinn-ink); color:#fff; padding:48px 0; }
+  .slogan-text { font-size:32px; font-weight:700; letter-spacing:-0.01em; text-align:center; }
+  .slogan-text .accent { color: var(--accent); }
+
+  /* Anti-positioning */
+  .section { padding: 96px 0; border-top: 1px solid var(--rule); }
+  .section h2 { font-size:36px; font-weight:700; letter-spacing:-0.015em; margin:0 0 16px; max-width:760px; }
+  .section .lede { font-size:18px; color:var(--fg-2); max-width:640px; margin:0 0 48px; }
+  .anti-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .anti-block { padding:24px; border-radius:8px; display:flex; gap:14px; align-items:flex-start; }
+  .anti-block svg { flex-shrink:0; margin-top:2px; }
+  .anti-block.no { background:#FBEAEA; color:#7A1818; }
+  .anti-block.yes { background:#E8F2EA; color:#1F5C24; grid-column: 1 / -1; }
+  .anti-block strong { font-weight:700; }
+  .anti-block p { margin:6px 0 0; font-size:14px; line-height:1.5; color: inherit; opacity:.8; max-width: none; }
+  .anti-block h3 { margin:0; font-size:16px; font-weight:700; color:inherit; }
+
+  /* Revenue OS dimensions */
+  .ros { background: var(--pinn-surface); }
+  .ros-grid { display:grid; grid-template-columns: repeat(5, 1fr); gap:0; border:1px solid var(--rule); border-radius:8px; overflow:hidden; background:#fff; }
+  .ros-cell { padding:24px; border-right:1px solid var(--rule); display:flex; flex-direction:column; gap:10px; }
+  .ros-cell:last-child { border-right:none; }
+  .ros-cell .num { font-family:var(--font-mono); font-size:11px; color:var(--fg-3); letter-spacing:0.04em; }
+  .ros-cell h3 { margin:0; font-size:18px; font-weight:700; }
+  .ros-cell p { margin:0; font-size:13px; color:var(--fg-2); line-height:1.5; max-width:none; }
+
+  /* Cases */
+  .case-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:20px; }
+  .case { background:#fff; border:1px solid var(--rule); border-radius:8px; padding:28px; display:flex; flex-direction:column; gap:16px; transition: all 200ms var(--ease); }
+  .case:hover { transform: translateY(-2px); box-shadow: var(--sh-2); border-color: transparent; }
+  .case .eyebrow { font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); }
+  .case h3 { margin:0; font-size:22px; font-weight:700; letter-spacing:-0.005em; line-height:1.2; }
+  .case .stat { font-family:var(--font-mono); font-size:11px; color:var(--fg-3); letter-spacing:0.02em; padding-top:14px; border-top:1px solid var(--rule); }
+
+  /* Diagnóstico CTA */
+  .diag { background: var(--pinn-orange-light); padding: 96px 0; }
+  .diag .inner { display:grid; grid-template-columns: 1.4fr 1fr; gap: 64px; align-items:center; }
+  .diag h2 { font-size:48px; font-weight:700; letter-spacing:-0.02em; margin:0 0 16px; line-height:1.1; }
+  .diag p { font-size:17px; color:var(--fg-2); line-height:1.5; margin:0 0 24px; }
+  .diag-card { background:#fff; padding:32px; border-radius:12px; box-shadow: var(--sh-1); }
+  .diag-card h4 { margin:0 0 14px; font-size:13px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--fg-3); }
+  .diag-list { list-style:none; padding:0; margin:0 0 24px; display:flex; flex-direction:column; gap:10px; font-size:14px; }
+  .diag-list li { display:flex; gap:10px; align-items:flex-start; }
+  .diag-list li::before { content:""; width:6px; height:6px; background: var(--accent); border-radius:50%; margin-top:8px; flex-shrink:0; }
+
+  /* Footer */
+  footer { background: var(--pinn-ink); color: #C9C9C9; padding: 64px 0 32px; }
+  .foot { display:grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap:48px; margin-bottom:48px; }
+  .foot h5 { font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#999; margin:0 0 16px; }
+  .foot ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; font-size:14px; }
+  .foot ul a { color:#C9C9C9; }
+  .foot ul a:hover { color:#fff; }
+  .foot-brand { display:flex; align-items:center; gap:10px; font-weight:700; font-size:20px; color:#fff; margin-bottom:16px; }
+  .foot-brand svg { width:24px; height:24px; color:#fff; }
+  .foot-tag { font-size:24px; font-weight:700; letter-spacing:-0.01em; color:var(--accent); margin-top:24px; }
+  .foot-bottom { padding-top:24px; border-top:1px solid #2A2A2A; display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:11px; color:#777; }
+
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px; background:var(--pinn-orange-light); color:var(--pinn-orange-700); font-size:12px; font-weight:500; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="#">
+      <svg viewBox="0 0 200 200" fill="currentColor"><path d="M70 50 L130 50 L130 80 L100 80 L100 120 L70 120 Z"/><path d="M130 80 L130 150 L70 150 L70 120 L100 120 L100 80 Z"/></svg>
+      Pinn
+    </a>
+    <div class="nav-links">
+      <a href="#ros">Revenue OS</a>
+      <a href="#produtos">Produtos</a>
+      <a href="#casos">Casos</a>
+      <a href="#manifesto">Manifesto</a>
+    </div>
+    <a class="nav-cta" href="#diag">Diagnóstico de 90 min</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="container">
+    <div class="eyebrow">Pinn · Product Builder de Revenue OS</div>
+    <h1>A maioria das empresas B2B compra IA. <span class="accent">Construímos máquina de receita.</span></h1>
+    <p class="lede">Pinn é Product Builder de Revenue OS para indústrias B2B. Não vendemos modelo. Construímos a operação — com SLA de resultado, AI-native desde o desenho. No fim do contrato, cliente fica com a máquina rodando.</p>
+    <div class="ctas">
+      <a class="btn btn-primary" href="#diag">Agendar Diagnóstico de 90 min →</a>
+      <a class="btn btn-secondary" href="#ros">Como funciona</a>
+    </div>
+    <div class="meta">
+      <div>ICP · INDÚSTRIA B2B · R$ 50M+</div>
+      <div>SP · BH</div>
+      <div>FOUNDER-LED · OPS BACKGROUND</div>
+    </div>
+  </div>
+</header>
+
+<section class="slogan">
+  <div class="container">
+    <div class="slogan-text">Prospecção <span class="accent">para máquinas.</span> Fechamento <span class="accent">para humanos.</span></div>
+  </div>
+</section>
+
+<section class="section" id="manifesto">
+  <div class="container">
+    <h2>Não somos SaaS. Não somos agência. Não somos consultoria.</h2>
+    <p class="lede">Anti-posicionamento explícito é parte do produto. Onde os outros parecem iguais, a Pinn é deliberadamente diferente — porque o produto é deliberadamente diferente.</p>
+    <div class="anti-grid">
+      <div class="anti-block no">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        <div><h3>SaaS</h3><p>Vende licença e tela. Cliente configura, integra, treina, mantém. Risco e responsabilidade são do cliente.</p></div>
+      </div>
+      <div class="anti-block no">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        <div><h3>Agência growth</h3><p>Terceiriza prospecção. Time fica com a agência. Cliente paga continuamente para alguém de fora prospectar.</p></div>
+      </div>
+      <div class="anti-block no">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        <div><h3>Consultoria</h3><p>Entrega slide e vai embora. Insight sem execução. Recomendação não-mensurável.</p></div>
+      </div>
+      <div class="anti-block no">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        <div><h3>Sales tech</h3><p>É ferramenta dentro do CRM. Não governa. Não opera. Paga por seat, não por resultado.</p></div>
+      </div>
+      <div class="anti-block yes">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
+        <div><h3>Pinn — Product Builder</h3><p>Projeta, constrói e opera a máquina de receita do cliente. SLA de resultado, não de licença. No fim do contrato, cliente fica com a operação rodando — sem dependência permanente.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section ros" id="ros">
+  <div class="container">
+    <span class="pill">Revenue OS · 5 dimensões</span>
+    <h2 style="margin-top:14px">Sistema operacional de receita. Não ferramenta isolada.</h2>
+    <p class="lede">A camada de software + processo + IA que governa como uma empresa gera, qualifica, fecha e expande receita — como sistema, não como ferramentas avulsas.</p>
+    <div class="ros-grid">
+      <div class="ros-cell"><div class="num">01 · DEMANDA</div><h3>Como receita é gerada</h3><p>Prospecção qualificada. Outbound governado por contexto. Agentes operam, time sênior protege tempo humano.</p></div>
+      <div class="ros-cell"><div class="num">02 · QUALIFICAÇÃO</div><h3>Como receita é triada</h3><p>Filtro de ICP nativo no funil. Score real. Lead que entra na agenda do vendedor é lead pronto.</p></div>
+      <div class="ros-cell"><div class="num">03 · CONVERSÃO</div><h3>Como receita é fechada</h3><p>Fechamento humano protegido. Ferramentas servem o vendedor — não o contrário.</p></div>
+      <div class="ros-cell"><div class="num">04 · EXPANSÃO</div><h3>Como receita é ampliada</h3><p>Account growth dirigido por sinal. Expansão acompanha a entrega, não a campanha.</p></div>
+      <div class="ros-cell"><div class="num">05 · GOVERNANÇA</div><h3>Como receita é medida</h3><p>Dashboards executivos. Accountability semanal. Forecast deixa de ser chute.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="casos">
+  <div class="container">
+    <span class="pill">Casos · Indústria B2B</span>
+    <h2 style="margin-top:14px">Trincheira, não slide.</h2>
+    <p class="lede">Casos anonimizados de indústrias B2B brasileiras R$ 50M+ rodando Pinn Revenue OS.</p>
+    <div class="case-grid">
+      <article class="case">
+        <div class="eyebrow">Indústria química · SP</div>
+        <h3>47 dias do primeiro contato à primeira reunião com decisor.</h3>
+        <p style="font-size:14px;color:var(--fg-2);line-height:1.5;margin:0">R$ 120M de receita. Em janeiro entramos. Em março, aquela reunião aconteceu. Sem ferramenta nova. Cancelamos 60% das reuniões internas do time comercial.</p>
+        <div class="stat">SCORE ICP 73% → 80% · TAXA RESPOSTA 11% → 34%</div>
+      </article>
+      <article class="case">
+        <div class="eyebrow">Metalurgia · MG</div>
+        <h3>SDR sênior parou de qualificar manualmente — agente faz em 2 minutos.</h3>
+        <p style="font-size:14px;color:var(--fg-2);line-height:1.5;margin:0">Indústria R$ 180M. 5 SDRs no time. 30% do dia gasto em trabalho que máquina faz melhor — agora redirecionado para fechamento.</p>
+        <div class="stat">RAMP-UP 6 → 2 MESES · CAPACIDADE TIME +40%</div>
+      </article>
+      <article class="case">
+        <div class="eyebrow">Embalagem B2B · SP</div>
+        <h3>Mudamos quem mandava o follow-up. Vendedor que vai fechar, não SDR.</h3>
+        <p style="font-size:14px;color:var(--fg-2);line-height:1.5;margin:0">R$ 95M. Pinn Outbound como wedge, Bundle Agent Sales + BAI no segundo trimestre. Pipeline R$ 1,8M em 90 dias.</p>
+        <div class="stat">FORECAST DRIFT ±28% → ±9%</div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="diag" id="diag">
+  <div class="container">
+    <div class="inner">
+      <div>
+        <span class="pill">90 minutos · sem pitch</span>
+        <h2 style="margin-top:14px">Diagnóstico de Revenue OS.</h2>
+        <p>Mapeamos onde a hora humana cara está sendo gasta com trabalho que máquina faz melhor. Sai com 3 quick-wins observados em indústria similar — independente de Pinn fechar ou não.</p>
+        <a class="btn btn-primary" href="#">Agendar — 2 horários sugeridos</a>
+      </div>
+      <div class="diag-card">
+        <h4>O que entra no diagnóstico</h4>
+        <ul class="diag-list">
+          <li>Mapa do funil atual (sem CRM access — você descreve)</li>
+          <li>Identificação de 3 ralos invisíveis no CAC</li>
+          <li>Onde Revenue OS conectaria primeiro (wedge)</li>
+          <li>Investimento estimado · setup + MRR</li>
+          <li>Próximos passos — sem follow-up agressivo</li>
+        </ul>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-3);padding-top:16px;border-top:1px solid var(--rule)">CONDUZIDO POR RENAN VIGLIONI · FOUNDER &amp; CEO</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="foot">
+      <div>
+        <div class="foot-brand">
+          <svg viewBox="0 0 200 200" fill="currentColor"><path d="M70 50 L130 50 L130 80 L100 80 L100 120 L70 120 Z"/><path d="M130 80 L130 150 L70 150 L70 120 L100 120 L100 80 Z"/></svg>
+          Pinn
+        </div>
+        <p style="font-size:14px;color:#999;margin:0;max-width:300px">Product Builder de Revenue OS para indústrias B2B brasileiras.</p>
+        <div class="foot-tag">Revenue OS.</div>
+      </div>
+      <div>
+        <h5>Produtos</h5>
+        <ul><li><a>Pinn Agent Sales</a></li><li><a>Pinn BAI</a></li><li><a>Pinn Outbound</a></li><li><a>Pinn APA</a></li></ul>
+      </div>
+      <div>
+        <h5>Empresa</h5>
+        <ul><li><a>Manifesto</a></li><li><a>Casos</a></li><li><a>Brandbook</a></li></ul>
+      </div>
+      <div>
+        <h5>Contato</h5>
+        <ul><li><a>contato@pinnpb.com</a></li><li><a>LinkedIn</a></li><li><a>Diagnóstico</a></li></ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 Pinn Product Builder · CNPJ 00.000.000/0001-00</span>
+      <span>SP · BH</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

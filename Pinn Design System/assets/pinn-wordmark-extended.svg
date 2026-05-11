@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 96" fill="none">
+  <g transform="translate(8,16)">
+    <path d="M28 8 L52 8 L52 20 L40 20 L40 36 L28 36 Z" fill="currentColor"></path>
+    <path d="M52 20 L52 48 L28 48 L28 36 L40 36 L40 20 Z" fill="currentColor"></path>
+  </g>
+  <text x="76" y="58" font-family="&#39;Inter&#39;, system-ui, sans-serif" font-size="40" font-weight="700" letter-spacing="-1.2" fill="currentColor">Pinn</text>
+  <text x="206" y="58" font-family="&#39;Inter&#39;, system-ui, sans-serif" font-size="40" font-weight="300" letter-spacing="-0.5" fill="currentColor" opacity="0.55">Product Builder</text>
+</svg>

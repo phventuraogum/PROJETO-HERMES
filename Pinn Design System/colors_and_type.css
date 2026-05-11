@@ -1,0 +1,298 @@
+/* ============================================================================
+   PINN — Colors & Type tokens
+   v1.0 — Maio/2026
+   Source: BRANDBOOK_PINN_v1 + VOICE_TONE_PINN
+   ============================================================================ */
+
+/* --------- FONTS ---------------------------------------------------------- */
+/* Primary: Inter (brand-supplied, variable). Variable axes: opsz 14-32, wght 100-900.
+   Mono: JetBrains Mono — used sparingly for stat labels, metric tags, code. */
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("fonts/Inter-VariableFont_opsz_wght.ttf") format("truetype-variations");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("fonts/Inter-Italic-VariableFont_opsz_wght.ttf") format("truetype-variations");
+}
+
+:root {
+  /* ============ COLOR — BRAND ============================================ */
+  --pinn-orange:        #FF6B35;   /* primary, alma da marca */
+  --pinn-orange-dark:   #E55A2B;   /* hover, gradients */
+  --pinn-orange-light:  #FFF3ED;   /* sutil callout / wash */
+  --pinn-orange-700:    #B8431F;   /* deep accent, on light */
+  --pinn-orange-50:     #FFF8F4;   /* whisper wash, near-white */
+
+  /* ============ COLOR — NEUTRALS (premium B2B; never #000) =============== */
+  --pinn-ink:           #1A1A1A;   /* primary text, hero, headings */
+  --pinn-ink-2:         #2C2C2C;   /* slightly softer hero ink */
+  --pinn-graphite:      #555555;   /* secondary text */
+  --pinn-mute:          #999999;   /* tertiary, captions, watermark */
+  --pinn-rule:          #E6E4E0;   /* hairlines, dividers */
+  --pinn-surface:       #F6F4EF;   /* warm-off-white surface (premium feel) */
+  --pinn-paper:         #FAF8F4;   /* document paper tone */
+  --pinn-white:         #FFFFFF;
+
+  /* Dark surfaces (Pinn BAI) */
+  --pinn-night:         #0E0E0E;   /* near-black canvas */
+  --pinn-night-2:       #161616;   /* card on night */
+  --pinn-night-3:       #1F1F1F;   /* elevated card */
+  --pinn-night-rule:    #2A2A2A;   /* hairlines on dark */
+  --pinn-night-mute:    #6B6B6B;   /* secondary text on dark */
+
+  /* ============ COLOR — SECONDARY (proposal — to validate w/ user) ======= */
+  /* Quiet, executive, NOT competing with orange. Warm-cool balance. */
+  --pinn-clay:          #D9C9B8;   /* warm taupe — accents, image overlays */
+  --pinn-sand:          #E9E1D2;   /* sand wash — section break */
+  --pinn-steel:         #2E3A40;   /* deep steel — alt dark, premium contrast */
+  --pinn-moss:          #4A5A3F;   /* deep moss — chart accent #2 */
+
+  /* ============ COLOR — FUNCTIONAL ====================================== */
+  --pinn-success:       #2E7D32;
+  --pinn-error:         #C62828;
+  --pinn-warning:       #F57C00;
+
+  /* ============ SEMANTIC ROLES ========================================== */
+  --bg:                 var(--pinn-white);
+  --bg-soft:            var(--pinn-surface);
+  --bg-wash:            var(--pinn-orange-light);
+  --bg-paper:           var(--pinn-paper);
+  --fg:                 var(--pinn-ink);
+  --fg-2:               var(--pinn-graphite);
+  --fg-3:               var(--pinn-mute);
+  --fg-on-orange:       var(--pinn-white);
+  --rule:               var(--pinn-rule);
+  --accent:             var(--pinn-orange);
+  --accent-hover:       var(--pinn-orange-dark);
+  --link:               var(--pinn-orange);
+
+  /* ============ TYPE — FAMILIES ========================================= */
+  --font-sans:    "Inter", -apple-system, BlinkMacSystemFont,
+                  "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-doc:     Arial, "Helvetica Neue", sans-serif; /* Word/PDF universal */
+
+  /* ============ TYPE — SCALE (1920 deck / desktop site) ================= */
+  --fs-hero:      72px;   /* 60-80pt range */
+  --fs-display:   56px;
+  --fs-h1:        36px;   /* 30-40pt */
+  --fs-h2:        28px;   /* 24-30pt */
+  --fs-h3:        22px;   /* 18-24pt */
+  --fs-h4:        18px;
+  --fs-body:      16px;
+  --fs-body-sm:   14px;
+  --fs-caption:   12px;
+  --fs-quote:     22px;   /* 16-24pt italic */
+  --fs-eyebrow:   12px;   /* uppercase tag */
+
+  /* ============ TYPE — WEIGHT / TRACK / LH ============================== */
+  --fw-light:     300;
+  --fw-regular:   400;
+  --fw-medium:    500;
+  --fw-semibold:  600;
+  --fw-bold:      700;
+
+  --lh-tight:     1.05;
+  --lh-snug:      1.15;
+  --lh-normal:    1.45;
+  --lh-loose:     1.6;
+
+  --tr-tight:     -0.02em;   /* hero / display */
+  --tr-snug:      -0.01em;   /* h1, h2 */
+  --tr-normal:    0;
+  --tr-wide:      0.08em;    /* eyebrow, mono caps */
+
+  /* ============ SPACING (8pt baseline; premium B2B respira) ============= */
+  --sp-1:   4px;
+  --sp-2:   8px;
+  --sp-3:   12px;
+  --sp-4:   16px;
+  --sp-5:   24px;
+  --sp-6:   32px;
+  --sp-7:   48px;
+  --sp-8:   64px;
+  --sp-9:   96px;
+  --sp-10:  128px;
+
+  /* Section rhythm — 2-3x body size between sections */
+  --sp-section:    var(--sp-9);
+  --sp-paragraph:  var(--sp-5);
+
+  /* ============ RADII (premium = restrained, never pill-y on cards) ===== */
+  --r-0:    0px;
+  --r-1:    2px;    /* hairline buttons, chips */
+  --r-2:    4px;    /* default control */
+  --r-3:    8px;    /* card */
+  --r-4:    12px;   /* large card */
+  --r-5:    20px;   /* hero / modal */
+  --r-pill: 999px;
+
+  /* ============ SHADOWS (low-key, executive) ============================ */
+  --sh-0: 0 0 0 1px rgba(26,26,26,0.04);
+  --sh-1: 0 1px 2px rgba(26,26,26,0.06), 0 0 0 1px rgba(26,26,26,0.04);
+  --sh-2: 0 4px 16px rgba(26,26,26,0.06), 0 0 0 1px rgba(26,26,26,0.04);
+  --sh-3: 0 12px 32px rgba(26,26,26,0.08), 0 0 0 1px rgba(26,26,26,0.04);
+  --sh-orange: 0 8px 24px rgba(255,107,53,0.22);
+
+  /* ============ MAX WIDTHS (legibility — 65-75 chars) =================== */
+  --measure-narrow: 36rem;   /* 580px */
+  --measure-text:   42rem;   /* 670px ~70ch */
+  --measure-wide:   62rem;
+  --measure-page:   76rem;
+
+  /* ============ MOTION ================================================== */
+  --ease:           cubic-bezier(.2,.7,.2,1);
+  --ease-out:       cubic-bezier(.16,1,.3,1);
+  --dur-fast:       120ms;
+  --dur-base:       200ms;
+  --dur-slow:       360ms;
+
+  /* ============ GRID ==================================================== */
+  --grid-gutter: 24px;
+  --grid-cols: 12;
+
+  /* ============ BORDERS ================================================= */
+  --border-hair:  1px solid var(--rule);
+  --border-strong:1px solid var(--pinn-ink);
+}
+
+/* ============================================================================
+   ELEMENT BASE — semantic mapping (h1..p..code)
+   ============================================================================ */
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "cv11"; /* Inter humanist alts */
+}
+
+.hero, .pinn-hero {
+  font-size: var(--fs-hero);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tr-tight);
+  color: var(--fg);
+  text-wrap: balance;
+}
+
+h1, .h1 {
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tr-snug);
+  color: var(--fg);
+  text-wrap: balance;
+}
+
+h2, .h2 {
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tr-snug);
+  color: var(--fg);
+}
+
+h3, .h3 {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+  color: var(--fg);
+}
+
+h4, .h4 {
+  font-size: var(--fs-h4);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-normal);
+  color: var(--fg);
+}
+
+p, .p {
+  font-size: var(--fs-body);
+  line-height: var(--lh-normal);
+  color: var(--fg);
+  max-width: var(--measure-text);
+  text-wrap: pretty;
+}
+
+.lede {
+  font-size: var(--fs-h4);
+  line-height: var(--lh-normal);
+  color: var(--fg-2);
+  max-width: var(--measure-text);
+}
+
+.eyebrow {
+  font-size: var(--fs-eyebrow);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tr-wide);
+  text-transform: uppercase;
+  color: var(--accent);
+  font-family: var(--font-sans);
+}
+
+.quote, blockquote {
+  font-size: var(--fs-quote);
+  line-height: var(--lh-snug);
+  font-style: italic;
+  color: var(--fg);
+  border-left: 2px solid var(--accent);
+  padding-left: var(--sp-5);
+  max-width: var(--measure-text);
+}
+
+code, .mono, .code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  letter-spacing: 0;
+}
+
+.stat-num {
+  font-family: var(--font-sans);
+  font-size: var(--fs-display);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tr-tight);
+  line-height: 1;
+  font-feature-settings: "tnum" 1;
+}
+
+.tagline {
+  font-family: var(--font-sans);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--tr-wide);
+  text-transform: none;
+  color: var(--fg);
+}
+
+a { color: var(--link); text-decoration: none; }
+a:hover { color: var(--accent-hover); }
+
+hr { border: 0; border-top: var(--border-hair); margin: var(--sp-7) 0; }
+
+/* ============================================================================
+   UTILITY — surfaces / inversions
+   ============================================================================ */
+
+.surface-light  { background: var(--bg);       color: var(--fg); }
+.surface-soft   { background: var(--bg-soft);  color: var(--fg); }
+.surface-wash   { background: var(--bg-wash);  color: var(--fg); }
+.surface-paper  { background: var(--bg-paper); color: var(--fg); }
+.surface-orange { background: var(--accent);   color: var(--fg-on-orange); }
+.surface-night  { background: var(--pinn-night); color: #F2F2F2; }
+
+.surface-night h1, .surface-night h2, .surface-night h3, .surface-night h4 { color: #F2F2F2; }
+.surface-night p { color: #C9C9C9; }
+.surface-night .eyebrow { color: var(--pinn-orange); }

@@ -1,0 +1,459 @@
+
+BRANDBOOK
+PINN
+Manual oficial de marca
+Revenue OS.
+v1.0 · Maio/2026
+
+Sumário
+PARTE I · Foundation
+Manifesto, Missão, Princípios
+PARTE II · Posicionamento
+Categoria, ICP, Anti-posicionamento, Tese Sequoia
+PARTE III · Identidade Verbal
+Voz, Tom, Vocabulário, Frases-âncora
+PARTE IV · Identidade Visual
+Logo, Paleta, Tipografia, Iconografia
+PARTE V · Arquitetura de Marca
+Marca-mãe, sub-marcas, 7 SKUs
+PARTE VI · Aplicações
+LinkedIn, Site, Email, Deck, Ata, Eventos
+PARTE VII · Governança
+Decision rights, atualização, hierarquia
+
+PARTE I — Foundation
+Quem a Pinn é, antes de qualquer canal, qualquer ferramenta, qualquer cliente.
+1. Manifesto Pinn
+&quot;Receita previsível em B2B não é improviso. É arquitetura.&quot;
+A Pinn existe pra construir a infraestrutura comercial que indústrias B2B brasileiras merecem — e que o mercado ainda não entrega.
+
+Foundation layer (OpenAI, Anthropic, Google) virou commodity. Empresas continuam pagando ferramentas que não rendem. Times continuam fazendo manualmente o que máquina faz melhor. Forecast continua sendo chute. Pipeline continua sendo barulho.
+
+A Pinn não vende mais uma ferramenta. Constrói a operação. Sistema operacional de receita pra indústrias que querem parar de improvisar.
+
+&quot;Prospecção para máquinas. Fechamento para humanos.&quot;
+2. Missão
+Construir e operar a máquina de receita das indústrias B2B brasileiras — com SLA de resultado, AI-native desde o desenho, integrada nativamente ao processo do cliente. Cliente fica com a operação rodando no fim do contrato.
+3. Princípios Operacionais
+Cinco princípios não-negociáveis que governam toda decisão da Pinn — produto, marca, vendas, entrega:
+Princípio 1 — Builder, não vendedor
+Não vendemos modelo. Construímos a operação. Cliente fica com a máquina.
+Princípio 2 — Atrai por densidade, não por pedido
+Pedir atenção rebaixa marca. Toda peça Pinn deve ser densa o suficiente pra atrair quem importa, sem precisar pedir.
+Princípio 3 — Anti-posicionamento explícito é parte do produto
+Não somos SaaS, não somos agência, não somos consultoria. Essa frase aparece em todo touchpoint que faz sentido.
+Princípio 4 — Disciplina de beachhead acima de oportunismo
+Indústria B2B SP/BH R$ 50M+. Precatórios, Legal, Healthcare e outras verticais entram só após 3+ logos no Pino 1.
+Princípio 5 — Founder-led, com profundidade técnica
+Renan na ponta. Time enxuto. SLA mensurável. Cliente fala com peer, não com vendor.
+4. Quem somos / Quem NÃO somos
+Em uma frase:
+A Pinn é Product Builder de Revenue OS para indústrias B2B brasileiras. Não SaaS. Não agência. Não consultoria. Constrói a máquina de receita do cliente, opera junto, com SLA de resultado, e cliente fica com a operação no fim do contrato.
+4 categorias de fornecedor que NÃO somos
+Categoria
+Por que Pinn é diferente
+SaaS
+Vende licença e tela. Cliente configura, integra, treina, mantém, gera resultado. Risco e responsabilidade são do cliente. Pinn projeta, constrói e opera junto. SLA de resultado, não de licença.
+Agência growth
+Terceiriza prospecção. Cliente paga time externo pra prospectar. Time fica com a agência, não com cliente. Pinn constrói operação dentro da empresa. Cliente fica com a máquina rodando no fim do contrato — sem dependência permanente.
+Consultoria
+Entrega slide e vai embora. Insight sem execução. Pinn opera junto com cliente, com governança de execução semanal e SLA de resultado mensurável.
+Sales tech / SaaS de vendas
+É ferramenta dentro do CRM. Pinn é camada acima — sistema operacional que governa CRM, IA, processo e time como máquina única.
+
+PARTE II — Posicionamento
+5. Categoria — Revenue OS
+A Pinn disputa uma categoria nova, ainda em construção semântica no Brasil:
+&quot;Revenue Operating System (Revenue OS)&quot;
+Categoria nova é vantagem composta — janela de 12-18 meses pra ser a referência brasileira. Em inglês, alguns chamam de &quot;GTM Engineering&quot;. Outros de &quot;Sales Architecture&quot;. A Pinn aposta em &quot;Revenue OS&quot; porque carrega a ideia de sistema operacional de receita — não ferramenta isolada.
+Definição operacional
+Revenue OS é a camada de software + processo + IA que governa como uma empresa gera, qualifica, fecha e expande receita — como um sistema, não como ferramentas avulsas.
+As 5 dimensões do Revenue OS
+Demanda — como receita é gerada (prospecção)
+Qualificação — como receita é triada (filtro de ICP, score)
+Conversão — como receita é fechada (handoff humano)
+Expansão — como receita é ampliada (account growth)
+Governança — como receita é medida (dashboards, accountability)
+6. ICP — Indústria B2B, R$ 50M+
+Beachhead 2026:
+Critérios firmographic não-negociáveis
+Dimensão
+Filtro
+Setor
+Indústria B2B (química, metalurgia, alimentícia B2B, automotiva, eletroeletrônica, têxtil, embalagem, cosméticos, construção/materiais)
+Receita anual
+R$ 50M+ (sweet spot: R$ 80M-R$ 300M)
+Ticket médio
+R$ 50.000+
+Ciclo de venda
+30-180 dias (B2B real, não comércio reativo)
+Time comercial
+≥ 5 pessoas (1 SDR + 2 vendedores + 1 gerente mínimo)
+Geografia
+SP ou BH (tolerância: Campinas, Sorocaba, Contagem)
+Decisor
+C-level com autonomia de R$ 100k+/ano em motion comercial
+Personas dentro do ICP (em ordem de prioridade)
+Primária: CRO / Diretor Comercial / Diretor de Receita (operador da dor diária)
+Secundária: CEO / Diretor-Geral (decisor final, assina o cheque)
+Habilitadora: COO / Diretor de Operações (governança, integração com sistemas existentes)
+Anti-ICP — quem fica de fora
+Empresas R$ &lt; 50M (CAC payback ruim)
+B2C disfarçado, varejo, marketplace, e-commerce
+Startups early-stage em validação
+Empresas em fusão/aquisição/recall/demissão massiva (últimos 90 dias)
+Cargo: SDR, BDR, Coordenador (não-decisor)
+Meta beachhead
+5-8 logos no Pino 1 em 6 meses. Pino 2 (Distribuidoras) só abre depois de 3+ logos fechados no Pino 1.
+7. Anti-posicionamento explícito
+Em B2B premium, dizer onde NÃO se está é tão importante quanto dizer onde se está. Estas 4 frases aparecem em todo touchpoint relevante:
+&quot;Não somos SaaS — não vendemos licença e deixamos cliente sozinho com a tela.&quot;
+&quot;Não somos agência — não substituímos time comercial por terceirização barata.&quot;
+&quot;Não somos consultoria — não entregamos slide e vamos embora.&quot;
+&quot;Não somos sales tech — não estamos dentro do CRM. Construímos a camada acima.&quot;
+8. Tese Sequoia — Services as Software
+A Pinn opera dentro de uma tese de mercado validada externamente: o artigo &quot;Services as the New Software&quot; da Sequoia (2025) descreve exatamente o quadrante onde Pinn vive. Cinco conceitos centrais que a Pinn usa como fundação teórica:
+Conceito 1 — Tool budget vs Work budget
+Para cada $1 que empresa B2B gasta em software (tool budget), gasta $6 em serviços profissionais (work budget). Pinn ataca work budget — não compete por tool budget. TAM é 6x maior, comprador tem mais poder de decisão, swap de fornecedor é frictionless.
+Conceito 2 — Intelligence vs Judgement
+Intelligence = padrões e regras complexas codificáveis (prospecção, qualificação, follow-up). AI cruzou esse threshold em 2024-2025.
+Judgement = taste, instinto, julgamento humano (fechar deal, ler hesitação, ajustar tom). Permanece humano por anos.
+Slogan Pinn opera essa distinção:
+&quot;Prospecção para máquinas. Fechamento para humanos.&quot;
+Conceito 3 — Copilot vs Autopilot
+Copilot vende ferramenta pro profissional (Harvey pra advogado, Outreach pra SDR). Autopilot vende serviço direto pro comprador do outcome (Crosby vende NDA pra empresa, não pro escritório de advocacia).
+Pinn é autopilot: comprador é CRO/CEO. Operador (SDR) é beneficiário, não comprador.
+Conceito 4 — Wedge → Expansion
+Estratégia: começar onde já existe budget de outsourcing (work budget alocado pra agência, BPO, time interno operando manual). Substituir esse fornecedor é frictionless. Expandir pra qualificação, governança, expansão de conta depois.
+Pinn Outbound é o wedge. Bundle Agent Sales + BAI é a expansion.
+Conceito 5 — Convergência
+Judgement de hoje vira intelligence de amanhã. Empresas autopilot capturam essa convergência por design. Empresas copilot enfrentam innovator&apos;s dilemma (não conseguem virar autopilot sem canibalizar próprio cliente — o profissional).
+
+PARTE III — Identidade Verbal
+Esta parte é resumo. Manual completo de tom de voz está no documento Voice &amp; Tone Pinn — fonte de verdade exclusiva pra calibrar peças escritas.
+9. Princípio Fundador da Voz
+&quot;Founder mostrando raciocínio em alta resolução. Não creator performando carisma. Não agência vendendo solução. Não consultoria entregando insight.&quot;
+Premium executivo. Peer-level. Específico. Builder.
+10. Os 5 Atributos da Voz
+Cirúrgica — frases curtas, hard consonants, sem floreio. Provoca afirmando, não pedindo.
+Específica — números não-redondos, nomes próprios, datas absolutas, casos reais. Detalhe que só operação real produz.
+Honest-direct — vulnerability quando ressoa, anti-posicionamento quando útil. Sem self-flagellation, sem self-aggrandizement.
+Builder — voz de quem opera, não de quem vende. Tese a partir de observação, não de slogan.
+Peer-level — fala com quem está na mesa, não com quem segue. &quot;Eu vi&quot; mais que &quot;eu te ensino&quot;.
+11. Vocabulário Oficial — Resumo
+✅ Termos canônicos (sempre usar)
+Revenue OS · Máquina de receita · Product Builder
+Prospecção para máquinas. Fechamento para humanos. (slogan)
+Foundation layer virou commodity (frase-tese)
+Indústria B2B (não &quot;B2B&quot; genérico)
+Sistema operacional de receita · Builder de dono · AI-savvy
+❌ Termos banidos
+Legacy: &quot;SDR de IA Personalizado&quot;, &quot;SaaS/MicroSaaS&quot; como descrição da Pinn, &quot;Hermes/Sales Agent/BAI Outbound&quot; (nomes legacy), &quot;Revenue by design&quot;
+Genérico: &quot;Soluções de IA sob medida&quot;, &quot;Automação inteligente&quot;, &quot;Disruptivo&quot;, &quot;Líder de mercado em...&quot;
+Creator: &quot;Mindset/vibe/energia&quot;, &quot;Bora?&quot;, &quot;Hoje quero falar sobre&quot;, &quot;Comenta aí&quot;, emoji em sequência, setas →→→
+Vendedor: &quot;Transformamos sua empresa&quot;, &quot;Nossa metodologia exclusiva&quot;, &quot;Espero que esteja bem!&quot;
+12. Frases-Âncora Oficiais
+Frases canônicas. Podem aparecer em peças diferentes — repetição cria reconhecimento de marca.
+&quot;Prospecção para máquinas. Fechamento para humanos.&quot;
+&quot;Revenue OS.&quot;
+&quot;Foundation layer virou commodity.&quot;
+&quot;Não vendemos modelo. Construímos a operação.&quot;
+&quot;Sistema é meu. Resultado é seu. Retorno é nosso.&quot;
+&quot;Receita previsível em B2B não é improviso. É arquitetura.&quot;
+&quot;Builder, não vendedor.&quot;
+13. Slogan e Tagline
+Slogan operacional
+&quot;Prospecção para máquinas. Fechamento para humanos.&quot;
+Onde usar: assinatura de email, banners, fechamento de post, slides finais de deck. Operacionaliza a tese intelligence × judgement.
+Tagline corporativa
+&quot;Revenue OS.&quot;
+Substituiu &quot;Revenue by design&quot; em maio/2026. É categoria + assinatura ao mesmo tempo. Curta, direta, autoritativa. Onde usar: assinatura final de peças premium, capa de deck, footer de site, blueprint de produto.
+
+PARTE IV — Identidade Visual
+⚠️ Esta parte está em v1.0 baseada em observação dos canais Pinn existentes. Recomendação CMO: contratar designer profissional pra formalizar logo, paleta, tipografia e iconografia em manual visual completo. Investimento estimado: R$ 5-15k freela sênior + 2-4 semanas. Até lá, este documento serve como padrão operacional mínimo.
+14. Logo
+Variações detectadas nos canais Pinn (status atual)
+&quot;Pinn&quot; — usado em LinkedIn pessoal do Renan + LinkedIn Company Page
+&quot;PINN&quot; (caixa alta) — usado no PDF apresentação comercial
+&quot;Pinn PB&quot; — usado em material interno
+&quot;PINNPB&quot; (sem espaço) — usado como sigla no PDF
+&quot;Pinn Product Builder&quot; — usado no header do site pinnpb.com
+Padrão recomendado v1.0
+Master brand: &apos;Pinn&apos; (capitalização inicial, demais minúsculas). Variante extensa pra contextos formais: &apos;Pinn Product Builder&apos;. NUNCA usar: PINN (caps), PINNPB (sem espaço), PINN PB (caps com espaço).
+Aplicação por contexto
+• Logo isolado (avatar, ícone): &quot;Pinn&quot;
+• Logo + tagline (assinatura visual): &quot;Pinn — Revenue OS&quot;
+• Header de documento formal: &quot;Pinn Product Builder&quot;
+• Footer de site/email: &quot;Pinn · Revenue OS&quot;
+15. Paleta de Cores
+Paleta v1.0 baseada em observação dos canais existentes (LinkedIn, site, Pinn BAI). Designer profissional deve formalizar e expandir.
+Cor Primária
+
+Pinn Orange
+#FF6B35
+Cor de marca. Usar em CTAs, links, elementos de destaque, headers principais. Reproduzido visualmente em LinkedIn banner do Renan e em login do Pinn BAI.
+Cor Primária Escura
+
+Pinn Orange Dark
+#E55A2B
+Variação para hover states, elementos de destaque secundários, gradientes.
+Cor Primária Clara
+
+Pinn Orange Light
+#FFF3ED
+Background de callouts, áreas de destaque sutil, fundos de seções importantes.
+Cores Neutras
+
+Pinn Dark
+#1A1A1A
+Cor primária de texto. Usar em headings, body text. Substitui preto puro (000000) que é agressivo demais em premium B2B.
+
+Pinn Gray
+#555555
+Texto secundário, captions, metadados. Usar quando body text não precisa de máximo contraste.
+
+Pinn Light Gray
+#999999
+Texto terciário, headers/footers de documento, legendas, marca d&apos;água sutil.
+
+Pinn White
+#FFFFFF
+Background primário. Pinn premium opera em fundo claro (não dark). Exceção: Pinn BAI usa fundo escuro como produto.
+Cores Funcionais
+
+Pinn Success
+#2E7D32
+Confirmações, success states, ✅ em material verbal.
+
+Pinn Error
+#C62828
+Alertas, erros, ❌ em material verbal.
+
+Pinn Warning
+#F57C00
+Atenção, alertas leves, escalation triggers.
+16. Tipografia
+Tipografia v1.0 — recomendação CMO baseada em padrões de B2B premium 2026. Designer pode formalizar com fonts custom.
+Família principal — Web e digital
+Inter (https://rsms.me/inter/) — sans-serif moderna, otimizada pra tela, 9 pesos. Gratuita. Usada por Stripe, Linear, Vercel. Adequada pra B2B premium 2026.
+Família secundária — Documentos formais (Word, PDF)
+Arial — sans-serif universal, presente em todos os ambientes (Word, Google Docs, Pages, navegadores). Usada como fallback quando Inter não disponível.
+Hierarquia tipográfica recomendada
+Elemento
+Tamanho
+Peso
+Aplicação
+Hero (display)
+60-80pt
+Bold
+Capa de deck, hero do site, manifesto
+H1 (título de seção)
+30-40pt
+Bold
+Início de capítulo, abertura de post
+H2 (subtítulo)
+24-30pt
+Bold
+Sub-seções, headings secundários
+H3 (sub-subtítulo)
+18-24pt
+Bold
+Sub-divisões internas
+Body (texto)
+11-14pt
+Regular
+Texto corrido, paragráfos
+Caption (legendas)
+9-11pt
+Regular
+Notas, footnotes, legendas de tabela
+Quote (frase-âncora)
+16-24pt
+Italic
+Citações destacadas, frases canônicas
+17. Iconografia / Símbolos
+Padrão recomendado v1.0:
+Ícones devem ser line-style (traços limpos), não filled (sólidos). Premium B2B usa line.
+Espessura uniforme: 1.5pt ou 2pt
+Cantos arredondados sutis (raio 2-4px)
+Cor: Pinn Dark (#1A1A1A) ou Pinn Orange (#FF6B35) em destaques
+Bibliotecas recomendadas: Lucide (lucide.dev) ou Phosphor Icons (phosphoricons.com) — ambas gratuitas, line-style, modernas
+Evitar: emoji em material visual de marca formal. OK em LinkedIn posts (controlado) e UI de produto. Não OK em deck, site, brandbook.
+18. Padrão de Imagem / Fotografia
+Recomendado
+Fotografia premium executiva: ambientes de trabalho reais (escritórios industriais, salas de reunião limpas), não foto stock genérica
+Pessoas reais — Renan e time, clientes (com permissão), parceiros — em vez de modelos genéricos
+Tons: alta saturação não. Tons sóbrios, levemente quentes (combina com paleta laranja Pinn)
+Composição: minimalista, espaço em branco, sem elementos competindo
+Evitar
+Foto stock óbvia (executivo apertando mão, equipe diversa sorrindo, lâmpada com IA)
+Imagens com texto sobreposto excessivo
+Cores saturadas competindo com paleta Pinn
+Símbolos genéricos de IA (cérebros digitais, redes neurais)
+19. Espaçamento e Proporções
+Premium B2B respira. Espaçamento generoso &gt; densidade visual.
+Margens em documentos: mínimo 1 inch (2.5cm) em A4/Letter
+Espaço entre seções: 2-3x o tamanho do body text
+Largura de bloco de texto: máximo 65-75 caracteres por linha (legibilidade)
+Logo + tagline: respeitar área de proteção mínima de 1x altura do logo
+
+PARTE V — Arquitetura de Marca
+20. Hierarquia
+Master brand → Sub-marcas (produtos) → Variações de aplicação
+Nível 1 — Master Brand
+Pinn (Pinn Product Builder em contextos formais)
+Nível 2 — Sub-marcas (produtos / SKUs)
+Padrão de nomeação: &quot;Pinn [Nome do produto]&quot;. Sempre com &quot;Pinn&quot; antes.
+Pinn Agent Sales (IA SDR operacional)
+Pinn BAI (inteligência de dados B2B + dashboards)
+Pinn Outbound (motor de demanda qualificada)
+Pinn APA (agentes de processos automatizados)
+Pinn MicroSaaS Studio (produtos verticalizados sob demanda)
+Bundle
+Bundle Agent Sales + BAI (alvo principal de venda — R$ 35k setup + R$ 6.300 MRR)
+21. Os 7 SKUs Oficiais
+SKU
+Setup
+MRR
+Posicionamento
+Pinn Agent Sales (Solo)
+R$ 20k
+R$ 3.500
+Solo do bundle
+Pinn BAI (Solo)
+R$ 20k
+R$ 3.500
+Solo do bundle
+Bundle (Agent Sales + BAI)
+R$ 35k
+R$ 6.300
+Alvo principal de venda
+Pinn Outbound (Add-on)
+R$ 8-15k
+R$ 2.500
+Wedge / motor de demanda
+Pinn APA
+R$ 170-210/h
+—
+Hora consultiva avulsa
+Pinn MicroSaaS Studio
+R$ 15-75k+
+—
+Projeto / SOW
+Expansão de Conta
+—
+R$ 1.500
+Expansão base instalada
+22. Hermes — Decisão Pendente
+⚠️ Hermes (hermescraper.com) opera externamente como marca separada, internamente é &quot;Pinn Product Builder&quot;. Posicionamento Hermes (copilot self-serve, fração do preço) contradiz Pinn (autopilot premium). Decisão estratégica pendente: integrar como Pinn Outbound, manter separado declarando arquitetura, ou descontinuar. Esta decisão precisa ser fechada antes da próxima edição do brandbook.
+23. Pinn BAI — Padronização de Naming
+Pinn BAI tem variações de nome detectadas: &quot;Pinn BAI&quot;, &quot;Pinn Insights Hub&quot; (title da aba), &quot;BUSINESS AI INTELLIGENCE&quot; (tag visual). Padrão oficial: Pinn BAI.
+Decisão padronizada: usar &apos;Pinn BAI&apos; em todos os contextos (login, header, deck, comunicação). &apos;Insights Hub&apos; e &apos;Business AI Intelligence&apos; saem do uso oficial.
+
+PARTE VI — Aplicações
+Como a marca Pinn aparece em cada canal e formato. Use como referência rápida pra produzir peças coerentes.
+24. LinkedIn
+Perfil pessoal do founder (Renan)
+Bio (220 chars):
+&quot;Construo máquinas de receita B2B com IA. Operações e delivery, não vendas. Founder e CEO na Pinn — Product Builder de Revenue OS. Inteligência de dados + automação para indústria B2B. Prospecção para máquinas, fechamento para humanos.&quot;
+Banner: laranja Pinn em fundo escuro com símbolo geométrico ou tagline visual (&quot;Revenue OS.&quot;).
+Cadência ideal: 3 posts/semana sustentado, distribuídos pelos 4 pilares de POV.
+LinkedIn Company Page (Pinn)
+Tagline: &quot;Revenue OS.&quot;
+Categoria oficial: &quot;Software Development&quot; (não &quot;Atividades de consultoria em gestão empresarial&quot;)
+Frequência mínima: 1 post/semana (mesmo que apoio ao founder-led)
+25. Site (pinnpb.com)
+Hero recomendado:
+&quot;A maioria das empresas B2B compra IA. Construímos máquina de receita. Pinn é Product Builder de Revenue OS para indústrias B2B. Prospecção para máquinas. Fechamento para humanos.&quot;
+CTA principal: &quot;Agendar Diagnóstico de 90 minutos&quot; (não &quot;Falar com consultor&quot;).
+Cases mostrados: indústria B2B exclusivamente (não Saúde, Educação, Jurídico — fora do beachhead).
+Footer: &quot;Revenue OS.&quot;
+26. Email
+Assinatura padrão
+&quot;Renan / Founder &amp; CEO @ Pinn / pinnpb.com / Revenue OS.&quot;
+Email cold (outbound)
+75-150 palavras body. Subject 3-7 palavras. Hook em fato real verificável. Sem &quot;Espero que esteja bem!&quot;. CTA específico (2 horários sugeridos).
+Email institucional
+Domínio: @pinnpb.com (não gmail pessoal). Padrão: nome.sobrenome@pinnpb.com.
+27. Deck Comercial / PDF
+Slide de capa
+Logo &quot;Pinn&quot; no canto superior. Tagline &quot;Revenue OS.&quot; no rodapé. Título do deck no centro. Cor de fundo: claro (off-white) com elementos laranja Pinn.
+Slide final
+Frase-âncora ocupando o slide: &quot;Prospecção para máquinas. Fechamento para humanos.&quot; Tagline &quot;Revenue OS.&quot; pequena no rodapé. Sem CTA agressivo.
+Estrutura recomendada (8-12 slides)
+Capa
+O problema (custo invisível em B2B)
+A categoria que disputamos (Revenue OS) + tese Sequoia
+O que Pinn é (Builder, não SaaS/agência/consultoria)
+Os 3 pilares (Demanda, Execução, Inteligência)
+3 módulos (Pinn Agent Sales / Pinn BAI / Pinn Outbound)
+Caso de cliente (anonimizado)
+Investimento (Bundle + Add-ons)
+Land-and-Expand
+Próximos passos: Diagnóstico 90 min
+Encerramento (frase-âncora + tagline)
+28. Ata Weekly Cliente
+Estrutura fixa que cria pedagogia por repetição (separa visualmente Pinn × Cliente). Documento completo: Ata Weekly Pinn (separado deste brandbook).
+Frase-âncora obrigatória no topo:
+&quot;Pinn constrói e opera a máquina de receita. Cliente operacionaliza decisões comerciais sobre ela. Esta ata reporta os dois lados separadamente.&quot;
+Frase-âncora obrigatória no fim:
+&quot;Sistema é meu. Resultado é seu. Retorno é nosso.&quot;
+29. Eventos / Palestras (futuro)
+Quando Pinn começar a participar de eventos (FIESP, Endeavor, eventos B2B):
+Slides com paleta Pinn aplicada (laranja + dark + branco)
+Roupa: smart casual premium (camisa de cor sóbria, sem logo). Pinn opera com peer-level executivo.
+Material de apoio: 1-pager Pinn (não deck completo) pra distribuir
+Tagline visível em background: &quot;Revenue OS.&quot;
+
+PARTE VII — Governança
+30. Decision Rights
+CMO decide e reporta (autonomia tática)
+Calibragem de uma frase específica em peça
+Adaptação de tom pra canal específico
+Resposta a comentário/DM em nome próprio ou Renan
+Pequenas pivotagens de mensagem após dado real
+CMO lidera análise — decisão final do CEO
+Mudança de slogan ou tagline oficial
+Adicionar/remover frase-âncora canônica
+Mudança no princípio fundador
+Identidade visual (rebrand de logo, paleta, tipografia)
+Mudança de categoria (Revenue OS → outra)
+Mudança de ICP / beachhead
+Mesa Executiva — convocada pelo CEO
+Decisões cruzando 3+ áreas (Marketing + Comercial + CS + Financeiro)
+Investimento significativo em motion novo (ads pagos, evento grande)
+Resposta a movimento competitivo grande
+M&amp;A, parceria estratégica grande
+31. Atualização do Brandbook
+Cadência de revisão
+Revisão obrigatória: a cada 90 dias ou quando houver decisão estratégica de marca
+Revisão emergencial: escalation trigger ativo (objeção sistêmica, concorrente capturando narrativa)
+Revisão de seções específicas: após peça vencedora ou peça falhada (atualizar exemplos)
+Quem atualiza
+CMO atualiza este documento sempre que houver decisão estratégica registrada em Revenue Meeting. Versão atualizada vai pro Drive Pinn (pasta PINN CMO) e é distribuída pra time inteiro.
+Versionamento
+v1.0 — Maio/2026 — versão inicial. Identidade verbal completa, identidade visual baseada em observação (a formalizar com designer)
+v1.1 (planejada) — após decisão Hermes architecture
+v2.0 (planejada) — após brand book visual completo (designer profissional)
+32. Hierarquia de Fontes em Conflito
+Em caso de conflito entre materiais Pinn:
+Este Brandbook (versão mais recente) — fonte de verdade
+Voice &amp; Tone Pinn (documento dedicado) — fonte de verdade pra identidade verbal
+Skill linkedin-founder-led — fonte operacional pra produção LinkedIn
+Brand Audit V2 — diagnóstico de marca (não prescritivo)
+Materiais legacy (PDFs, posts, decks antigos) — referência histórica APENAS, nunca prevalecem
+
+
+Se descobrir conflito entre 2+ materiais oficiais Pinn que este brandbook não cobre: escalar para Renan + CMO em call de 30 minutos. Sai com decisão escrita pra atualizar este documento.
+
+Encerramento
+&quot;Receita previsível em B2B não é improviso. É arquitetura.&quot;
+Este brandbook é a infraestrutura da marca Pinn. Toda peça nova deve ser produzida em referência a este documento.
+
+Em caso de dúvida não respondida pelo brandbook: escalar pra CMO. Em caso de proposta de mudança estratégica: escalar pra CEO via Revenue Meeting.
+
+
+Documento sob governança CMO Pinn PB.
+Última atualização: maio/2026 · v1.0
+
+&quot;Revenue OS.&quot;

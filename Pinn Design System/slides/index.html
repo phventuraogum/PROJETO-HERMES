@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Pinn — Slide Templates</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<script src="deck-stage.js"></script>
+<style>
+  html, body { margin:0; padding:0; background:#0a0a0a; }
+  deck-stage { --slide-bg: #ffffff; }
+  section.slide { width: 1920px; height: 1080px; position: relative; overflow: hidden; font-family: var(--font-sans); color: var(--fg); background: #fff; padding: 96px 120px; box-sizing: border-box; display:flex; flex-direction:column; }
+  section.slide.dark { background: var(--pinn-ink); color: #fff; }
+  section.slide.orange { background: var(--accent); color: #fff; }
+  section.slide.surface { background: var(--pinn-surface); }
+
+  /* Header chrome */
+  .chrome { position:absolute; top:48px; left:120px; right:120px; display:flex; align-items:center; justify-content:space-between; font-family:var(--font-mono); font-size:14px; letter-spacing:0.04em; color: var(--fg-3); }
+  .dark .chrome, .orange .chrome { color: rgba(255,255,255,0.6); }
+  .chrome .brand { display:flex; align-items:center; gap:10px; font-family:var(--font-sans); font-weight:700; font-size:18px; color:var(--fg); letter-spacing:-0.01em; }
+  .dark .chrome .brand, .orange .chrome .brand { color:#fff; }
+  .chrome .brand svg { width:20px; height:20px; }
+
+  .footer-chrome { position:absolute; bottom:48px; left:120px; right:120px; display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:13px; color: var(--fg-3); letter-spacing:0.04em; }
+  .dark .footer-chrome, .orange .footer-chrome { color: rgba(255,255,255,0.5); }
+
+  /* Eyebrow */
+  .eyebrow { font-family:var(--font-mono); font-size:18px; letter-spacing:0.08em; text-transform:uppercase; color: var(--accent); display:flex; align-items:center; gap:14px; margin-bottom:32px; }
+  .eyebrow::before { content:""; width:36px; height:1px; background: var(--accent); }
+  .dark .eyebrow { color: var(--accent); }
+  .orange .eyebrow { color:#fff; }
+  .orange .eyebrow::before { background:#fff; }
+
+  /* Slide 1: Cover */
+  .cover { justify-content: flex-end; }
+  .cover h1 { font-size: 124px; font-weight: 700; letter-spacing: -0.03em; line-height: 0.95; margin: 0 0 48px; max-width: 1500px; text-wrap: balance; }
+  .cover h1 .accent { color: var(--accent); }
+  .cover .meta { display:flex; gap: 64px; padding-top: 32px; border-top: 1px solid var(--rule); font-family:var(--font-mono); font-size:16px; letter-spacing:0.06em; text-transform:uppercase; color:var(--fg-3); }
+  .cover .meta b { color: var(--fg); font-weight: 600; }
+
+  /* Slide 2: Big quote / anchor phrase */
+  .quote-slide { justify-content:center; }
+  .quote-slide blockquote { margin:0; font-size: 96px; font-weight: 600; line-height: 1.05; letter-spacing: -0.02em; max-width: 1500px; text-wrap: balance; }
+  .quote-slide blockquote .accent { color: var(--accent); }
+  .quote-slide .attr { margin-top: 56px; font-family:var(--font-mono); font-size: 18px; color: var(--fg-3); letter-spacing:0.06em; text-transform:uppercase; }
+
+  /* Slide 3: Problem (stats) */
+  .stats-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap: 64px; margin-top: 64px; flex:1; align-content: center; }
+  .stat-block .num { font-size: 140px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; color: var(--accent); margin-bottom: 18px; font-feature-settings:'tnum'; }
+  .dark .stat-block .num { color: var(--accent); }
+  .stat-block .label { font-size: 26px; font-weight: 500; line-height: 1.3; max-width: 420px; }
+  .stat-block .src { font-family:var(--font-mono); font-size: 14px; color: var(--fg-3); margin-top: 18px; letter-spacing:0.04em; }
+  .dark .stat-block .src { color: rgba(255,255,255,0.5); }
+  .h-title { font-size: 64px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; margin: 0; max-width: 1300px; }
+
+  /* Slide 4: Comparison (anti-positioning) */
+  .compare { display:grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 56px; flex:1; }
+  .compare > div { padding: 56px; border-radius: 16px; display:flex; flex-direction:column; }
+  .compare .neg { background: #FBEAEA; color: #5A0F0F; }
+  .compare .pos { background: var(--pinn-ink); color: #fff; }
+  .compare h3 { font-size: 22px; font-weight: 600; letter-spacing: 0.08em; text-transform:uppercase; margin:0 0 28px; opacity: 0.7; }
+  .compare ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:24px; }
+  .compare li { font-size: 28px; line-height: 1.35; font-weight: 500; padding-left: 36px; position:relative; }
+  .compare .neg li::before { content:"✕"; position:absolute; left:0; color:#9A2222; font-weight: 700; }
+  .compare .pos li::before { content:"→"; position:absolute; left:0; color: var(--accent); font-weight:700; }
+  .compare .pos b { color: var(--accent); }
+
+  /* Slide 5: Product (Revenue OS dimensions) */
+  .ros-five { display:grid; grid-template-columns: repeat(5, 1fr); gap: 0; margin-top: 56px; flex:1; align-content:flex-start; border-top:1px solid var(--rule); }
+  .ros-five > div { padding: 32px 24px 32px 0; border-right:1px solid var(--rule); }
+  .ros-five > div:last-child { border-right:none; padding-right:0; }
+  .ros-five .num { font-family:var(--font-mono); font-size: 14px; color: var(--accent); letter-spacing:0.06em; margin-bottom: 18px; }
+  .ros-five h4 { margin:0 0 14px; font-size: 28px; font-weight: 700; letter-spacing:-0.005em; line-height:1.15; }
+  .ros-five p { margin:0; font-size: 16px; color: var(--fg-2); line-height: 1.5; }
+
+  /* Slide 6: Closing CTA */
+  .closing { justify-content: center; align-items:flex-start; }
+  .closing h2 { font-size: 156px; font-weight: 700; letter-spacing: -0.03em; line-height: 0.92; margin: 0 0 48px; max-width: 1500px; }
+  .closing .lede { font-size: 30px; max-width: 1100px; margin: 0 0 64px; opacity: 0.92; line-height:1.4; }
+  .closing .cta-row { display:flex; gap: 48px; align-items:flex-end; padding-top: 32px; border-top: 1px solid rgba(255,255,255,0.2); width: 100%; }
+  .closing .cta-card { background:#fff; color: var(--fg); padding: 28px 36px; border-radius: 8px; }
+  .closing .cta-card .lab { font-family: var(--font-mono); font-size: 13px; color: var(--fg-3); letter-spacing:0.06em; text-transform: uppercase; margin-bottom: 6px; }
+  .closing .cta-card .val { font-size: 26px; font-weight: 700; }
+  .closing .signoff { margin-left:auto; font-family:var(--font-mono); font-size:16px; opacity:0.6; letter-spacing:0.04em; }
+
+  .pinn-mark { display:inline-flex; align-items:center; gap:10px; }
+  .pinn-mark svg { width:20px; height:20px; }
+</style>
+</head>
+<body>
+
+<deck-stage>
+
+  <!-- 01 Cover -->
+  <section class="slide cover" data-screen-label="01 Capa">
+    <div class="chrome">
+      <span class="brand"><svg viewBox="0 0 200 200" fill="currentColor"><path d="M70 50 L130 50 L130 80 L100 80 L100 120 L70 120 Z"/><path d="M130 80 L130 150 L70 150 L70 120 L100 120 L100 80 Z"/></svg>Pinn</span>
+      <span>DECK COMERCIAL · Q2 2026 · CONFIDENCIAL</span>
+    </div>
+    <div class="eyebrow">Revenue OS · Indústria B2B</div>
+    <h1>Receita previsível em B2B<br>não é improviso. <span class="accent">É arquitetura.</span></h1>
+    <div class="meta">
+      <div><b>Renan Viglioni</b><br>Founder &amp; CEO</div>
+      <div><b>Indústria Química SA</b><br>Diagnóstico Q2-2026</div>
+      <div><b>Maio · 2026</b><br>São Paulo</div>
+    </div>
+    <div class="footer-chrome"><span>01 / 06</span><span>PINN.PB · CONFIDENCIAL</span></div>
+  </section>
+
+  <!-- 02 Big quote / tese -->
+  <section class="slide quote-slide surface" data-screen-label="02 Tese">
+    <div class="chrome">
+      <span class="brand"><svg viewBox="0 0 200 200" fill="currentColor"><path d="M70 50 L130 50 L130 80 L100 80 L100 120 L70 120 Z"/><path d="M130 80 L130 150 L70 150 L70 120 L100 120 L100 80 Z"/></svg>Pinn</span>
+      <span>02 · TESE DE MERCADO</span>
+    </div>
+    <div class="eyebrow">Sequoia · 2025 · Services as the New Software</div>
+    <blockquote>"Foundation layer virou commodity.<br><span class="accent">A próxima fronteira é construir a operação,</span><br>não a ferramenta."</blockquote>
+    <div class="attr">— Tese central · Pinn Revenue OS</div>
+    <div class="footer-chrome"><span>02 / 06</span><span>PINN.PB · CONFIDENCIAL</span></div>
+  </section>
+
+  <!-- 03 Problem stats -->
+  <section class="slide" data-screen-label="03 Problema">
+    <div class="chrome">
+      <span class="brand"><svg viewBox="0 0 200 200" fill="currentColor"><path d="M70 50 L130 50 L130 80 L100 80 L100 120 L70 120 Z"/><path d="M130 80 L130 150 L70 150 L70 120 L100 120 L100 80 Z"/></svg>Pinn</span>
+      <span>03 · PROBLEMA</span>
+    </div>
+    <div class="eyebrow">O que observamos em indústrias B2B R$ 50–300M</div>
+    <h2 class="h-title">SDR sênior gasta 30% do dia em qualificação manual<br>que máquina faz em 2 minutos.</h2>
+    <div class="stats-grid">
+      <div class="stat-block">
+        <div class="num">47<span style="font-size:64px;color:var(--fg-2);font-weight:500"> dias</span></div>
+        <div class="label">médios entre primeiro contato e primeira reunião com decisor.</div>
+        <div class="src">BENCHMARK · 24 INDÚSTRIAS · 2025</div>
+      </div>
+      <div class="stat-block">
+        <div class="num">±28<span style="font-size:64px;color:var(--fg-2);font-weight:500">%</span></div>
+        <div class="label">de drift no forecast trimestral. Pipeline existe — predição não.</div>
+        <div class="src">AMOSTRA · 18 CROs · BR</div>
+      </div>
+      <div class="stat-block">
+        <div class="num">6<span style="font-size:64px;color:var(--fg-2);font-weight:500"> meses</span></div>
+        <div class="label">de ramp-up médio para SDR sênior — em mercado com escassez crítica.</div>
+        <div class="src">PESQUISA INTERNA · 2026</div>
+      </div>
+    </div>
+    <div class="footer-chrome"><span>03 / 06</span><span>PINN.PB · CONFIDENCIAL</span></div>
+  </section>
+
+  <!-- 04 Comparison / anti-positioning -->
+  <section class="slide" data-screen-label="04 Anti-posicionamento">
+    <div class="chrome">
+      <span class="brand"><svg viewBox="0 0 200 200" fill="currentColor"><path d="M70 50 L130 50 L130 80 L100 80 L100 120 L70 120 Z"/><path d="M130 80 L130 150 L70 150 L70 120 L100 120 L100 80 Z"/></svg>Pinn</span>
+      <span>04 · POR QUE PINN É DIFERENTE</span>
+    </div>
+    <div class="eyebrow">Anti-posicionamento explícito</div>
+    <h2 class="h-title">Não vendemos modelo. <span style="color:var(--accent)">Construímos a operação.</span></h2>
+    <div class="compare">
+      <div class="neg">
+        <h3>O mercado vende</h3>
+        <ul>
+          <li>SaaS — licença, tela, configuração</li>
+          <li>Agência growth — terceirização contínua</li>
+          <li>Consultoria — slide, sem execução</li>
+          <li>Sales tech — ferramenta dentro do CRM</li>
+        </ul>
+      </div>
+      <div class="pos">
+        <h3>Pinn entrega</h3>
+        <ul>
+          <li><b>Revenue OS</b> projetado, construído, operado</li>
+          <li>SLA de <b>resultado</b> — não de licença</li>
+          <li>AI-native desde o desenho — não plugado depois</li>
+          <li>Cliente fica com <b>a máquina</b>, não com dependência</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-chrome"><span>04 / 06</span><span>PINN.PB · CONFIDENCIAL</span></div>
+  </section>
+
+  <!-- 05 Product Revenue OS dimensions -->
+  <section class="slide surface" data-screen-label="05 Produto">
+    <div class="chrome">
+      <span class="brand"><svg viewBox="0 0 200 200" fill="currentColor"><path d="M70 50 L130 50 L130 80 L100 80 L100 120 L70 120 Z"/><path d="M130 80 L130 150 L70 150 L70 120 L100 120 L100 80 Z"/></svg>Pinn</span>
+      <span>05 · PRODUTO</span>
+    </div>
+    <div class="eyebrow">Revenue OS · 5 dimensões</div>
+    <h2 class="h-title">Sistema operacional de receita.<br>Não ferramenta isolada.</h2>
+    <div class="ros-five">
+      <div><div class="num">01 · DEMANDA</div><h4>Como receita é gerada</h4><p>Prospecção qualificada. Outbound governado por contexto. Agentes operam — time sênior protege tempo humano.</p></div>
+      <div><div class="num">02 · QUALIFICAÇÃO</div><h4>Como receita é triada</h4><p>Filtro de ICP nativo no funil. Score real. Lead que entra na agenda do vendedor é lead pronto.</p></div>
+      <div><div class="num">03 · CONVERSÃO</div><h4>Como receita é fechada</h4><p>Fechamento humano protegido. Ferramentas servem o vendedor — não o contrário.</p></div>
+      <div><div class="num">04 · EXPANSÃO</div><h4>Como receita é ampliada</h4><p>Account growth dirigido por sinal. Expansão acompanha a entrega, não a campanha.</p></div>
+      <div><div class="num">05 · GOVERNANÇA</div><h4>Como receita é medida</h4><p>Dashboards executivos. Accountability semanal. Forecast deixa de ser chute.</p></div>
+    </div>
+    <div class="footer-chrome"><span>05 / 06</span><span>PINN.PB · CONFIDENCIAL</span></div>
+  </section>
+
+  <!-- 06 Closing -->
+  <section class="slide closing orange" data-screen-label="06 Encerramento">
+    <div class="chrome">
+      <span class="brand"><svg viewBox="0 0 200 200" fill="currentColor"><path d="M70 50 L130 50 L130 80 L100 80 L100 120 L70 120 Z"/><path d="M130 80 L130 150 L70 150 L70 120 L100 120 L100 80 Z"/></svg>Pinn</span>
+      <span>06 · PRÓXIMO PASSO</span>
+    </div>
+    <h2>Diagnóstico<br>de 90 minutos.</h2>
+    <p class="lede">Mapeamos onde a hora humana cara está sendo gasta com trabalho que máquina faz melhor — e saímos com 3 quick-wins observados em indústria similar. Sem pitch.</p>
+    <div class="cta-row">
+      <div class="cta-card"><div class="lab">Conduzido por</div><div class="val">Renan Viglioni · Founder</div></div>
+      <div class="cta-card"><div class="lab">Investimento</div><div class="val">Sem custo · sem follow-up agressivo</div></div>
+      <div class="signoff">PINNPB.COM · CONTATO@PINNPB.COM</div>
+    </div>
+    <div class="footer-chrome"><span>06 / 06</span><span>REVENUE OS.</span></div>
+  </section>
+
+</deck-stage>
+
+</body>
+</html>

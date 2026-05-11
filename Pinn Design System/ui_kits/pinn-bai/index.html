@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>Pinn BAI — Accounts</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--night); color:var(--night-fg); font-family:var(--font-sans); font-size:14px; }
+  ::selection { background: var(--accent); color: #fff; }
+
+  .app { display:grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+
+  /* Sidebar */
+  .side { background:var(--night-1); border-right:1px solid var(--night-rule); padding:18px 14px; display:flex; flex-direction:column; gap:6px; }
+  .side .brand { display:flex; align-items:center; gap:10px; padding:8px 10px 18px; font-size:16px; font-weight:700; letter-spacing:-0.01em; color:#fff; border-bottom:1px solid var(--night-rule); margin-bottom:14px; }
+  .side .brand svg { width:20px; height:20px; color: var(--accent); }
+  .side .brand .sub { font-family:var(--font-mono); font-size:10px; color:var(--night-fg-3); margin-left:auto; letter-spacing:0.06em; }
+  .side .group { font-size:10px; font-weight:600; letter-spacing:0.1em; color:var(--night-fg-3); padding:14px 10px 6px; text-transform:uppercase; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:6px; color: var(--night-fg-2); font-size:13.5px; cursor:pointer; transition: all 150ms var(--ease); }
+  .nav-item:hover { background: var(--night-2); color: var(--night-fg); }
+  .nav-item.active { background:var(--night-2); color:#fff; }
+  .nav-item.active .dot { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  .nav-item svg { width:16px; height:16px; opacity:.85; }
+  .nav-item .badge { margin-left:auto; font-family:var(--font-mono); font-size:10px; padding:2px 6px; background:var(--night-2); border-radius:4px; color:var(--night-fg-3); }
+  .nav-item.active .badge { background: rgba(255,107,53,0.15); color: var(--accent); }
+  .side .footer { margin-top:auto; padding:12px 10px; border-top:1px solid var(--night-rule); display:flex; align-items:center; gap:10px; }
+  .avatar { width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg, var(--accent), var(--accent-hover)); display:grid; place-items:center; color:#fff; font-weight:700; font-size:12px; }
+  .side .footer .who { display:flex; flex-direction:column; line-height:1.2; }
+  .side .footer .who b { color:#fff; font-weight:600; font-size:13px; }
+  .side .footer .who span { color: var(--night-fg-3); font-size:11px; }
+
+  /* Main */
+  main { display:flex; flex-direction:column; min-width:0; }
+  .topbar { display:flex; align-items:center; gap:14px; padding:14px 28px; border-bottom:1px solid var(--night-rule); }
+  .crumbs { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--night-fg-3); }
+  .crumbs b { color:#fff; font-weight:500; }
+  .search { flex:1; max-width:420px; margin-left:auto; display:flex; align-items:center; gap:8px; background:var(--night-1); border:1px solid var(--night-rule); border-radius:6px; padding:7px 10px; }
+  .search svg { color: var(--night-fg-3); }
+  .search input { flex:1; background:transparent; border:none; outline:none; color:var(--night-fg); font-family:inherit; font-size:13px; }
+  .search input::placeholder { color: var(--night-fg-3); }
+  .search kbd { font-family:var(--font-mono); font-size:10px; color:var(--night-fg-3); background:var(--night-2); padding:2px 5px; border-radius:3px; border:1px solid var(--night-rule); }
+  .topbar .btn { font-size:13px; padding:7px 14px; border-radius:5px; border:1px solid var(--night-rule); background:var(--night-1); color:var(--night-fg); cursor:pointer; }
+  .topbar .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* Page */
+  .page { padding:28px; flex:1; overflow:auto; }
+  .page-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:24px; }
+  .page-head h1 { margin:0; font-size:26px; font-weight:700; letter-spacing:-0.015em; color:#fff; }
+  .page-head p { margin:6px 0 0; color: var(--night-fg-3); font-size:13.5px; }
+
+  /* KPI row */
+  .kpi-row { display:grid; grid-template-columns: repeat(4, 1fr); gap:14px; margin-bottom:24px; }
+  .kpi { background: var(--night-1); border:1px solid var(--night-rule); border-radius:8px; padding:18px; }
+  .kpi .label { font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color: var(--night-fg-3); margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+  .kpi .label svg { width:14px; height:14px; }
+  .kpi .value { font-size:28px; font-weight:700; color:#fff; letter-spacing:-0.02em; font-feature-settings: 'tnum'; }
+  .kpi .delta { font-family:var(--font-mono); font-size:11px; margin-top:6px; }
+  .kpi .delta.up { color: var(--success); }
+  .kpi .delta.down { color: var(--error); }
+  .kpi .spark { margin-top:10px; height:30px; }
+
+  /* Two-col */
+  .grid-2 { display:grid; grid-template-columns: 1.6fr 1fr; gap:14px; align-items:flex-start; }
+
+  /* Table card */
+  .card { background: var(--night-1); border:1px solid var(--night-rule); border-radius:8px; overflow:hidden; }
+  .card-head { display:flex; align-items:center; padding:16px 18px; border-bottom:1px solid var(--night-rule); }
+  .card-head h3 { margin:0; font-size:14px; font-weight:600; color:#fff; }
+  .card-head .filters { margin-left:auto; display:flex; gap:6px; }
+  .chip { font-size:11.5px; padding:4px 10px; border-radius:4px; border:1px solid var(--night-rule); color: var(--night-fg-2); cursor:pointer; }
+  .chip.on { background: rgba(255,107,53,0.12); color: var(--accent); border-color: rgba(255,107,53,0.4); }
+  table { width:100%; border-collapse: collapse; font-size:13px; }
+  th { text-align:left; font-weight:600; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color: var(--night-fg-3); padding:10px 18px; background:var(--night-2); border-bottom:1px solid var(--night-rule); }
+  th.num, td.num { text-align:right; font-family:var(--font-mono); font-feature-settings:'tnum'; }
+  td { padding:14px 18px; border-bottom:1px solid var(--night-rule); color:var(--night-fg); vertical-align: middle; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .acct { display:flex; align-items:center; gap:10px; }
+  .logo-sq { width:28px; height:28px; border-radius:5px; background: var(--night-2); display:grid; place-items:center; font-size:12px; font-weight:700; color:#fff; flex-shrink:0; }
+  .acct .name { font-weight:500; color:#fff; }
+  .acct .sector { font-family:var(--font-mono); font-size:10.5px; color: var(--night-fg-3); }
+  .score { display:flex; align-items:center; gap:8px; }
+  .bar { width:50px; height:5px; background: var(--night-2); border-radius:99px; overflow:hidden; }
+  .bar > i { display:block; height:100%; background: var(--accent); }
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:99px; font-size:11px; font-weight:500; }
+  .pill.green { background: rgba(46,125,50,0.14); color: #6FB36F; }
+  .pill.gray { background: var(--night-2); color: var(--night-fg-2); }
+  .pill.orange { background: rgba(255,107,53,0.12); color: var(--accent); }
+  .pill .dot { width:5px; height:5px; border-radius:99px; background: currentColor; }
+
+  /* Signal card */
+  .signal { padding:18px; border-bottom:1px solid var(--night-rule); display:flex; gap:12px; align-items:flex-start; }
+  .signal:last-child { border-bottom:none; }
+  .signal .ico { width:28px; height:28px; border-radius:6px; background: rgba(255,107,53,0.12); color: var(--accent); display:grid; place-items:center; flex-shrink:0; }
+  .signal .body { flex:1; }
+  .signal .body b { color:#fff; font-weight:600; font-size:13.5px; }
+  .signal .body p { margin:4px 0 8px; color: var(--night-fg-2); line-height:1.5; font-size:12.5px; }
+  .signal .body .meta { font-family: var(--font-mono); font-size:10.5px; color: var(--night-fg-3); }
+
+  /* Agent panel */
+  .agent { background: var(--night-2); padding:18px; border-radius:6px; margin:12px 16px; font-family: var(--font-mono); font-size:12px; line-height:1.7; color: var(--night-fg-2); }
+  .agent .ok { color: var(--success); }
+  .agent .or { color: var(--accent); }
+  .agent .di { color: var(--night-fg-3); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <aside class="side">
+    <div class="brand">
+      <svg viewBox="0 0 200 200" fill="currentColor"><path d="M70 50 L130 50 L130 80 L100 80 L100 120 L70 120 Z"/><path d="M130 80 L130 150 L70 150 L70 120 L100 120 L100 80 Z"/></svg>
+      Pinn BAI
+      <span class="sub">v0.7</span>
+    </div>
+
+    <div class="group">Operação</div>
+    <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Accounts<span class="badge">2.4k</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m3 12 4-9 4 18 4-12 4 6h2"/></svg>Sinais<span class="badge">37</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>ICP Search</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 10v6M4.2 4.2l4.3 4.3m7 7 4.3 4.3M1 12h6m10 0h6M4.2 19.8l4.3-4.3m7-7 4.3-4.3"/></svg>Agentes</div>
+
+    <div class="group">Inteligência</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 5-5"/></svg>Dashboards</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Relatórios</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Conversas</div>
+
+    <div class="footer">
+      <div class="avatar">RV</div>
+      <div class="who"><b>Renan Viglioni</b><span>Indústria Química SA</span></div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div class="crumbs">Workspaces · <b>Indústria Química SA</b> · Accounts</div>
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input placeholder="Buscar conta, CNPJ, sinal…">
+        <kbd>⌘K</kbd>
+      </div>
+      <button class="btn">Exportar</button>
+      <button class="btn btn-primary">+ Rodar agente</button>
+    </div>
+
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <h1>Accounts</h1>
+          <p>2.412 contas · 184 com sinal qualificador nas últimas 72h</p>
+        </div>
+        <div style="display:flex;gap:6px"><button class="chip on">Todas</button><button class="chip">Com sinal</button><button class="chip">Score ≥ 70</button><button class="chip">Sem contato 30d</button></div>
+      </div>
+
+      <div class="kpi-row">
+        <div class="kpi">
+          <div class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 3v18"/></svg>Contas no ICP</div>
+          <div class="value">2.412</div>
+          <div class="delta up">+ 184 · 7d</div>
+        </div>
+        <div class="kpi">
+          <div class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 12 4-9 4 18 4-12 4 6h2"/></svg>Sinais ativos</div>
+          <div class="value">37</div>
+          <div class="delta up">+ 12 · 24h</div>
+        </div>
+        <div class="kpi">
+          <div class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Tempo médio · 1ª reunião</div>
+          <div class="value">47<span style="font-size:14px;color:var(--night-fg-3);font-weight:500"> dias</span></div>
+          <div class="delta up">↓ 23 dias vs Q4</div>
+        </div>
+        <div class="kpi">
+          <div class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 5-5"/></svg>Score ICP médio</div>
+          <div class="value">73<span style="font-size:14px;color:var(--night-fg-3);font-weight:500">/100</span></div>
+          <div class="delta up">+ 4 vs últ. ciclo</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head">
+            <h3>Top contas com sinal · 7 dias</h3>
+            <div class="filters"><button class="chip on">Score</button><button class="chip">Sinal</button><button class="chip">Atualizado</button></div>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Conta</th><th>Setor · UF</th><th class="num">Receita</th><th>Score ICP</th><th>Sinal</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div class="acct"><div class="logo-sq" style="background:linear-gradient(135deg,#FF6B35,#E55A2B);color:#fff">QV</div><div><div class="name">Química Vértex Ltda.</div><div class="sector">CNPJ 22.401.118/0001-92</div></div></div></td>
+                <td>Química · SP</td>
+                <td class="num">R$ 142M</td>
+                <td><div class="score"><div class="bar"><i style="width:91%"></i></div>91</div></td>
+                <td><span class="pill orange"><span class="dot"></span>Contratação CRO</span></td>
+                <td><span class="pill green"><span class="dot"></span>Em sequência</span></td>
+              </tr>
+              <tr>
+                <td><div class="acct"><div class="logo-sq">MP</div><div><div class="name">Metalúrgica Paineira</div><div class="sector">CNPJ 09.222.717/0001-34</div></div></div></td>
+                <td>Metalurgia · MG</td>
+                <td class="num">R$ 187M</td>
+                <td><div class="score"><div class="bar"><i style="width:84%"></i></div>84</div></td>
+                <td><span class="pill orange"><span class="dot"></span>Funding · Série B</span></td>
+                <td><span class="pill gray"><span class="dot"></span>Aguardando</span></td>
+              </tr>
+              <tr>
+                <td><div class="acct"><div class="logo-sq">EM</div><div><div class="name">Embaplast Manufatura</div><div class="sector">CNPJ 14.819.602/0001-05</div></div></div></td>
+                <td>Embalagem · SP</td>
+                <td class="num">R$ 95M</td>
+                <td><div class="score"><div class="bar"><i style="width:78%"></i></div>78</div></td>
+                <td><span class="pill orange"><span class="dot"></span>Nova planta · GO</span></td>
+                <td><span class="pill green"><span class="dot"></span>Reunião marcada</span></td>
+              </tr>
+              <tr>
+                <td><div class="acct"><div class="logo-sq">CN</div><div><div class="name">Cosmétic Nova Ind.</div><div class="sector">CNPJ 31.404.092/0001-71</div></div></div></td>
+                <td>Cosméticos · SP</td>
+                <td class="num">R$ 68M</td>
+                <td><div class="score"><div class="bar"><i style="width:71%"></i></div>71</div></td>
+                <td><span class="pill gray"><span class="dot"></span>Sem sinal 14d</span></td>
+                <td><span class="pill gray"><span class="dot"></span>Aguardando</span></td>
+              </tr>
+              <tr>
+                <td><div class="acct"><div class="logo-sq">TX</div><div><div class="name">Têxtil Aravá S/A</div><div class="sector">CNPJ 47.005.218/0001-19</div></div></div></td>
+                <td>Têxtil · SC</td>
+                <td class="num">R$ 244M</td>
+                <td><div class="score"><div class="bar"><i style="width:69%"></i></div>69</div></td>
+                <td><span class="pill orange"><span class="dot"></span>Press · expansão</span></td>
+                <td><span class="pill green"><span class="dot"></span>Em sequência</span></td>
+              </tr>
+              <tr>
+                <td><div class="acct"><div class="logo-sq">AT</div><div><div class="name">Auto-Tecnova Peças</div><div class="sector">CNPJ 18.092.144/0001-66</div></div></div></td>
+                <td>Automotiva · PR</td>
+                <td class="num">R$ 119M</td>
+                <td><div class="score"><div class="bar"><i style="width:65%"></i></div>65</div></td>
+                <td><span class="pill gray"><span class="dot"></span>—</span></td>
+                <td><span class="pill gray"><span class="dot"></span>Aguardando</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Sinais qualificadores · live</h3><span class="pill orange" style="margin-left:auto"><span class="dot" style="animation: pulse 1.4s infinite"></span>Ao vivo</span></div>
+          <div class="signal">
+            <div class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m22 11-3 3-2-2"/></svg></div>
+            <div class="body">
+              <b>Química Vértex contratou novo CRO</b>
+              <p>Diretor anterior 11 anos · novo entra de Cargill. Janela de 60-90 dias para reabrir conversa estratégica.</p>
+              <div class="meta">FONTE LINKEDIN · 14H ATRÁS · CONFIANÇA 0.94</div>
+            </div>
+          </div>
+          <div class="signal">
+            <div class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M3 7v14M21 7v14"/><path d="M9 21V11l3-4 3 4v10"/></svg></div>
+            <div class="body">
+              <b>Embaplast anuncia planta em Goiás</b>
+              <p>Investimento R$ 110M · operação Q3-2026. Demanda comercial nova região = expansão de pipeline para fornecedores upstream.</p>
+              <div class="meta">FONTE VALOR ECONÔMICO · 1D ATRÁS · CONFIANÇA 0.88</div>
+            </div>
+          </div>
+          <div class="signal">
+            <div class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+            <div class="body">
+              <b>Metalúrgica Paineira fecha Série B</b>
+              <p>R$ 80M · Crescera Capital lead. Perfil pós-rodada: investe em ops + comercial nos próximos 2 trimestres.</p>
+              <div class="meta">FONTE PRESS · 2D ATRÁS · CONFIANÇA 0.97</div>
+            </div>
+          </div>
+          <div class="agent">
+            <div><span class="di">$</span> pinn run agent --icp=quimica-sp --score-min=70</div>
+            <div><span class="di">▸</span> escaneando 412 contas no ICP…</div>
+            <div><span class="di">▸</span> 3 sinais detectados em <span class="or">14s</span></div>
+            <div><span class="ok">✓</span> 184 leads atualizados · score recalculado</div>
+            <div><span class="di">$</span> <span style="border-right:6px solid var(--accent);animation:cur .9s steps(2) infinite">_</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<style>
+  @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.35 } }
+  @keyframes cur { 50% { border-color: transparent } }
+</style>
+</body>
+</html>

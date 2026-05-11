@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 120" fill="none">
+  <g transform="translate(8,16)">
+    <path d="M28 8 L52 8 L52 20 L40 20 L40 36 L28 36 Z" fill="currentColor"></path>
+    <path d="M52 20 L52 48 L28 48 L28 36 L40 36 L40 20 Z" fill="currentColor"></path>
+  </g>
+  <text x="76" y="58" font-family="&#39;Inter&#39;, system-ui, sans-serif" font-size="44" font-weight="700" letter-spacing="-1.5" fill="currentColor">Pinn</text>
+  <line x1="76" y1="74" x2="320" y2="74" stroke="currentColor" stroke-width="1" opacity="0.25"></line>
+  <text x="76" y="98" font-family="&#39;Inter&#39;, system-ui, sans-serif" font-size="16" font-weight="500" letter-spacing="0.5" fill="currentColor" opacity="0.75">Revenue OS.</text>
+</svg>
