@@ -14,7 +14,6 @@ import Pipeline from "./pages/Pipeline";
 import History from "./pages/History";
 import Heatmap from "./pages/Heatmap";
 import Settings from "./pages/Settings";
-import ComprarCreditos from "./pages/ComprarCreditos";
 import EnriquecerCnpj from "./pages/EnriquecerCnpj";
 import NotFound from "./pages/NotFound";
 import { RequireAuth } from "./auth/RequireAuth";
@@ -112,17 +111,6 @@ const App = () => (
             </AuthedLayout>
           }
         />
-        <Route
-          path="/comprar-creditos"
-          element={
-            <AuthedLayout>
-              <RequireRole minRole="admin">
-                <ComprarCreditos />
-              </RequireRole>
-            </AuthedLayout>
-          }
-        />
-
         {/* FALLBACK */}
         <Route path="*" element={<NotFound />} />
       </Routes>
