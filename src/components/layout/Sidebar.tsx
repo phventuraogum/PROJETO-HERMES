@@ -12,6 +12,7 @@ import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
 import LogoutButton from "@/auth/LogoutButton";
 import { useOrg } from "@/tenancy/OrgContext";
+import { BRAND } from "@/config/brand";
 import {
   Select,
   SelectContent,
@@ -83,7 +84,7 @@ const Sidebar = () => {
           <path d="M130 80 L130 150 L70 150 L70 120 L100 120 L100 80 Z" />
         </svg>
         <span className="text-[15px] font-bold tracking-tight text-foreground">
-          Hermes
+          {BRAND.product}
         </span>
         <span className="ml-auto font-mono-pinn text-[10px] tracking-wider text-muted-foreground">
           v1.0

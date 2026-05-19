@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTheme } from "@/theme/ThemeContext";
+import { BRAND } from "@/config/brand";
 
 /* ─────────────────────────────────────────────────────────────────────────────
  * Header — Pinn DS oficial v1.0
@@ -51,8 +52,13 @@ const Header = () => {
               className="font-bold tracking-tight text-foreground"
               style={{ letterSpacing: "-0.01em" }}
             >
-              Hermes
+              {BRAND.product}
             </span>
+            {BRAND.productAlias && (
+              <span className="font-mono-pinn text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                ({BRAND.productAlias})
+              </span>
+            )}
             <span className="text-muted-foreground/60">/</span>
             <span className="truncate font-medium text-foreground/85">{page.title}</span>
           </div>
