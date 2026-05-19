@@ -179,6 +179,12 @@
     --primary:              16 100% 60%;  /* #FF6B35 */
     --primary-foreground:   0 0% 100%;
 
+    /* MAI-01/06 · Opção C do ADR-001 — token semântico dual:
+       --primary (brand) usado em surfaces/bg/CTA;
+       --primary-fg-safe usado em FOREGROUND (texto/ícone) sobre paper/white
+       pra cumprir WCAG 2.1 AA (ratio ≥ 4.5). */
+    --primary-fg-safe:      var(--pinn-orange-700);  /* #B8431F · ratio 5.42 contra paper, 5.42 contra white */
+
     /* Secondary = ink */
     --secondary:            0 0% 10%;
     --secondary-foreground: 0 0% 100%;
@@ -257,6 +263,9 @@
     --border:               0 0% 16%;     /* #2A2A2A night-rule */
     --input:                0 0% 16%;
     --ring:                 16 100% 60%;
+
+    /* Dark mode mantém orange normal — bg #0E0E0E tem contraste muito alto contra #FF6B35 */
+    --primary-fg-safe:           hsl(var(--primary));
 
     --sidebar-background:        0 0% 5%;     /* night */
     --sidebar-foreground:        0 0% 78%;    /* night-fg-2 dimmed */
@@ -398,7 +407,7 @@
     font-weight: var(--fw-semibold);
     letter-spacing: var(--tr-wide);
     text-transform: uppercase;
-    color: hsl(var(--primary));
+    color: var(--primary-fg-safe);
   }
 
   /* Lede — parágrafo de abertura, mais leve */
@@ -458,7 +467,7 @@
   }
   .dark .surface-wash {
     background: hsl(var(--primary) / 0.10);
-    color: hsl(var(--primary));
+    color: var(--primary-fg-safe);
     border-color: hsl(var(--primary) / 0.20);
   }
 
@@ -542,7 +551,7 @@
   }
   .pinn-score--mid {
     background: hsl(var(--primary) / 0.12);
-    color: hsl(var(--primary));
+    color: var(--primary-fg-safe);
     border-color: hsl(var(--primary) / 0.30);
   }
   .pinn-score--low {
@@ -568,7 +577,7 @@
   }
   .pinn-pill--orange {
     background: hsl(var(--primary) / 0.12);
-    color: hsl(var(--primary));
+    color: var(--primary-fg-safe);
   }
   .pinn-pill--success {
     background: hsl(var(--success) / 0.14);
@@ -722,7 +731,7 @@
   }
   .score-badge-mid {
     background: hsl(var(--primary) / 0.12);
-    color: hsl(var(--primary));
+    color: var(--primary-fg-safe);
     border: 1px solid hsl(var(--primary) / 0.30);
     border-radius: var(--r-2);
     padding: 2px 8px;
@@ -849,7 +858,7 @@
   }
   .dark .badge-pinn {
     background: hsl(var(--primary) / 0.12);
-    color: hsl(var(--primary));
+    color: var(--primary-fg-safe);
     border-color: hsl(var(--primary) / 0.30);
   }
   .badge-pinn-dark {
