@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { getCrmKeys, setCrmKey } from "@/lib/api";
+import { getCrmKeysStatus, saveCrmKey } from "@/lib/api";
 
 const CRM_PROVIDERS = [
   { id: "pipedrive", label: "Pipedrive", hint: "API Token — Configurações › Preferências da API", dot: "#F97316", url: "https://app.pipedrive.com/settings/api" },
@@ -25,13 +25,24 @@ function validateApiKey(value: string): string | null {
 }
 
 export default function Settings() {
+  // JUN 1.3 · keys agora vivem cifradas no backend. Frontend só mantém valor enquanto
+  // user digita; quando salva, vai pra API. configured indica se já existe chave gravada.
   const [keys, setKeys] = useState<Record<string, string>>({});
+  const [configured, setConfigured] = useState<Record<string, boolean>>({});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
   const [dirty, setDirty] = useState(false);
   const [errors, setErrors] = useState<Record<string, string | null>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setKeys(getCrmKeys());
+    let cancelled = false;
+    getCrmKeysStatus().then((status) => {
+      if (cancelled) return;
+      setConfigured(status);
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   const handleChange = (provider: string, value: string) => {
@@ -45,8 +56,8 @@ export default function Settings() {
     setErrors((prev) => ({ ...prev, [provider]: validateApiKey(keys[provider] || "") }));
   };
 
-  const handleSave = () => {
-    // Valida todas antes de salvar (re-roda mesmo nas que não receberam blur)
+  const handleSave = async () => {
+    // Valida todas antes de salvar
     const newErrors: Record<string, string | null> = {};
     let hasError = false;
     Object.entries(keys).forEach(([provider, value]) => {
@@ -59,16 +70,32 @@ export default function Settings() {
       toast.error("Corrija os campos destacados antes de salvar.");
       return;
     }
+
+    setSaving(true);
     const newSaved: Record<string, boolean> = {};
-    Object.entries(keys).forEach(([provider, value]) => {
-      if (value.trim()) {
-        setCrmKey(provider, value);
+    const failures: string[] = [];
+    for (const [provider, value] of Object.entries(keys)) {
+      const trimmed = value.trim();
+      if (!trimmed) continue;
+      try {
+        await saveCrmKey(provider as "pipedrive" | "hubspot" | "rdstation", trimmed);
         newSaved[provider] = true;
+      } catch (e) {
+        failures.push(provider);
       }
-    });
-    setSaved(newSaved);
-    setDirty(false);
-    toast.success("Configurações salvas com sucesso.");
+    }
+    setSaving(false);
+
+    if (failures.length > 0) {
+      toast.error(`Falha ao salvar: ${failures.join(", ")}. Verifique conexão.`);
+    } else {
+      // Atualiza status (mostra "Configurado" no UI) + limpa o input
+      setSaved(newSaved);
+      setConfigured((prev) => ({ ...prev, ...newSaved }));
+      setKeys({});
+      setDirty(false);
+      toast.success("Chaves CRM salvas (cifradas no backend).");
+    }
   };
 
   return (
@@ -104,10 +131,10 @@ export default function Settings() {
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full" style={{ background: provider.dot }} />
                   <Label className="text-sm font-semibold text-foreground">{provider.label}</Label>
-                  {saved[provider.id] && keys[provider.id] && (
+                  {(saved[provider.id] || configured[provider.id]) && (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
                       <CheckCircle2 className="h-3 w-3" />
-                      Conectado
+                      {saved[provider.id] ? "Atualizado" : "Configurado"}
                     </span>
                   )}
                 </div>
@@ -124,10 +151,11 @@ export default function Settings() {
               <p className="mb-3 text-[11px] text-muted-foreground">{provider.hint}</p>
               <Input
                 type="password"
-                placeholder="Cole sua chave aqui..."
+                placeholder={configured[provider.id] ? "•••••••• (já configurado — digite pra substituir)" : "Cole sua chave aqui..."}
                 value={keys[provider.id] || ""}
                 onChange={(event) => handleChange(provider.id, event.target.value)}
                 onBlur={() => handleBlur(provider.id)}
+                disabled={loading}
                 aria-invalid={!!errors[provider.id]}
                 aria-describedby={errors[provider.id] ? `${provider.id}-error` : undefined}
                 className={`h-10 rounded-xl border-border/70 bg-muted/20 font-mono text-sm focus:border-primary/40 ${errors[provider.id] ? "border-red-500/40" : ""}`}
@@ -143,9 +171,9 @@ export default function Settings() {
         </div>
 
         <div className="flex justify-end border-t border-border bg-muted/20 px-6 py-4">
-          <Button onClick={handleSave} disabled={!dirty} size="sm" className="gap-2 font-semibold shadow-surface-xs">
+          <Button onClick={handleSave} disabled={!dirty || saving} size="sm" className="gap-2 font-semibold shadow-surface-xs">
             <Save className="h-3.5 w-3.5" />
-            Salvar configurações
+            {saving ? "Salvando..." : "Salvar configurações"}
           </Button>
         </div>
       </div>
@@ -157,11 +185,11 @@ export default function Settings() {
         <Lock className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--pinn-orange-dark)" }} />
         <div>
           <p className="text-sm font-semibold" style={{ color: "var(--pinn-orange-dark)" }}>
-            Chaves armazenadas localmente
+            Chaves cifradas no servidor
           </p>
           <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--pinn-orange-dark)", opacity: 0.78 }}>
-            As chaves de API ficam apenas no navegador da sessão atual. O objetivo aqui é reduzir atrito de setup sem
-            poluir a experiência com telas de integração desnecessárias.
+            As chaves de API são cifradas via pgcrypto (AES-CBC simétrico) com chave-mestra do servidor antes de irem ao banco.
+            O frontend nunca recebe o valor decifrado de volta — só o status "configurado". Isolamento por organização via RLS.
           </p>
         </div>
       </div>

@@ -1616,6 +1616,11 @@ export async function checkoutCredits(
 
 const CRM_KEYS_KEY = "hermes:crm_keys";
 
+/**
+ * @deprecated JUN 1.3 — chaves agora ficam cifradas em org_integrations_private.
+ * Mantido só pra retrocompat (export pra Pipedrive/HubSpot/RD ainda passa api_key).
+ * Use getCrmKeysStatus() pra saber se está configurado e saveCrmKey() pra atualizar.
+ */
 export function getCrmKeys(): Record<string, string> {
   try {
     const raw = localStorage.getItem(`${CRM_KEYS_KEY}:${getTenantKey()}`);
@@ -1623,11 +1628,37 @@ export function getCrmKeys(): Record<string, string> {
   } catch { return {}; }
 }
 
+/**
+ * @deprecated use saveCrmKey() (async, vai pro backend cifrado).
+ */
 export function setCrmKey(provider: string, value: string) {
   const keys = getCrmKeys();
   if (value.trim()) keys[provider] = value.trim();
   else delete keys[provider];
   localStorage.setItem(`${CRM_KEYS_KEY}:${getTenantKey()}`, JSON.stringify(keys));
+}
+
+/**
+ * JUN 1.3 · status das chaves CRM cifradas no backend (org_integrations_private).
+ * Retorna boolean por provider — NUNCA expõe o valor da chave ao client.
+ */
+export async function getCrmKeysStatus(): Promise<Record<string, boolean>> {
+  try {
+    return await apiFetch<Record<string, boolean>>("/integrations/crm-keys/status");
+  } catch {
+    return { pipedrive: false, hubspot: false, rdstation: false };
+  }
+}
+
+/**
+ * JUN 1.3 · grava chave CRM cifrada no backend.
+ * String vazia = limpa a chave do provider.
+ */
+export async function saveCrmKey(provider: "pipedrive" | "hubspot" | "rdstation", value: string): Promise<void> {
+  await apiFetch("/integrations/crm-keys", {
+    method: "PUT",
+    body: JSON.stringify({ [provider]: value }),
+  });
 }
 
 export type LeadExportPayload = {

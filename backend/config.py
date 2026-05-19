@@ -99,6 +99,12 @@ class Settings(BaseSettings):
         description="Chave de serviço do Supabase (acesso admin total — nunca expor ao cliente)"
     )
 
+    # MAI-08/JUN 1.3 · pgcrypto wrapper pra credenciais externas (Assertiva/Ploomes/CRM)
+    HERMES_ENCRYPTION_KEY: str = Field(
+        default="",
+        description="Chave-mestra que decifra org_integrations_private (pgp_sym via encrypt_secret/decrypt_secret RPC)"
+    )
+
     # JWT para validação local (sem round-trip de rede) — mais rápido
     SUPABASE_JWT_SECRET: str = Field(
         default="",
