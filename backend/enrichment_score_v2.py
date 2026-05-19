@@ -120,40 +120,48 @@ def calcular_score_icp_v2(
     if cnae_str and cnae_prefixes:
         for prefix in cnae_prefixes:
             if cnae_str.startswith(prefix):
+                _pen = [f"CNAE {cnae_str[:4]} fora do ICP (disqualifier hard)"]
                 return {
                     "score": 0.0,
                     "tier": "UNQUALIFIED",
                     "sinais": [],
-                    "penalidades": [f"CNAE {cnae_str[:4]} fora do ICP (disqualifier hard)"],
+                    "penalidades": _pen,
+                    "explicacao": explicar_score(0.0, "UNQUALIFIED", [], _pen),
                 }
 
     porte_upper_check = (porte or "").upper().strip()
     if porte_upper_check and any(p in porte_upper_check for p in portes_excluded):
+        _pen = [f"Porte {porte} fora do ICP (disqualifier hard)"]
         return {
             "score": 0.0,
             "tier": "UNQUALIFIED",
             "sinais": [],
-            "penalidades": [f"Porte {porte} fora do ICP (disqualifier hard)"],
+            "penalidades": _pen,
+            "explicacao": explicar_score(0.0, "UNQUALIFIED", [], _pen),
         }
 
     # MAI-08 · situação RF detalhada (eliminatórios além de situacao_ativa)
     situacao_rf_norm = (situacao_rf or "").upper().strip()
     SITUACOES_INVALIDAS = {"BAIXADA", "INAPTA", "SUSPENSA", "NULA"}
     if situacao_rf_norm in SITUACOES_INVALIDAS:
+        _pen = [f"Situação RF {situacao_rf_norm} (disqualifier hard)"]
         return {
             "score": 0.0,
             "tier": "UNQUALIFIED",
             "sinais": [],
-            "penalidades": [f"Situação RF {situacao_rf_norm} (disqualifier hard)"],
+            "penalidades": _pen,
+            "explicacao": explicar_score(0.0, "UNQUALIFIED", [], _pen),
         }
 
     # ── 1. SITUAÇÃO CADASTRAL (eliminatório) ─────────────────────────────
     if not situacao_ativa:
+        _pen = ["Empresa inativa/baixada"]
         return {
             "score": 0.0,
             "tier": "UNQUALIFIED",
             "sinais": [],
-            "penalidades": ["Empresa inativa/baixada"],
+            "penalidades": _pen,
+            "explicacao": explicar_score(0.0, "UNQUALIFIED", [], _pen),
         }
 
     # ── 2. CAPITAL SOCIAL (0–20 pts) ─────────────────────────────────────
@@ -340,4 +348,52 @@ def calcular_score_icp_v2(
         "tier": tier,
         "sinais": sinais,
         "penalidades": penalidades,
+        "explicacao": explicar_score(score, tier, sinais, penalidades),
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MAI-18 · Explicação em linguagem natural
+# Gera narrativa curta em PT-BR pra mostrar ao vendedor no card do lead.
+# Template-based (sem LLM call) — zero custo recorrente, latência zero.
+# Quando o usuário quiser narrativa mais rica, dá pra envolver com OpenAI/Claude
+# por cima desse output base.
+# ─────────────────────────────────────────────────────────────────────────────
+def explicar_score(
+    score: float,
+    tier: str,
+    sinais: List[str],
+    penalidades: List[str],
+) -> str:
+    """
+    Retorna 2-3 frases em PT-BR explicando o score do lead.
+
+    Exemplos:
+      tier=UNQUALIFIED + 1 penalidade → "Lead desqualificado: {motivo}."
+      tier=HOT + sinais=[...]         → "Lead quente (X pts). Principais sinais: A, B, C. Sem alertas."
+      tier=WARM + sinais + penalidades → "Lead morno (X pts). Pontos fortes: A, B. Atenção: P1, P2."
+    """
+    tier_clean = tier.replace(" 🔥", "").replace(" 🌡️", "").replace(" ❄️", "").strip()
+
+    if tier_clean == "UNQUALIFIED":
+        motivo = penalidades[0] if penalidades else "fora dos critérios atuais"
+        return f"Lead desqualificado ({score:.0f} pts): {motivo}."
+
+    label = {"HOT": "quente", "WARM": "morno", "COLD": "frio"}.get(tier_clean, tier_clean.lower())
+
+    partes: List[str] = [f"Lead {label} ({score:.0f} pts)."]
+
+    if sinais:
+        # Mostra até 3 sinais mais relevantes (já vêm em ordem de cálculo)
+        topo = sinais[:3]
+        verb = "Principais sinais" if len(sinais) > 1 else "Sinal"
+        partes.append(f"{verb}: {', '.join(topo)}.")
+
+    if penalidades:
+        topo_p = penalidades[:2]
+        verb_p = "Atenção" if len(penalidades) > 1 else "Alerta"
+        partes.append(f"{verb_p}: {'; '.join(topo_p)}.")
+    elif tier_clean == "HOT":
+        partes.append("Sem alertas.")
+
+    return " ".join(partes)
