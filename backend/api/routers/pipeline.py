@@ -74,6 +74,9 @@ class EmpresaData(BaseModel):
     email_enriquecido: Optional[str] = None
     telefone_enriquecido: Optional[str] = None
     score_icp: Optional[float] = 0
+    # MAI-09 · breakdown ICP V2 (vindo de enrichment_service.py:444+)
+    # Aceita dict {score, tier, sinais[], penalidades[]} ou None
+    score_icp_v2: Optional[dict] = None
 
 
 class AddToPipelineRequest(BaseModel):
@@ -297,6 +300,12 @@ def add_to_pipeline(
     if check.status_code == 200 and check.json():
         return {"status": "exists", "id": check.json()[0]["id"]}
 
+    # MAI-09 · extrai breakdown V2 (se presente) pra colunas dedicadas
+    v2 = emp.score_icp_v2 or {}
+    icp_tier = v2.get("tier") if isinstance(v2, dict) else None
+    icp_sinais = v2.get("sinais") if isinstance(v2, dict) else None
+    icp_penalidades = v2.get("penalidades") if isinstance(v2, dict) else None
+
     row = {
         "org_id": org,
         "cnpj": emp.cnpj,
@@ -321,6 +330,9 @@ def add_to_pipeline(
         "email_enriquecido": emp.email_enriquecido,
         "telefone_enriquecido": emp.telefone_enriquecido,
         "score_icp": emp.score_icp or 0,
+        "icp_tier": icp_tier,
+        "icp_sinais": icp_sinais,
+        "icp_penalidades": icp_penalidades,
         "estagio": payload.estagio,
         "nota": payload.nota,
         "empresa_data": emp.model_dump(),
