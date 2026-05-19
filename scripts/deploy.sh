@@ -56,6 +56,7 @@ REDIS_PASSWORD="$(read_env_value REDIS_PASSWORD)"
 SUPABASE_JWT_SECRET="$(read_env_value SUPABASE_JWT_SECRET)"
 SUPABASE_URL="$(read_env_value SUPABASE_URL)"
 SUPABASE_SERVICE_ROLE_KEY="$(read_env_value SUPABASE_SERVICE_ROLE_KEY)"
+HERMES_ENCRYPTION_KEY="$(read_env_value HERMES_ENCRYPTION_KEY)"
 ASAAS_API_KEY="$(read_env_value ASAAS_API_KEY)"
 ASAAS_WEBHOOK_TOKEN="$(read_env_value ASAAS_WEBHOOK_TOKEN)"
 CORS_ORIGINS="$(read_env_value CORS_ORIGINS)"
@@ -84,6 +85,9 @@ fi
 if [[ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
     echo "  ERRO: SUPABASE_SERVICE_ROLE_KEY vazio"
     ERRORS=$((ERRORS + 1))
+fi
+if [[ -z "${HERMES_ENCRYPTION_KEY:-}" ]]; then
+    echo "  AVISO: HERMES_ENCRYPTION_KEY vazio — chaves Assertiva criptografadas em org_integrations_private nao poderao ser decifradas pelo backend"
 fi
 if [[ -z "${ASAAS_API_KEY:-}" ]]; then
     echo "  AVISO: ASAAS_API_KEY vazio — pagamentos nao funcionarao"
