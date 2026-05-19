@@ -106,52 +106,80 @@ def is_ddd_valido(ddd: str) -> bool:
     return str(ddd).zfill(2) in VALID_DDDS
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# MAI-24 · CNPJ helpers canônicos (Receita Federal — Lei 8.218/1991, ADE Cocaja)
+#
+# Algoritmo dos dígitos verificadores: módulo 11 com pesos
+#   DV1 = pesos [5,4,3,2,9,8,7,6,5,4,3,2] aplicados aos 12 primeiros dígitos
+#   DV2 = pesos [6,5,4,3,2,9,8,7,6,5,4,3,2] aplicados aos 13 primeiros dígitos
+#   Para cada DV: soma · % 11. Se resto < 2 → DV = 0; senão → DV = 11 - resto.
+#
+# A partir de Jul/2026 a Receita Federal aceita CNPJ alfanumérico (com letras
+# nas 12 primeiras posições). Por enquanto este módulo trata apenas o formato
+# numérico (14 dígitos) — atualizar quando alfa virar requisito.
+# ─────────────────────────────────────────────────────────────────────────────
+
+CNPJ_PESOS_DV1 = (5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2)
+CNPJ_PESOS_DV2 = (6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2)
+
+
+def limpar_cnpj(cnpj: Optional[str]) -> Optional[str]:
+    """Remove tudo que não for dígito + zfill para 14 (compatível com bases legadas
+    que armazenam sem leading zeros). Retorna None se input vazio."""
+    if cnpj is None:
+        return None
+    digitos = re.sub(r"\D", "", str(cnpj))
+    if not digitos:
+        return None
+    if len(digitos) > 14:
+        return None  # CNPJ não pode ter mais de 14 dígitos
+    return digitos.zfill(14)
+
+
+def formatar_cnpj(cnpj: Optional[str]) -> Optional[str]:
+    """Formata como '00.000.000/0000-00'. Aceita CNPJ com/sem máscara.
+    Retorna None se input inválido (comprimento ≠ 14 após limpeza)."""
+    limpo = limpar_cnpj(cnpj)
+    if not limpo or len(limpo) != 14:
+        return None
+    return f"{limpo[:2]}.{limpo[2:5]}.{limpo[5:8]}/{limpo[8:12]}-{limpo[12:]}"
+
+
+def _calcular_digito_cnpj(base: str, pesos: tuple[int, ...]) -> int:
+    """Aplica módulo 11 com pesos. Função interna usada por validar_cnpj."""
+    soma = sum(int(d) * p for d, p in zip(base, pesos))
+    resto = soma % 11
+    return 0 if resto < 2 else 11 - resto
+
+
 def validar_cnpj(cnpj: str) -> Tuple[bool, Optional[str]]:
     """
-    Valida CNPJ verificando dígitos verificadores.
-    
+    Valida CNPJ verificando dígitos verificadores (algoritmo canônico Receita Federal).
+
     Args:
         cnpj: CNPJ com ou sem formatação
-    
+
     Returns:
-        (é_válido, cnpj_limpo)
+        (é_válido, cnpj_limpo) — cnpj_limpo é a versão normalizada 14 dígitos ou None
     """
-    if not cnpj:
+    cnpj_limpo = limpar_cnpj(cnpj)
+    if not cnpj_limpo or len(cnpj_limpo) != 14:
         return False, None
-    
-    # Remove formatação
-    cnpj_limpo = re.sub(r'\D', '', str(cnpj))
-    
-    # Verifica comprimento
-    if len(cnpj_limpo) != 14:
-        return False, None
-    
-    # Verifica se todos os dígitos são iguais (CNPJ inválido)
+
+    # CNPJs com todos dígitos iguais (00000000000000, 11111111111111, etc) são inválidos
     if len(set(cnpj_limpo)) == 1:
         return False, None
-    
-    # Valida dígitos verificadores
-    def calcular_digito(cnpj: str, posicoes: list) -> int:
-        soma = 0
-        for i, pos in enumerate(posicoes):
-            soma += int(cnpj[i]) * pos
-        resto = soma % 11
-        return 0 if resto < 2 else 11 - resto
-    
-    # Primeiro dígito verificador
-    posicoes1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
-    digito1 = calcular_digito(cnpj_limpo[:12], posicoes1)
-    
+
+    # DV1 calculado sobre os 12 primeiros dígitos
+    digito1 = _calcular_digito_cnpj(cnpj_limpo[:12], CNPJ_PESOS_DV1)
     if int(cnpj_limpo[12]) != digito1:
         return False, None
-    
-    # Segundo dígito verificador
-    posicoes2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
-    digito2 = calcular_digito(cnpj_limpo[:13], posicoes2)
-    
+
+    # DV2 calculado sobre os 13 primeiros dígitos (incluindo o DV1)
+    digito2 = _calcular_digito_cnpj(cnpj_limpo[:13], CNPJ_PESOS_DV2)
     if int(cnpj_limpo[13]) != digito2:
         return False, None
-    
+
     return True, cnpj_limpo
 
 
