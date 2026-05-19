@@ -253,6 +253,41 @@ def calcular_score_icp_v2(
         score += 2
         sinais.append("Decisão ágil (2-5 sócios)")
 
+    # ── 10. SOFT NEGATIVES (-10 a -20 pts) [MAI-14] ──────────────────────
+    # Penalizadores que reduzem pontuação sem zerar (vs disqualifiers hard).
+    # Sinaliza lead frágil mas ainda potencialmente trabalhável.
+
+    # 10a. Lead morto: nenhum canal de contato encontrado
+    if not (tem_email or tem_whatsapp or tem_email_socio):
+        score -= 15
+        penalidades.append("Nenhum canal de contato encontrado (-15)")
+
+    # 10b. Empresa unipessoal de pequeno porte (decisão lenta, baixo budget)
+    if n_socios == 1 and ("MICRO" in porte_upper or "PEQUENO" in porte_upper):
+        score -= 10
+        penalidades.append("Unipessoal micro/pequeno porte (-10)")
+
+    # 10c. Empresa sem nenhum sinal digital (site, instagram, linkedin)
+    if not (tem_site or tem_instagram or tem_linkedin_socio or n_socios_linkedin):
+        score -= 10
+        penalidades.append("Sem pegada digital (sem site/redes) (-10)")
+
+    # 10d. Empresa muito antiga (>30 anos) sem renovação digital
+    if data_abertura and not (tem_site or tem_instagram):
+        try:
+            for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%Y%m%d"):
+                try:
+                    dt_old = datetime.strptime(str(data_abertura)[:10], fmt)
+                    anos_old = (datetime.now() - dt_old).days / 365
+                    if anos_old > 30:
+                        score -= 10
+                        penalidades.append(f"Empresa antiga ({anos_old:.0f} anos) sem pegada digital (-10)")
+                    break
+                except ValueError:
+                    continue
+        except Exception:
+            pass
+
     # ── NORMALIZA ────────────────────────────────────────────────────────
     score = round(min(max(score, 0.0), 100.0), 1)
 
