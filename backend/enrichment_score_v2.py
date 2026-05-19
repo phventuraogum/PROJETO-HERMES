@@ -93,6 +93,10 @@ def calcular_score_icp_v2(
     # MAI-07 · disqualifiers hard configuráveis por org
     disqualify_cnae_prefixes: Optional[List[str]] = None,
     disqualify_portes: Optional[List[str]] = None,
+    # MAI-08 · saúde fiscal (PGFN + situação RF detalhada)
+    situacao_rf: Optional[str] = None,  # 'ATIVA' | 'BAIXADA' | 'INAPTA' | 'SUSPENSA' | 'NULA'
+    tem_divida_pgfn: bool = False,
+    valor_divida_pgfn: Optional[float] = None,  # se conhecido, ajusta peso
 ) -> Dict:
     """
     Calcula score ICP v2 com breakdown detalhado.
@@ -130,6 +134,17 @@ def calcular_score_icp_v2(
             "tier": "UNQUALIFIED",
             "sinais": [],
             "penalidades": [f"Porte {porte} fora do ICP (disqualifier hard)"],
+        }
+
+    # MAI-08 · situação RF detalhada (eliminatórios além de situacao_ativa)
+    situacao_rf_norm = (situacao_rf or "").upper().strip()
+    SITUACOES_INVALIDAS = {"BAIXADA", "INAPTA", "SUSPENSA", "NULA"}
+    if situacao_rf_norm in SITUACOES_INVALIDAS:
+        return {
+            "score": 0.0,
+            "tier": "UNQUALIFIED",
+            "sinais": [],
+            "penalidades": [f"Situação RF {situacao_rf_norm} (disqualifier hard)"],
         }
 
     # ── 1. SITUAÇÃO CADASTRAL (eliminatório) ─────────────────────────────
@@ -287,6 +302,25 @@ def calcular_score_icp_v2(
                     continue
         except Exception:
             pass
+
+    # ── 11. SAÚDE FISCAL [MAI-08] ────────────────────────────────────────
+    # Dívida PGFN não zera (empresa pode estar negociando), mas é sinal forte.
+    if tem_divida_pgfn:
+        # Penalidade escala com valor da dívida quando conhecido
+        if valor_divida_pgfn is not None:
+            if valor_divida_pgfn >= 1_000_000:
+                score -= 25
+                penalidades.append(f"Dívida PGFN alta (R$ {valor_divida_pgfn:,.0f}) (-25)")
+            elif valor_divida_pgfn >= 100_000:
+                score -= 18
+                penalidades.append(f"Dívida PGFN média (R$ {valor_divida_pgfn:,.0f}) (-18)")
+            else:
+                score -= 10
+                penalidades.append(f"Dívida PGFN (R$ {valor_divida_pgfn:,.0f}) (-10)")
+        else:
+            # Sem valor — assume médio
+            score -= 15
+            penalidades.append("Inscrita em dívida ativa PGFN (-15)")
 
     # ── NORMALIZA ────────────────────────────────────────────────────────
     score = round(min(max(score, 0.0), 100.0), 1)

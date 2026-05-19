@@ -457,6 +457,13 @@ APENAS JSON válido."""
             except (TypeError, ValueError):
                 capital_social_val = None
             situacao = str(dr.get("situacao_cadastral") or dr.get("situacao") or "ATIVA").upper()
+            # MAI-08 · saúde fiscal — passa situacao_rf detalhada + flags de dívida PGFN
+            # Backend lê de dr (dados_receita); se PGFN check externo já populou esses campos.
+            valor_divida_raw = dr.get("valor_divida_pgfn") or dr.get("pgfn_valor_total")
+            try:
+                valor_divida = float(valor_divida_raw) if valor_divida_raw is not None else None
+            except (TypeError, ValueError):
+                valor_divida = None
             v2 = calcular_score_icp_v2(
                 capital_social=capital_social_val,
                 uf_empresa=uf,
@@ -473,6 +480,9 @@ APENAS JSON válido."""
                 n_socios=len(socios or []),
                 tem_instagram=bool(resultado.get("instagram")),
                 situacao_ativa="ATIVA" in situacao,
+                situacao_rf=situacao,
+                tem_divida_pgfn=bool(dr.get("tem_divida_pgfn") or dr.get("inscrita_divida_ativa")),
+                valor_divida_pgfn=valor_divida,
             )
             resultado["score_icp_v2"] = v2
         except Exception as e:
