@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTheme } from "@/theme/ThemeContext";
 import { BRAND } from "@/config/brand";
+import { useOrg } from "@/tenancy/OrgContext";
+import { cn } from "@/lib/utils";
 
 /* ─────────────────────────────────────────────────────────────────────────────
  * Header — Pinn DS oficial v1.0
@@ -39,8 +41,12 @@ function resolvePageMeta(pathname: string) {
 const Header = () => {
   const { theme, toggleTheme } = useTheme();
   const { pathname } = useLocation();
+  const { currentOrg } = useOrg();
   const isLight = theme === "light";
   const page = resolvePageMeta(pathname);
+  // JUN 5.3 · master mode visual hint (ring laranja + badge)
+  const role = currentOrg?.role ?? "viewer";
+  const isMaster = role === "admin" || role === "owner";
 
   return (
     <header className="sticky top-0 z-50 shrink-0 border-b border-border bg-background/85 backdrop-blur-md">
@@ -107,21 +113,29 @@ const Header = () => {
 
           <div className="mx-1 hidden h-6 w-px bg-border sm:block" />
 
-          <div className="flex items-center gap-2 rounded-pinn-pill border border-border bg-card px-2.5 py-1.5">
-            <Avatar className="h-7 w-7">
+          <div className={cn(
+            "flex items-center gap-2 rounded-pinn-pill border bg-card px-2.5 py-1.5 transition-colors",
+            isMaster ? "border-primary/40" : "border-border"
+          )}>
+            <Avatar className={cn("h-7 w-7", isMaster && "ring-2 ring-primary/60 ring-offset-1 ring-offset-card")}>
               <AvatarFallback
                 className="text-[11px] font-bold text-pinn-white"
                 style={{ background: "var(--pinn-orange)" }}
               >
-                AD
+                {currentOrg?.name?.slice(0, 2).toUpperCase() || "AD"}
               </AvatarFallback>
             </Avatar>
             <div className="hidden min-w-0 sm:block pr-1">
-              <p className="truncate text-[13px] font-semibold leading-none text-foreground">
-                Analista
+              <p className="truncate text-[13px] font-semibold leading-none text-foreground flex items-center gap-1.5">
+                {currentOrg?.name || "Analista"}
+                {isMaster && (
+                  <span className="inline-flex items-center justify-center rounded-full bg-primary/15 text-primary px-1.5 py-0.5 text-[8.5px] font-bold tracking-wider leading-none border border-primary/30">
+                    {role === "owner" ? "OWNER" : "ADMIN"}
+                  </span>
+                )}
               </p>
-              <p className="mt-0.5 text-[10.5px] font-medium leading-none text-muted-foreground">
-                Plano Pro
+              <p className="mt-0.5 text-[10.5px] font-medium leading-none text-muted-foreground capitalize">
+                {role}
               </p>
             </div>
           </div>

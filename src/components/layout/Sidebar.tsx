@@ -134,9 +134,14 @@ const Sidebar = () => {
           <NavMenuItems items={pipelineItems} />
         </div>
         {isAdmin && (
-          <div className="space-y-0.5">
-            <p className="px-3 mb-1.5 font-mono-pinn text-[10px] uppercase tracking-wider text-sidebar-foreground/55">
+          /* JUN 5.3 · seção "Master Mode" demarcada visualmente
+             Wrap com border-l de cor primary + label com badge */
+          <div className="space-y-0.5 -mx-1 px-1 border-l-2 border-primary/50">
+            <p className="px-3 mb-1.5 font-mono-pinn text-[10px] uppercase tracking-wider text-primary/80 flex items-center gap-1.5">
               Análise
+              <span className="inline-flex items-center justify-center rounded-full bg-primary/15 text-primary px-1.5 py-0.5 text-[8.5px] font-bold tracking-wider leading-none border border-primary/30">
+                ADMIN
+              </span>
             </p>
             <NavLink
               to="/heatmap"
