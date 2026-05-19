@@ -64,6 +64,115 @@ class QueryTranslateRequest(BaseModel):
     )
 
 
+# ──────────────────────────────────────────────────────────────────────────
+# TAM Calculator — calcula Total Addressable Market dado um perfil ICP
+# ──────────────────────────────────────────────────────────────────────────
+class TamRequest(BaseModel):
+    """Filtros pra calcular TAM (empresas brasileiras ativas que batem ICP)."""
+    ufs: Optional[List[str]] = Field(None, description="Lista de UFs (ex: ['SP', 'RJ'])")
+    capital_minimo: Optional[float] = Field(None, ge=0, description="Capital social mínimo")
+    capital_maximo: Optional[float] = Field(None, ge=0, description="Capital social máximo (opcional)")
+    cnae_prefixes: Optional[List[str]] = Field(None, description="Prefixos CNAE (ex: ['62', '70'])")
+    portes: Optional[List[str]] = Field(None, description="Portes desejados (ME/EPP/Grande/Medio)")
+    incluir_breakdown_uf: bool = Field(True, description="Retornar contagem por UF")
+
+
+class TamResponse(BaseModel):
+    total_estimado: int
+    por_uf: Dict[str, int]
+    criterios: Dict[str, Any]
+    fonte: str = "Receita Federal · cnpj_empresas (situação ativa)"
+
+
+@router.post("/tam", response_model=TamResponse, summary="TAM Calculator — empresas que batem o ICP")
+async def calcular_tam(
+    request: TamRequest = Body(...),
+    _user: dict = Depends(require_auth),
+) -> TamResponse:
+    """
+    Conta empresas ativas (SITUACAO_CADASTRAL='02') no BR que batem critérios ICP.
+
+    Útil pra:
+    - Validar tamanho do mercado antes de prospectar
+    - Estimar pipeline máximo dado um ICP
+    - Comparar 2 ICPs (rodar 2x e ver qual tem TAM maior)
+
+    Exemplo:
+        {"ufs": ["SP","MG"], "capital_minimo": 100000, "cnae_prefixes": ["62"]}
+        → conta indústrias R$ 100k+ de TI/Software em SP+MG.
+    """
+    # Mapeamento de portes Receita Federal
+    porte_map = {
+        "ME": "01", "MICRO": "01",
+        "EPP": "03", "PEQUENO": "03",
+        "MEDIO": "05", "GRANDE": "05",  # Receita não distingue médio/grande
+    }
+
+    where: List[str] = ["SITUACAO_CADASTRAL = '02'"]  # somente ativas
+    params: List[Any] = []
+
+    if request.ufs:
+        ufs = [u.upper().strip() for u in request.ufs if u and len(u.strip()) == 2]
+        if ufs:
+            placeholders = ",".join("?" * len(ufs))
+            where.append(f"UF IN ({placeholders})")
+            params.extend(ufs)
+
+    if request.capital_minimo is not None:
+        where.append("CAPITAL_SOCIAL >= ?")
+        params.append(float(request.capital_minimo))
+
+    if request.capital_maximo is not None:
+        where.append("CAPITAL_SOCIAL <= ?")
+        params.append(float(request.capital_maximo))
+
+    if request.cnae_prefixes:
+        prefixes = [p.strip() for p in request.cnae_prefixes if p and p.strip()]
+        if prefixes:
+            cnae_or = " OR ".join(["CNAE_PRINCIPAL LIKE ?"] * len(prefixes))
+            where.append(f"({cnae_or})")
+            params.extend([f"{p}%" for p in prefixes])
+
+    if request.portes:
+        codigos = sorted({porte_map.get(p.upper().strip(), p.upper().strip()) for p in request.portes if p})
+        if codigos:
+            placeholders = ",".join("?" * len(codigos))
+            where.append(f"PORTE_EMPRESA IN ({placeholders})")
+            params.extend(codigos)
+
+    where_clause = " AND ".join(where)
+
+    try:
+        with get_connection(read_only=True) as conn:
+            total = conn.execute(
+                f"SELECT COUNT(*) FROM cnpj_empresas WHERE {where_clause}",
+                params,
+            ).fetchone()[0]
+
+            por_uf: Dict[str, int] = {}
+            if request.incluir_breakdown_uf:
+                rows = conn.execute(
+                    f"SELECT UF, COUNT(*) AS c FROM cnpj_empresas WHERE {where_clause} "
+                    f"GROUP BY UF ORDER BY c DESC LIMIT 30",
+                    params,
+                ).fetchall()
+                por_uf = {uf: int(c) for uf, c in rows if uf}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro calculando TAM: {e}")
+
+    return TamResponse(
+        total_estimado=int(total or 0),
+        por_uf=por_uf,
+        criterios={
+            "ufs": request.ufs or [],
+            "capital_minimo": request.capital_minimo,
+            "capital_maximo": request.capital_maximo,
+            "cnae_prefixes": request.cnae_prefixes or [],
+            "portes": request.portes or [],
+        },
+    )
+
+
 @router.post("", response_model=ProspeccaoResponse)
 async def prospeccao(
     request: ProspeccaoRequest = Body(...),

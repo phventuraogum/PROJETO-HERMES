@@ -1639,6 +1639,31 @@ export function setCrmKey(provider: string, value: string) {
 }
 
 /**
+ * TAM Calculator · conta empresas ativas no BR que batem o ICP.
+ * Usa endpoint /prospeccao/tam (DuckDB cnpj_empresas, situação 02).
+ */
+export type TamResponse = {
+  total_estimado: number;
+  por_uf: Record<string, number>;
+  criterios: Record<string, unknown>;
+  fonte: string;
+};
+
+export async function calcularTAM(params: {
+  ufs?: string[];
+  capital_minimo?: number;
+  capital_maximo?: number;
+  cnae_prefixes?: string[];
+  portes?: string[];
+  incluir_breakdown_uf?: boolean;
+}): Promise<TamResponse> {
+  return apiFetch<TamResponse>("/prospeccao/tam", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+/**
  * JUN 1.3 · status das chaves CRM cifradas no backend (org_integrations_private).
  * Retorna boolean por provider — NUNCA expõe o valor da chave ao client.
  */
