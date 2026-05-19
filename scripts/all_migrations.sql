@@ -1,6 +1,7 @@
 -- ============================================================
 --  Hermes Insight Engine - SQL COMPLETO para Supabase
---  Projeto: yvbgscukwnslkeyfjpqg
+--  Projeto ativo: yxlntagncgpevztveapn (reativado em 2026-05-19)
+--  Projeto antigo (pausado): yvbgscukwnslkeyfjpqg
 --  Executar no: Supabase Dashboard -> SQL Editor -> New Query
 --  Cole TUDO e clique em RUN
 -- ============================================================
