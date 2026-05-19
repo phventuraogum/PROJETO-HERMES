@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Save, Key, ExternalLink, CheckCircle2, Lock } from "lucide-react";
+import { Save, Key, ExternalLink, CheckCircle2, Lock, Shield } from "lucide-react";
 import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
@@ -13,10 +13,22 @@ const CRM_PROVIDERS = [
   { id: "rdstation", label: "RD Station", hint: "Access Token — Integrações › API", dot: "#3B82F6", url: "https://app.rdstation.com.br/integrations" },
 ];
 
+// MAI-19 · validação inline pra chaves CRM
+const PLACEHOLDER_HINTS = /^(api[_-]?key|sua[_-]?chave|seu[_-]?token|cole[_-]?aqui|your[_-]?key|placeholder|xxx+|test)/i;
+
+function validateApiKey(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null; // vazio é OK (significa "não configurada")
+  if (trimmed.length < 10) return "Chave muito curta — confira se colou inteira.";
+  if (PLACEHOLDER_HINTS.test(trimmed)) return "Parece um placeholder. Cole a chave real obtida no provedor.";
+  return null;
+}
+
 export default function Settings() {
   const [keys, setKeys] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
   const [dirty, setDirty] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     setKeys(getCrmKeys());
@@ -25,10 +37,28 @@ export default function Settings() {
   const handleChange = (provider: string, value: string) => {
     setKeys((prev) => ({ ...prev, [provider]: value }));
     setSaved((prev) => ({ ...prev, [provider]: false }));
+    if (errors[provider]) setErrors((prev) => ({ ...prev, [provider]: null }));
     setDirty(true);
   };
 
+  const handleBlur = (provider: string) => {
+    setErrors((prev) => ({ ...prev, [provider]: validateApiKey(keys[provider] || "") }));
+  };
+
   const handleSave = () => {
+    // Valida todas antes de salvar (re-roda mesmo nas que não receberam blur)
+    const newErrors: Record<string, string | null> = {};
+    let hasError = false;
+    Object.entries(keys).forEach(([provider, value]) => {
+      const err = validateApiKey(value);
+      newErrors[provider] = err;
+      if (err) hasError = true;
+    });
+    setErrors(newErrors);
+    if (hasError) {
+      toast.error("Corrija os campos destacados antes de salvar.");
+      return;
+    }
     const newSaved: Record<string, boolean> = {};
     Object.entries(keys).forEach(([provider, value]) => {
       if (value.trim()) {
@@ -97,8 +127,17 @@ export default function Settings() {
                 placeholder="Cole sua chave aqui..."
                 value={keys[provider.id] || ""}
                 onChange={(event) => handleChange(provider.id, event.target.value)}
-                className="h-10 rounded-xl border-border/70 bg-muted/20 font-mono text-sm focus:border-primary/40"
+                onBlur={() => handleBlur(provider.id)}
+                aria-invalid={!!errors[provider.id]}
+                aria-describedby={errors[provider.id] ? `${provider.id}-error` : undefined}
+                className={`h-10 rounded-xl border-border/70 bg-muted/20 font-mono text-sm focus:border-primary/40 ${errors[provider.id] ? "border-red-500/40" : ""}`}
               />
+              {errors[provider.id] && (
+                <p id={`${provider.id}-error`} role="alert" className="mt-2 text-[11px] text-red-500 flex items-center gap-1">
+                  <Shield className="h-3 w-3 shrink-0" />
+                  {errors[provider.id]}
+                </p>
+              )}
             </div>
           ))}
         </div>
