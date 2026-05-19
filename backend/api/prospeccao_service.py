@@ -128,6 +128,7 @@ def rodar_prospeccao_otimizada(
             e.NATUREZA_JURIDICA AS natureza_juridica
         FROM vw_prospeccao_base e
         WHERE 1=1
+          AND e.SITUACAO_CADASTRAL = '02'
     """
 
     params: List[Any] = []

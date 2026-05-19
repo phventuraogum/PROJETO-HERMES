@@ -427,6 +427,7 @@ async def prospeccao_pgfn(
                 "p.divida_total >= ?",
                 "p.divida_total <= ?",
                 "p.divida_total > 0",
+                "b.SITUACAO_CADASTRAL = '02'",
             ]
             params: List[Any] = [request.divida_min, request.divida_max]
 

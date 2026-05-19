@@ -1707,12 +1707,13 @@ export async function exportToCrm(
   apiKey: string,
   lead: LeadExportPayload,
   opts?: { funnel_id?: number; create_deal?: boolean }
-): Promise<{ success: boolean; provider: string; message?: string }> {
+): Promise<{ success: boolean; provider: string; message?: string; contact_id?: number; deal_id?: number; updated?: boolean }> {
+  // Ploomes usa chave fixa no server (.env PLOOMES_API_KEY) — frontend não envia chave
   return hermesFetch("/crm/export", {
     method: "POST",
     body: JSON.stringify({
       provider,
-      api_key: apiKey,
+      api_key: provider === "ploomes" ? null : apiKey,
       lead,
       funnel_id: opts?.funnel_id ?? null,
       create_deal: opts?.create_deal ?? true,
@@ -1730,7 +1731,7 @@ export async function exportBatchToCrm(
     method: "POST",
     body: JSON.stringify({
       provider,
-      api_key: apiKey,
+      api_key: provider === "ploomes" ? null : apiKey,
       leads,
       funnel_id: opts?.funnel_id ?? null,
       create_deal: opts?.create_deal ?? true,

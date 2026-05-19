@@ -61,8 +61,12 @@ export function CrmExportModal({
     }
   };
 
+  const isPloomes = provider === "ploomes";
+
   const handleExport = async () => {
-    if (!empresa || !apiKey.trim()) {
+    if (!empresa) return;
+    // Ploomes usa chave do server. Os outros providers exigem chave do usuário.
+    if (!isPloomes && !apiKey.trim()) {
       toast.error("Informe a API key do CRM.");
       return;
     }
@@ -71,7 +75,7 @@ export function CrmExportModal({
       const res = await exportToCrm(provider, apiKey.trim(), empresaToLead(empresa));
       if (res.success) {
         toast.success(res.message || `Lead enviado para ${PROVIDERS.find(p => p.id === provider)?.label}.`);
-        if (saveKey) setCrmKey(provider, apiKey.trim());
+        if (!isPloomes && saveKey) setCrmKey(provider, apiKey.trim());
         onClose();
       }
     } catch (e: any) {
@@ -108,26 +112,34 @@ export function CrmExportModal({
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs">
-              {provider === "ploomes" && "User Key"}
-              {provider === "pipedrive" && "API Token"}
-              {provider === "hubspot" && "Access Token (Private App)"}
-              {provider === "rdstation" && "Access Token"}
-            </Label>
-            <Input
-              type="password"
-              value={apiKey}
-              onChange={e => setApiKey(e.target.value)}
-              placeholder={currentSaved ? "•••••••• (salvo)" : "Cole aqui"}
-              className="border-border bg-muted/30"
-            />
-          </div>
+          {isPloomes ? (
+            <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+              Usando conta <span className="font-medium text-foreground">Pinn</span> · chave configurada no servidor.
+              Lead vai direto pro funil padrão.
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label className="text-xs">
+                  {provider === "pipedrive" && "API Token"}
+                  {provider === "hubspot" && "Access Token (Private App)"}
+                  {provider === "rdstation" && "Access Token"}
+                </Label>
+                <Input
+                  type="password"
+                  value={apiKey}
+                  onChange={e => setApiKey(e.target.value)}
+                  placeholder={currentSaved ? "•••••••• (salvo)" : "Cole aqui"}
+                  className="border-border bg-muted/30"
+                />
+              </div>
 
-          <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            <input type="checkbox" checked={saveKey} onChange={e => setSaveKey(e.target.checked)} className="rounded border-border" />
-            Salvar chave para próximas exportações
-          </label>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <input type="checkbox" checked={saveKey} onChange={e => setSaveKey(e.target.checked)} className="rounded border-border" />
+                Salvar chave para próximas exportações
+              </label>
+            </>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" size="sm" onClick={onClose} className="border-border">
