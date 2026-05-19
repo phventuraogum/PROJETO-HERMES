@@ -56,19 +56,28 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.limit_per_minute = settings.RATE_LIMIT_PER_MINUTE
         self.redis_url = redis_url or settings.REDIS_URL
         self._exempt_get_prefixes = _parse_exempt_get_prefixes(settings.RATE_LIMIT_EXEMPT_GET_PREFIXES)
-        
+
         # Conecta ao Redis
         self.redis_client = None
         if self.enabled:
             try:
                 self.redis_client = redis.from_url(self.redis_url)
-                # Testa conexão
                 self.redis_client.ping()
                 logger.info("Rate limiting habilitado com Redis")
             except Exception as e:
-                logger.warning(f"Redis não disponível para rate limiting: {e}")
-                logger.warning("Rate limiting desabilitado")
-                self.enabled = False
+                # MAI-15: fail-CLOSED em produção quando Redis indisponível.
+                # Em dev/staging mantém comportamento permissivo.
+                if settings.is_production:
+                    logger.error(
+                        f"Redis indisponível em produção: {e}. "
+                        "Rate limit em modo fail-CLOSED — todas as requisições serão bloqueadas até Redis voltar."
+                    )
+                    self.redis_client = None
+                    # self.enabled permanece True para que check_rate_limit retorne False
+                else:
+                    logger.warning(f"Redis não disponível para rate limiting: {e}")
+                    logger.warning("Rate limiting desabilitado (não-produção)")
+                    self.enabled = False
     
     def get_client_ip(self, request: Request) -> str:
         """Obtém IP do cliente (considera proxies)"""
@@ -95,8 +104,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         Returns:
             (allowed, remaining, reset_after)
         """
-        if not self.enabled or not self.redis_client:
+        if not self.enabled:
             return True, self.limit_per_minute, 60
+        if not self.redis_client:
+            # MAI-15: em produção, ausência de Redis = fail-CLOSED.
+            # (Em dev self.enabled já foi setado para False acima.)
+            return False, 0, 60
         
         try:
             # Chave Redis: rate_limit:{ip}:{minute}

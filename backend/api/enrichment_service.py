@@ -441,6 +441,44 @@ APENAS JSON válido."""
                     "dados_cadastrais": blob.get("dados_cadastrais"),
                 }
 
+        # ── FASE 7.5: ICP Score v2 (MAI-05) ───────────────────────────────
+        # Roda em PARALELO ao score_icp legado (não substitui ainda). Permite
+        # validar accuracy via golden dataset (MAI-10) antes do plug definitivo.
+        try:
+            from enrichment_score_v2 import calcular_score_icp_v2
+            dr = resultado.get("dados_receita") or {}
+            contatos = resultado.get("contatos_web") or {}
+            whatsapp_validado = (resultado.get("whatsapp_ultra") or {}).get("validado", False)
+            linkedin_socios = resultado.get("linkedin_ultra") or []
+            emails_socios = resultado.get("emails_socios") or []
+            capital_social_val = dr.get("capital_social")
+            try:
+                capital_social_val = float(capital_social_val) if capital_social_val is not None else None
+            except (TypeError, ValueError):
+                capital_social_val = None
+            situacao = str(dr.get("situacao_cadastral") or dr.get("situacao") or "ATIVA").upper()
+            v2 = calcular_score_icp_v2(
+                capital_social=capital_social_val,
+                uf_empresa=uf,
+                cidade_empresa=cidade,
+                tem_site=bool(resultado.get("site")),
+                tem_email=bool(contatos.get("email_enriquecido")),
+                tem_whatsapp=bool(whatsapp_validado or contatos.get("whatsapp_enriquecido")),
+                tem_linkedin_socio=bool(linkedin_socios),
+                n_socios_linkedin=len(linkedin_socios),
+                tem_email_socio=bool(emails_socios),
+                data_abertura=dr.get("data_abertura"),
+                porte=dr.get("porte_receita") or dr.get("porte"),
+                cnae_principal=cnae,
+                n_socios=len(socios or []),
+                tem_instagram=bool(resultado.get("instagram")),
+                situacao_ativa="ATIVA" in situacao,
+            )
+            resultado["score_icp_v2"] = v2
+        except Exception as e:
+            logger.warning(f"Score ICP v2 falhou para {cnpj}: {e}")
+            resultado["score_icp_v2"] = None
+
         # ── FASE 8: Pitch de abordagem (opcional, só para HOT) ────────────
         if gerar_pitch and score_icp >= 50 and self.openai_enabled:
             empresa_contexto = {

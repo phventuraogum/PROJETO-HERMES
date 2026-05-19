@@ -4,17 +4,31 @@ Substitui o score binário anterior por um sistema de 0-100 baseado
 em múltiplos sinais: capital, contatos disponíveis, sócios no LinkedIn,
 tempo de abertura, porte, localização estratégica e dados de enriquecimento.
 """
+import unicodedata
 from datetime import datetime
 from typing import Dict, List, Optional
 
 
-# Cidades com maior densidade de tomadores de decisão B2B
+def _norm(s: Optional[str]) -> str:
+    """Uppercase + strip accents para comparação determinística de cidade/UF.
+    PGFN/RF entregam dados com/sem acento — sem normalização, 'Maringa' não
+    bateria com 'MARINGÁ' (bug MAI-05).
+    """
+    if not s:
+        return ""
+    text = unicodedata.normalize("NFKD", str(s))
+    text = text.encode("ascii", "ignore").decode("ascii")
+    return text.strip().upper()
+
+
+# Cidades com maior densidade de tomadores de decisão B2B.
+# Mantidas SEM acento — comparação sempre via _norm().
 _CIDADES_PREMIUM = {
     "SAO PAULO", "CAMPINAS", "GUARULHOS", "OSASCO", "SANTO ANDRE",
-    "CURITIBA", "LONDRINA", "MARINGÁ", "JOINVILLE", "BLUMENAU",
+    "CURITIBA", "LONDRINA", "MARINGA", "JOINVILLE", "BLUMENAU",
     "PORTO ALEGRE", "CAXIAS DO SUL", "NOVO HAMBURGO",
-    "BELO HORIZONTE", "UBERLÂNDIA", "CONTAGEM",
-    "FLORIANOPOLIS", "BLUMENAU", "ITAJAI",
+    "BELO HORIZONTE", "UBERLANDIA", "CONTAGEM",
+    "FLORIANOPOLIS", "ITAJAI",
     "BRASILIA", "GOIANIA", "MANAUS", "RECIFE", "FORTALEZA", "SALVADOR",
     "RIBEIRAO PRETO", "SAO JOSE DOS CAMPOS", "SOROCABA", "SANTOS",
     "BETIM", "JUIZ DE FORA",
@@ -168,16 +182,16 @@ def calcular_score_icp_v2(
         score += 2
 
     # ── 7. LOCALIZAÇÃO (0–8 pts) ─────────────────────────────────────────
-    cidade_norm = (cidade_empresa or "").strip().upper()
-    uf_norm = (uf_empresa or "").strip().upper()
+    cidade_norm = _norm(cidade_empresa)
+    uf_norm = _norm(uf_empresa)
 
     if cidade_norm in _CIDADES_PREMIUM:
         score += 8
         sinais.append(f"Cidade estratégica ({cidade_norm})")
-    elif ufs_filtro and uf_norm in [u.upper() for u in ufs_filtro]:
+    elif ufs_filtro and uf_norm in {_norm(u) for u in ufs_filtro}:
         score += 5
         sinais.append(f"UF alvo ({uf_norm})")
-    if cidades_filtro and cidade_norm in [c.upper() for c in cidades_filtro]:
+    if cidades_filtro and cidade_norm in {_norm(c) for c in cidades_filtro}:
         score += 3
 
     # ── 8. CNAE (0–5 pts) — propensão a adotar tecnologia ────────────────
