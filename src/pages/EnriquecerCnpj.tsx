@@ -742,7 +742,7 @@ const EnriquecerCnpj = () => {
               },
               {
                 label: "WhatsApp final",
-                value: empresa.whatsapp_final || empresa.whatsapp_publico || "Nao encontrado",
+                value: empresa.whatsapp_final || empresa.whatsapp_publico || "Não encontrado",
                 icon: Building2,
                 tone: empresa.whatsapp_final || empresa.whatsapp_publico ? "text-emerald-300" : "text-muted-foreground/70",
               },

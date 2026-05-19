@@ -128,7 +128,7 @@ const ConsultaFiscal = () => {
       }
 
       if (!result.summary.has_records) {
-        toast.info("Esse CNPJ nao aparece na ultima base fiscal importada.");
+        toast.info("Esse CNPJ não aparece na última base fiscal importada.");
         return;
       }
 
@@ -242,7 +242,7 @@ const ConsultaFiscal = () => {
             Consulta por CNPJ
           </CardTitle>
           <CardDescription>
-            O resultado depende da ultima base fiscal publica importada. Nao consulta areas restritas do contribuinte.
+            O resultado depende da última base fiscal pública importada. Não consulta áreas restritas do contribuinte.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -285,7 +285,7 @@ const ConsultaFiscal = () => {
               Sem autorizacao externa
             </Badge>
             <Badge variant="outline" className="border-border text-foreground/80">
-              Snapshot publico/manual
+              Snapshot público/manual
             </Badge>
             <Badge variant="outline" className="border-border text-foreground/80">
               Nao substitui Regularize ou e-CAC
@@ -349,10 +349,10 @@ const ConsultaFiscal = () => {
         <CardHeader className="space-y-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Upload className="h-4 w-4 text-cyan-300" />
-            Importacao Manual da Base
+            Importação Manual da Base
           </CardTitle>
           <CardDescription>
-            Suba um CSV/TSV/JSON/ZIP publico, cole os dados manualmente ou importe arquivos grandes ja copiados para a VPS.
+            Suba um CSV/TSV/JSON/ZIP público, cole os dados manualmente ou importe arquivos grandes já copiados para a VPS.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -373,7 +373,7 @@ const ConsultaFiscal = () => {
                   id="fiscal-notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ex.: recorte publico baixado manualmente"
+                  placeholder="Ex.: recorte público baixado manualmente"
                   className="border-border bg-card"
                 />
               </div>
@@ -414,7 +414,7 @@ const ConsultaFiscal = () => {
                   id="fiscal-raw"
                   value={rawText}
                   onChange={(e) => setRawText(e.target.value)}
-                  placeholder="Cole aqui um CSV com coluna de CNPJ e os campos fiscais publicos."
+                  placeholder="Cole aqui um CSV com coluna de CNPJ e os campos fiscais públicos."
                   className="min-h-[160px] border-border bg-card"
                 />
               </div>
@@ -485,11 +485,11 @@ const ConsultaFiscal = () => {
               <CardContent className="space-y-4">
                 {!lookup.summary.has_snapshot ? (
                   <div className="rounded-2xl border border-dashed border-border bg-muted/20/30 p-4 text-sm text-muted-foreground">
-                    Nenhuma base fiscal foi importada ainda. Importe um snapshot publico para liberar essa consulta.
+                    Nenhuma base fiscal foi importada ainda. Importe um snapshot público para liberar essa consulta.
                   </div>
                 ) : !lookup.summary.has_records ? (
                   <div className="rounded-2xl border border-dashed border-border bg-muted/20/30 p-4 text-sm text-muted-foreground">
-                    Esse CNPJ nao apareceu na ultima base publica importada.
+                    Esse CNPJ não apareceu na última base pública importada.
                   </div>
                 ) : (
                   <>
@@ -600,7 +600,7 @@ const ConsultaFiscal = () => {
               <CardHeader className="space-y-2">
                 <CardTitle className="text-lg">Inscricoes encontradas</CardTitle>
                 <CardDescription>
-                  Cada item abaixo corresponde ao que o snapshot publico trouxe para o CNPJ consultado.
+                  Cada item abaixo corresponde ao que o snapshot público trouxe para o CNPJ consultado.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">

@@ -230,7 +230,7 @@ const QueryWorkbench = () => {
   const handleTranslateQuery = async () => {
     const prompt = aiPrompt.trim();
     if (!prompt) {
-      toast.info("Descreva a prospeccao em texto livre.");
+      toast.info("Descreva a prospecção em texto livre.");
       return;
     }
 
@@ -335,7 +335,7 @@ const QueryWorkbench = () => {
           <div>
             <h1 className="text-2xl font-display tracking-tight">Workbench de Query</h1>
             <p className="text-sm text-muted-foreground">
-              Monte a query do Hermes de forma tecnica, veja o payload exato e rode a prospeccao com progresso em tempo real.
+              Monte a query do Hermes de forma técnica, veja o payload exato e rode a prospecção com progresso em tempo real.
             </p>
           </div>
         </div>
@@ -348,7 +348,7 @@ const QueryWorkbench = () => {
             Tradutor de Query
           </CardTitle>
           <CardDescription>
-            Escreva como pensaria a busca e o Hermes converte para os filtros reais da prospeccao.
+            Escreva como pensaria a busca e o Hermes converte para os filtros reais da prospecção.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -624,7 +624,7 @@ const QueryWorkbench = () => {
                 <div>
                   <p className="text-sm font-medium">Execucao</p>
                   <p className="text-xs text-muted-foreground/70">
-                    {progress?.detail || "Pronto para disparar a prospeccao."}
+                    {progress?.detail || "Pronto para disparar a prospecção."}
                   </p>
                 </div>
                 <Cpu className="h-4 w-4 text-amber-300" />
@@ -805,7 +805,7 @@ const QueryWorkbench = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="save-description">Descricao</Label>
+              <Label htmlFor="save-description">Descrição</Label>
               <Textarea
                 id="save-description"
                 value={saveDescription}

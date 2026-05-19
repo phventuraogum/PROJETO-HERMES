@@ -871,7 +871,7 @@ const LeadLists = () => {
                       <div className="space-y-1">
                         <p className="text-sm font-semibold text-foreground">{entry.cnpj}</p>
                         <p className="text-xs text-muted-foreground/70">
-                          Proximo refresh: {formatDate(entry.next_refresh_at)} . Ultimo refresh: {formatDate(entry.last_refresh_at)}
+                          Próximo refresh: {formatDate(entry.next_refresh_at)} · Último refresh: {formatDate(entry.last_refresh_at)}
                         </p>
                       </div>
                       <Badge
@@ -1469,7 +1469,7 @@ const LeadLists = () => {
         <CardHeader>
           <CardTitle className="text-lg">Registro de supressao</CardTitle>
           <CardDescription>
-            Itens bloqueados da prospeccao automatica para evitar retrabalho e contato indevido.
+            Itens bloqueados da prospecção automática para evitar retrabalho e contato indevido.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -1531,7 +1531,7 @@ const LeadLists = () => {
             <Textarea
               value={createDescription}
               onChange={(event) => setCreateDescription(event.target.value)}
-              placeholder="Descricao opcional"
+              placeholder="Descrição opcional"
               className="min-h-[96px] border-border bg-muted/20"
             />
           </div>

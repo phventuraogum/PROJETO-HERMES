@@ -1558,7 +1558,7 @@ const ResultsPage = () => {
           setExecucao(p.execucao);
         } else {
           setEmpresas(sanitizeEmpresas(stateResultados));
-          toast.error("Nao foi possivel carregar a ultima execucao.");
+          toast.error("Não foi possível carregar a última execução.");
         }
 
         if (registryResult.status === "rejected") {
@@ -2623,7 +2623,7 @@ const ResultsPage = () => {
                 <Textarea
                   value={newListDescription}
                   onChange={(event) => setNewListDescription(event.target.value)}
-                  placeholder="Descricao opcional"
+                  placeholder="Descrição opcional"
                   className="min-h-[88px] border-border bg-muted/30"
                 />
               </>

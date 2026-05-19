@@ -23,13 +23,13 @@ const STATS = [
   { value: "56M+", label: "CNPJs", sub: "Receita Federal", icon: Database, color: "text-primary" },
   { value: "30+", label: "Filtros", sub: "CNAE, UF, porte...", icon: Filter, color: "text-violet-400" },
   { value: "78%", label: "Taxa de contato", sub: "Email + WhatsApp", icon: Zap, color: "text-emerald-400" },
-  { value: "10x", label: "Mais rapido", sub: "vs. prospeccao manual", icon: Activity, color: "text-amber-400" },
+  { value: "10x", label: "Mais rápido", sub: "vs. prospecção manual", icon: Activity, color: "text-amber-400" },
 ];
 
 const CAPABILITIES = [
   { icon: Workflow, text: "IA generativa para score ICP e abordagens personalizadas" },
   { icon: Search, text: "Busca avancada com CNAE, capital, segmento e localizacao" },
-  { icon: BarChart3, text: "Dashboard com mapa de calor e metricas de prospeccao" },
+  { icon: BarChart3, text: "Dashboard com mapa de calor e métricas de prospecção" },
   { icon: Layers, text: "Pipeline Kanban integrado com status e notas" },
   { icon: Globe, text: "Enriquecimento: site, email, telefone, WhatsApp, LinkedIn" },
   { icon: Users, text: "Export direto para Pipedrive, HubSpot, RD Station" },
@@ -233,7 +233,7 @@ const Login = () => {
               </div>
             </div>
             <h1 className="text-xl font-semibold tracking-tight">Bem-vindo de volta</h1>
-            <p className="mt-1.5 text-[13px] text-muted-foreground">Entre para acessar sua prospeccao.</p>
+            <p className="mt-1.5 text-[13px] text-muted-foreground">Entre para acessar sua prospecção.</p>
           </div>
 
           {/* Error */}
@@ -350,14 +350,14 @@ const Login = () => {
           {/* Sign up */}
           <p className="text-center text-[13px] text-muted-foreground/45">
             Nao tem conta?{" "}
-            <Link to="/" className="text-primary hover:text-primary/80 font-medium transition-colors">Crie gratis</Link>
+            <Link to="/" className="text-primary hover:text-primary/80 font-medium transition-colors">Crie grátis</Link>
           </p>
 
           {/* Footer */}
           <div className="mt-10 flex items-center justify-between text-[10px] text-muted-foreground/40">
             <div className="flex items-center gap-1.5">
               <Shield className="h-3 w-3" />
-              <span>Conexao segura</span>
+              <span>Conexão segura</span>
             </div>
             <span>{BRAND.copyright}</span>
           </div>
