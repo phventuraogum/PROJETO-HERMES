@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import { WelcomeWizard, useWizardState } from "@/components/onboarding/WelcomeWizard";
 
 interface LayoutProps {
   children: ReactNode;
@@ -10,8 +11,11 @@ interface LayoutProps {
  * Layout — Pinn DS oficial v1.0
  * Background sólido (sem radial gradient — DS proíbe). Container 1480px.
  * Skip-link (MAI-17) — primeiro elemento focável; teclado pula sidebar + header.
+ * WelcomeWizard (JUN 6.2) — mostra no 1º login (localStorage flag).
  * ────────────────────────────────────────────────────────────────────────── */
 const Layout = ({ children }: LayoutProps) => {
+  const wizard = useWizardState();
+
   return (
     <div className="min-h-screen flex w-full bg-background text-foreground">
       <a href="#main-content" className="skip-link">
@@ -26,6 +30,7 @@ const Layout = ({ children }: LayoutProps) => {
           </div>
         </main>
       </div>
+      <WelcomeWizard open={wizard.open} onDone={wizard.dismiss} orgName={wizard.orgName} />
     </div>
   );
 };
