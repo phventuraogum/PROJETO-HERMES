@@ -232,7 +232,22 @@ function HeatmapGoogleInner({
       <Card className="overflow-hidden">
         <CardContent className="p-0">
           <div className="h-[420px] w-full bg-muted/30 flex items-center justify-center">
-            {!isLoaded ? (
+            {!apiKey ? (
+              /* MAI-25 · fallback gracioso quando Google Maps API key não configurada */
+              <div className="text-center space-y-2 px-6 max-w-md">
+                <MapPin className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+                <p className="text-sm font-semibold text-foreground/80">Mapa de Calor indisponível</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Configure <code className="font-mono text-[11px] px-1 py-0.5 rounded bg-muted/60">VITE_GOOGLE_MAPS_API_KEY</code> no env do frontend pra ativar visualização geográfica. A tabela de municípios abaixo continua disponível.
+                </p>
+              </div>
+            ) : loadError ? (
+              <div className="text-center space-y-2 px-6 max-w-md">
+                <MapPin className="h-8 w-8 text-destructive/60 mx-auto" />
+                <p className="text-sm font-semibold text-destructive">Falha ao carregar Google Maps</p>
+                <p className="text-xs text-muted-foreground">{loadError.message || "Verifique a API key + quota do projeto Google Cloud."}</p>
+              </div>
+            ) : !isLoaded ? (
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Carregando Google Maps…
