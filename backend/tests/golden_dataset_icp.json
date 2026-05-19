@@ -1,0 +1,600 @@
+{
+  "description": "MAI-10 · Golden dataset sintético com 50 leads rotulados pra eval do calcular_score_icp_v2. Tier esperado por categoria pra calcular accuracy.",
+  "version": 1,
+  "data": [
+    {
+      "id": "hot_01",
+      "label": "Grande tech SP com contatos completos",
+      "expected_tier": "HOT",
+      "input": {
+        "capital_social": 5000000,
+        "capital_minima": 50000,
+        "porte": "GRANDE",
+        "cnae_principal": "6201",
+        "uf_empresa": "SP",
+        "cidade_empresa": "SAO PAULO",
+        "data_abertura": "2015-03-10",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 3,
+        "tem_email_socio": true, "n_socios": 3,
+        "tem_instagram": true,
+        "situacao_ativa": true, "situacao_rf": "ATIVA"
+      }
+    },
+    {
+      "id": "hot_02",
+      "label": "Médio consultoria BH capital sólido",
+      "expected_tier": "HOT",
+      "input": {
+        "capital_social": 500000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "7020",
+        "uf_empresa": "MG", "cidade_empresa": "BELO HORIZONTE",
+        "data_abertura": "2018-06-15",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 2,
+        "n_socios": 2, "situacao_ativa": true, "situacao_rf": "ATIVA"
+      }
+    },
+    {
+      "id": "hot_03",
+      "label": "Indústria metalurgica Campinas",
+      "expected_tier": "HOT",
+      "input": {
+        "capital_social": 2000000, "capital_minima": 50000,
+        "porte": "GRANDE", "cnae_principal": "2511",
+        "uf_empresa": "SP", "cidade_empresa": "CAMPINAS",
+        "data_abertura": "2010-01-20",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 2,
+        "tem_email_socio": true, "n_socios": 4,
+        "situacao_ativa": true
+      }
+    },
+    {
+      "id": "hot_04",
+      "label": "Atacado Curitiba capital alto",
+      "expected_tier": "HOT",
+      "input": {
+        "capital_social": 1500000, "capital_minima": 50000,
+        "porte": "GRANDE", "cnae_principal": "4649",
+        "uf_empresa": "PR", "cidade_empresa": "CURITIBA",
+        "data_abertura": "2012-08-01",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 2, "n_socios": 3,
+        "situacao_ativa": true
+      }
+    },
+    {
+      "id": "hot_05",
+      "label": "Editora SP com sinais completos",
+      "expected_tier": "HOT",
+      "input": {
+        "capital_social": 800000, "capital_minima": 50000,
+        "porte": "GRANDE", "cnae_principal": "5811",
+        "uf_empresa": "SP", "cidade_empresa": "SAO PAULO",
+        "data_abertura": "2014-05-12",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 4,
+        "tem_email_socio": true, "n_socios": 3, "tem_instagram": true,
+        "situacao_ativa": true
+      }
+    },
+    {
+      "id": "hot_06",
+      "label": "Software house Florianópolis premium",
+      "expected_tier": "HOT",
+      "input": {
+        "capital_social": 1200000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "6202",
+        "uf_empresa": "SC", "cidade_empresa": "FLORIANOPOLIS",
+        "data_abertura": "2017-02-28",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 3,
+        "tem_email_socio": true, "n_socios": 3, "tem_instagram": true,
+        "situacao_ativa": true
+      }
+    },
+    {
+      "id": "hot_07",
+      "label": "Contabilidade tradicional SP",
+      "expected_tier": "HOT",
+      "input": {
+        "capital_social": 600000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "6920",
+        "uf_empresa": "SP", "cidade_empresa": "GUARULHOS",
+        "data_abertura": "2008-04-10",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 2,
+        "tem_email_socio": true, "n_socios": 3,
+        "situacao_ativa": true
+      }
+    },
+    {
+      "id": "hot_08",
+      "label": "Grande indústria com pegada digital máxima",
+      "expected_tier": "HOT",
+      "input": {
+        "capital_social": 10000000, "capital_minima": 50000,
+        "porte": "GRANDE", "cnae_principal": "2521",
+        "uf_empresa": "SP", "cidade_empresa": "SOROCABA",
+        "data_abertura": "1998-11-04",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 5,
+        "tem_email_socio": true, "n_socios": 5, "tem_instagram": true,
+        "situacao_ativa": true
+      }
+    },
+    {
+      "id": "hot_09",
+      "label": "TI Joinville capital sólido",
+      "expected_tier": "HOT",
+      "input": {
+        "capital_social": 700000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "6203",
+        "uf_empresa": "SC", "cidade_empresa": "JOINVILLE",
+        "data_abertura": "2016-09-22",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 2,
+        "n_socios": 2, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "hot_10",
+      "label": "Médio porte Recife capital alto",
+      "expected_tier": "HOT",
+      "input": {
+        "capital_social": 900000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "6201",
+        "uf_empresa": "PE", "cidade_empresa": "RECIFE",
+        "data_abertura": "2015-01-15",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 2,
+        "tem_email_socio": true, "n_socios": 2,
+        "situacao_ativa": true
+      }
+    },
+    {
+      "id": "hot_11",
+      "label": "Serviços administrativos POA",
+      "expected_tier": "HOT",
+      "input": {
+        "capital_social": 1100000, "capital_minima": 50000,
+        "porte": "GRANDE", "cnae_principal": "8219",
+        "uf_empresa": "RS", "cidade_empresa": "PORTO ALEGRE",
+        "data_abertura": "2013-07-09",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 3,
+        "n_socios": 4, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "hot_12",
+      "label": "Comércio atacado Santos premium",
+      "expected_tier": "HOT",
+      "input": {
+        "capital_social": 800000, "capital_minima": 50000,
+        "porte": "GRANDE", "cnae_principal": "4661",
+        "uf_empresa": "SP", "cidade_empresa": "SANTOS",
+        "data_abertura": "2011-03-25",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 2,
+        "tem_email_socio": true, "n_socios": 3,
+        "situacao_ativa": true
+      }
+    },
+    {
+      "id": "warm_01",
+      "label": "Médio porte com poucos contatos",
+      "expected_tier": "WARM",
+      "input": {
+        "capital_social": 200000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "4651",
+        "uf_empresa": "SP", "cidade_empresa": "CAMPINAS",
+        "data_abertura": "2016-01-10",
+        "tem_email": true, "tem_site": true, "n_socios": 2,
+        "situacao_ativa": true
+      }
+    },
+    {
+      "id": "warm_02",
+      "label": "Pequeno mas com LinkedIn",
+      "expected_tier": "WARM",
+      "input": {
+        "capital_social": 100000, "capital_minima": 50000,
+        "porte": "PEQUENO", "cnae_principal": "6204",
+        "uf_empresa": "MG", "cidade_empresa": "BELO HORIZONTE",
+        "tem_email": true, "tem_whatsapp": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 1,
+        "n_socios": 2, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "warm_03",
+      "label": "Médio capital baixo sem LinkedIn",
+      "expected_tier": "WARM",
+      "input": {
+        "capital_social": 80000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "7020",
+        "uf_empresa": "RJ", "cidade_empresa": "RIO DE JANEIRO",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "n_socios": 2, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "warm_04",
+      "label": "Grande mas pegada digital incompleta",
+      "expected_tier": "WARM",
+      "input": {
+        "capital_social": 500000, "capital_minima": 50000,
+        "porte": "GRANDE", "cnae_principal": "1812",
+        "uf_empresa": "PR", "cidade_empresa": "LONDRINA",
+        "data_abertura": "2010-11-04",
+        "tem_email": true, "n_socios": 3, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "warm_05",
+      "label": "Médio com whatsapp + email mas sem site",
+      "expected_tier": "WARM",
+      "input": {
+        "capital_social": 150000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "4669",
+        "uf_empresa": "GO", "cidade_empresa": "GOIANIA",
+        "tem_email": true, "tem_whatsapp": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 1, "n_socios": 2,
+        "situacao_ativa": true
+      }
+    },
+    {
+      "id": "warm_06",
+      "label": "Médio com dívida PGFN pequena",
+      "expected_tier": "WARM",
+      "input": {
+        "capital_social": 300000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "6201",
+        "uf_empresa": "SP", "cidade_empresa": "SAO PAULO",
+        "data_abertura": "2014-05-12",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 2,
+        "n_socios": 2, "situacao_ativa": true,
+        "tem_divida_pgfn": true, "valor_divida_pgfn": 50000
+      }
+    },
+    {
+      "id": "warm_07",
+      "label": "Pequeno mas cidade premium",
+      "expected_tier": "WARM",
+      "input": {
+        "capital_social": 80000, "capital_minima": 50000,
+        "porte": "PEQUENO", "cnae_principal": "7410",
+        "uf_empresa": "SP", "cidade_empresa": "SAO PAULO",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "n_socios": 2, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "warm_08",
+      "label": "Médio com tudo mas capital muito baixo",
+      "expected_tier": "WARM",
+      "input": {
+        "capital_social": 30000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "6204",
+        "uf_empresa": "RS", "cidade_empresa": "CAXIAS DO SUL",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 2, "n_socios": 3,
+        "situacao_ativa": true
+      }
+    },
+    {
+      "id": "warm_09",
+      "label": "Comércio cidade média sem CNAE tech",
+      "expected_tier": "WARM",
+      "input": {
+        "capital_social": 250000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "4711",
+        "uf_empresa": "MG", "cidade_empresa": "UBERLANDIA",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "n_socios": 3, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "warm_10",
+      "label": "Médio LinkedIn 1 sócio capital meio termo",
+      "expected_tier": "WARM",
+      "input": {
+        "capital_social": 200000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "2519",
+        "uf_empresa": "SP", "cidade_empresa": "SOROCABA",
+        "tem_site": true, "tem_email": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 1,
+        "n_socios": 2, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "warm_11",
+      "label": "Grande sem CNAE tech",
+      "expected_tier": "WARM",
+      "input": {
+        "capital_social": 400000, "capital_minima": 50000,
+        "porte": "GRANDE", "cnae_principal": "1411",
+        "uf_empresa": "CE", "cidade_empresa": "FORTALEZA",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "n_socios": 3, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "warm_12",
+      "label": "Médio só com email",
+      "expected_tier": "WARM",
+      "input": {
+        "capital_social": 120000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "6201",
+        "uf_empresa": "DF", "cidade_empresa": "BRASILIA",
+        "tem_email": true, "tem_site": true,
+        "tem_linkedin_socio": true, "n_socios_linkedin": 1,
+        "n_socios": 2, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "warm_13",
+      "label": "Editora pequena interior",
+      "expected_tier": "WARM",
+      "input": {
+        "capital_social": 100000, "capital_minima": 50000,
+        "porte": "PEQUENO", "cnae_principal": "5811",
+        "uf_empresa": "PR", "cidade_empresa": "MARINGA",
+        "tem_email": true, "tem_whatsapp": true, "tem_site": true,
+        "n_socios": 2, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "cold_01",
+      "label": "Pequeno sem pegada digital mas com capital ok",
+      "expected_tier": "COLD",
+      "input": {
+        "capital_social": 70000, "capital_minima": 50000,
+        "porte": "PEQUENO", "cnae_principal": "4711",
+        "uf_empresa": "BA", "cidade_empresa": "SALVADOR",
+        "tem_email": true, "n_socios": 2, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "cold_02",
+      "label": "Capital muito baixo + sem contatos",
+      "expected_tier": "COLD",
+      "input": {
+        "capital_social": 30000, "capital_minima": 50000,
+        "porte": "PEQUENO", "cnae_principal": "4751",
+        "uf_empresa": "PA", "cidade_empresa": "BELEM",
+        "tem_email": true, "n_socios": 1, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "cold_03",
+      "label": "Médio com dívida média (penalty -18)",
+      "expected_tier": "COLD",
+      "input": {
+        "capital_social": 100000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "4661",
+        "uf_empresa": "MT", "cidade_empresa": "CUIABA",
+        "tem_email": true, "tem_site": true, "n_socios": 2,
+        "situacao_ativa": true,
+        "tem_divida_pgfn": true, "valor_divida_pgfn": 250000
+      }
+    },
+    {
+      "id": "cold_04",
+      "label": "Pequeno interior só email",
+      "expected_tier": "COLD",
+      "input": {
+        "capital_social": 60000, "capital_minima": 50000,
+        "porte": "PEQUENO", "cnae_principal": "5611",
+        "uf_empresa": "PI", "cidade_empresa": "TERESINA",
+        "tem_email": true, "n_socios": 2, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "cold_05",
+      "label": "Médio antigo sem pegada digital",
+      "expected_tier": "COLD",
+      "input": {
+        "capital_social": 90000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "4530",
+        "uf_empresa": "MS", "cidade_empresa": "CAMPO GRANDE",
+        "data_abertura": "1985-01-01",
+        "tem_email": true, "n_socios": 3, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "cold_06",
+      "label": "Pequeno só whatsapp",
+      "expected_tier": "COLD",
+      "input": {
+        "capital_social": 50000, "capital_minima": 50000,
+        "porte": "PEQUENO", "cnae_principal": "4711",
+        "uf_empresa": "RN", "cidade_empresa": "NATAL",
+        "tem_whatsapp": true, "n_socios": 2, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "cold_07",
+      "label": "Pequeno tudo zerado",
+      "expected_tier": "COLD",
+      "input": {
+        "capital_social": 40000, "capital_minima": 50000,
+        "porte": "PEQUENO", "cnae_principal": "4520",
+        "uf_empresa": "AL", "cidade_empresa": "MACEIO",
+        "tem_email": true, "n_socios": 2, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "cold_08",
+      "label": "Médio cnae não-tech",
+      "expected_tier": "COLD",
+      "input": {
+        "capital_social": 80000, "capital_minima": 50000,
+        "porte": "MEDIO", "cnae_principal": "0111",
+        "uf_empresa": "TO", "cidade_empresa": "PALMAS",
+        "tem_email": true, "tem_site": true, "n_socios": 2, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "cold_09",
+      "label": "Pequeno capital medio interior",
+      "expected_tier": "COLD",
+      "input": {
+        "capital_social": 60000, "capital_minima": 50000,
+        "porte": "PEQUENO", "cnae_principal": "4744",
+        "uf_empresa": "SE", "cidade_empresa": "ARACAJU",
+        "tem_email": true, "tem_whatsapp": true, "n_socios": 2,
+        "situacao_ativa": true
+      }
+    },
+    {
+      "id": "cold_10",
+      "label": "Pequeno sem nada além de cidade",
+      "expected_tier": "COLD",
+      "input": {
+        "capital_social": 50000, "capital_minima": 50000,
+        "porte": "PEQUENO", "cnae_principal": "4731",
+        "uf_empresa": "AC", "cidade_empresa": "RIO BRANCO",
+        "tem_email": true, "n_socios": 1, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "unq_01",
+      "label": "MEI tech (disqualifier porte)",
+      "expected_tier": "UNQUALIFIED",
+      "input": {
+        "porte": "MEI", "cnae_principal": "6201",
+        "tem_email": true, "tem_site": true, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "unq_02",
+      "label": "Admin pública municipal (disqualifier CNAE)",
+      "expected_tier": "UNQUALIFIED",
+      "input": {
+        "porte": "GRANDE", "cnae_principal": "8411",
+        "capital_social": 5000000, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "unq_03",
+      "label": "Org religiosa (disqualifier CNAE 9491)",
+      "expected_tier": "UNQUALIFIED",
+      "input": {
+        "porte": "MEDIO", "cnae_principal": "9491",
+        "tem_email": true, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "unq_04",
+      "label": "Empresa BAIXADA (disqualifier situacao_rf)",
+      "expected_tier": "UNQUALIFIED",
+      "input": {
+        "porte": "GRANDE", "cnae_principal": "6201",
+        "capital_social": 1000000, "situacao_rf": "BAIXADA"
+      }
+    },
+    {
+      "id": "unq_05",
+      "label": "Empresa INAPTA",
+      "expected_tier": "UNQUALIFIED",
+      "input": {
+        "porte": "MEDIO", "cnae_principal": "7020",
+        "situacao_rf": "INAPTA"
+      }
+    },
+    {
+      "id": "unq_06",
+      "label": "Empresa SUSPENSA",
+      "expected_tier": "UNQUALIFIED",
+      "input": {
+        "porte": "GRANDE", "cnae_principal": "6201",
+        "situacao_rf": "SUSPENSA"
+      }
+    },
+    {
+      "id": "unq_07",
+      "label": "Empresa inativa (situacao_ativa=false)",
+      "expected_tier": "UNQUALIFIED",
+      "input": {
+        "porte": "GRANDE", "cnae_principal": "6201",
+        "capital_social": 1000000, "situacao_ativa": false
+      }
+    },
+    {
+      "id": "unq_08",
+      "label": "MEI sem nada",
+      "expected_tier": "UNQUALIFIED",
+      "input": {
+        "porte": "MEI", "cnae_principal": "4711", "situacao_ativa": true
+      }
+    },
+    {
+      "id": "unq_09",
+      "label": "Admin pública estadual",
+      "expected_tier": "UNQUALIFIED",
+      "input": {
+        "porte": "GRANDE", "cnae_principal": "8421",
+        "capital_social": 3000000, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "unq_10",
+      "label": "Filantrópica (CNAE 9499)",
+      "expected_tier": "UNQUALIFIED",
+      "input": {
+        "porte": "MEDIO", "cnae_principal": "9499",
+        "tem_email": true, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "unq_11",
+      "label": "Pequeno absoluto sem qualquer sinal",
+      "expected_tier": "UNQUALIFIED",
+      "input": {
+        "porte": "MICRO", "cnae_principal": "4731",
+        "capital_social": 5000, "capital_minima": 50000,
+        "n_socios": 1, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "unq_12",
+      "label": "Serviços domésticos (9700)",
+      "expected_tier": "UNQUALIFIED",
+      "input": {
+        "porte": "PEQUENO", "cnae_principal": "9700",
+        "situacao_ativa": true
+      }
+    },
+    {
+      "id": "unq_13",
+      "label": "MEI consultoria",
+      "expected_tier": "UNQUALIFIED",
+      "input": {
+        "porte": "MEI", "cnae_principal": "7020",
+        "tem_email": true, "tem_whatsapp": true, "situacao_ativa": true
+      }
+    },
+    {
+      "id": "unq_14",
+      "label": "Admin municipal 8413",
+      "expected_tier": "UNQUALIFIED",
+      "input": {
+        "porte": "GRANDE", "cnae_principal": "8413",
+        "situacao_ativa": true
+      }
+    },
+    {
+      "id": "unq_15",
+      "label": "Organização internacional (9900)",
+      "expected_tier": "UNQUALIFIED",
+      "input": {
+        "porte": "GRANDE", "cnae_principal": "9900",
+        "capital_social": 1000000, "situacao_ativa": true
+      }
+    }
+  ]
+}
