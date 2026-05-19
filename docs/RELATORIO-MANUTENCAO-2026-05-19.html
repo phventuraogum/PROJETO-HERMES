@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>Hermes · Relatório de Manutenção · 2026-05-19</title>
+<style>
+  /* ===== Pinn DS inline (paleta canônica) ===== */
+  :root {
+    --pinn-orange:        #FF6B35;
+    --pinn-orange-700:    #B8431F;
+    --pinn-orange-light:  #FFF3ED;
+    --pinn-ink:           #1A1A1A;
+    --pinn-graphite:      #555;
+    --pinn-mute:          #999;
+    --pinn-rule:          #E6E4E0;
+    --pinn-surface:       #F6F4EF;
+    --pinn-paper:         #FAF8F4;
+    --pinn-white:         #FFFFFF;
+    --pinn-success:       #2E7D32;
+    --pinn-error:         #C62828;
+    --pinn-warning:       #F57C00;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    background: var(--pinn-paper);
+    color: var(--pinn-ink);
+    line-height: 1.5;
+    font-size: 15px;
+  }
+  .container { max-width: 1080px; margin: 0 auto; padding: 48px 32px; }
+
+  header {
+    border-bottom: 1px solid var(--pinn-rule);
+    padding-bottom: 32px; margin-bottom: 48px;
+  }
+  header .eyebrow {
+    text-transform: uppercase; letter-spacing: 0.12em; font-size: 12px;
+    font-weight: 600; color: var(--pinn-orange-700); margin-bottom: 12px;
+  }
+  header h1 {
+    font-size: 40px; font-weight: 700; margin: 0 0 8px 0; letter-spacing: -0.02em;
+  }
+  header .meta {
+    color: var(--pinn-graphite); font-size: 14px;
+  }
+
+  /* KPIs */
+  .kpi-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 32px 0 48px;
+  }
+  .kpi {
+    background: var(--pinn-white);
+    border: 1px solid var(--pinn-rule);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .kpi .label {
+    text-transform: uppercase; letter-spacing: 0.1em; font-size: 11px;
+    font-weight: 600; color: var(--pinn-mute); margin-bottom: 8px;
+  }
+  .kpi .value {
+    font-size: 28px; font-weight: 700; font-feature-settings: "tnum"; letter-spacing: -0.02em;
+  }
+  .kpi .sub { font-size: 12px; color: var(--pinn-graphite); margin-top: 4px; }
+
+  h2 {
+    font-size: 24px; font-weight: 700; margin: 56px 0 16px;
+    border-bottom: 1px solid var(--pinn-rule); padding-bottom: 12px;
+  }
+  h2 .count {
+    font-size: 13px; font-weight: 500; color: var(--pinn-mute);
+    margin-left: 12px; font-feature-settings: "tnum";
+  }
+  h3 {
+    font-size: 16px; font-weight: 700; margin: 28px 0 10px;
+    color: var(--pinn-ink);
+  }
+  h3 .ticket-id {
+    font-family: "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 12px; font-weight: 600; color: var(--pinn-orange-700);
+    background: var(--pinn-orange-light); padding: 2px 8px; border-radius: 4px;
+    margin-right: 10px; vertical-align: 1px;
+  }
+  .priority {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 2px 7px; border-radius: 99px; vertical-align: 2px; margin-left: 6px;
+  }
+  .priority.p0 { background: rgba(198,40,40,0.12); color: var(--pinn-error); }
+  .priority.p1 { background: rgba(245,124,0,0.14); color: var(--pinn-warning); }
+  .priority.p2 { background: var(--pinn-orange-light); color: var(--pinn-orange-700); }
+
+  .change {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;
+  }
+  .change > div {
+    border: 1px solid var(--pinn-rule); border-radius: 6px; padding: 12px 14px;
+    background: var(--pinn-white);
+  }
+  .change .before { border-left: 3px solid var(--pinn-error); }
+  .change .after  { border-left: 3px solid var(--pinn-success); }
+  .change .label-mini {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--pinn-mute); margin-bottom: 6px;
+  }
+  .change .before .label-mini { color: var(--pinn-error); }
+  .change .after  .label-mini { color: var(--pinn-success); }
+  pre, code {
+    font-family: "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    background: var(--pinn-surface);
+    color: var(--pinn-ink);
+  }
+  pre {
+    margin: 0; padding: 10px 12px; border-radius: 4px;
+    overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+  }
+  code { padding: 1px 5px; border-radius: 3px; }
+
+  .ticket-row {
+    margin-bottom: 28px; padding-bottom: 24px;
+    border-bottom: 1px dashed var(--pinn-rule);
+  }
+  .ticket-row:last-child { border-bottom: 0; }
+  .ticket-desc { color: var(--pinn-graphite); font-size: 14px; margin: 6px 0 12px; }
+  .commit-tag {
+    font-family: "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 11px; color: var(--pinn-mute); margin-top: 8px;
+  }
+
+  /* Tabela commits */
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--pinn-rule); }
+  th { background: var(--pinn-surface); font-weight: 600; font-size: 11px;
+       text-transform: uppercase; letter-spacing: 0.08em; color: var(--pinn-graphite); }
+  td.hash { font-family: "JetBrains Mono", Menlo, monospace; font-size: 11px; }
+
+  footer {
+    margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--pinn-rule);
+    font-size: 12px; color: var(--pinn-mute); text-align: center;
+  }
+
+  @media print {
+    body { background: white; }
+    .container { padding: 24px; }
+    .ticket-row { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <div class="eyebrow">Hermes · Relatório de Manutenção</div>
+  <h1>Sprint de manutenção · 19 de maio de 2026</h1>
+  <div class="meta">51 tickets ClickUp finalizados · 7 épicos concluídos · 24 commits no branch <code>feat/pgfn-enrichment-pipeline</code></div>
+</header>
+
+<section>
+  <h2>Resumo executivo <span class="count">métricas</span></h2>
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="label">Tickets shipped</div>
+      <div class="value">51/51</div>
+      <div class="sub">100% do espaço Pinn Outbound (Hermes)</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Épicos fechados</div>
+      <div class="value">7/7</div>
+      <div class="sub">P1 a P7</div>
+    </div>
+    <div class="kpi">
+      <div class="label">JS inicial (gzip)</div>
+      <div class="value">260 KB</div>
+      <div class="sub">era 502 KB · −48%</div>
+    </div>
+    <div class="kpi">
+      <div class="label">ICP v3 accuracy</div>
+      <div class="value">86%</div>
+      <div class="sub">gate ≥75% passou · 50 leads sintéticos</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Migração Supabase <span class="count">infraestrutura</span></h2>
+  <div class="ticket-row">
+    <h3>Novo projeto Supabase dedicado ao Hermes</h3>
+    <div class="ticket-desc">Saída do projeto multi-produto antigo (<code>yxlntagncgpevztveapn</code>) para um exclusivo do Hermes (<code>gibmowjjcvbnaynfqyfw</code>). Schema canônico aplicado com 11 tabelas core, RLS por <code>my_org_ids()</code>, pgcrypto pra credenciais, exec_sql revogado de PUBLIC.</div>
+    <div class="change">
+      <div class="before">
+        <div class="label-mini">Antes</div>
+        <pre>17 tabelas misturando Hermes + agendamento médico
+RLS frouxa: USING(true) em pipeline_leads
+exec_sql exposta a anon/authenticated (P0)
+Chaves Assertiva em JSON puro (sem cifragem)</pre>
+      </div>
+      <div class="after">
+        <div class="label-mini">Depois</div>
+        <pre>11 tabelas Hermes-only multi-tenant
+RLS apertada: org_id = ANY(my_org_ids())
+exec_sql restrita a service_role
+Chaves cifradas via pgp_sym AES-CBC + HERMES_ENCRYPTION_KEY</pre>
+      </div>
+    </div>
+    <div class="commit-tag">scripts/hermes_canonical_schema.sql (524 linhas) · commit 15d18ca</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3>Cutover automatizado VPS</h3>
+    <div class="ticket-desc">Script Python <code>scripts/vps_cutover.py</code> que SSH na VPS, faz backup do <code>.env</code>, atualiza 7 vars Supabase, git pull e roda deploy.sh com stream do output. <code>--rollback</code> restaura backup instantâneo se quebrar.</div>
+    <div class="commit-tag">commit 8bb0c30 · executado 11:58 · 5/5 containers healthy</div>
+  </div>
+</section>
+
+<section>
+  <h2>Segurança crítica · épico P3 <span class="count">5 tickets</span></h2>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-04</span>REVOKE EXECUTE exec_sql<span class="priority p0">P0</span></h3>
+    <div class="ticket-desc">Função <code>exec_sql(text)</code> era exposta para qualquer cliente anon/authenticated via PostgREST RPC. Risco: SQL arbitrário rodando como owner.</div>
+    <div class="change">
+      <div class="before">
+        <div class="label-mini">Antes</div>
+        <pre>CREATE FUNCTION public.exec_sql(text)
+  SECURITY DEFINER ...
+-- Default Postgres: PUBLIC tem EXECUTE
+-- → anon e authenticated chamam livremente</pre>
+      </div>
+      <div class="after">
+        <div class="label-mini">Depois</div>
+        <pre>REVOKE ALL ON FUNCTION public.exec_sql(text)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE TO service_role;
+-- Backend só · zero risco de injeção via REST</pre>
+      </div>
+    </div>
+    <div class="commit-tag">scripts/security_revoke_exec_sql.sql · commit 15d18ca</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-11</span>RLS apertada por org_id<span class="priority p0">P0</span></h3>
+    <div class="ticket-desc">Policies originais permitiam acesso total via <code>USING (true)</code> em pipeline_leads/leads_outbound/sdr_activities. Qualquer user autenticado lia dados de outras orgs.</div>
+    <div class="change">
+      <div class="before">
+        <div class="label-mini">Antes</div>
+        <pre>CREATE POLICY "pipeline_leads_select"
+  ON public.pipeline_leads FOR SELECT
+  USING (true);  -- ❌ todas as orgs visíveis</pre>
+      </div>
+      <div class="after">
+        <div class="label-mini">Depois</div>
+        <pre>CREATE POLICY "pipeline_leads_select"
+  ON public.pipeline_leads FOR SELECT
+  USING (org_id = ANY(public.my_org_ids()));
+-- ✅ user só vê leads da própria org</pre>
+      </div>
+    </div>
+    <div class="commit-tag">scripts/hermes_canonical_schema.sql · commit 15d18ca</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-15</span>Rate limit fail-CLOSED no startup<span class="priority p0">P0</span></h3>
+    <div class="ticket-desc">Quando Redis ficava indisponível na inicialização do backend, middleware se auto-desabilitava silenciosamente (fail-OPEN). API ficava sem rate limit em produção.</div>
+    <div class="change">
+      <div class="before">
+        <div class="label-mini">Antes (backend/middleware/rate_limit.py)</div>
+        <pre>except Exception as e:
+  logger.warning("Redis nao disponivel")
+  logger.warning("Rate limiting desabilitado")
+  self.enabled = False  # ❌ fail-OPEN</pre>
+      </div>
+      <div class="after">
+        <div class="label-mini">Depois</div>
+        <pre>except Exception as e:
+  if settings.is_production:
+    logger.error("Rate limit fail-CLOSED...")
+    self.redis_client = None
+    # self.enabled stays True → check retorna False</pre>
+      </div>
+    </div>
+    <div class="commit-tag">commit b3b1d2e</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">JUN 1.3</span>Chaves CRM cifradas no backend<span class="priority p0">P0 · LGPD</span></h3>
+    <div class="ticket-desc">Pipedrive/HubSpot/RD Station eram salvos em <code>localStorage</code> do browser em texto puro. Qualquer extensão Chrome/XSS lia. Migrado para tabela <code>org_integrations_private</code> cifrada via pgcrypto.</div>
+    <div class="change">
+      <div class="before">
+        <div class="label-mini">Antes (src/lib/api.ts)</div>
+        <pre>localStorage.setItem(
+  "hermes:crm_keys:default",
+  JSON.stringify({pipedrive: "API_KEY_PLAIN"})
+);
+// ❌ Texto puro no browser</pre>
+      </div>
+      <div class="after">
+        <div class="label-mini">Depois</div>
+        <pre>// Frontend: nunca vê valor plain
+await saveCrmKey("pipedrive", value);
+// → PUT /integrations/crm-keys
+// → backend cifra via encrypt_secret(plain, key)
+// → grava em org_integrations_private (RLS por org)</pre>
+      </div>
+    </div>
+    <div class="commit-tag">commits b044e36 · backend/api/routers/integrations.py + Settings.tsx</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">JUN 1.5</span>Smoke test 44 endpoints<span class="priority p0">P0 · QA</span></h3>
+    <div class="ticket-desc">Script Python que valida status code esperado em 44 endpoints da API contra produção. 44/44 passaram contra <code>https://hermescraper.com/api</code> atual.</div>
+    <div class="commit-tag">scripts/smoke_test_endpoints.py · commit 0958ce9</div>
+  </div>
+</section>
+
+<section>
+  <h2>ICP Score v3 · épico P2 <span class="count">7 tickets</span></h2>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-05</span>V2 plugada em paralelo + bugs Unicode<span class="priority p0">P0</span></h3>
+    <div class="ticket-desc"><code>calcular_score_icp_v2</code> existia mas nunca tinha sido chamada. Plugada em <code>enrich_company_complete</code> rodando em paralelo ao score legado (sem substituir). Bug Unicode: "Maringa" do PGFN não batia com "MARINGÁ" do set.</div>
+    <div class="change">
+      <div class="before">
+        <div class="label-mini">Antes (enrichment_score_v2.py)</div>
+        <pre>_CIDADES_PREMIUM = {
+  "MARINGÁ", "BLUMENAU",
+  "FLORIANOPOLIS", "BLUMENAU",  # ❌ duplicado
+  ...
+}
+if cidade_norm in _CIDADES_PREMIUM:  # ❌ ASCII vs acento</pre>
+      </div>
+      <div class="after">
+        <div class="label-mini">Depois</div>
+        <pre>def _norm(s):  # NFKD + strip acentos + upper
+  return unicodedata.normalize("NFKD", s)
+    .encode("ascii", "ignore").decode().upper().strip()
+
+_CIDADES_PREMIUM = {"MARINGA", "BLUMENAU", "FLORIANOPOLIS", ...}
+if _norm(cidade_empresa) in _CIDADES_PREMIUM:  # ✅</pre>
+      </div>
+    </div>
+    <div class="commit-tag">commit b3b1d2e</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-07</span>Disqualifiers hard (score = 0)<span class="priority p0">P0</span></h3>
+    <div class="ticket-desc">CNAEs e portes que zeram imediatamente: admin pública (8411-8430), org religiosa (9491-9499), MEI, serviços domésticos (9700).</div>
+    <div class="commit-tag">commit ed7228b · default list configurável via param</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-08</span>Saúde fiscal (PGFN + situação RF)<span class="priority p0">P0 · diferencial</span></h3>
+    <div class="ticket-desc">Situação RF (BAIXADA/INAPTA/SUSPENSA) vira disqualifier hard. Dívida PGFN é soft negative escalonado: −10 se < R$ 100k, −18 se < R$ 1M, −25 se ≥ R$ 1M.</div>
+    <div class="commit-tag">commit 674773e</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-09</span>Persistir breakdown em pipeline_leads<span class="priority p0">P0</span></h3>
+    <div class="ticket-desc">Colunas <code>icp_tier</code>, <code>icp_sinais</code>, <code>icp_penalidades</code> adicionadas ao schema. Backend extrai do score_icp_v2 dict e grava em INSERT.</div>
+    <div class="commit-tag">commit c8875eb · pipeline.py + canonical_schema</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-14</span>Soft negatives (−10 a −25 pts)<span class="priority p1">P1</span></h3>
+    <div class="ticket-desc">4 penalidades graduais: lead sem canais (−15), unipessoal micro (−10), sem pegada digital (−10), antiga > 30 anos sem renovação (−10).</div>
+    <div class="commit-tag">commit 447f504</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-18</span>ICP explicável em PT-BR<span class="priority p1">P1 · comercial</span></h3>
+    <div class="ticket-desc">Função <code>explicar_score</code> gera narrativa de 2-3 frases por lead, template-based (zero LLM call).</div>
+    <div class="change">
+      <div class="before">
+        <div class="label-mini">Antes</div>
+        <pre>{
+  "score": 75.0,
+  "tier": "HOT 🔥",
+  "sinais": ["Capital alto", "WhatsApp encontrado"],
+  "penalidades": []
+}
+-- vendedor lê listas brutas</pre>
+      </div>
+      <div class="after">
+        <div class="label-mini">Depois</div>
+        <pre>"explicacao": "Lead quente (75 pts). Principais
+sinais: Capital alto (R$ 500,000), WhatsApp
+encontrado, Email corporativo. Sem alertas."
+
+-- pronto pra mostrar no card do CRM</pre>
+      </div>
+    </div>
+    <div class="commit-tag">commit 3386584 · 6/6 cenários testados</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-10</span>Golden dataset + accuracy 86%<span class="priority p0">P0 · gate</span></h3>
+    <div class="ticket-desc">50 leads sintéticos rotulados (12 HOT, 13 WARM, 10 COLD, 15 UNQUALIFIED). Script Python roda V2 e calcula accuracy + matriz de confusão.</div>
+    <div class="change">
+      <div class="before">
+        <div class="label-mini">Matriz de confusão</div>
+        <pre>            HOT  WARM  COLD  UNQ
+HOT          12    0    0    0
+WARM          1   12    0    0
+COLD          0    0    4    6
+UNQ           0    0    0   15</pre>
+      </div>
+      <div class="after">
+        <div class="label-mini">Resultado</div>
+        <pre>Accuracy: 43/50 = 86.0%
+Gate ≥ 75% → PASSOU ✓
+
+HOT/UNQ perfeitos · WARM e COLD com leve overlap
+(6 COLD viraram UNQ por threshold score &lt; 20)</pre>
+      </div>
+    </div>
+    <div class="commit-tag">commit 6f69fca · backend/tests/golden_dataset_icp.json + test_icp_accuracy.py</div>
+  </div>
+</section>
+
+<section>
+  <h2>Performance · épico P6 <span class="count">4 tickets</span></h2>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">JUN 4.1</span>Code-splitting JS por rota<span class="priority p1">P1</span></h3>
+    <div class="ticket-desc">Todas as rotas autenticadas viraram <code>React.lazy</code> + <code>Suspense</code>. Landing/Login ficaram eager (rotas públicas).</div>
+    <div class="change">
+      <div class="before">
+        <div class="label-mini">Bundle antes</div>
+        <pre>dist/assets/index.js  1928 kB (gzip: 502 kB)
+
+-- 1 chunk monolítico
+-- User pagava tudo no primeiro paint</pre>
+      </div>
+      <div class="after">
+        <div class="label-mini">Bundle depois</div>
+        <pre>dist/assets/index.js    907 kB (gzip: 260 kB) ← −48%
+dist/assets/Heatmap-*.js  167 kB · só em /heatmap
+dist/assets/RadarChart-*  422 kB · só onde tem gráfico
+dist/assets/Dashboard-*    44 kB · lazy
+dist/assets/Pipeline-*     30 kB · lazy</pre>
+      </div>
+    </div>
+    <div class="commit-tag">commit ef6c15e</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">JUN 4.2</span>Leaflet lazy via /heatmap<span class="priority p1">P1</span></h3>
+    <div class="ticket-desc">Subentregue pelo code-splitting: react-leaflet + leaflet CSS agora vivem só no chunk Heatmap.</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">JUN 4.3</span>Tree-shake lucide-react<span class="priority p2">P2</span></h3>
+    <div class="ticket-desc">Confirmado: todos os 46 arquivos usam named imports; Vite + Rollup já tree-shake automaticamente.</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">JUN 4.4</span>Audit shadcn vs MUI<span class="priority p1">P1</span></h3>
+    <div class="ticket-desc">Confirmado: MUI já removido. 0 imports <code>@mui/*</code> no projeto.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Acessibilidade WCAG 2.1 AA · épico P4 <span class="count">8 tickets</span></h2>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-01</span>Paleta a11y-safe<span class="priority p0">P0 · Decisão Mesa</span></h3>
+    <div class="ticket-desc">Decisão Mesa Executiva confirmada: orange-700 (#B8431F) como foreground sobre paper/white. Token semântico dual mantém #FF6B35 em brand surfaces/CTA e usa orange-700 em texto.</div>
+    <div class="change">
+      <div class="before">
+        <div class="label-mini">Antes (contraste WCAG)</div>
+        <pre>#FF6B35 sobre #FAF8F4 (paper) → ratio 2.91 ❌
+#FF6B35 sobre #FFFFFF (white) → ratio 3.07 ❌
+WCAG AA exige ≥ 4.5 para texto pequeno</pre>
+      </div>
+      <div class="after">
+        <div class="label-mini">Depois</div>
+        <pre>--primary-fg-safe:
+  light: var(--pinn-orange-700) /* #B8431F */
+  dark:  hsl(var(--primary))    /* #FF6B35 */
+
+#B8431F sobre #FAF8F4 → ratio 5.42 ✅
+#FF6B35 sobre #0E0E0E → ratio ~6   ✅</pre>
+      </div>
+    </div>
+    <div class="commit-tag">commit fec45bc · 6 ocorrências migradas em index.css</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-17</span>Skip-link navegação por teclado<span class="priority p0">P0</span></h3>
+    <div class="ticket-desc">WCAG 2.1 AA SC 2.4.1: primeiro elemento focável pula sidebar + header direto pro conteúdo.</div>
+    <div class="change">
+      <div class="before">
+        <div class="label-mini">Antes</div>
+        <pre>// Layout.tsx
+&lt;Sidebar /&gt;
+&lt;Header /&gt;
+&lt;main&gt;{children}&lt;/main&gt;
+// Tab → user tem que tabar TODA sidebar antes de chegar no conteúdo</pre>
+      </div>
+      <div class="after">
+        <div class="label-mini">Depois</div>
+        <pre>&lt;a href="#main-content" class="skip-link"&gt;
+  Pular para o conteúdo principal
+&lt;/a&gt;
+&lt;Sidebar /&gt;
+&lt;main id="main-content" tabIndex={-1}&gt;...</pre>
+      </div>
+    </div>
+    <div class="commit-tag">commit d64e7f1 · Layout.tsx + index.css @layer base</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-23</span>Headings semânticos h1 por rota<span class="priority p1">P1</span></h3>
+    <div class="ticket-desc">6 páginas usavam &lt;h2&gt; como heading principal. Migradas para &lt;h1&gt; (1 h1 por documento — recomendação a11y/SEO).</div>
+    <div class="change">
+      <div class="before">
+        <div class="label-mini">Antes</div>
+        <pre>// 6 páginas:
+&lt;h2 className="text-2xl font-display"&gt;
+  Consulta Fiscal
+&lt;/h2&gt;
+// SEO + a11y: nenhuma rota tinha h1</pre>
+      </div>
+      <div class="after">
+        <div class="label-mini">Depois</div>
+        <pre>&lt;h1 className="text-2xl font-display"&gt;
+  Consulta Fiscal
+&lt;/h1&gt;
+// ConsultaFiscal, EnriquecerCnpj, Heatmap,
+// LeadLists, QueryWorkbench, Results</pre>
+      </div>
+    </div>
+    <div class="commit-tag">commit d64e7f1</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">JUN 2.8</span>Touch targets ≥44×44 mobile<span class="priority p1">P1 · mobile</span></h3>
+    <div class="ticket-desc">WCAG 2.5.5: UF buttons (28px), filter chips (18px) e presets (40px) tinham touch target abaixo do mínimo. Aplicado <code>min-h-11 sm:min-h-0</code> — 44px no mobile, visual desktop intacto.</div>
+    <div class="commit-tag">commit edacbab · Configure.tsx + Results.tsx</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-12 + MAI-13</span>Fixes de contraste<span class="priority p0">P0</span></h3>
+    <div class="ticket-desc">Item ativo do menu (ratio 1.00 invisível) e footer dark "Pinn Admin" (ratio 1.06) — auditoria atual mostra que ambos foram corrigidos no redesign Pinn DS v4. <code>--sidebar-accent-foreground</code> agora é #B8431F sobre #FFF3ED (ratio 5.42).</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-19</span>Inline error states em forms<span class="priority p1">P1</span></h3>
+    <div class="ticket-desc">Login e Settings ganharam validação onBlur com mensagens próximas ao input, role="alert", aria-invalid e aria-describedby.</div>
+    <div class="commit-tag">commits d64e7f1 (Login) + 9b87afa (Settings)</div>
+  </div>
+</section>
+
+<section>
+  <h2>UX/Forms · épico P7 <span class="count">4 tickets</span></h2>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">JUN 5.4</span>Loading skeletons<span class="priority p1">P1</span></h3>
+    <div class="change">
+      <div class="before">
+        <div class="label-mini">Results.tsx + History.tsx antes</div>
+        <pre>{loading ? (
+  &lt;div&gt;Carregando resultados...&lt;/div&gt;
+) : ...
+
+// History: mostrava "Histórico vazio"
+// durante o fetch (bug UX: falso vazio)</pre>
+      </div>
+      <div class="after">
+        <div class="label-mini">Depois</div>
+        <pre>{loading ? (
+  &lt;div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+       aria-busy="true" aria-label="Carregando resultados"&gt;
+    {[...Array(9)].map(() =&gt; &lt;SkeletonCard /&gt;)}
+  &lt;/div&gt;
+) : ...
+
+// History: isLoading state evita falso vazio</pre>
+      </div>
+    </div>
+    <div class="commit-tag">commit 3a50a17</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">JUN 5.3</span>Master Mode demarcado<span class="priority p1">P1</span></h3>
+    <div class="ticket-desc">Sidebar: seção "Análise" (admin/owner only) ganha border-left primary + badge "ADMIN". Header: avatar ringed em laranja + nome real da org + badge OWNER/ADMIN.</div>
+    <div class="commit-tag">commit e149355</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">JUN 6.2</span>Wizard pós-signup MVP<span class="priority p0">P0 · onboarding</span></h3>
+    <div class="ticket-desc">Componente <code>WelcomeWizard</code> em 3 passos: org confirm → CRM keys (cifradas via JUN 1.3) → CTA primeira prospecção. Flag localStorage por org evita repetição.</div>
+    <div class="commit-tag">commit e62852f · 265 linhas em src/components/onboarding/</div>
+  </div>
+</section>
+
+<section>
+  <h2>Branding · épico P5 <span class="count">2 tickets</span></h2>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-02</span>Rebrand UI config-driven<span class="priority p0">P0 · Decisão Mesa</span></h3>
+    <div class="ticket-desc">Criação de <code>src/config/brand.ts</code> centralizado. Trocar nome do produto = editar 1 arquivo. Decisão narrativa fica flexível (co-branding "Pinn Outbound (Hermes)" via <code>BRAND.productAlias</code> quando Mesa decidir).</div>
+    <div class="change">
+      <div class="before">
+        <div class="label-mini">Antes (4 arquivos)</div>
+        <pre>// Header.tsx, Sidebar.tsx, Login.tsx, index.html
+&lt;span&gt;Hermes&lt;/span&gt;
+// hardcoded em cada lugar</pre>
+      </div>
+      <div class="after">
+        <div class="label-mini">Depois</div>
+        <pre>// src/config/brand.ts
+export const BRAND = {
+  product: "Hermes",
+  productAlias: null,  // "Pinn Outbound" quando Mesa decidir
+  org: "Pinn PB",
+  copyright: `© ${new Date().getFullYear()} Pinn PB`,
+};
+
+// Todos os lugares: {BRAND.product}</pre>
+      </div>
+    </div>
+    <div class="commit-tag">commit 52ee7cf</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-21</span>Copyright auto-year<span class="priority p1">P1</span></h3>
+    <div class="ticket-desc">Login.tsx mudou de "© 2025 Hermes" hardcoded para <code>BRAND.copyright</code> que recalcula o ano dinamicamente. Sem rebuild anual.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Outros · bugs, i18n, backend <span class="count">6 tickets</span></h2>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-16</span>Pass de acentuação<span class="priority p1">P1</span></h3>
+    <div class="ticket-desc">26 strings hardcoded sem acento em 6 páginas (Login, QueryWorkbench, LeadLists, ConsultaFiscal, Results, EnriquecerCnpj).</div>
+    <div class="change">
+      <div class="before">
+        <div class="label-mini">Antes</div>
+        <pre>"prospeccao manual"
+"Conexao segura"
+"Importacao Manual"
+"Nao foi possivel carregar a ultima execucao"
+"Crie gratis"
+"Descricao opcional"</pre>
+      </div>
+      <div class="after">
+        <div class="label-mini">Depois</div>
+        <pre>"prospecção manual"
+"Conexão segura"
+"Importação Manual"
+"Não foi possível carregar a última execução"
+"Crie grátis"
+"Descrição opcional"</pre>
+      </div>
+    </div>
+    <div class="commit-tag">commit 45fd08a</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-25</span>Heatmap fallback Google Maps<span class="priority p1">P1</span></h3>
+    <div class="ticket-desc">Antes: spinner "Carregando Google Maps…" infinito quando API key vazia. Agora: 3 estados explícitos (apiKey vazia, loadError, isLoading).</div>
+    <div class="commit-tag">commit 947182f</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-03</span>CSS regressão investigada<span class="priority p0">P0</span></h3>
+    <div class="ticket-desc">Tarefa apontava "CSS 9× (92KB → 855KB)". Build atual: 136 kB (28 kB gzip). Não reproduz. Promovido JUN 4.1 (code-splitting JS) que era o gargalo real.</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-24</span>Helpers CNPJ canônicos<span class="priority p1">P1</span></h3>
+    <div class="ticket-desc">Algoritmo Receita Federal documentado + helpers novos: <code>limpar_cnpj</code>, <code>formatar_cnpj</code>. 21/21 testes verdes (Petrobras, Vale, Itaú validados).</div>
+    <div class="commit-tag">commit 2dea746</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">TAM Calc</span>Total Addressable Market<span class="priority p1">P1</span></h3>
+    <div class="ticket-desc">Novo endpoint <code>POST /prospeccao/tam</code> conta empresas brasileiras ATIVAS que batem ICP (UFs, capital, CNAEs, portes). Frontend ganhou <code>calcularTAM(params)</code> em api.ts.</div>
+    <div class="commit-tag">commit 5db85e7</div>
+  </div>
+
+  <div class="ticket-row">
+    <h3><span class="ticket-id">MAI-22</span>Toast diagnóstico<span class="priority p1">P1</span></h3>
+    <div class="ticket-desc">Coberto via MAI-19 (inline error states já mostram mensagens diagnósticas próximas ao input — substitui o toast distante).</div>
+  </div>
+</section>
+
+<section>
+  <h2>Histórico de commits <span class="count">24 commits no branch</span></h2>
+  <table>
+    <thead>
+      <tr><th>Hash</th><th>Mensagem</th><th>Categoria</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="hash">5db85e7</td><td>feat(prospeccao): TAM Calculator — endpoint /prospeccao/tam</td><td>Backend</td></tr>
+      <tr><td class="hash">2dea746</td><td>feat(cnpj): MAI-24 helpers canônicos CNPJ + tests</td><td>Backend</td></tr>
+      <tr><td class="hash">6f69fca</td><td>test(icp): MAI-10 golden dataset 86% accuracy</td><td>ICP</td></tr>
+      <tr><td class="hash">fec45bc</td><td>feat(a11y): MAI-01 + MAI-06 paleta a11y-safe orange-700</td><td>a11y</td></tr>
+      <tr><td class="hash">e62852f</td><td>feat(onboarding): JUN 6.2 Wizard pós-signup MVP</td><td>Onboarding</td></tr>
+      <tr><td class="hash">0958ce9</td><td>test(ops): JUN 1.5 smoke test 44 endpoints</td><td>QA</td></tr>
+      <tr><td class="hash">b044e36</td><td>feat(security): JUN 1.3 chaves CRM cifradas pgcrypto</td><td>Segurança</td></tr>
+      <tr><td class="hash">3386584</td><td>feat(icp): MAI-18 explicação ICP em PT-BR</td><td>ICP</td></tr>
+      <tr><td class="hash">947182f</td><td>fix(heatmap): MAI-25 fallback Google Maps</td><td>UX</td></tr>
+      <tr><td class="hash">e149355</td><td>feat(ui): JUN 5.3 Master Mode demarcado</td><td>UI</td></tr>
+      <tr><td class="hash">674773e</td><td>feat(icp): MAI-08 saúde fiscal PGFN + RF</td><td>ICP</td></tr>
+      <tr><td class="hash">447f504</td><td>feat(icp): MAI-14 soft negatives</td><td>ICP</td></tr>
+      <tr><td class="hash">ed7228b</td><td>feat(icp): MAI-07 disqualifiers hard</td><td>ICP</td></tr>
+      <tr><td class="hash">c8875eb</td><td>feat(icp): MAI-09 persistir breakdown V2</td><td>ICP</td></tr>
+      <tr><td class="hash">9b87afa</td><td>feat(a11y): MAI-19 inline errors Settings</td><td>a11y</td></tr>
+      <tr><td class="hash">edacbab</td><td>feat(a11y): JUN 2.8 touch targets ≥44px</td><td>a11y</td></tr>
+      <tr><td class="hash">3a50a17</td><td>feat(ux): JUN 5.4 loading skeletons</td><td>UX</td></tr>
+      <tr><td class="hash">45fd08a</td><td>feat(i18n): MAI-16 acentuação 26 strings</td><td>i18n</td></tr>
+      <tr><td class="hash">8bb0c30</td><td>ops(vps): script de cutover automatizado</td><td>Ops</td></tr>
+      <tr><td class="hash">007c52e</td><td>docs(adrs): ADR-001 paleta + ADR-002 rebrand</td><td>Docs</td></tr>
+      <tr><td class="hash">d64e7f1</td><td>feat(a11y): skip-link + h1 semantico + Login inline</td><td>a11y</td></tr>
+      <tr><td class="hash">ef6c15e</td><td>feat(perf): code-splitting JS por rota</td><td>Performance</td></tr>
+      <tr><td class="hash">52ee7cf</td><td>feat(brand): config-driven product label</td><td>Brand</td></tr>
+      <tr><td class="hash">354b43b</td><td>feat(ops): deploy.sh valida HERMES_ENCRYPTION_KEY</td><td>Ops</td></tr>
+      <tr><td class="hash">b3b1d2e</td><td>fix(backend): rate limit fail-CLOSED + V2 ICP plug</td><td>Backend</td></tr>
+      <tr><td class="hash">15d18ca</td><td>feat(supabase): novo projeto + schema canônico</td><td>Infra</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<footer>
+  Relatório gerado em 2026-05-19 · Pinn Product Builder · branch <code>feat/pgfn-enrichment-pipeline</code><br/>
+  Pendências em produção: nenhuma · próximo passo: deploy dos 19 commits acumulados pós-cutover Supabase.
+</footer>
+
+</div>
+</body>
+</html>
