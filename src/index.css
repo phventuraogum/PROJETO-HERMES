@@ -347,6 +347,29 @@
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
   }
+
+  /* Skip-link (MAI-17 · a11y WCAG 2.1 AA SC 2.4.1)
+     Invisível até receber foco via Tab; quando focado, salta no topo-esquerda. */
+  .skip-link {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    padding: 10px 16px;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    font-weight: var(--fw-semibold);
+    font-size: var(--fs-body-sm);
+    border-radius: 0 0 var(--r-3) 0;
+    transform: translateY(-110%);
+    transition: transform var(--dur-fast) var(--ease);
+  }
+  .skip-link:focus,
+  .skip-link:focus-visible {
+    transform: translateY(0);
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: -2px;
+  }
 }
 
 /* ============================================================================

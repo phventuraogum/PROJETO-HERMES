@@ -192,7 +192,7 @@ function HeatmapGoogleInner({
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h2 className="text-2xl font-bold tracking-tight">Mapa de Calor – Concentração por Município</h2>
+        <h1 className="text-2xl font-bold tracking-tight">Mapa de Calor – Concentração por Município</h1>
         <p className="text-sm text-muted-foreground">
           Distribuição das empresas da última prospecção no Google Maps; endereços sem coordenadas são geocodificados
           automaticamente.
@@ -316,7 +316,7 @@ function HeatmapLeafletFallback({
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h2 className="text-2xl font-bold tracking-tight">Mapa de Calor – Concentração por Município</h2>
+        <h1 className="text-2xl font-bold tracking-tight">Mapa de Calor – Concentração por Município</h1>
         <p className="text-sm text-muted-foreground">
           {!import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim() ? (
             <>

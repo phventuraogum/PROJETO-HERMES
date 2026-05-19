@@ -2199,7 +2199,7 @@ const ResultsPage = () => {
 
       {/* ── Cabeçalho ─────────────────────────────────────────────────────── */}
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Resultados da Prospecção</h2>
+        <h1 className="text-2xl font-semibold tracking-tight">Resultados da Prospecção</h1>
         {execucao && (
           <p className="mt-1 text-sm text-muted-foreground">
             <span className="font-medium">{execucao.termo || "Sem termo"}</span>

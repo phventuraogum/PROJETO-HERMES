@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/auth/AuthContext";
 import { Toaster } from "sonner";
+import { BRAND } from "@/config/brand";
 
 type LocationState = { from?: { pathname?: string } };
 
@@ -46,7 +47,7 @@ function LeftPanel() {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted ring-1 ring-white/[0.08] group-hover:ring-primary/30 transition-all">
           <Target className="h-4 w-4 text-primary" />
         </div>
-        <span className="text-sm font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">HERMES</span>
+        <span className="text-sm font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{BRAND.product.toUpperCase()}</span>
       </Link>
 
       {/* Headline */}
@@ -130,14 +131,39 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { emailRef.current?.focus(); }, []);
 
+  // MAI-19: validação inline em onBlur (não bloqueia submit; apenas dica visual)
+  const validateEmail = (value: string): string | null => {
+    if (!value.trim()) return "Informe seu email.";
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!re.test(value.trim())) return "Formato de email inválido (ex: nome@empresa.com).";
+    return null;
+  };
+  const validatePassword = (value: string): string | null => {
+    if (!value) return "Informe sua senha.";
+    if (value.length < 6) return "Senha precisa ter ao menos 6 caracteres.";
+    return null;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
+    // Re-valida ambos antes do submit
+    const eErr = validateEmail(email);
+    const pErr = validatePassword(password);
+    setEmailError(eErr);
+    setPasswordError(pErr);
+    if (eErr || pErr) {
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+      return;
+    }
     setError(null);
     setIsLoading(true);
 
@@ -195,7 +221,7 @@ const Login = () => {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/[0.1] ring-1 ring-primary/20">
                 <Target className="h-4 w-4 text-primary" />
               </div>
-              <span className="text-sm font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">HERMES</span>
+              <span className="text-sm font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{BRAND.product.toUpperCase()}</span>
             </Link>
           </div>
 
@@ -230,16 +256,25 @@ const Login = () => {
                   type="email"
                   placeholder="seu@email.com"
                   value={email}
-                  onChange={e => { setEmail(e.target.value); setError(null); }}
+                  onChange={e => { setEmail(e.target.value); setError(null); if (emailError) setEmailError(null); }}
+                  onBlur={() => setEmailError(validateEmail(email))}
+                  aria-invalid={!!emailError}
+                  aria-describedby={emailError ? "email-error" : undefined}
                   className={cn(
                     "pl-11 h-11 bg-muted/40 border-border text-sm transition-all",
                     "focus:border-primary/40 focus:ring-2 focus:ring-primary/10 focus:bg-muted/60",
-                    error && "border-red-500/30"
+                    (error || emailError) && "border-red-500/40"
                   )}
                   required
                   autoComplete="email"
                 />
               </div>
+              {emailError && (
+                <p id="email-error" role="alert" className="text-[11px] text-red-500 mt-1 flex items-center gap-1">
+                  <Shield className="h-3 w-3 shrink-0" />
+                  {emailError}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -254,11 +289,14 @@ const Login = () => {
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
-                  onChange={e => { setPassword(e.target.value); setError(null); }}
+                  onChange={e => { setPassword(e.target.value); setError(null); if (passwordError) setPasswordError(null); }}
+                  onBlur={() => setPasswordError(validatePassword(password))}
+                  aria-invalid={!!passwordError}
+                  aria-describedby={passwordError ? "password-error" : undefined}
                   className={cn(
                     "pl-11 pr-11 h-11 bg-muted/40 border-border text-sm transition-all",
                     "focus:border-primary/40 focus:ring-2 focus:ring-primary/10 focus:bg-muted/60",
-                    error && "border-red-500/30"
+                    (error || passwordError) && "border-red-500/40"
                   )}
                   required
                   autoComplete="current-password"
@@ -272,6 +310,12 @@ const Login = () => {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {passwordError && (
+                <p id="password-error" role="alert" className="text-[11px] text-red-500 mt-1 flex items-center gap-1">
+                  <Shield className="h-3 w-3 shrink-0" />
+                  {passwordError}
+                </p>
+              )}
             </div>
 
             <div className="flex items-center gap-2 select-none">
@@ -315,7 +359,7 @@ const Login = () => {
               <Shield className="h-3 w-3" />
               <span>Conexao segura</span>
             </div>
-            <span>&copy; 2025 Hermes</span>
+            <span>{BRAND.copyright}</span>
           </div>
         </div>
       </div>

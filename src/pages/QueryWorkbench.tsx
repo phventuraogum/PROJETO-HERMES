@@ -333,7 +333,7 @@ const QueryWorkbench = () => {
             <TerminalSquare className="h-5 w-5 text-amber-300" />
           </div>
           <div>
-            <h2 className="text-2xl font-display tracking-tight">Workbench de Query</h2>
+            <h1 className="text-2xl font-display tracking-tight">Workbench de Query</h1>
             <p className="text-sm text-muted-foreground">
               Monte a query do Hermes de forma tecnica, veja o payload exato e rode a prospeccao com progresso em tempo real.
             </p>

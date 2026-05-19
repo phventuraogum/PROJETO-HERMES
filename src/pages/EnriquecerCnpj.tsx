@@ -532,7 +532,7 @@ const EnriquecerCnpj = () => {
             <Search className="h-5 w-5 text-cyan-300" />
           </div>
           <div>
-            <h2 className="text-2xl font-display tracking-tight">Enriquecer por CNPJ</h2>
+            <h1 className="text-2xl font-display tracking-tight">Enriquecer por CNPJ</h1>
             <p className="text-sm text-muted-foreground">
               Consulte uma empresa especifica e rode o enriquecimento completo sem passar pelo fluxo de ICP.
             </p>

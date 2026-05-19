@@ -572,7 +572,7 @@ const LeadLists = () => {
     <div className="space-y-6 p-1">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
-          <h2 className="text-2xl font-display tracking-tight">Listas, buscas e signals</h2>
+          <h1 className="text-2xl font-display tracking-tight">Listas, buscas e signals</h1>
           <p className="text-sm text-muted-foreground">
             Organize listas estaticas, rode buscas salvas, acompanhe empresas e bloqueie contatos improdutivos.
           </p>

@@ -227,7 +227,7 @@ const ConsultaFiscal = () => {
             <Scale className="h-5 w-5 text-amber-300" />
           </div>
           <div>
-            <h2 className="text-2xl font-display tracking-tight">Consulta Fiscal</h2>
+            <h1 className="text-2xl font-display tracking-tight">Consulta Fiscal</h1>
             <p className="text-sm text-muted-foreground">
               Consulta publica/manual por CNPJ para expor o maximo de informacao fiscal disponivel sem autorizacao.
             </p>
