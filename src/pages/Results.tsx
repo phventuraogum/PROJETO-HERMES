@@ -2403,7 +2403,8 @@ const ResultsPage = () => {
             return (
               <button key={chip.id} onClick={() => toggleChip(chip.id)}
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-all",
+                  /* JUN 2.8 · min-h-11 mobile pra cumprir WCAG 2.5.5 (44px touch target) */
+                  "inline-flex items-center gap-1 rounded-full border px-3 sm:px-2.5 py-2 sm:py-0.5 min-h-11 sm:min-h-0 text-[11px] font-medium transition-all",
                   on ? "border-primary/60 bg-primary/15 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-primary/30"
                 )}>
                 <chip.icon className="h-2.5 w-2.5" />

@@ -466,7 +466,8 @@ const Configure = () => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {PRESETS.map(p => (
             <button key={p.label} type="button" onClick={() => applyPreset(p)}
-              className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm font-medium text-foreground/80 transition-all hover:border-primary/60 hover:bg-primary/10 hover:text-primary">
+              /* JUN 2.8 · min-h-11 garante 44px no mobile (desktop já passa com py-2.5) */
+              className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 min-h-11 sm:min-h-0 text-sm font-medium text-foreground/80 transition-all hover:border-primary/60 hover:bg-primary/10 hover:text-primary">
               <p.icon className="w-4 h-4 flex-shrink-0" />
               {p.label}
             </button>
@@ -530,7 +531,8 @@ const Configure = () => {
                   <button key={s} type="button"
                     onClick={() => setUfs(prev => on ? prev.filter(x => x !== s) : [...prev, s])}
                     className={cn(
-                      "h-7 rounded px-2 text-xs font-medium transition-all border",
+                      /* JUN 2.8 · h-9 desktop, min-h-11 (44px) mobile pra cumprir WCAG 2.5.5 */
+                      "h-9 sm:h-7 min-h-11 sm:min-h-0 rounded px-3 sm:px-2 text-xs font-medium transition-all border",
                       on ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/50 text-muted-foreground/70 hover:border-border hover:text-foreground/80"
                     )}>
                     {s}
