@@ -49,6 +49,26 @@ _CNAES_TECH_FRIENDLY = {
     "8219", "8220",                            # Serviços administrativos
 }
 
+# MAI-07 · Disqualifiers HARD — zeram o score (UNQUALIFIED).
+# CNAEs raiz que historicamente não convertem em vendas B2B premium (Pinn beachhead R$50M+).
+_DISQUALIFY_CNAE_PREFIXES_DEFAULT = (
+    # Atividades de pessoa física / autônomos
+    "9700",   # Serviços domésticos
+    "9491", "9492", "9493",  # Atividades de organizações religiosas/políticas/sindicais
+    "9900",   # Organismos internacionais
+    # Administração pública (não compra software B2B comercial)
+    "8411", "8412", "8413",
+    "8421", "8422", "8423", "8424", "8425",
+    "8430",
+    # Atividades sem fins lucrativos / filantrópicas
+    "9499",
+)
+
+# Portes que NUNCA são alvo B2B premium
+_DISQUALIFY_PORTES_DEFAULT = (
+    "MEI",  # Microempreendedor individual — não compra software B2B
+)
+
 
 def calcular_score_icp_v2(
     capital_social: Optional[float] = None,
@@ -70,6 +90,9 @@ def calcular_score_icp_v2(
     n_socios: int = 0,
     tem_instagram: bool = False,
     situacao_ativa: bool = True,
+    # MAI-07 · disqualifiers hard configuráveis por org
+    disqualify_cnae_prefixes: Optional[List[str]] = None,
+    disqualify_portes: Optional[List[str]] = None,
 ) -> Dict:
     """
     Calcula score ICP v2 com breakdown detalhado.
@@ -83,6 +106,31 @@ def calcular_score_icp_v2(
     score = 0.0
     sinais: List[str] = []
     penalidades: List[str] = []
+
+    # ── 0. DISQUALIFIERS HARD (eliminatórios — zeram score) ──────────────
+    # MAI-07: condições que tornam o lead UNQUALIFIED imediatamente.
+    cnae_prefixes = tuple(disqualify_cnae_prefixes) if disqualify_cnae_prefixes is not None else _DISQUALIFY_CNAE_PREFIXES_DEFAULT
+    portes_excluded = tuple(p.upper() for p in (disqualify_portes if disqualify_portes is not None else _DISQUALIFY_PORTES_DEFAULT))
+
+    cnae_str = str(cnae_principal or "")
+    if cnae_str and cnae_prefixes:
+        for prefix in cnae_prefixes:
+            if cnae_str.startswith(prefix):
+                return {
+                    "score": 0.0,
+                    "tier": "UNQUALIFIED",
+                    "sinais": [],
+                    "penalidades": [f"CNAE {cnae_str[:4]} fora do ICP (disqualifier hard)"],
+                }
+
+    porte_upper_check = (porte or "").upper().strip()
+    if porte_upper_check and any(p in porte_upper_check for p in portes_excluded):
+        return {
+            "score": 0.0,
+            "tier": "UNQUALIFIED",
+            "sinais": [],
+            "penalidades": [f"Porte {porte} fora do ICP (disqualifier hard)"],
+        }
 
     # ── 1. SITUAÇÃO CADASTRAL (eliminatório) ─────────────────────────────
     if not situacao_ativa:
