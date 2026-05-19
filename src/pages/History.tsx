@@ -292,6 +292,8 @@ const History = () => {
   const [buscas, setBuscas]         = useState<BuscaSalva[]>([]);
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
+  // JUN 5.4 · estado de loading inicial pra evitar falso "histórico vazio" durante o fetch
+  const [isLoading, setIsLoading] = useState(true);
 
   const reload = async () => {
     setBuscas(await getHistoricoBuscas());
@@ -300,7 +302,10 @@ const History = () => {
   useEffect(() => {
     let cancelled = false;
     void getHistoricoBuscas().then((data) => {
-      if (!cancelled) setBuscas(data);
+      if (!cancelled) {
+        setBuscas(data);
+        setIsLoading(false);
+      }
     });
     return () => {
       cancelled = true;
@@ -330,6 +335,28 @@ const History = () => {
   const buscaA = buscas.find(b => b.id === selecionadas[0]);
   const buscaB = buscas.find(b => b.id === selecionadas[1]);
   const comparing = !!(buscaA && buscaB);
+
+  // JUN 5.4 · skeleton durante o fetch (evita flash de "histórico vazio")
+  if (isLoading) {
+    return (
+      <div className="space-y-5">
+        <div className="space-y-2">
+          <div className="pinn-skeleton h-8 w-72" />
+          <div className="pinn-skeleton h-4 w-96" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" aria-busy="true" aria-label="Carregando histórico">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="surface-card p-4 space-y-2.5">
+              <div className="pinn-skeleton h-4 w-3/4" />
+              <div className="pinn-skeleton h-3 w-1/2" />
+              <div className="pinn-skeleton h-3 w-2/3" />
+              <div className="pinn-skeleton h-7 w-full rounded mt-2" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (buscas.length === 0) {
     return (

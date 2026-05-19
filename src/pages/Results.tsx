@@ -2430,8 +2430,26 @@ const ResultsPage = () => {
 
       {/* ── Conteúdo ──────────────────────────────────────────────────────── */}
       {loading ? (
-        <div className="py-16 text-center text-sm text-muted-foreground">
-          Carregando resultados...
+        /* JUN 5.4 · skeleton cards no mesmo grid dos cards reais */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" aria-busy="true" aria-label="Carregando resultados">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <div key={i} className="surface-card p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 space-y-2">
+                  <div className="pinn-skeleton h-4 w-3/4" />
+                  <div className="pinn-skeleton h-3 w-1/2" />
+                </div>
+                <div className="pinn-skeleton h-6 w-12 rounded" />
+              </div>
+              <div className="pinn-skeleton h-3 w-full" />
+              <div className="pinn-skeleton h-3 w-5/6" />
+              <div className="flex gap-2 pt-1">
+                <div className="pinn-skeleton h-7 w-20 rounded" />
+                <div className="pinn-skeleton h-7 w-7 rounded" />
+                <div className="pinn-skeleton h-7 w-7 rounded" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : filtered.length === 0 ? (
         <div className="py-16 text-center space-y-2">
