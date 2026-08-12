@@ -31,6 +31,17 @@ import CardContent from "@mui/material/CardContent";
 import TextField from "@mui/material/TextField";
 import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
+import { alpha, useTheme } from "@mui/material/styles";
+import type { Theme } from "@mui/material/styles";
+
+import {
+  dashedEmptyState,
+  dashedPlaceholderCardSx,
+  semanticAccent,
+  semanticAccentHex,
+  softInsetBox,
+  type SemanticTone,
+} from "@/theme/themeSx";
 
 import {
   addToPipeline,
@@ -90,19 +101,24 @@ function formatPercent(value?: number | null): string {
   return `${Math.round(pct)}%`;
 }
 
-function statusColor(status?: string | null): { color: string; bgcolor: string; borderColor: string } {
+function statusChipSx(theme: Theme, status?: string | null) {
   switch (status) {
     case "verified":
-      return { color: "#6ee7b7", bgcolor: "rgba(16,185,129,0.1)", borderColor: "rgba(16,185,129,0.3)" };
+      return semanticAccent(theme, "success");
     case "deliverable":
     case "mx_only":
-      return { color: "#7dd3fc", bgcolor: "rgba(14,165,233,0.1)", borderColor: "rgba(14,165,233,0.3)" };
+      return semanticAccent(theme, "info");
     case "risky":
-      return { color: "#fcd34d", bgcolor: "rgba(245,158,11,0.1)", borderColor: "rgba(245,158,11,0.3)" };
+      return semanticAccent(theme, "warning");
     case "invalid":
-      return { color: "#fca5a5", bgcolor: "rgba(239,68,68,0.1)", borderColor: "rgba(239,68,68,0.3)" };
+      return semanticAccent(theme, "error");
     default:
-      return { color: "text.primary", bgcolor: "action.hover", borderColor: "divider" };
+      return {
+        color: theme.palette.text.secondary,
+        bgcolor: theme.palette.action.hover,
+        border: `1px solid ${theme.palette.divider}`,
+        borderRadius: "8px",
+      };
   }
 }
 
@@ -110,18 +126,23 @@ function formatPattern(pattern?: string | null): string {
   return pattern ? pattern.replaceAll("_", " / ").replaceAll(".", " . ") : "Nao inferido";
 }
 
-function signalColors(signalType?: string | null): { color: string; bgcolor: string; borderColor: string } {
+function signalChipSx(theme: Theme, signalType?: string | null) {
   switch (signalType) {
     case "jobs_signal":
-      return { color: "#7dd3fc", bgcolor: "rgba(14,165,233,0.1)", borderColor: "rgba(14,165,233,0.3)" };
+      return semanticAccent(theme, "info");
     case "funding_signal":
-      return { color: "#6ee7b7", bgcolor: "rgba(16,185,129,0.1)", borderColor: "rgba(16,185,129,0.3)" };
+      return semanticAccent(theme, "success");
     case "growth_signal":
-      return { color: "#fcd34d", bgcolor: "rgba(245,158,11,0.1)", borderColor: "rgba(245,158,11,0.3)" };
+      return semanticAccent(theme, "warning");
     case "news_signal":
-      return { color: "#c4b5fd", bgcolor: "rgba(139,92,246,0.1)", borderColor: "rgba(139,92,246,0.3)" };
+      return semanticAccentHex("#9333EA");
     default:
-      return { color: "text.primary", bgcolor: "action.hover", borderColor: "divider" };
+      return {
+        color: theme.palette.text.secondary,
+        bgcolor: theme.palette.action.hover,
+        border: `1px solid ${theme.palette.divider}`,
+        borderRadius: "8px",
+      };
   }
 }
 
@@ -161,39 +182,19 @@ function phoneTypeLabel(value?: string | null): string {
   }
 }
 
-const scoreCards = (empresa: Empresa) => [
-  {
-    label: "Confiabilidade",
-    value: empresa.confiabilidade?.score_total,
-    color: "#7dd3fc",
-    bgcolor: "rgba(14,165,233,0.1)",
-    borderColor: "rgba(14,165,233,0.3)",
-  },
-  {
-    label: "Qualidade",
-    value: empresa.qualidade?.score_total,
-    color: "#6ee7b7",
-    bgcolor: "rgba(16,185,129,0.1)",
-    borderColor: "rgba(16,185,129,0.3)",
-  },
-  {
-    label: "Priorizacao",
-    value: empresa.priorizacao?.score_total,
-    color: "#fcd34d",
-    bgcolor: "rgba(245,158,11,0.1)",
-    borderColor: "rgba(245,158,11,0.3)",
-  },
-];
-
-const STAT_BOX_SX = {
-  borderRadius: "12px",
-  border: "1px solid rgba(255,255,255,0.07)",
-  bgcolor: "rgba(255,255,255,0.03)",
-  p: 1.5,
-};
+function scoreCardRows(theme: Theme, empresa: Empresa) {
+  const tones: SemanticTone[] = ["info", "success", "warning"];
+  const rows = [
+    { label: "Confiabilidade", value: empresa.confiabilidade?.score_total },
+    { label: "Qualidade", value: empresa.qualidade?.score_total },
+    { label: "Priorizacao", value: empresa.priorizacao?.score_total },
+  ];
+  return rows.map((row, i) => ({ ...row, accent: semanticAccent(theme, tones[i]) }));
+}
 
 const EnriquecerCnpj = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
   const [searchParams] = useSearchParams();
   const [cnpjInput, setCnpjInput] = useState("");
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
@@ -526,19 +527,19 @@ const EnriquecerCnpj = () => {
       {/* Page Header */}
       <Stack direction="row" alignItems="center" spacing={2}>
         <Box
-          sx={{
+          sx={(t) => ({
             width: 44,
             height: 44,
             borderRadius: "16px",
-            border: "1px solid rgba(14,165,233,0.3)",
-            bgcolor: "rgba(14,165,233,0.1)",
+            border: `1px solid ${alpha(t.palette.info.main, 0.35)}`,
+            bgcolor: alpha(t.palette.info.main, 0.1),
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
-          }}
+          })}
         >
-          <SearchIcon sx={{ fontSize: 20, color: "#7dd3fc" }} />
+          <SearchIcon sx={{ fontSize: 20, color: "info.main" }} />
         </Box>
         <Box>
           <Typography variant="h5" fontWeight={700} letterSpacing="-0.02em">
@@ -555,7 +556,7 @@ const EnriquecerCnpj = () => {
         <CardContent sx={{ p: 3 }}>
           <Stack spacing={0.5} mb={2.5}>
             <Stack direction="row" alignItems="center" spacing={1}>
-              <SparklesIcon sx={{ fontSize: 16, color: "#7dd3fc" }} />
+              <SparklesIcon sx={{ fontSize: 16, color: "info.main" }} />
               <Typography variant="subtitle1" fontWeight={600}>Fluxo Manual</Typography>
             </Stack>
             <Typography variant="body2" color="text.secondary">
@@ -592,12 +593,12 @@ const EnriquecerCnpj = () => {
               disabled={isFetching || isEnriching}
               startIcon={isEnriching ? <CircularProgress size={16} color="inherit" /> : <SparklesIcon />}
               sx={{
-                bgcolor: "#0ea5e9",
-                color: "grey.900",
+                bgcolor: "primary.main",
+                color: "primary.contrastText",
                 fontWeight: 600,
                 whiteSpace: "nowrap",
                 minWidth: 160,
-                "&:hover": { bgcolor: "#38bdf8" },
+                "&:hover": { bgcolor: "primary.dark" },
               }}
             >
               Enriquecer agora
@@ -611,7 +612,7 @@ const EnriquecerCnpj = () => {
                 label={label}
                 variant="outlined"
                 size="small"
-                sx={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(240,240,240,0.8)", borderRadius: "8px" }}
+                sx={{ borderColor: "divider", color: "text.secondary", borderRadius: "8px" }}
               />
             ))}
           </Stack>
@@ -635,13 +636,13 @@ const EnriquecerCnpj = () => {
                     <Chip
                       label={`${empresa.uf || "UF"} · ${empresa.cidade || "Cidade"}`}
                       size="small"
-                      sx={{ bgcolor: "rgba(16,185,129,0.1)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px" }}
+                      sx={semanticAccent(theme, "success")}
                     />
                     {temEnriquecimento && (
                       <Chip
                         label="Dados enriquecidos"
                         size="small"
-                        sx={{ bgcolor: "rgba(14,165,233,0.1)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "8px" }}
+                        sx={semanticAccent(theme, "info")}
                       />
                     )}
                   </Stack>
@@ -658,8 +659,8 @@ const EnriquecerCnpj = () => {
                         : "Em tempo real",
                     },
                   ].map((item) => (
-                    <Box key={item.label} sx={STAT_BOX_SX}>
-                      <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(240,240,240,0.4)", display: "block" }}>
+                    <Box key={item.label} sx={(t) => softInsetBox(t)}>
+                      <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "text.secondary", display: "block" }}>
                         {item.label}
                       </Typography>
                       <Typography variant="body2" fontWeight={500} mt={1}>{item.value}</Typography>
@@ -672,7 +673,7 @@ const EnriquecerCnpj = () => {
             <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
               <CardContent sx={{ p: 3 }}>
                 <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
-                  <TargetIcon sx={{ fontSize: 16, color: "#fcd34d" }} />
+                  <TargetIcon sx={{ fontSize: 16, color: "warning.main" }} />
                   <Typography variant="subtitle1" fontWeight={600}>Acoes</Typography>
                 </Stack>
                 <Typography variant="body2" color="text.secondary" mb={2}>
@@ -710,10 +711,8 @@ const EnriquecerCnpj = () => {
                     endIcon={<Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.5 }}>refresh</Typography>}
                     sx={{
                       justifyContent: "space-between",
-                      borderColor: "rgba(14,165,233,0.3)",
-                      bgcolor: "rgba(14,165,233,0.1)",
-                      color: "#bae6fd",
-                      "&:hover": { bgcolor: "rgba(14,165,233,0.15)" },
+                      ...semanticAccent(theme, "info"),
+                      "&:hover": { bgcolor: alpha(theme.palette.info.main, 0.18) },
                     }}
                   >
                     Rodar enriquecimento novamente
@@ -727,10 +726,8 @@ const EnriquecerCnpj = () => {
                     endIcon={<Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.5 }}>hunter core</Typography>}
                     sx={{
                       justifyContent: "space-between",
-                      borderColor: "rgba(139,92,246,0.3)",
-                      bgcolor: "rgba(139,92,246,0.1)",
-                      color: "#ddd6fe",
-                      "&:hover": { bgcolor: "rgba(139,92,246,0.15)" },
+                      ...semanticAccentHex("#9333EA"),
+                      "&:hover": { bgcolor: alpha("#9333EA", 0.18) },
                     }}
                   >
                     Resolver contatos e emails
@@ -747,13 +744,13 @@ const EnriquecerCnpj = () => {
                 label: "Site",
                 value: empresa.site || "Nao encontrado",
                 Icon: GlobeIcon,
-                color: empresa.site ? "#7dd3fc" : "text.disabled",
+                color: empresa.site ? "info.main" : "text.disabled",
               },
               {
                 label: "Email final",
                 value: empresa.email_final || empresa.email || "Nao encontrado",
                 Icon: MailIcon,
-                color: empresa.email_final || empresa.email ? "#7dd3fc" : "text.disabled",
+                color: empresa.email_final || empresa.email ? "info.main" : "text.disabled",
               },
               {
                 label: "Telefone final",
@@ -765,7 +762,7 @@ const EnriquecerCnpj = () => {
                 label: "WhatsApp final",
                 value: empresa.whatsapp_final || empresa.whatsapp_publico || "Nao encontrado",
                 Icon: Building2Icon,
-                color: empresa.whatsapp_final || empresa.whatsapp_publico ? "#6ee7b7" : "text.disabled",
+                color: empresa.whatsapp_final || empresa.whatsapp_publico ? "success.main" : "text.disabled",
               },
             ].map((item) => (
               <Card key={item.label} sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
@@ -783,7 +780,7 @@ const EnriquecerCnpj = () => {
                     <item.Icon sx={{ fontSize: 16, color: item.color }} />
                   </Box>
                   <Box minWidth={0}>
-                    <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(240,240,240,0.4)", display: "block" }}>
+                    <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "text.secondary", display: "block" }}>
                       {item.label}
                     </Typography>
                     <Typography variant="body2" fontWeight={500} mt={1} sx={{ wordBreak: "break-all", color: item.color }}>
@@ -800,7 +797,7 @@ const EnriquecerCnpj = () => {
             <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
               <CardContent sx={{ p: 3 }}>
                 <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
-                  <BrainIcon sx={{ fontSize: 16, color: "#c4b5fd" }} />
+                  <BrainIcon sx={{ fontSize: 16, color: "primary.main" }} />
                   <Typography variant="subtitle1" fontWeight={600}>Leitura Rapida</Typography>
                 </Stack>
                 <Typography variant="body2" color="text.secondary" mb={2}>
@@ -808,20 +805,20 @@ const EnriquecerCnpj = () => {
                 </Typography>
                 <Stack direction="row" flexWrap="wrap" gap={1} mb={2}>
                   {empresa.email_enriquecido && (
-                    <Chip label="Email enriquecido" size="small" sx={{ bgcolor: "rgba(14,165,233,0.1)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "8px" }} />
+                    <Chip label="Email enriquecido" size="small" sx={semanticAccent(theme, "info")} />
                   )}
                   {empresa.whatsapp_enriquecido && (
-                    <Chip label="WhatsApp enriquecido" size="small" sx={{ bgcolor: "rgba(16,185,129,0.1)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px" }} />
+                    <Chip label="WhatsApp enriquecido" size="small" sx={semanticAccent(theme, "success")} />
                   )}
                   {empresa.site && (
-                    <Chip label="Site encontrado" size="small" sx={{ bgcolor: "rgba(14,165,233,0.1)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "8px" }} />
+                    <Chip label="Site encontrado" size="small" sx={semanticAccent(theme, "info")} />
                   )}
                   {empresa.resumo_ia_empresa && (
-                    <Chip label="IA ativa" size="small" sx={{ bgcolor: "rgba(139,92,246,0.1)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.3)", borderRadius: "8px" }} />
+                    <Chip label="IA ativa" size="small" sx={semanticAccentHex("#9333EA")} />
                   )}
                 </Stack>
-                <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", mb: 2 }} />
-                <Typography variant="body2" sx={{ lineHeight: 1.75, color: "rgba(240,240,240,0.8)" }}>
+                <Divider sx={{ borderColor: "divider", mb: 2 }} />
+                <Typography variant="body2" sx={{ lineHeight: 1.75, color: "text.primary" }}>
                   {empresa.resumo_ia_empresa ||
                     "Sem resumo de IA ainda. Rode o enriquecimento para puxar o maximo de contexto comercial disponivel para esse CNPJ."}
                 </Typography>
@@ -835,21 +832,20 @@ const EnriquecerCnpj = () => {
                   Indicadores que ajudam a decidir se esse lead merece follow-up imediato.
                 </Typography>
                 <Stack spacing={1.5}>
-                  {scoreCards(empresa).map((item) => (
+                  {scoreCardRows(theme, empresa).map((item) => (
                     <Box
                       key={item.label}
                       sx={{
+                        ...item.accent,
                         borderRadius: "12px",
-                        border: `1px solid ${item.borderColor}`,
-                        bgcolor: item.bgcolor,
                         p: 1.5,
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center",
                       }}
                     >
-                      <Typography variant="body2" fontWeight={500} sx={{ color: item.color }}>{item.label}</Typography>
-                      <Typography variant="body2" fontWeight={700} sx={{ color: item.color }}>{formatScore(item.value)}</Typography>
+                      <Typography variant="body2" fontWeight={500} sx={{ color: item.accent.color }}>{item.label}</Typography>
+                      <Typography variant="body2" fontWeight={700} sx={{ color: item.accent.color }}>{formatScore(item.value)}</Typography>
                     </Box>
                   ))}
                 </Stack>
@@ -864,7 +860,7 @@ const EnriquecerCnpj = () => {
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2} mb={2}>
                   <Box>
                     <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
-                      <FactoryIcon sx={{ fontSize: 16, color: "#fcd34d" }} />
+                      <FactoryIcon sx={{ fontSize: 16, color: "warning.main" }} />
                       <Typography variant="subtitle1" fontWeight={600}>Empresas parecidas</Typography>
                     </Stack>
                     <Typography variant="body2" color="text.secondary">
@@ -884,16 +880,16 @@ const EnriquecerCnpj = () => {
                 </Stack>
                 <Stack spacing={1.5}>
                   {isLoadingSimilar && similarCompanies.length === 0 ? (
-                    <Box sx={{ ...STAT_BOX_SX, p: 2 }}>
+                    <Box sx={(t) => softInsetBox(t, 2)}>
                       <Typography variant="body2" color="text.secondary">Carregando empresas parecidas...</Typography>
                     </Box>
                   ) : similarCompanies.length === 0 ? (
-                    <Box sx={{ borderRadius: "12px", border: "1px dashed rgba(255,255,255,0.14)", bgcolor: "rgba(255,255,255,0.02)", p: 2 }}>
+                    <Box sx={(t) => dashedEmptyState(t)}>
                       <Typography variant="body2" color="text.secondary">Nenhuma empresa parecida encontrada para este recorte ainda.</Typography>
                     </Box>
                   ) : (
                     similarCompanies.map((item) => (
-                      <Box key={item.cnpj} sx={{ ...STAT_BOX_SX, p: 2 }}>
+                      <Box key={item.cnpj} sx={(t) => softInsetBox(t, 2)}>
                         <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" alignItems={{ lg: "flex-start" }} gap={2}>
                           <Box>
                             <Typography variant="body2" fontWeight={600}>{item.razao_social}</Typography>
@@ -901,10 +897,10 @@ const EnriquecerCnpj = () => {
                               {formatCnpj(item.cnpj)} · {[item.cidade, item.uf].filter(Boolean).join(" / ") || "Localizacao nao informada"}
                             </Typography>
                             <Stack direction="row" flexWrap="wrap" gap={0.75} mt={1}>
-                              <Chip label={`Similaridade ${formatPercent(item.similarity_score)}`} size="small" sx={{ bgcolor: "rgba(245,158,11,0.1)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px" }} />
-                              {item.site && <Chip label="Site" size="small" sx={{ bgcolor: "rgba(14,165,233,0.1)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "8px" }} />}
-                              {item.whatsapp && <Chip label="WhatsApp" size="small" sx={{ bgcolor: "rgba(16,185,129,0.1)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px" }} />}
-                              {item.email_receita && <Chip label="Email" size="small" sx={{ bgcolor: "rgba(14,165,233,0.1)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "8px" }} />}
+                              <Chip label={`Similaridade ${formatPercent(item.similarity_score)}`} size="small" sx={semanticAccent(theme, "warning")} />
+                              {item.site && <Chip label="Site" size="small" sx={semanticAccent(theme, "info")} />}
+                              {item.whatsapp && <Chip label="WhatsApp" size="small" sx={semanticAccent(theme, "success")} />}
+                              {item.email_receita && <Chip label="Email" size="small" sx={semanticAccent(theme, "info")} />}
                             </Stack>
                           </Box>
                           <Button
@@ -930,7 +926,7 @@ const EnriquecerCnpj = () => {
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2} mb={2}>
                   <Box>
                     <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
-                      <NewspaperIcon sx={{ fontSize: 16, color: "#c4b5fd" }} />
+                      <NewspaperIcon sx={{ fontSize: 16, color: "info.main" }} />
                       <Typography variant="subtitle1" fontWeight={600}>Sinais externos</Typography>
                     </Stack>
                     <Typography variant="body2" color="text.secondary">
@@ -950,18 +946,18 @@ const EnriquecerCnpj = () => {
                 </Stack>
                 <Stack spacing={1.5}>
                   {isLoadingSignals && externalSignals.length === 0 ? (
-                    <Box sx={{ ...STAT_BOX_SX, p: 2 }}>
+                    <Box sx={(t) => softInsetBox(t, 2)}>
                       <Typography variant="body2" color="text.secondary">Capturando sinais externos...</Typography>
                     </Box>
                   ) : externalSignals.length === 0 ? (
-                    <Box sx={{ borderRadius: "12px", border: "1px dashed rgba(255,255,255,0.14)", bgcolor: "rgba(255,255,255,0.02)", p: 2 }}>
+                    <Box sx={(t) => dashedEmptyState(t)}>
                       <Typography variant="body2" color="text.secondary">Nenhum sinal externo relevante apareceu para este CNPJ ate agora.</Typography>
                     </Box>
                   ) : (
                     externalSignals.slice(0, 8).map((signal, index) => {
-                      const sc = signalColors(signal.signal_type);
+                      const sc = signalChipSx(theme, signal.signal_type);
                       return (
-                        <Box key={`${signal.signal_type}-${signal.title}-${index}`} sx={{ ...STAT_BOX_SX, p: 2 }}>
+                        <Box key={`${signal.signal_type}-${signal.title}-${index}`} sx={(t) => softInsetBox(t, 2)}>
                           <Stack spacing={1}>
                             <Chip
                               icon={
@@ -972,7 +968,7 @@ const EnriquecerCnpj = () => {
                               }
                               label={signalLabel(signal.signal_type)}
                               size="small"
-                              sx={{ bgcolor: sc.bgcolor, color: sc.color, border: `1px solid ${sc.borderColor}`, borderRadius: "8px", alignSelf: "flex-start" }}
+                              sx={{ ...sc, alignSelf: "flex-start" }}
                             />
                             <Typography variant="body2" fontWeight={500}>{signal.title}</Typography>
                             {signalSnippet(signal) && (
@@ -999,7 +995,15 @@ const EnriquecerCnpj = () => {
                                 href={signalUrl(signal) ?? undefined}
                                 target="_blank"
                                 rel="noreferrer"
-                                sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, color: "#7dd3fc", textDecoration: "none", fontSize: 14, "&:hover": { color: "#bae6fd" } }}
+                                sx={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 0.5,
+                                  color: "info.main",
+                                  textDecoration: "none",
+                                  fontSize: 14,
+                                  "&:hover": { color: "info.light" },
+                                }}
                               >
                                 <Link2Icon sx={{ fontSize: 16 }} />
                                 Abrir fonte
@@ -1021,7 +1025,7 @@ const EnriquecerCnpj = () => {
               <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
                 <CardContent sx={{ p: 3 }}>
                   <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
-                    <ShieldCheckIcon sx={{ fontSize: 16, color: "#c4b5fd" }} />
+                    <ShieldCheckIcon sx={{ fontSize: 16, color: "success.main" }} />
                     <Typography variant="subtitle1" fontWeight={600}>Contact Intelligence</Typography>
                   </Stack>
                   <Typography variant="body2" color="text.secondary" mb={2}>
@@ -1046,8 +1050,8 @@ const EnriquecerCnpj = () => {
                         sub: `${contactIntel.summary.guessed ?? 0} guessed / ${contactIntel.summary.sourced ?? 0} sourced`,
                       },
                     ].map((item) => (
-                      <Box key={item.label} sx={STAT_BOX_SX}>
-                        <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(240,240,240,0.4)", display: "block" }}>
+                      <Box key={item.label} sx={(t) => softInsetBox(t)}>
+                        <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "text.secondary", display: "block" }}>
                           {item.label}
                         </Typography>
                         <Typography variant="body2" fontWeight={500} mt={1} sx={{ wordBreak: "break-all" }}>{item.value}</Typography>
@@ -1063,7 +1067,7 @@ const EnriquecerCnpj = () => {
                         label={`${profile.type}: ${profile.url.replace(/^https?:\/\//, "")}`}
                         size="small"
                         variant="outlined"
-                        sx={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(240,240,240,0.8)", borderRadius: "8px" }}
+                        sx={{ borderColor: "divider", color: "text.secondary", borderRadius: "8px" }}
                       />
                     ))}
                     {(contactIntel.domain_profile.public_emails ?? []).slice(0, 4).map((item) => (
@@ -1071,14 +1075,14 @@ const EnriquecerCnpj = () => {
                         key={item.email}
                         label={item.email}
                         size="small"
-                        sx={{ bgcolor: "rgba(14,165,233,0.1)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "8px" }}
+                        sx={semanticAccent(theme, "info")}
                       />
                     ))}
                   </Stack>
                   {(contactIntel.domain_profile.generic_inboxes ?? []).length > 0 && (
                     <>
-                      <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", mb: 2 }} />
-                      <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(240,240,240,0.4)", display: "block", mb: 1 }}>
+                      <Divider sx={{ borderColor: "divider", mb: 2 }} />
+                      <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "text.secondary", display: "block", mb: 1 }}>
                         Caixas gerais encontradas
                       </Typography>
                       <Stack direction="row" flexWrap="wrap" gap={1}>
@@ -1087,7 +1091,7 @@ const EnriquecerCnpj = () => {
                             key={item.email}
                             label={item.email}
                             size="small"
-                            sx={{ bgcolor: "rgba(16,185,129,0.1)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px" }}
+                            sx={semanticAccent(theme, "success")}
                           />
                         ))}
                       </Stack>
@@ -1099,7 +1103,7 @@ const EnriquecerCnpj = () => {
               <Card sx={{ border: "1px solid", borderColor: "divider", bgcolor: "background.paper", borderRadius: "12px" }}>
                 <CardContent sx={{ p: 3 }}>
                   <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
-                    <UsersIcon sx={{ fontSize: 16, color: "#7dd3fc" }} />
+                    <UsersIcon sx={{ fontSize: 16, color: "info.main" }} />
                     <Typography variant="subtitle1" fontWeight={600}>Decisores Resolvidos</Typography>
                   </Stack>
                   <Typography variant="body2" color="text.secondary" mb={2}>
@@ -1107,7 +1111,7 @@ const EnriquecerCnpj = () => {
                   </Typography>
                   <Stack spacing={1.5}>
                     {(contactIntel.contacts ?? []).length === 0 ? (
-                      <Box sx={{ borderRadius: "12px", border: "1px dashed rgba(255,255,255,0.14)", bgcolor: "rgba(255,255,255,0.02)", p: 2 }}>
+                      <Box sx={(t) => dashedEmptyState(t)}>
                         <Typography variant="body2" color="text.secondary">
                           Nenhum decisor foi resolvido ainda. Rode novamente apos enriquecer o site da empresa.
                         </Typography>
@@ -1115,9 +1119,9 @@ const EnriquecerCnpj = () => {
                     ) : (
                       (contactIntel.contacts ?? []).slice(0, 6).map((contact) => {
                         const primary = contact.emails.find((item) => item.is_primary) || contact.emails[0];
-                        const sc = statusColor(primary?.verification_status);
+                        const sc = statusChipSx(theme, primary?.verification_status);
                         return (
-                          <Box key={contact.name} sx={{ ...STAT_BOX_SX, p: 2 }}>
+                          <Box key={contact.name} sx={(t) => softInsetBox(t, 2)}>
                             <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1} mb={primary ? 1.5 : 0}>
                               <Box>
                                 <Typography variant="body2" fontWeight={600}>{contact.name}</Typography>
@@ -1129,14 +1133,14 @@ const EnriquecerCnpj = () => {
                                 <Chip
                                   label={primary.verification_status}
                                   size="small"
-                                  sx={{ bgcolor: sc.bgcolor, color: sc.color, border: `1px solid ${sc.borderColor}`, borderRadius: "8px", textTransform: "capitalize" }}
+                                  sx={{ ...sc, textTransform: "capitalize" }}
                                 />
                               )}
                             </Stack>
                             {primary ? (
                               <Stack spacing={0.75}>
                                 <Stack direction="row" alignItems="center" spacing={1}>
-                                  <MailIcon sx={{ fontSize: 16, color: "#7dd3fc" }} />
+                                  <MailIcon sx={{ fontSize: 16, color: "info.main" }} />
                                   <Typography variant="body2" fontWeight={500} sx={{ wordBreak: "break-all" }}>{primary.email}</Typography>
                                 </Stack>
                                 <Stack direction="row" flexWrap="wrap" gap={0.5} alignItems="center">
@@ -1156,7 +1160,15 @@ const EnriquecerCnpj = () => {
                                     href={contact.linkedin}
                                     target="_blank"
                                     rel="noreferrer"
-                                    sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, color: "#7dd3fc", textDecoration: "none", fontSize: 12, "&:hover": { color: "#bae6fd" } }}
+                                    sx={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 0.5,
+                                      color: "info.main",
+                                      textDecoration: "none",
+                                      fontSize: 12,
+                                      "&:hover": { color: "info.light" },
+                                    }}
                                   >
                                     <Link2Icon sx={{ fontSize: 14 }} />
                                     Abrir perfil
@@ -1170,7 +1182,7 @@ const EnriquecerCnpj = () => {
                                         label={email.email}
                                         size="small"
                                         variant="outlined"
-                                        sx={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(240,240,240,0.8)", borderRadius: "8px" }}
+                                        sx={{ borderColor: "divider", color: "text.secondary", borderRadius: "8px" }}
                                       />
                                     ))}
                                   </Stack>
@@ -1188,7 +1200,7 @@ const EnriquecerCnpj = () => {
               </Card>
             </Box>
           ) : (
-            <Card sx={{ border: "1px dashed rgba(255,255,255,0.14)", bgcolor: "rgba(24,24,24,0.4)", borderRadius: "12px" }}>
+            <Card sx={(t) => dashedPlaceholderCardSx(t)}>
               <CardContent sx={{ p: 3 }}>
                 <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" alignItems={{ lg: "center" }} gap={2}>
                   <Box>
@@ -1203,11 +1215,9 @@ const EnriquecerCnpj = () => {
                     disabled={isResolvingContacts}
                     startIcon={isResolvingContacts ? <CircularProgress size={16} color="inherit" /> : <ShieldCheckIcon />}
                     sx={{
-                      borderColor: "rgba(139,92,246,0.3)",
-                      bgcolor: "rgba(139,92,246,0.1)",
-                      color: "#ddd6fe",
                       whiteSpace: "nowrap",
-                      "&:hover": { bgcolor: "rgba(139,92,246,0.15)" },
+                      ...semanticAccentHex("#9333EA"),
+                      "&:hover": { bgcolor: alpha("#9333EA", 0.18) },
                     }}
                   >
                     Resolver Contact Intelligence
@@ -1224,7 +1234,7 @@ const EnriquecerCnpj = () => {
                 <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" alignItems={{ lg: "center" }} gap={2} mb={2}>
                   <Box>
                     <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
-                      <PhoneIcon sx={{ fontSize: 16, color: "#6ee7b7" }} />
+                      <PhoneIcon sx={{ fontSize: 16, color: "success.main" }} />
                       <Typography variant="subtitle1" fontWeight={600}>Mobile Waterfall</Typography>
                     </Stack>
                     <Typography variant="body2" color="text.secondary">
@@ -1237,11 +1247,9 @@ const EnriquecerCnpj = () => {
                     disabled={isResolvingMobile}
                     startIcon={isResolvingMobile ? <CircularProgress size={16} color="inherit" /> : <RefreshCwIcon />}
                     sx={{
-                      borderColor: "rgba(16,185,129,0.3)",
-                      bgcolor: "rgba(16,185,129,0.1)",
-                      color: "#bbf7d0",
                       whiteSpace: "nowrap",
-                      "&:hover": { bgcolor: "rgba(16,185,129,0.15)" },
+                      ...semanticAccent(theme, "success"),
+                      "&:hover": { bgcolor: alpha(theme.palette.success.main, 0.18) },
                     }}
                   >
                     Revalidar mobiles
@@ -1254,8 +1262,8 @@ const EnriquecerCnpj = () => {
                     { label: "Mobiles de decisor", value: String(mobileWaterfall.summary.decision_maker_mobile_candidates ?? 0) },
                     { label: "Primario", value: mobileWaterfall.summary.primary_phone || "Nao definido" },
                   ].map((item) => (
-                    <Box key={item.label} sx={STAT_BOX_SX}>
-                      <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(240,240,240,0.4)", display: "block" }}>
+                    <Box key={item.label} sx={(t) => softInsetBox(t)}>
+                      <Typography variant="caption" sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "text.secondary", display: "block" }}>
                         {item.label}
                       </Typography>
                       <Typography variant="body2" fontWeight={500} mt={1} sx={{ wordBreak: "break-all" }}>{item.value}</Typography>
@@ -1263,13 +1271,13 @@ const EnriquecerCnpj = () => {
                   ))}
                 </Box>
                 {(mobileWaterfall.candidates ?? []).length === 0 ? (
-                  <Box sx={{ borderRadius: "12px", border: "1px dashed rgba(255,255,255,0.14)", bgcolor: "rgba(255,255,255,0.02)", p: 2 }}>
+                  <Box sx={(t) => dashedEmptyState(t)}>
                     <Typography variant="body2" color="text.secondary">Nenhum mobile foi priorizado ainda para este CNPJ.</Typography>
                   </Box>
                 ) : (
                   <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { lg: "repeat(2,1fr)" } }}>
                     {mobileWaterfall.candidates.slice(0, 6).map((candidate) => (
-                      <Box key={`${candidate.normalized_phone}-${candidate.contact_name || "company"}`} sx={{ ...STAT_BOX_SX, p: 2 }}>
+                      <Box key={`${candidate.normalized_phone}-${candidate.contact_name || "company"}`} sx={(t) => softInsetBox(t, 2)}>
                         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1} mb={1.5}>
                           <Box>
                             <Typography variant="body2" fontWeight={600}>{candidate.normalized_phone}</Typography>
@@ -1279,19 +1287,19 @@ const EnriquecerCnpj = () => {
                             </Typography>
                           </Box>
                           {candidate.is_primary && (
-                            <Chip label="Primario" size="small" sx={{ bgcolor: "rgba(14,165,233,0.1)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "8px" }} />
+                            <Chip label="Primario" size="small" sx={semanticAccent(theme, "info")} />
                           )}
                         </Stack>
                         <Stack direction="row" flexWrap="wrap" gap={0.75}>
-                          <Chip label={phoneTypeLabel(candidate.phone_type)} size="small" variant="outlined" sx={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(240,240,240,0.8)", borderRadius: "8px" }} />
+                          <Chip label={phoneTypeLabel(candidate.phone_type)} size="small" variant="outlined" sx={{ borderColor: "divider", color: "text.secondary", borderRadius: "8px" }} />
                           {candidate.verified_whatsapp && (
-                            <Chip icon={<BadgeCheckIcon sx={{ fontSize: 12 }} />} label="WhatsApp validado" size="small" sx={{ bgcolor: "rgba(16,185,129,0.1)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px" }} />
+                            <Chip icon={<BadgeCheckIcon sx={{ fontSize: 12 }} />} label="WhatsApp validado" size="small" sx={semanticAccent(theme, "success")} />
                           )}
                           {!candidate.verified_whatsapp && candidate.likely_whatsapp && (
-                            <Chip label="WhatsApp provavel" size="small" sx={{ bgcolor: "rgba(245,158,11,0.1)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px" }} />
+                            <Chip label="WhatsApp provavel" size="small" sx={semanticAccent(theme, "warning")} />
                           )}
                           {candidate.contact_level === "decision_maker" && (
-                            <Chip label="Decisor" size="small" sx={{ bgcolor: "rgba(139,92,246,0.1)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.3)", borderRadius: "8px" }} />
+                            <Chip label="Decisor" size="small" sx={semanticAccentHex("#9333EA")} />
                           )}
                         </Stack>
                         <Typography variant="caption" color="text.secondary" mt={1} display="block">
@@ -1307,7 +1315,7 @@ const EnriquecerCnpj = () => {
             </Card>
           ) : (
             empresa && (
-              <Card sx={{ border: "1px dashed rgba(255,255,255,0.14)", bgcolor: "rgba(24,24,24,0.4)", borderRadius: "12px" }}>
+              <Card sx={(t) => dashedPlaceholderCardSx(t)}>
                 <CardContent sx={{ p: 3 }}>
                   <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" alignItems={{ lg: "center" }} gap={2}>
                     <Box>
@@ -1322,11 +1330,9 @@ const EnriquecerCnpj = () => {
                       disabled={isResolvingMobile}
                       startIcon={isResolvingMobile ? <CircularProgress size={16} color="inherit" /> : <PhoneIcon />}
                       sx={{
-                        borderColor: "rgba(16,185,129,0.3)",
-                        bgcolor: "rgba(16,185,129,0.1)",
-                        color: "#bbf7d0",
                         whiteSpace: "nowrap",
-                        "&:hover": { bgcolor: "rgba(16,185,129,0.15)" },
+                        ...semanticAccent(theme, "success"),
+                        "&:hover": { bgcolor: alpha(theme.palette.success.main, 0.18) },
                       }}
                     >
                       Resolver mobiles e WhatsApp

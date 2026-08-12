@@ -84,3 +84,6 @@ Thumbs.db
 *.tmp
 *.bak
 *.cache
+
+# dados gerados de prospecção (PII)
+exports/

@@ -174,6 +174,13 @@ export type Empresa = {
 
   /** Origem da linha na lista de resultados (metadado UI / export) */
   origem_lead?: "prospeccao_configurada" | "enriquecimento_cnpj" | "empresas_parecidas" | null;
+
+  /**
+   * Payload bruto vindo do backend (após `mapEmpresaApi`/`mergeEmpresaWithEnrichment`).
+   * Mantém **todos** os campos originais sem nenhuma transformação, para o usuário
+   * inspecionar diretamente o que está no banco. Não é usado para lógica.
+   */
+  __raw?: Record<string, unknown>;
 };
 
 export type ProspeccaoResultado = {
@@ -456,50 +463,164 @@ function scoreFromRecord(
   return asNullableNumber(record?.[key]);
 }
 
+function mapContatosCaptados(raw: unknown): ContatoCaptado[] | null {
+  const arr = asArray<Record<string, unknown>>(raw);
+  if (!arr.length) return null;
+  return arr.map((c) => ({
+    valor: asNullableString(c.valor) ?? "",
+    tipo: asNullableString(c.tipo),
+    origem: asNullableString(c.origem),
+    confianca: asNullableNumber(c.confianca),
+    validado: typeof c.validado === "boolean" ? c.validado : null,
+    score_validacao: asNullableNumber(c.score_validacao),
+    metodo_validacao: asNullableString(c.metodo_validacao),
+    motivo_validacao: asNullableString(c.motivo_validacao),
+    mx_valido: typeof c.mx_valido === "boolean" ? c.mx_valido : null,
+    smtp_status: asNullableString(c.smtp_status),
+  }));
+}
+
+function mapSociosEstruturados(raw: unknown): SocioEstruturado[] | null {
+  const arr = asArray<Record<string, unknown>>(raw);
+  if (!arr.length) return null;
+  return arr.map((s) => ({
+    nome: asNullableString(s.nome) ?? "",
+    qualificacao: asNullableString(s.qualificacao) ?? asNullableString(s.cargo),
+    data_entrada: asNullableString(s.data_entrada),
+    cpf_cnpj: asNullableString(s.cpf_cnpj) ?? asNullableString(s.documento),
+    email: asNullableString(s.email),
+    emails_alternativos: asArray<string>(s.emails_alternativos),
+    linkedin: asNullableString(s.linkedin),
+    telefone: asNullableString(s.telefone),
+  }));
+}
+
+function mapCnaesSecundarios(raw: unknown): CnaeSecundario[] | null {
+  const arr = asArray<Record<string, unknown>>(raw);
+  if (!arr.length) return null;
+  return arr.map((c) => ({
+    cnae: asNullableString(c.cnae) ?? asNullableString(c.codigo) ?? "",
+    descricao: asNullableString(c.descricao),
+  }));
+}
+
 function mapEmpresaApi(raw: Record<string, unknown>): Empresa {
-  const emailReceita = asNullableString(raw.email_receita);
+  const emailReceita = asNullableString(raw.email_receita) ?? asNullableString(raw.email);
   const emailEnriquecido = asNullableString(raw.email_enriquecido);
-  const emailFinal = asNullableString(raw.email_final) ?? emailEnriquecido ?? emailReceita;
-  const telefoneReceita = asNullableString(raw.telefone_receita);
+  const emailFinal =
+    asNullableString(raw.email_final) ?? emailEnriquecido ?? emailReceita;
+  const telefoneReceita =
+    asNullableString(raw.telefone_receita) ?? asNullableString(raw.telefone);
   const telefoneEnriquecido = asNullableString(raw.telefone_enriquecido);
-  const telefoneFinal = asNullableString(raw.telefone_final) ?? telefoneEnriquecido ?? telefoneReceita;
+  const telefoneFinal =
+    asNullableString(raw.telefone_final) ??
+    telefoneEnriquecido ??
+    telefoneReceita;
   const whatsappPublico = asNullableString(raw.whatsapp_publico);
   const whatsappEnriquecido = asNullableString(raw.whatsapp_enriquecido);
-  const whatsappFinal = asNullableString(raw.whatsapp_final) ?? whatsappEnriquecido ?? whatsappPublico;
+  const whatsappFinal =
+    asNullableString(raw.whatsapp_final) ??
+    whatsappEnriquecido ??
+    whatsappPublico;
   const confiabilidade = asRecord(raw.confiabilidade);
   const qualidade = asRecord(raw.qualidade);
   const priorizacao = asRecord(raw.priorizacao);
 
   return {
+    // identificação
     cnpj: asNullableString(raw.cnpj) ?? "",
     razao_social: asNullableString(raw.razao_social) ?? "",
     nome_fantasia: asNullableString(raw.nome_fantasia),
+    natureza_juridica: asNullableString(raw.natureza_juridica),
+    data_abertura:
+      asNullableString(raw.data_abertura) ??
+      asNullableString(raw.data_inicio_atividade),
     situacao_cadastral: asNullableString(raw.situacao_cadastral),
-    cidade: asNullableString(raw.cidade),
+    cidade: asNullableString(raw.cidade) ?? asNullableString(raw.municipio),
     uf: asNullableString(raw.uf),
-    cnae_principal: asNullableString(raw.cnae_principal),
+    cnae_principal:
+      asNullableString(raw.cnae_principal) ??
+      asNullableString(raw.cnae_descricao),
+    cnae_descricao:
+      asNullableString(raw.cnae_descricao) ??
+      asNullableString(raw.cnae_principal_descricao),
+    cnaes_secundarios: mapCnaesSecundarios(raw.cnaes_secundarios),
     capital_social: asNullableNumber(raw.capital_social),
+
+    // ICP
+    porte: asNullableString(raw.porte),
+    segmento: asNullableString(raw.segmento),
+    subsegmento: asNullableString(raw.subsegmento),
+    score_icp:
+      asNullableNumber(raw.score_icp) ??
+      scoreFromRecord(priorizacao) ??
+      scoreFromRecord(qualidade) ??
+      scoreFromRecord(confiabilidade),
+
+    // contatos base
     telefone_padrao: telefoneFinal,
     telefone_receita: telefoneReceita,
+    telefone_estab1: asNullableString(raw.telefone_estab1),
+    telefone_estab2: asNullableString(raw.telefone_estab2),
     email: emailReceita,
     email_final: emailFinal,
+
+    // enriquecimento web
     site: asNullableString(raw.site),
     email_enriquecido: emailEnriquecido,
+    email_validado:
+      typeof raw.email_validado === "boolean" ? raw.email_validado : null,
+    email_status_validacao: asNullableString(raw.email_status_validacao),
+    email_score_validacao: asNullableNumber(raw.email_score_validacao),
     telefone_enriquecido: telefoneEnriquecido,
     telefone_final: telefoneFinal,
     whatsapp_publico: whatsappPublico,
     whatsapp_enriquecido: whatsappEnriquecido,
     whatsapp_final: whatsappFinal,
-    resumo_ia_empresa: asNullableString(asRecord(raw.enriquecimento_ia)?.resumo_empresa),
-    score_icp:
-      scoreFromRecord(priorizacao) ??
-      scoreFromRecord(qualidade) ??
-      scoreFromRecord(confiabilidade),
+    linkedin_empresa: asNullableString(raw.linkedin_empresa),
+    instagram_empresa: asNullableString(raw.instagram_empresa),
+    facebook_empresa: asNullableString(raw.facebook_empresa),
+    outras_informacoes: asNullableString(raw.outras_informacoes),
+    resumo_ia_empresa:
+      asNullableString(raw.resumo_ia_empresa) ??
+      asNullableString(asRecord(raw.enriquecimento_ia)?.resumo_empresa),
+    registro_dono: asNullableString(raw.registro_dono),
+    registro_email: asNullableString(raw.registro_email),
+    fonte_dados_prioritaria: asNullableString(raw.fonte_dados_prioritaria),
+    emails_captados: mapContatosCaptados(raw.emails_captados),
+    telefones_captados: mapContatosCaptados(raw.telefones_captados),
+    whatsapps_captados: mapContatosCaptados(raw.whatsapps_captados),
+
+    // sócios e redes
+    socios_resumo: asNullableString(raw.socios_resumo),
+    socios_estruturado:
+      mapSociosEstruturados(raw.socios_estruturado) ??
+      mapSociosEstruturados(raw.socios),
+    redes_sociais_empresa: asArray<string>(raw.redes_sociais_empresa),
+
+    // contexto SIDRA
+    contexto_sidra: asNullableString(raw.contexto_sidra),
+    sidra_pib: asNullableNumber(raw.sidra_pib),
+    sidra_populacao: asNullableNumber(raw.sidra_populacao),
+    sidra_pib_per_capita: asNullableNumber(raw.sidra_pib_per_capita),
+
+    // endereço
+    logradouro: asNullableString(raw.logradouro),
+    numero: asNullableString(raw.numero),
+    complemento: asNullableString(raw.complemento),
+    bairro: asNullableString(raw.bairro),
+    cep: asNullableString(raw.cep),
+    latitude: asNullableNumber(raw.latitude),
+    longitude: asNullableNumber(raw.longitude),
+
+    // metadata
     enriquecimento_data: asNullableString(raw.enriquecimento_data),
     validacao: asRecord(raw.validacao),
     confiabilidade,
     qualidade,
     priorizacao,
+
+    __raw: raw,
   };
 }
 
@@ -511,6 +632,9 @@ function mergeEmpresaWithEnrichment(
   const dadosReceita = asRecord(enrichment.dados_receita) ?? {};
   const whatsappUltra = asRecord(enrichment.whatsapp_ultra) ?? {};
   const enriquecimentoIa = asRecord(enrichment.enriquecimento_ia) ?? {};
+  const sociosBlock = asRecord(enrichment.socios) ?? {};
+  const enderecoBlock = asRecord(enrichment.endereco) ?? {};
+  const sidraBlock = asRecord(enrichment.contexto_sidra) ?? asRecord(enrichment.sidra) ?? {};
 
   const emailReceita = asNullableString(dadosReceita.email_receita) ?? empresa.email;
   const emailEnriquecido =
@@ -522,20 +646,124 @@ function mergeEmpresaWithEnrichment(
     asNullableString(whatsappUltra.numero) ??
     empresa.whatsapp_enriquecido;
 
+  // contatos captados (listas) — mantém o que já tem se enrichment não tiver
+  const emailsCaptados =
+    mapContatosCaptados(contatos.emails_captados) ??
+    mapContatosCaptados(enrichment.emails_captados) ??
+    empresa.emails_captados ??
+    null;
+  const telefonesCaptados =
+    mapContatosCaptados(contatos.telefones_captados) ??
+    mapContatosCaptados(enrichment.telefones_captados) ??
+    empresa.telefones_captados ??
+    null;
+  const whatsappsCaptados =
+    mapContatosCaptados(contatos.whatsapps_captados) ??
+    mapContatosCaptados(enrichment.whatsapps_captados) ??
+    empresa.whatsapps_captados ??
+    null;
+
+  // sócios — vem como lista (socios_estruturado) OU dentro de socios.estruturado
+  const sociosEstruturado =
+    mapSociosEstruturados(sociosBlock.estruturado) ??
+    mapSociosEstruturados(enrichment.socios_estruturado) ??
+    mapSociosEstruturados(sociosBlock.lista) ??
+    empresa.socios_estruturado ??
+    null;
+
+  const cnaesSecundarios =
+    mapCnaesSecundarios(enrichment.cnaes_secundarios) ??
+    mapCnaesSecundarios(asRecord(enrichment.dados_receita)?.cnaes_secundarios) ??
+    empresa.cnaes_secundarios ??
+    null;
+
   return {
     ...empresa,
+    // identificação ampliada (Receita pode preencher campos faltantes)
+    nome_fantasia:
+      asNullableString(dadosReceita.nome_fantasia) ?? empresa.nome_fantasia,
+    natureza_juridica:
+      asNullableString(dadosReceita.natureza_juridica) ?? empresa.natureza_juridica,
+    data_abertura:
+      asNullableString(dadosReceita.data_abertura) ?? empresa.data_abertura,
+    situacao_cadastral:
+      asNullableString(dadosReceita.situacao_cadastral) ?? empresa.situacao_cadastral,
+    cnae_principal:
+      asNullableString(dadosReceita.cnae_principal) ?? empresa.cnae_principal,
+    cnae_descricao:
+      asNullableString(dadosReceita.cnae_descricao) ?? empresa.cnae_descricao,
+    cnaes_secundarios: cnaesSecundarios,
+    capital_social:
+      asNullableNumber(dadosReceita.capital_social) ?? empresa.capital_social,
+    porte: asNullableString(dadosReceita.porte) ?? empresa.porte,
+
+    // contatos
     site: asNullableString(enrichment.site) ?? empresa.site,
     email: emailReceita,
     email_final: emailEnriquecido ?? emailReceita ?? empresa.email_final,
     email_enriquecido: emailEnriquecido,
+    email_validado:
+      typeof contatos.email_validado === "boolean"
+        ? (contatos.email_validado as boolean)
+        : empresa.email_validado,
+    email_status_validacao:
+      asNullableString(contatos.email_status_validacao) ?? empresa.email_status_validacao,
+    email_score_validacao:
+      asNullableNumber(contatos.email_score_validacao) ?? empresa.email_score_validacao,
     telefone_padrao: telefoneEnriquecido ?? empresa.telefone_padrao,
     telefone_final: telefoneEnriquecido ?? empresa.telefone_final,
     telefone_enriquecido: telefoneEnriquecido,
     whatsapp_final:
       whatsappEnriquecido ?? empresa.whatsapp_publico ?? empresa.whatsapp_final,
     whatsapp_enriquecido: whatsappEnriquecido,
+    linkedin_empresa:
+      asNullableString(contatos.linkedin_empresa) ?? empresa.linkedin_empresa,
+    instagram_empresa:
+      asNullableString(contatos.instagram_empresa) ?? empresa.instagram_empresa,
+    facebook_empresa:
+      asNullableString(contatos.facebook_empresa) ?? empresa.facebook_empresa,
+    outras_informacoes:
+      asNullableString(contatos.outras_informacoes) ?? empresa.outras_informacoes,
+    fonte_dados_prioritaria:
+      asNullableString(enrichment.fonte_dados_prioritaria) ?? empresa.fonte_dados_prioritaria,
+    emails_captados: emailsCaptados,
+    telefones_captados: telefonesCaptados,
+    whatsapps_captados: whatsappsCaptados,
+
+    // sócios
+    socios_resumo:
+      asNullableString(sociosBlock.resumo) ??
+      asNullableString(enrichment.socios_resumo) ??
+      empresa.socios_resumo,
+    socios_estruturado: sociosEstruturado,
+
+    // endereço
+    logradouro: asNullableString(enderecoBlock.logradouro) ?? empresa.logradouro,
+    numero: asNullableString(enderecoBlock.numero) ?? empresa.numero,
+    complemento: asNullableString(enderecoBlock.complemento) ?? empresa.complemento,
+    bairro: asNullableString(enderecoBlock.bairro) ?? empresa.bairro,
+    cep: asNullableString(enderecoBlock.cep) ?? empresa.cep,
+    latitude: asNullableNumber(enderecoBlock.latitude) ?? empresa.latitude,
+    longitude: asNullableNumber(enderecoBlock.longitude) ?? empresa.longitude,
+
+    // contexto SIDRA
+    contexto_sidra:
+      asNullableString(enrichment.contexto_sidra_resumo) ?? empresa.contexto_sidra,
+    sidra_pib: asNullableNumber(sidraBlock.pib) ?? empresa.sidra_pib,
+    sidra_populacao: asNullableNumber(sidraBlock.populacao) ?? empresa.sidra_populacao,
+    sidra_pib_per_capita:
+      asNullableNumber(sidraBlock.pib_per_capita) ?? empresa.sidra_pib_per_capita,
+
+    // resumo IA
     resumo_ia_empresa:
       asNullableString(enriquecimentoIa.resumo_empresa) ?? empresa.resumo_ia_empresa,
+
+    enriquecimento_data:
+      asNullableString(enrichment.enriquecimento_data) ??
+      asNullableString(enrichment.updated_at) ??
+      empresa.enriquecimento_data,
+
+    __raw: { ...(empresa.__raw ?? {}), ...enrichment },
   };
 }
 
@@ -577,7 +805,7 @@ function mapContactIntelligence(raw: Record<string, unknown> | null | undefined)
       source: asNullableString(contact.source),
       emails,
     };
-  }).filter((contact) => contact.name);
+  }).filter((contact) => contact.name || contact.emails.length > 0 || contact.linkedin);
 
   return {
     company: {
@@ -1337,6 +1565,130 @@ function mapFiscalPublicLookup(raw: FiscalPublicLookupResponse): FiscalPublicLoo
     },
     records: asArray<Record<string, unknown>>(raw.records).map(mapFiscalPublicRecord),
   };
+}
+
+// ───────────── Dossiê Hermes-only ─────────────
+
+export type DossieHermesSocio = {
+  nome: string | null;
+  tipo: string | null;
+  cpf_cnpj: string | null;
+  qualificacao: string | null;
+  data_entrada: string | null;
+  faixa_etaria: string | null;
+  representante: string | null;
+  cpf_representante: string | null;
+  qualificacao_representante: string | null;
+  pais: string | null;
+};
+
+export type DossieHermesFilial = {
+  cnpj: string;
+  tipo: string | null;
+  situacao: string | null;
+  data_inicio: string | null;
+  data_situacao: string | null;
+  uf: string | null;
+  cidade: string | null;
+  logradouro: string | null;
+  bairro: string | null;
+  cep: string | null;
+  telefone: string | null;
+  email: string | null;
+  atividade_principal: string | null;
+  is_self: boolean;
+};
+
+export type DossieHermesCnae = {
+  subclasse: string | null;
+  id: string | null;
+  descricao: string | null;
+  secao: string | null;
+  divisao: string | null;
+  grupo: string | null;
+  classe: string | null;
+};
+
+export type DossieHermesIE = {
+  uf: string | null;
+  ie: string | null;
+  ativa: boolean;
+  atualizado_em: string | null;
+};
+
+export type DossieHermesContatosSite = {
+  emails: string[];
+  telefones: string[];
+  whatsapps: string[];
+  redes_sociais: Record<string, string>;
+};
+
+export type DossieHermesSiteOficial = {
+  url: string | null;
+  contatos_extraidos: DossieHermesContatosSite | null;
+};
+
+export type DossieHermes = {
+  encontrado: boolean;
+  fonte: string;
+  cnpj: string;
+  cnpj_raiz: string | null;
+  razao_social: string | null;
+  nome_fantasia: string | null;
+  tipo: string | null;
+  capital_social: number | null;
+  porte: string | null;
+  natureza_juridica: string | null;
+  qualificacao_responsavel: string | null;
+  situacao_cadastral: string | null;
+  data_situacao_cadastral: string | null;
+  data_inicio_atividade: string | null;
+  atualizado_em: string | null;
+  endereco: {
+    tipo_logradouro: string | null;
+    logradouro: string | null;
+    numero: string | null;
+    complemento: string | null;
+    bairro: string | null;
+    cep: string | null;
+    cidade: string | null;
+    uf: string | null;
+    ibge: number | string | null;
+  };
+  contatos_receita: {
+    telefone1: string | null;
+    telefone2: string | null;
+    fax: string | null;
+    email: string | null;
+  };
+  cnae_principal: DossieHermesCnae;
+  cnaes_secundarias: DossieHermesCnae[];
+  inscricoes_estaduais: DossieHermesIE[];
+  socios: DossieHermesSocio[];
+  filiais: DossieHermesFilial[];
+  site_oficial: DossieHermesSiteOficial | null;
+  fontes_consultadas: Record<string, boolean>;
+};
+
+type DossieResponse = {
+  success: boolean;
+  dossie: DossieHermes;
+};
+
+export async function buscarDossieEmpresa(
+  cnpj: string,
+  opts: { descobrirFiliais?: boolean } = {},
+): Promise<DossieHermes> {
+  const params = new URLSearchParams();
+  if (opts.descobrirFiliais === false) params.set("descobrir_filiais", "false");
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const data = await hermesFetch<DossieResponse>(
+    appendFreshQuery(
+      `/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/dossie${qs}`,
+    ),
+    { cache: "no-store" },
+  );
+  return data.dossie;
 }
 
 export async function buscarEmpresasParecidasPorCnpj(

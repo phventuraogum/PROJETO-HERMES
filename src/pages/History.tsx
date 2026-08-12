@@ -49,11 +49,12 @@ function fmtData(ts: string) {
 function Delta({ a, b, suffix = "", higher = "up" }: {
   a: number; b: number; suffix?: string; higher?: "up" | "down";
 }) {
+  const theme = useTheme();
   const diff = a - b;
   const up = higher === "up" ? diff >= 0 : diff <= 0;
   if (Math.abs(diff) < 0.01) return <RemoveIcon sx={{ fontSize: 12, color: "text.disabled" }} />;
   return (
-    <Stack direction="row" alignItems="center" gap={0.25} sx={{ fontSize: 10, fontWeight: 500, color: up ? "#34d399" : "#f87171" }}>
+    <Stack direction="row" alignItems="center" gap={0.25} sx={{ fontSize: 10, fontWeight: 500, color: up ? "success.main" : "error.main" }}>
       {up
         ? <TrendingUpIcon sx={{ fontSize: 12 }} />
         : <TrendingDownIcon sx={{ fontSize: 12 }} />
@@ -91,11 +92,14 @@ function BuscaCard({ busca, selecionada, onSelecionar, onRenomear, onDeletar }: 
       sx={{
         borderRadius: 2,
         border: "1px solid",
-        borderColor: selecionada ? "rgba(249,115,22,0.5)" : "divider",
-        backgroundColor: selecionada ? "rgba(249,115,22,0.05)" : "background.paper",
+        borderColor: selecionada ? alpha(theme.palette.primary.main, 0.45) : "divider",
+        backgroundColor: selecionada ? alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.07 : 0.06) : "background.paper",
         cursor: "pointer",
         transition: "all 0.15s",
-        "&:hover": { borderColor: selecionada ? "rgba(249,115,22,0.5)" : "divider", backgroundColor: selecionada ? "rgba(249,115,22,0.05)" : "action.hover" },
+        "&:hover": {
+          borderColor: selecionada ? alpha(theme.palette.primary.main, 0.45) : "divider",
+          backgroundColor: selecionada ? alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.09 : 0.08) : "action.hover",
+        },
       }}
     >
       <CardContent sx={{ p: "12px !important" }}>
@@ -121,7 +125,7 @@ function BuscaCard({ busca, selecionada, onSelecionar, onRenomear, onDeletar }: 
                 }}
               />
               <IconButton size="small" onClick={salvarNome} sx={{ width: 24, height: 24 }}>
-                <CheckIcon sx={{ fontSize: 12, color: "#34d399" }} />
+                <CheckIcon sx={{ fontSize: 12, color: "success.main" }} />
               </IconButton>
               <IconButton size="small" onClick={() => setEditando(false)} sx={{ width: 24, height: 24 }}>
                 <CloseIcon sx={{ fontSize: 12, color: "text.secondary" }} />
@@ -147,7 +151,7 @@ function BuscaCard({ busca, selecionada, onSelecionar, onRenomear, onDeletar }: 
                   <EditIcon sx={{ fontSize: 10, color: "text.secondary" }} />
                 </IconButton>
                 <IconButton size="small" onClick={onDeletar} sx={{ width: 20, height: 20 }}>
-                  <DeleteIcon sx={{ fontSize: 10, color: "#f87171" }} />
+                  <DeleteIcon sx={{ fontSize: 10, color: "error.main" }} />
                 </IconButton>
               </Stack>
             </>
@@ -203,11 +207,11 @@ function Comparacao({ a, b }: { a: BuscaSalva; b: BuscaSalva }) {
   const isDark = theme.palette.mode === "dark";
   const tooltipStyle = useMemo(() => ({
     backgroundColor: theme.palette.background.paper,
-    border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)"}`,
+    border: `1px solid ${theme.palette.divider}`,
     borderRadius: "8px",
     fontSize: "12px",
     color: theme.palette.text.primary,
-  }), [theme, isDark]);
+  }), [theme]);
   const gridStroke = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)";
   const polarStroke = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)";
   const tickFill = theme.palette.text.secondary;
@@ -232,11 +236,13 @@ function Comparacao({ a, b }: { a: BuscaSalva; b: BuscaSalva }) {
 
   const nomeA = a.nome ?? `#${a.id.slice(-4)}`;
   const nomeB = b.nome ?? `#${b.id.slice(-4)}`;
+  const cPrimary = theme.palette.primary.main;
+  const cSeriesB = theme.palette.info.main;
 
   return (
     <Stack spacing={2.5}>
       <Stack direction="row" alignItems="center" gap={1}>
-        <BoltIcon sx={{ fontSize: 16, color: "#f59e0b" }} />
+        <BoltIcon sx={{ fontSize: 16, color: "warning.main" }} />
         <Typography variant="body2" fontWeight={700} sx={{ color: "text.primary" }}>Comparação lado a lado</Typography>
       </Stack>
 
@@ -247,8 +253,8 @@ function Comparacao({ a, b }: { a: BuscaSalva; b: BuscaSalva }) {
             <Box component="thead">
               <Box component="tr" sx={{ borderBottom: "1px solid", borderColor: "divider" }}>
                 <Box component="th" sx={{ textAlign: "left", px: 2, py: 1.5, color: "text.secondary", fontWeight: 500 }}>Métrica</Box>
-                <Box component="th" sx={{ textAlign: "right", px: 2, py: 1.5, color: "#F97316", fontWeight: 600 }}>{nomeA}</Box>
-                <Box component="th" sx={{ textAlign: "right", px: 2, py: 1.5, color: "#38bdf8", fontWeight: 600 }}>{nomeB}</Box>
+                <Box component="th" sx={{ textAlign: "right", px: 2, py: 1.5, color: "primary.main", fontWeight: 600 }}>{nomeA}</Box>
+                <Box component="th" sx={{ textAlign: "right", px: 2, py: 1.5, color: "info.main", fontWeight: 600 }}>{nomeB}</Box>
                 <Box component="th" sx={{ textAlign: "right", px: 2, py: 1.5, color: "text.secondary", fontWeight: 500 }}>Δ</Box>
               </Box>
             </Box>
@@ -268,7 +274,7 @@ function Comparacao({ a, b }: { a: BuscaSalva; b: BuscaSalva }) {
                 >
                   <Box component="td" sx={{ px: 2, py: 1.25, color: "text.secondary", fontSize: 12 }}>{row.label}</Box>
                   <Box component="td" sx={{ px: 2, py: 1.25, textAlign: "right", color: "text.primary", fontWeight: 500, fontSize: 12 }}>{row.fmt(row.va)}</Box>
-                  <Box component="td" sx={{ px: 2, py: 1.25, textAlign: "right", color: "#7dd3fc", fontWeight: 500, fontSize: 12 }}>{row.fmt(row.vb)}</Box>
+                  <Box component="td" sx={{ px: 2, py: 1.25, textAlign: "right", color: "info.main", fontWeight: 500, fontSize: 12 }}>{row.fmt(row.vb)}</Box>
                   <Box component="td" sx={{ px: 2, py: 1.25, textAlign: "right" }}>
                     <Stack direction="row" justifyContent="flex-end">
                       <Delta a={row.va} b={row.vb} suffix={row.suffix} />
@@ -295,8 +301,8 @@ function Comparacao({ a, b }: { a: BuscaSalva; b: BuscaSalva }) {
                 <YAxis tick={{ fontSize: 9, fill: tickFill }} />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Legend formatter={v => v === "A" ? nomeA : nomeB} wrapperStyle={{ fontSize: 11, color: tickFill }} />
-                <Bar dataKey="A" fill="#F97316" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="B" fill="#38bdf8" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="A" fill={cPrimary} radius={[3, 3, 0, 0]} />
+                <Bar dataKey="B" fill={cSeriesB} radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -311,8 +317,8 @@ function Comparacao({ a, b }: { a: BuscaSalva; b: BuscaSalva }) {
               <RadarChart data={radarA}>
                 <PolarGrid stroke={polarStroke} />
                 <PolarAngleAxis dataKey="axis" tick={{ fontSize: 10, fill: tickFill }} />
-                <Radar name={nomeA} dataKey="A" stroke="#F97316" fill="#F97316" fillOpacity={0.2} strokeWidth={2} />
-                <Radar name={nomeB} dataKey="B" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.15} strokeWidth={2} />
+                <Radar name={nomeA} dataKey="A" stroke={cPrimary} fill={cPrimary} fillOpacity={0.2} strokeWidth={2} />
+                <Radar name={nomeB} dataKey="B" stroke={cSeriesB} fill={cSeriesB} fillOpacity={0.15} strokeWidth={2} />
                 <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v.toFixed(1)}`, ""]} />
                 <Legend formatter={v => v === nomeA ? nomeA : nomeB} wrapperStyle={{ fontSize: 11, color: tickFill }} />
               </RadarChart>
@@ -388,7 +394,7 @@ const History = () => {
           variant="contained"
           startIcon={<BoltIcon />}
           onClick={() => navigate("/app")}
-          sx={{ backgroundColor: "#F97316", color: "#fff", fontWeight: 600, "&:hover": { backgroundColor: "#ea6c10" } }}
+          sx={{ bgcolor: "primary.main", color: "primary.contrastText", fontWeight: 600, "&:hover": { bgcolor: "primary.dark" } }}
         >
           Fazer primeira prospecção
         </Button>
@@ -410,17 +416,13 @@ const History = () => {
         {/* Lista */}
         <Stack spacing={1}>
           {selecionadas.length > 0 && (
-            <Stack direction="row" alignItems="center" gap={1} sx={{
+            <Stack direction="row" alignItems="center" gap={1} sx={(th) => ({
               borderRadius: 1.5,
               border: "1px solid",
-              borderColor: (theme) => theme.palette.mode === "dark"
-                ? "rgba(249,115,22,0.45)"
-                : "rgba(234,88,12,0.55)",
-              backgroundColor: (theme) => theme.palette.mode === "dark"
-                ? "rgba(249,115,22,0.08)"
-                : "rgba(249,115,22,0.12)",
+              borderColor: alpha(th.palette.primary.main, th.palette.mode === "dark" ? 0.42 : 0.38),
+              backgroundColor: alpha(th.palette.primary.main, th.palette.mode === "dark" ? 0.08 : 0.06),
               px: 1.5, py: 1,
-            }}>
+            })}>
               <BarChartIcon sx={{ fontSize: 14, color: "primary.main" }} />
               <Typography variant="caption" sx={{ color: "text.primary", fontSize: 11, fontWeight: 600 }}>
                 {selecionadas.length === 1 ? "Selecione outra busca para comparar" : "Comparando as 2 buscas →"}
@@ -482,8 +484,9 @@ const History = () => {
           <Button
             onClick={() => { if (confirmDel) void handleDeletar(confirmDel); }}
             variant="contained"
+            color="error"
             size="small"
-            sx={{ backgroundColor: "#e11d48", color: "#fff", fontSize: 12, "&:hover": { backgroundColor: "#be123c" } }}
+            sx={{ fontSize: 12 }}
           >
             Apagar
           </Button>

@@ -1,7 +1,12 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
+import base64
+import os
 import re
+import json
 import asyncio
 import logging
 import requests
@@ -236,6 +241,67 @@ def _kommo_auth_headers(access_token: str) -> dict:
         "Authorization": f"Bearer {t}",
         "Content-Type": "application/json",
     }
+
+
+_kommo_resolved_base_cache: dict[str, str] = {}
+
+
+def _kommo_jwt_api_domain_from_token(access_token: str) -> Optional[str]:
+    t = (access_token or "").strip()
+    if t.lower().startswith("bearer "):
+        t = t[7:].strip()
+    parts = t.split(".")
+    if len(parts) < 2:
+        return None
+    try:
+        p = parts[1]
+        pad = (4 - len(p) % 4) % 4
+        p = p + ("=" * pad)
+        pl = json.loads(base64.urlsafe_b64decode(p))
+        dom = pl.get("api_domain")
+        return str(dom).strip().lower() if dom else None
+    except Exception:
+        return None
+
+
+def _kommo_resolve_api_base(sub: str, access_token: str) -> str:
+    """
+    Host da API v4: o long-lived JWT traz `api_domain` (ex.: api-c.kommo.com) e às vezes
+    somente esse host autentica; o subdomínio da conta continua usado p/ resolução de etapas.
+    Override: KOMMO_API_BASE=https://api-c.kommo.com/api/v4
+    """
+    t = (access_token or "").strip()[:32]
+    cache_key = f"{sub}|{t}"
+    if cache_key in _kommo_resolved_base_cache:
+        return _kommo_resolved_base_cache[cache_key]
+
+    override = (os.environ.get("KOMMO_API_BASE") or "").strip().rstrip("/")
+    if override:
+        b = override if override.endswith("/api/v4") else f"{override}/api/v4"
+        _kommo_resolved_base_cache[cache_key] = b
+        return b
+    headers = _kommo_auth_headers(access_token)
+    jdom = _kommo_jwt_api_domain_from_token(access_token)
+    cands: list[str] = []
+    if jdom:
+        cands.append(f"https://{jdom}/api/v4")
+    cands.append(f"https://{sub}.kommo.com/api/v4")
+    cands = list(dict.fromkeys(cands))
+    for c in cands:
+        try:
+            r = requests.get(f"{c.rstrip('/')}/account", headers=headers, timeout=20)
+            if r.status_code < 300:
+                if c != cands[0]:
+                    logger.info(
+                        "Kommo: token autenticou em %s; usando esta base (subdomínio: %s).", c, sub
+                    )
+                _kommo_resolved_base_cache[cache_key] = c
+                return c
+        except Exception:
+            continue
+    ch = cands[0]
+    _kommo_resolved_base_cache[cache_key] = ch
+    return ch
 
 
 def _kommo_fetch_contact_fields(base: str, headers: dict) -> list[dict]:
@@ -477,18 +543,17 @@ def _kommo_resolve_pipeline_status(
     Ordem: (1) org_integrations; (2) funil padrão do deploy (KOMMO_DEFAULT_* + subdomínio);
     (3) primeiro funil da conta.
     """
+    op = _as_opt_int(org_pipeline_id)
+    osid = _as_opt_int(org_status_id)
+    if op is not None and osid is not None:
+        return op, osid
+
     pipelines = _kommo_fetch_pipelines(base, headers)
     if not pipelines:
         raise HTTPException(
             status_code=502,
             detail="Kommo: não foi possível ler funis (pipelines). Verifique o token e as permissões da integração.",
         )
-
-    op = _as_opt_int(org_pipeline_id)
-    osid = _as_opt_int(org_status_id)
-
-    if op is not None and osid is not None:
-        return op, osid
 
     if op is not None and osid is None:
         pid = op
@@ -534,6 +599,95 @@ def _kommo_resolve_pipeline_status(
     return pid, int(sts[0]["id"])
 
 
+def _kommo_digits_cnpj(raw: str | None) -> str | None:
+    digits = re.sub(r"\D", "", (raw or "").strip())
+    if len(digits) != 14:
+        return None
+    return digits
+
+
+def _kommo_cnpj_search_values(cnpj_digits: str) -> list[str]:
+    """Valores a tentar na busca (Kommo pode armazenar com ou sem máscara)."""
+    out: list[str] = [cnpj_digits]
+    if len(cnpj_digits) == 14:
+        d = cnpj_digits
+        masked = f"{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:14]}"
+        if masked not in out:
+            out.append(masked)
+    return out
+
+
+def _kommo_cf_filter_params(field_id: int, value: str) -> dict[str, Any]:
+    return {
+        "limit": 10,
+        "filter[custom_fields_values][0][custom_field_id]": field_id,
+        "filter[custom_fields_values][0][values][0][value]": value,
+    }
+
+
+def _kommo_find_existing_lead_id_by_cnpj(
+    base: str,
+    headers: dict,
+    lead_fields: list[dict],
+    cnpj_digits: str,
+    pipeline_id: int,
+) -> int | None:
+    """Card no funil com o mesmo CNPJ (campo custom do lead)."""
+    f_cnpj = _kommo_best_name_match_field(
+        lead_fields, ("CNPJ OU CPF", "CPF CNPJ", "CNPJ")
+    )
+    if not f_cnpj or f_cnpj.get("id") is None:
+        return None
+    fid = int(f_cnpj["id"])
+    for val in _kommo_cnpj_search_values(cnpj_digits):
+        try:
+            params = _kommo_cf_filter_params(fid, val)
+            params["filter[pipeline_id]"] = int(pipeline_id)
+            r = requests.get(f"{base}/leads", headers=headers, params=params, timeout=25)
+            if r.status_code >= 300:
+                continue
+            leads = ((r.json() or {}).get("_embedded") or {}).get("leads") or []
+            for L in leads:
+                if L.get("id") is not None:
+                    return int(L["id"])
+        except Exception:
+            continue
+    return None
+
+
+def _kommo_find_existing_company_id_by_cnpj(
+    base: str,
+    headers: dict,
+    company_fields: list[dict],
+    cnpj_digits: str,
+) -> int | None:
+    """Empresa já cadastrada com o mesmo CNPJ (evita duplicar PJ na reexecução)."""
+    f_cnpj = _kommo_find_field_by_hints(
+        company_fields, ("CNPJ", "CPF_CNPJ"), ("CNPJ", "CPF")
+    )
+    if not f_cnpj or f_cnpj.get("id") is None:
+        return None
+    fid = int(f_cnpj["id"])
+    for val in _kommo_cnpj_search_values(cnpj_digits):
+        try:
+            params = _kommo_cf_filter_params(fid, val)
+            r = requests.get(
+                f"{base}/companies",
+                headers=headers,
+                params=params,
+                timeout=25,
+            )
+            if r.status_code >= 300:
+                continue
+            rows = ((r.json() or {}).get("_embedded") or {}).get("companies") or []
+            for C in rows:
+                if C.get("id") is not None:
+                    return int(C["id"])
+        except Exception:
+            continue
+    return None
+
+
 def _export_kommo(
     access_token: str,
     subdomain: str,
@@ -548,23 +702,57 @@ def _export_kommo(
             detail="Subdomínio Kommo inválido. Informe só o nome (ex.: minhaempresa) ou URL sem path.",
         )
 
-    base = f"https://{sub}.kommo.com/api/v4"
+    base = _kommo_resolve_api_base(sub, access_token)
     headers = _kommo_auth_headers(access_token)
 
     lead_schema = _kommo_fetch_lead_fields(base, headers)
+    rp, rs = _kommo_resolve_pipeline_status(base, headers, pipeline_id, status_id, sub)
+
+    skip_dedup = (os.environ.get("KOMMO_SKIP_CNPJ_DEDUP") or "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    cnpj_digits = None if skip_dedup else _kommo_digits_cnpj(lead.cnpj)
+    if cnpj_digits:
+        existing_lead_id = _kommo_find_existing_lead_id_by_cnpj(
+            base, headers, lead_schema, cnpj_digits, rp
+        )
+        if existing_lead_id:
+            logger.info(
+                "Kommo: CNPJ %s já possui lead %s no funil %s — export ignorado.",
+                cnpj_digits,
+                existing_lead_id,
+                rp,
+            )
+            return {
+                "success": True,
+                "skipped": True,
+                "provider": "kommo",
+                "message": "Lead já existente no funil com o mesmo CNPJ — não criado.",
+                "lead_id": existing_lead_id,
+                "contact_id": None,
+                "company_id": None,
+            }
+
     lead_custom_fields = _kommo_build_lead_custom_fields(lead_schema, lead)
 
     company_fields = _kommo_fetch_company_fields(base, headers)
     company_custom_fields = _kommo_build_company_custom_fields(company_fields, lead)
 
-    # 1. Empresa primeiro — permite vincular contato com company_id (Kommo mostra bloco Contato/Empresa)
+    # 1. Empresa — reutiliza PJ pelo CNPJ se já existir (sem duplicar empresa)
     company_id = None
-    company_body: dict = {"name": lead.razao_social or "Empresa Hermes"}
-    if company_custom_fields:
-        company_body["custom_fields_values"] = company_custom_fields
-    comp_r = requests.post(f"{base}/companies", headers=headers, json=[company_body], timeout=20)
-    if comp_r.status_code < 300:
-        company_id = (comp_r.json().get("_embedded", {}).get("companies") or [{}])[0].get("id")
+    if cnpj_digits:
+        company_id = _kommo_find_existing_company_id_by_cnpj(
+            base, headers, company_fields, cnpj_digits
+        )
+    if company_id is None:
+        company_body: dict = {"name": lead.razao_social or "Empresa Hermes"}
+        if company_custom_fields:
+            company_body["custom_fields_values"] = company_custom_fields
+        comp_r = requests.post(f"{base}/companies", headers=headers, json=[company_body], timeout=20)
+        if comp_r.status_code < 300:
+            company_id = (comp_r.json().get("_embedded", {}).get("companies") or [{}])[0].get("id")
 
     schema_fields = _kommo_fetch_contact_fields(base, headers)
     custom_fields = _kommo_build_contact_custom_fields(schema_fields, lead)
@@ -587,8 +775,6 @@ def _export_kommo(
         raise HTTPException(status_code=cr.status_code, detail=f"Kommo Contacts: {cr.text[:800]}")
 
     contact_id = (cr.json().get("_embedded", {}).get("contacts") or [{}])[0].get("id")
-
-    rp, rs = _kommo_resolve_pipeline_status(base, headers, pipeline_id, status_id, sub)
 
     # 2. Lead (com fallback progressivo para diferenças de regra entre contas Kommo)
     lead_name = (lead.nome_fantasia or lead.razao_social or "Lead Hermes")[:250]
@@ -711,7 +897,7 @@ def _get_kommo_pipeline_config(org_id: str) -> tuple[int | None, int | None]:
 def export_to_crm(
     payload: CrmExportRequest,
     _user: dict = Depends(require_auth),
-    x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
+    x_org_id: Optional[str] = Header(default=None, alias="X-Org-Id"),
 ):
     provider = payload.provider.lower()
     api_key = payload.api_key.strip()
@@ -753,7 +939,7 @@ class BatchExportRequest(BaseModel):
 def export_batch_to_crm(
     payload: BatchExportRequest,
     _user: dict = Depends(require_auth),
-    x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
+    x_org_id: Optional[str] = Header(default=None, alias="X-Org-Id"),
 ):
     provider = payload.provider.lower()
     api_key = payload.api_key.strip()
@@ -1114,7 +1300,7 @@ def _enrich_via_hermes_db(cnpj: str) -> Dict[str, Any]:
 async def enrich_ploomes_contacts(
     payload: PloomesEnrichRequest,
     _user: dict = Depends(require_auth),
-    x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
+    x_org_id: Optional[str] = Header(default=None, alias="X-Org-Id"),
 ) -> Dict[str, Any]:
     """
     Percorre TODOS os contatos do Ploomes (com paginação automática), consulta o banco
@@ -1273,7 +1459,7 @@ def list_ploomes_contacts_preview(
     api_key: Optional[str] = None,
     funnel_id: Optional[int] = None,
     _user: dict = Depends(require_auth),
-    x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
+    x_org_id: Optional[str] = Header(default=None, alias="X-Org-Id"),
 ) -> Dict[str, Any]:
     """
     Lista contatos do Ploomes que seriam processados pelo endpoint de enriquecimento.
@@ -1312,3 +1498,8 @@ def list_ploomes_contacts_preview(
         "pode_enriquecer": sum(1 for r in resumo if r["pode_enriquecer"]),
         "contatos": resumo,
     }
+
+
+# Pydantic v2 + `from __future__ import annotations`: re-resolve modelos após todo o módulo carregar.
+for _crm_export_model in (LeadExportPayload, CrmExportRequest, BatchExportRequest, PloomesEnrichRequest):
+    _crm_export_model.model_rebuild(_types_namespace=dict(globals()))

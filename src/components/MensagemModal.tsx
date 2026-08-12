@@ -13,8 +13,7 @@ import {
 import {
   gerarMensagemAbordagem, type Empresa, type CanalMensagem,
 } from "@/lib/api";
-import { useTheme } from "@mui/material/styles";
-import { denseOutlinedInput } from "@/theme/themeSx";
+import { alpha, useTheme } from "@mui/material/styles";
 
 // LinkedIn icon not in @mui/icons-material standard — use a simple SVG chip
 function LinkedInSvg({ size = 14 }: { size?: number }) {
@@ -92,7 +91,7 @@ export function MensagemModal({
     <Dialog open={open} onClose={onClose} PaperProps={{ sx: paperSx }}>
       <DialogTitle sx={{ pb: 1 }}>
         <Stack direction="row" alignItems="center" gap={1}>
-          <AutoAwesomeRounded sx={{ fontSize: 17, color: "#F59E0B" }} />
+          <AutoAwesomeRounded sx={{ fontSize: 17, color: "warning.main" }} />
           <Typography sx={{ fontWeight: 600, fontSize: "0.9375rem", color: "text.primary" }}>
             Gerar mensagem de abordagem
           </Typography>
@@ -168,12 +167,13 @@ export function MensagemModal({
                   <Chip
                     label={iaUsada ? "✦ IA" : "template"}
                     size="small"
-                    sx={{
-                      fontSize: "0.625rem", height: 18,
-                      backgroundColor: iaUsada ? "rgba(245,158,11,0.1)" : "action.hover",
-                      color: iaUsada ? "#F59E0B" : "text.secondary",
-                      border: `1px solid ${iaUsada ? "rgba(245,158,11,0.25)" : theme.palette.divider}`,
-                    }}
+                    sx={(theme) => ({
+                      fontSize: "0.625rem",
+                      height: 18,
+                      backgroundColor: iaUsada ? alpha(theme.palette.warning.main, 0.12) : "action.hover",
+                      color: iaUsada ? "warning.main" : "text.secondary",
+                      border: `1px solid ${iaUsada ? alpha(theme.palette.warning.main, 0.35) : theme.palette.divider}`,
+                    })}
                   />
                 </Stack>
                 <Button
@@ -182,8 +182,8 @@ export function MensagemModal({
                   onClick={copiar}
                   sx={{
                     fontSize: "0.6875rem", textTransform: "none",
-                    color: copiado ? "#22C55E" : "text.secondary",
-                    "&:hover": { color: copiado ? "#22C55E" : "text.primary" },
+                    color: copiado ? "success.main" : "text.secondary",
+                    "&:hover": { color: copiado ? "success.main" : "text.primary" },
                   }}
                 >
                   {copiado ? "Copiado!" : "Copiar"}

@@ -21,6 +21,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/assertiva", tags=["Assertiva"])
 
+# ── Versão do normalizador ─────────────────────────────────────────────────
+# Bump esta string sempre que `_normalizar` ou `_normalizar_pf` mudarem
+# (em assertiva_service.py). O cache armazena este valor junto com o payload e,
+# se a versão guardada não bater com a atual, o cache é considerado stale e
+# uma nova consulta é feita — evita servir dados normalizados de forma antiga.
+ASSERTIVA_NORMALIZER_VERSION = "v3-2026-04-29"
+
 # ── Cache de instâncias por org_id ─────────────────────────────────────────
 _clients: dict[str, AssertivaCNPJService] = {}
 
@@ -160,10 +167,16 @@ async def _get_org_assertiva_creds(org_id: str) -> tuple[str, str, str, str]:
 
 # ── Cache no tenant ────────────────────────────────────────────────────────
 
+def _is_cache_compatible(dados: dict | None) -> bool:
+    if not isinstance(dados, dict):
+        return False
+    return dados.get("_schema_version") == ASSERTIVA_NORMALIZER_VERSION
+
+
 async def _check_cache(
     supa_url: str, supa_key: str, cnpj: str, max_age_days: int = 7
 ) -> Optional[dict]:
-    """Retorna dados cacheados se dentro do TTL, senão None."""
+    """Retorna dados cacheados se dentro do TTL E com schema_version compatível, senão None."""
     if not supa_url or not supa_key:
         return None
 
@@ -185,7 +198,14 @@ async def _check_cache(
             rows = r.json()
             if rows:
                 raw = rows[0].get("dados")
-                return raw if isinstance(raw, dict) else json.loads(raw)
+                dados = raw if isinstance(raw, dict) else (json.loads(raw) if raw else None)
+                if _is_cache_compatible(dados):
+                    return dados
+                # Schema antigo → ignora cache (cliente refará a consulta)
+                logger.info(
+                    "Cache decisores stale (schema mismatch) para CNPJ %s — refetch",
+                    cnpj,
+                )
     except Exception as e:
         logger.warning("Erro ao checar cache decisores: %s", e)
 
@@ -193,9 +213,11 @@ async def _check_cache(
 
 
 async def _save_cache(supa_url: str, supa_key: str, cnpj: str, dados: dict) -> None:
-    """Upsert dos dados no cache do tenant."""
+    """Upsert dos dados no cache do tenant, marcando a versão do schema."""
     if not supa_url or not supa_key:
         return
+
+    payload = {**dados, "_schema_version": ASSERTIVA_NORMALIZER_VERSION}
 
     try:
         async with httpx.AsyncClient(timeout=8) as c:
@@ -207,7 +229,7 @@ async def _save_cache(supa_url: str, supa_key: str, cnpj: str, dados: dict) -> N
                 },
                 json={
                     "cnpj": cnpj,
-                    "dados": dados,
+                    "dados": payload,
                     "buscado_em": datetime.now(timezone.utc).isoformat(),
                 },
             )
@@ -315,7 +337,13 @@ async def _check_cache_pf(
             rows = r.json()
             if rows:
                 raw = rows[0].get("dados")
-                return raw if isinstance(raw, dict) else json.loads(raw)
+                dados = raw if isinstance(raw, dict) else (json.loads(raw) if raw else None)
+                if _is_cache_compatible(dados):
+                    return dados
+                logger.info(
+                    "Cache pessoa_fisica stale (schema mismatch) para CPF %s — refetch",
+                    cpf,
+                )
     except Exception as e:
         logger.warning("Erro ao checar cache pessoa_fisica: %s", e)
     return None
@@ -324,6 +352,7 @@ async def _check_cache_pf(
 async def _save_cache_pf(supa_url: str, supa_key: str, cpf: str, dados: dict) -> None:
     if not supa_url or not supa_key:
         return
+    payload = {**dados, "_schema_version": ASSERTIVA_NORMALIZER_VERSION}
     try:
         async with httpx.AsyncClient(timeout=8) as c:
             await c.post(
@@ -334,7 +363,7 @@ async def _save_cache_pf(supa_url: str, supa_key: str, cpf: str, dados: dict) ->
                 },
                 json={
                     "cpf": cpf,
-                    "dados": dados,
+                    "dados": payload,
                     "buscado_em": datetime.now(timezone.utc).isoformat(),
                 },
             )

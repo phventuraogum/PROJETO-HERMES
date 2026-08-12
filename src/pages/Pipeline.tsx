@@ -1,27 +1,25 @@
-// src/pages/Pipeline.tsx — Hermes Design System v2 (MUI)
+// src/pages/Pipeline.tsx — Hermes Design System v2
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
-  Box, Stack, Typography, Button, Card, CardContent,
-  IconButton, Chip, Tooltip, TextField, Drawer,
-  Menu, MenuItem, Dialog, DialogTitle, DialogContent,
-  DialogContentText, DialogActions, CircularProgress, Divider,
-} from "@mui/material";
-import BusinessIcon from "@mui/icons-material/Business";
-import LocationOnIcon from "@mui/icons-material/LocationOn";
-import EmailIcon from "@mui/icons-material/Email";
-import PhoneIcon from "@mui/icons-material/Phone";
-import ChatIcon from "@mui/icons-material/Chat";
-import LanguageIcon from "@mui/icons-material/Language";
-import DeleteIcon from "@mui/icons-material/Delete";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
-import BoltIcon from "@mui/icons-material/Bolt";
-import TrackChangesIcon from "@mui/icons-material/TrackChanges";
-import AddIcon from "@mui/icons-material/Add";
-import SendIcon from "@mui/icons-material/Send";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import RadioIcon from "@mui/icons-material/Radio";
-
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Building2, MapPin, Mail, Phone, MessageCircle, Globe,
+  Trash2, MoreHorizontal, Zap, Target, ArrowRight, Plus,
+  Loader2, Send, CheckCircle2, Radio,
+} from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import {
   getPipeline, moveLeadPipeline, removeFromPipeline, updateLeadNota,
   enviarParaSDR, type LeadPipeline, type EstagioLead,
@@ -29,27 +27,26 @@ import {
 import { MensagemModal } from "@/components/MensagemModal";
 import { CrmExportModal } from "@/components/CrmExportModal";
 import { toast } from "sonner";
-import { alpha, useTheme } from "@mui/material/styles";
 
 /* ── Colunas ─────────────────────────────────────────────────────────────── */
 type Coluna = {
   id: EstagioLead; label: string;
-  dotColor: string; badgeBg: string; badgeColor: string; descricao: string;
+  headerColor: string; badgeColor: string; dotColor: string; descricao: string;
 };
 
 const COLUNAS: Coluna[] = [
-  { id: "novo",        label: "Novos",       dotColor: "#94a3b8", badgeBg: "#1e2a3a", badgeColor: "#94a3b8", descricao: "Recém-adicionados" },
-  { id: "em_analise",  label: "Em análise",  dotColor: "#3b82f6", badgeBg: "#1e2d4a", badgeColor: "#60a5fa", descricao: "Pesquisando mais" },
-  { id: "contactado",  label: "Contactado",  dotColor: "#f59e0b", badgeBg: "#2d2010", badgeColor: "#fbbf24", descricao: "Primeiro contato feito" },
-  { id: "qualificado", label: "Qualificado", dotColor: "#10b981", badgeBg: "#0d2d20", badgeColor: "#34d399", descricao: "Lead confirmado" },
-  { id: "descartado",  label: "Descartado",  dotColor: "#f87171", badgeBg: "#2d1010", badgeColor: "#f87171", descricao: "Fora do perfil" },
+  { id: "novo",        label: "Novos",       headerColor: "bg-slate-50 border-slate-200",    badgeColor: "bg-slate-100 text-slate-600 border-slate-200",      dotColor: "bg-slate-400",    descricao: "Recém-adicionados" },
+  { id: "em_analise",  label: "Em análise",  headerColor: "bg-blue-50 border-blue-200",      badgeColor: "bg-blue-100 text-blue-700 border-blue-200",         dotColor: "bg-blue-500",     descricao: "Pesquisando mais" },
+  { id: "contactado",  label: "Contactado",  headerColor: "bg-amber-50 border-amber-200",    badgeColor: "bg-amber-100 text-amber-700 border-amber-200",      dotColor: "bg-amber-500",    descricao: "Primeiro contato feito" },
+  { id: "qualificado", label: "Qualificado", headerColor: "bg-emerald-50 border-emerald-200", badgeColor: "bg-emerald-100 text-emerald-700 border-emerald-200", dotColor: "bg-emerald-500",  descricao: "Lead confirmado" },
+  { id: "descartado",  label: "Descartado",  headerColor: "bg-red-50 border-red-200",        badgeColor: "bg-red-100 text-red-700 border-red-200",            dotColor: "bg-red-400",      descricao: "Fora do perfil" },
 ];
 
-function scoreColor(s: number) {
-  if (s >= 75) return { bg: "#0d2d20", color: "#34d399", border: "#10b981" };
-  if (s >= 50) return { bg: "#1e2d10", color: "#a3e635", border: "#84cc16" };
-  if (s >= 25) return { bg: "#2d2010", color: "#fbbf24", border: "#f59e0b" };
-  return { bg: "#2d1010", color: "#f87171", border: "#ef4444" };
+function scoreLabel(s: number) {
+  if (s >= 75) return "score-badge-high";
+  if (s >= 50) return "score-badge-mid";
+  if (s >= 25) return "score-badge-low";
+  return "score-badge-danger";
 }
 
 /* ── Lead Card ────────────────────────────────────────────────────────────── */
@@ -58,166 +55,114 @@ function LeadCard({ lead, onMove, onRemove, onDetail, isDragging, onDragStart, o
   onRemove: (id: string) => void; onDetail: (l: LeadPipeline) => void;
   isDragging: boolean; onDragStart: (id: string) => void; onDragEnd: () => void;
 }) {
-  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const emp = lead.empresa;
   const temContato = emp.email || emp.email_enriquecido || emp.telefone_padrao ||
     emp.telefone_receita || emp.whatsapp_publico || emp.whatsapp_enriquecido;
-  const sc = scoreColor(lead.score_icp);
 
   return (
-    <Card
+    <div
       draggable
       onDragStart={() => onDragStart(lead.id)}
       onDragEnd={onDragEnd}
       onClick={() => onDetail(lead)}
-      sx={{
-        borderRadius: "10px",
-        border: "1px solid",
-        borderColor: "divider",
-        backgroundColor: "background.paper",
-        cursor: "pointer",
-        opacity: isDragging ? 0.4 : 1,
-        transform: isDragging ? "rotate(1deg) scale(0.95)" : "none",
-        transition: "all 0.15s",
-        "&:hover": { borderColor: "divider", backgroundColor: "action.hover" },
-        mb: 0,
-      }}
+      className={cn(
+        "group pipeline-card",
+        isDragging && "opacity-40 rotate-1 scale-95"
+      )}
     >
-      <CardContent sx={{ p: "10px !important" }}>
-        {/* Top row */}
-        <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={0.5}>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              variant="body2"
-              fontWeight={500}
-              sx={{
-                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                color: "text.primary", lineHeight: 1.3, fontSize: 13,
-              }}
-            >
-              {emp.nome_fantasia || emp.razao_social}
-            </Typography>
-            <Stack direction="row" alignItems="center" gap={0.5} sx={{ mt: 0.25 }}>
-              <LocationOnIcon sx={{ fontSize: 10, color: "text.secondary", flexShrink: 0 }} />
-              <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 10 }}>
-                {emp.cidade || "—"} / {emp.uf || "—"}
-              </Typography>
-            </Stack>
-          </Box>
-          <Stack direction="row" alignItems="center" gap={0.5} sx={{ flexShrink: 0 }}>
-            <Box sx={{
-              fontSize: 10, fontWeight: 700, px: 1, py: 0.25, borderRadius: 0.75,
-              border: `1px solid ${sc.border}`, backgroundColor: sc.bg, color: sc.color,
-              fontVariantNumeric: "tabular-nums",
-            }}>
-              {lead.score_icp.toFixed(0)}
-            </Box>
-            <IconButton
-              size="small"
-              onClick={e => { e.stopPropagation(); setMenuAnchor(e.currentTarget); }}
-              sx={{ width: 20, height: 20, borderRadius: 0.75, opacity: 0.6, "&:hover": { opacity: 1, backgroundColor: "rgba(255,255,255,0.08)" } }}
-            >
-              <MoreHorizIcon sx={{ fontSize: 12 }} />
-            </IconButton>
-            <Menu
-              anchorEl={menuAnchor}
-              open={Boolean(menuAnchor)}
-              onClose={() => setMenuAnchor(null)}
-              onClick={e => e.stopPropagation()}
-              PaperProps={{ sx: { backgroundColor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: 1.5, minWidth: 160 } }}
-            >
-              <MenuItem onClick={() => { setMenuAnchor(null); onDetail(lead); }} sx={{ fontSize: 12 }}>Ver detalhes</MenuItem>
+      <div className="flex items-start justify-between gap-1.5">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate leading-tight text-foreground">
+            {emp.nome_fantasia || emp.razao_social}
+          </p>
+          <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
+            <MapPin className="h-2.5 w-2.5 shrink-0" />
+            {emp.cidade || "—"} / {emp.uf || "—"}
+          </div>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className={cn("score-badge-high text-[11px] px-1.5 py-0 border rounded font-semibold tabular-nums", scoreLabel(lead.score_icp))}>
+            {lead.score_icp.toFixed(0)}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+              <Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                <MoreHorizontal className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 shadow-surface-lg">
+              <DropdownMenuItem onClick={e => { e.stopPropagation(); onDetail(lead); }}>Ver detalhes</DropdownMenuItem>
               {COLUNAS.filter(c => c.id !== lead.estagio).map(c => (
-                <MenuItem key={c.id} onClick={() => { setMenuAnchor(null); onMove(lead.id, c.id); }} sx={{ fontSize: 12 }}>
+                <DropdownMenuItem key={c.id} onClick={e => { e.stopPropagation(); onMove(lead.id, c.id); }}>
                   Mover: {c.label}
-                </MenuItem>
+                </DropdownMenuItem>
               ))}
-              <Divider sx={{ borderColor: "divider", my: 0.5 }} />
-              <MenuItem
-                onClick={() => { setMenuAnchor(null); onRemove(lead.id); }}
-                sx={{ fontSize: 12, color: "#f87171" }}
-              >
-                <DeleteIcon sx={{ fontSize: 12, mr: 1 }} /> Remover
-              </MenuItem>
-            </Menu>
-          </Stack>
-        </Stack>
+              <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={e => { e.stopPropagation(); onRemove(lead.id); }}>
+                <Trash2 className="h-3 w-3 mr-1.5" /> Remover
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
 
-        {/* Badges: segmento / porte */}
-        {(emp.segmento || emp.porte) && (
-          <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 1 }}>
-            {emp.segmento && (
-              <Chip label={emp.segmento} size="small" variant="outlined" sx={{
-                fontSize: 9, height: 16, borderColor: "divider",
-                color: "text.secondary", "& .MuiChip-label": { px: 0.75 },
-              }} />
-            )}
-            {emp.porte && (
-              <Chip label={emp.porte} size="small" variant="outlined" sx={{
-                fontSize: 9, height: 16, borderColor: "divider",
-                color: "text.secondary", "& .MuiChip-label": { px: 0.75 },
-              }} />
-            )}
-          </Stack>
-        )}
+      {(emp.segmento || emp.porte) && (
+        <div className="flex items-center gap-1 mt-2 flex-wrap">
+          {emp.segmento && (
+            <Badge variant="outline" className="text-[10px] border-border/60 text-muted-foreground py-0 px-1.5 h-4">
+              {emp.segmento}
+            </Badge>
+          )}
+          {emp.porte && (
+            <Badge variant="outline" className="text-[10px] border-border/60 text-muted-foreground py-0 px-1.5 h-4">
+              {emp.porte}
+            </Badge>
+          )}
+        </div>
+      )}
 
-        {/* Contact icons */}
-        {temContato && (
-          <Stack direction="row" gap={0.5} sx={{ mt: 1 }}>
-            {(emp.email || emp.email_enriquecido) && (
-              <Box sx={{ width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 0.75, backgroundColor: "#0c1f2e", border: "1px solid #1e4060" }}>
-                <EmailIcon sx={{ fontSize: 10, color: "#38bdf8" }} />
-              </Box>
-            )}
-            {(emp.whatsapp_publico || emp.whatsapp_enriquecido) && (
-              <Box sx={{ width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 0.75, backgroundColor: "#0d2d20", border: "1px solid #1a5c3a" }}>
-                <ChatIcon sx={{ fontSize: 10, color: "#34d399" }} />
-              </Box>
-            )}
-            {(emp.telefone_padrao || emp.telefone_receita) && (
-              <Box sx={{ width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 0.75, backgroundColor: "action.hover", border: "1px solid", borderColor: "divider" }}>
-                <PhoneIcon sx={{ fontSize: 10, color: "text.secondary" }} />
-              </Box>
-            )}
-            {emp.site && (
-              <Box sx={{ width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 0.75, backgroundColor: "#1a1028", border: "1px solid #3b1f5c" }}>
-                <LanguageIcon sx={{ fontSize: 10, color: "#a78bfa" }} />
-              </Box>
-            )}
-          </Stack>
-        )}
+      {temContato && (
+        <div className="flex items-center gap-1 mt-2">
+          {(emp.email || emp.email_enriquecido) && (
+            <div className="h-5 w-5 flex items-center justify-center rounded bg-sky-50 border border-sky-200">
+              <Mail className="h-2.5 w-2.5 text-sky-500" />
+            </div>
+          )}
+          {(emp.whatsapp_publico || emp.whatsapp_enriquecido) && (
+            <div className="h-5 w-5 flex items-center justify-center rounded bg-emerald-50 border border-emerald-200">
+              <MessageCircle className="h-2.5 w-2.5 text-emerald-500" />
+            </div>
+          )}
+          {(emp.telefone_padrao || emp.telefone_receita) && (
+            <div className="h-5 w-5 flex items-center justify-center rounded bg-muted border border-border">
+              <Phone className="h-2.5 w-2.5 text-muted-foreground" />
+            </div>
+          )}
+          {emp.site && (
+            <div className="h-5 w-5 flex items-center justify-center rounded bg-violet-50 border border-violet-200">
+              <Globe className="h-2.5 w-2.5 text-violet-500" />
+            </div>
+          )}
+        </div>
+      )}
 
-        {/* SDR status */}
-        {lead.sdr_status && (
-          <Box sx={{ mt: 1 }}>
-            <Chip
-              icon={<RadioIcon sx={{ fontSize: 10, "&&": { color: "inherit" } }} />}
-              label={`SDR: ${lead.sdr_status}`}
-              size="small"
-              sx={{
-                fontSize: 9, height: 16, fontWeight: 400,
-                backgroundColor: "#2d2010", color: "#fbbf24",
-                border: "1px solid #78450a",
-                "& .MuiChip-label": { px: 0.75 },
-                "& .MuiChip-icon": { ml: 0.5, fontSize: 10 },
-              }}
-            />
-          </Box>
-        )}
+      {lead.sdr_status && (
+        <div className="mt-2">
+          <Badge className={cn("text-[10px] py-0 px-1.5 border font-normal",
+            lead.sdr_status === "enviado"    && "bg-amber-50 text-amber-700 border-amber-200",
+            lead.sdr_status === "respondeu"  && "bg-sky-50 text-sky-700 border-sky-200",
+            lead.sdr_status === "qualificado"&& "bg-emerald-50 text-emerald-700 border-emerald-200",
+          )}>
+            <Radio className="h-2 w-2 mr-1" /> SDR: {lead.sdr_status}
+          </Badge>
+        </div>
+      )}
 
-        {/* Nota */}
-        {lead.nota && (
-          <Typography variant="caption" sx={{
-            display: "-webkit-box", color: "text.secondary", mt: 1, fontStyle: "italic",
-            overflow: "hidden", WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical", fontSize: 10,
-            borderTop: "1px solid", borderColor: "divider", pt: 1,
-          }}>
-            {lead.nota}
-          </Typography>
-        )}
-      </CardContent>
-    </Card>
+      {lead.nota && (
+        <p className="text-[11px] text-muted-foreground mt-2 line-clamp-2 italic border-t border-border/50 pt-2">
+          {lead.nota}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -228,8 +173,6 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
   onNotaChange: (id: string, nota: string) => void;
   onEnviarSDR: (id: string) => void; sdrLoading: boolean;
 }) {
-  const theme = useTheme();
-  const isDark = theme.palette.mode === "dark";
   const [nota, setNota] = useState(lead?.nota ?? "");
   const [mensagemOpen, setMensagemOpen] = useState(false);
   const [crmOpen, setCrmOpen] = useState(false);
@@ -241,215 +184,132 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
 
   return (
     <>
-      <Drawer
-        anchor="right"
-        open={!!lead}
-        onClose={onClose}
-        PaperProps={{
-          sx: {
-            width: { xs: "100%", sm: 420 }, backgroundColor: "background.paper",
-            border: "1px solid", borderColor: "divider", overflowY: "auto",
-          },
-        }}
-      >
-        {/* Header */}
-        <Box sx={{ p: 2.5, borderBottom: "1px solid", borderColor: "divider" }}>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ color: "text.primary", lineHeight: 1.3 }}>
-            {emp.nome_fantasia || emp.razao_social}
-          </Typography>
-          <Typography variant="caption" sx={{ color: "text.secondary", fontFamily: "monospace" }}>
-            {emp.cnpj}
-          </Typography>
-        </Box>
+      <Sheet open={!!lead} onOpenChange={v => !v && onClose()}>
+        <SheetContent className="w-full max-w-md overflow-y-auto bg-background border-border shadow-surface-xl">
+          <SheetHeader className="pb-4 border-b border-border">
+            <SheetTitle className="text-base font-display leading-tight text-foreground">
+              {emp.nome_fantasia || emp.razao_social}
+            </SheetTitle>
+            <p className="text-xs text-muted-foreground font-mono">{emp.cnpj}</p>
+          </SheetHeader>
 
-        <Box sx={{ p: 2.5 }}>
-          <Stack spacing={2.5}>
-            {/* Stage pills */}
-            <Stack direction="row" flexWrap="wrap" gap={1}>
-              {COLUNAS.map(c => {
-                const active = lead.estagio === c.id;
-                return (
-                  <Box
-                    key={c.id}
-                    component="button"
-                    onClick={() => onMove(lead.id, c.id)}
-                    sx={{
-                      fontSize: 11, fontWeight: 500, px: 1.5, py: 0.5,
-                      borderRadius: "99px", border: "1px solid",
-                      cursor: "pointer", transition: "all 0.15s",
-                      backgroundColor: active ? c.badgeBg : "transparent",
-                      borderColor: active ? c.dotColor : "divider",
-                      color: active ? c.badgeColor : "text.secondary",
-                      "&:hover": { borderColor: active ? c.dotColor : "primary.main", color: "text.primary" },
-                    }}
-                  >
-                    {c.label}
-                  </Box>
-                );
-              })}
-            </Stack>
+          <div className="space-y-5 pt-4">
+            {/* Estágios */}
+            <div className="flex flex-wrap gap-1.5">
+              {COLUNAS.map(c => (
+                <button key={c.id}
+                  onClick={() => onMove(lead.id, c.id)}
+                  className={cn(
+                    "text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all",
+                    lead.estagio === c.id
+                      ? c.badgeColor
+                      : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                  )}>
+                  {c.label}
+                </button>
+              ))}
+            </div>
 
-            {/* SDR status banner */}
+            {/* SDR status */}
             {lead.sdr_status && (
-              <Stack direction="row" alignItems="flex-start" gap={1.5} sx={{
-                px: 2, py: 1.5, borderRadius: 2, backgroundColor: "#2d2010", border: "1px solid #78450a",
-              }}>
-                <RadioIcon sx={{ fontSize: 14, color: "#f59e0b", mt: 0.25 }} />
-                <Box>
-                  <Typography variant="caption" fontWeight={700} sx={{ color: "#fbbf24", display: "block" }}>
-                    SDR: {lead.sdr_status}
-                  </Typography>
+              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200">
+                <Radio className="h-3.5 w-3.5 text-amber-500" />
+                <div>
+                  <p className="text-xs font-semibold text-amber-800">SDR: {lead.sdr_status}</p>
                   {lead.sdr_enviado_em && (
-                    <Typography variant="caption" sx={{ color: "#d97706", fontSize: 10 }}>
+                    <p className="text-[11px] text-amber-600">
                       Enviado em {new Date(lead.sdr_enviado_em).toLocaleDateString("pt-BR")}
-                    </Typography>
+                    </p>
                   )}
-                </Box>
-              </Stack>
+                </div>
+              </div>
             )}
 
             {/* Dados */}
-            <Card sx={{ borderRadius: 2, border: "1px solid", borderColor: "divider", backgroundColor: "background.paper" }}>
-              <CardContent sx={{ p: "14px !important" }}>
-                <Stack spacing={1}>
-                  {[
-                    ["Cidade / UF", `${emp.cidade || "—"} / ${emp.uf || "—"}`],
-                    ["Segmento", emp.segmento],
-                    ["Porte", emp.porte],
-                    ["CNAE", emp.cnae_descricao],
-                    ["Capital social", emp.capital_social ? `R$ ${emp.capital_social.toLocaleString("pt-BR")}` : null],
-                    ["Score ICP", `${lead.score_icp.toFixed(1)} pts`],
-                    ["Site", emp.site],
-                    ["Sócios", emp.socios_resumo],
-                  ].filter(([, v]) => v).map(([k, v]) => (
-                    <Stack key={k as string} direction="row" gap={1.5}>
-                      <Typography variant="caption" sx={{ color: "text.secondary", minWidth: 90, flexShrink: 0, fontSize: 11 }}>
-                        {k}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: "text.primary", wordBreak: "break-all", fontSize: 11 }}>
-                        {v as string}
-                      </Typography>
-                    </Stack>
-                  ))}
-                </Stack>
-              </CardContent>
-            </Card>
+            <div className="card-surface p-4 space-y-2">
+              {[
+                ["Cidade / UF", `${emp.cidade || "—"} / ${emp.uf || "—"}`],
+                ["Segmento", emp.segmento],
+                ["Porte", emp.porte],
+                ["CNAE", emp.cnae_descricao],
+                ["Capital social", emp.capital_social ? `R$ ${emp.capital_social.toLocaleString("pt-BR")}` : null],
+                ["Score ICP", `${lead.score_icp.toFixed(1)} pts`],
+                ["Site", emp.site],
+                ["Sócios", emp.socios_resumo],
+              ].filter(([, v]) => v).map(([k, v]) => (
+                <div key={k as string} className="flex gap-3 text-sm">
+                  <span className="text-muted-foreground min-w-[90px] shrink-0 text-xs">{k}</span>
+                  <span className="text-foreground break-all text-xs">{v as string}</span>
+                </div>
+              ))}
+            </div>
 
             {/* Contatos */}
-            <Card sx={{ borderRadius: 2, border: "1px solid", borderColor: "divider", backgroundColor: "background.paper" }}>
-              <CardContent sx={{ p: "14px !important" }}>
-                <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 1.5 }}>
-                  <SendIcon sx={{ fontSize: 13, color: "#a78bfa" }} />
-                  <Typography variant="caption" fontWeight={700} sx={{ color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5, fontSize: 10 }}>
-                    Contatos disponíveis
-                  </Typography>
-                </Stack>
-                <Stack spacing={1}>
-                  {[
-                    { IconComp: EmailIcon, label: "E-mail", value: emp.email, color: "#38bdf8" },
-                    { IconComp: EmailIcon, label: "E-mail enriquecido", value: emp.email_enriquecido, color: "#7dd3fc" },
-                    { IconComp: ChatIcon, label: "WhatsApp público", value: emp.whatsapp_publico, color: "#34d399" },
-                    { IconComp: ChatIcon, label: "WhatsApp enriquecido", value: emp.whatsapp_enriquecido, color: "#6ee7b7" },
-                    { IconComp: PhoneIcon, label: "Telefone principal", value: emp.telefone_padrao, color: "#94a3b8" },
-                    { IconComp: PhoneIcon, label: "Telefone Receita", value: emp.telefone_receita, color: "#64748b" },
-                  ].filter(c => c.value).map(c => (
-                    <Stack key={c.label} direction="row" alignItems="center" gap={1}>
-                      <c.IconComp sx={{ fontSize: 13, color: c.color, flexShrink: 0 }} />
-                      <Typography variant="caption" sx={{ color: "text.secondary", minWidth: 130, flexShrink: 0, fontSize: 11 }}>
-                        {c.label}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: "text.primary", wordBreak: "break-all", fontSize: 11 }}>
-                        {c.value}
-                      </Typography>
-                    </Stack>
-                  ))}
-                  {!temContatoSDR && (
-                    <Typography variant="caption" sx={{ color: "text.secondary", fontStyle: "italic", fontSize: 11 }}>
-                      Nenhum contato disponível
-                    </Typography>
-                  )}
-                </Stack>
-              </CardContent>
-            </Card>
+            <div className="card-surface p-4">
+              <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-3">
+                <Send className="h-3.5 w-3.5 text-violet-500" /> Contatos disponíveis
+              </p>
+              <div className="space-y-2">
+                {[
+                  { icon: Mail,          label: "E-mail",               value: emp.email,                color: "text-sky-500" },
+                  { icon: Mail,          label: "E-mail enriquecido",   value: emp.email_enriquecido,    color: "text-sky-400" },
+                  { icon: MessageCircle, label: "WhatsApp público",     value: emp.whatsapp_publico,     color: "text-emerald-500" },
+                  { icon: MessageCircle, label: "WhatsApp enriquecido", value: emp.whatsapp_enriquecido, color: "text-emerald-400" },
+                  { icon: Phone,         label: "Telefone principal",   value: emp.telefone_padrao,      color: "text-slate-500" },
+                  { icon: Phone,         label: "Telefone Receita",     value: emp.telefone_receita,     color: "text-slate-400" },
+                ].filter(c => c.value).map(c => (
+                  <div key={c.label} className="flex items-center gap-2.5 text-xs">
+                    <c.icon className={cn("h-3.5 w-3.5 shrink-0", c.color)} />
+                    <span className="text-muted-foreground min-w-[120px] shrink-0">{c.label}</span>
+                    <span className="text-foreground break-all">{c.value}</span>
+                  </div>
+                ))}
+                {!temContatoSDR && (
+                  <p className="text-muted-foreground/60 text-xs italic">Nenhum contato disponível</p>
+                )}
+              </div>
+            </div>
 
             {/* Nota */}
-            <Box>
-              <Typography variant="caption" fontWeight={700} sx={{ color: "text.secondary", display: "block", mb: 0.75, textTransform: "uppercase", letterSpacing: 0.5, fontSize: 10 }}>
-                Notas internas
-              </Typography>
-              <TextField
-                multiline
-                rows={3}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Notas internas</label>
+              <textarea
                 value={nota}
                 onChange={e => setNota(e.target.value)}
                 onBlur={() => onNotaChange(lead.id, nota)}
+                rows={3}
                 placeholder="Observações sobre o lead..."
-                fullWidth
-                size="small"
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    fontSize: 12,
-                    backgroundColor: isDark ? alpha(theme.palette.common.white, 0.04) : alpha(theme.palette.common.black, 0.04),
-                    "& fieldset": { borderColor: isDark ? alpha(theme.palette.common.white, 0.12) : alpha(theme.palette.common.black, 0.14) },
-                    "&:hover fieldset": { borderColor: isDark ? alpha(theme.palette.common.white, 0.22) : alpha(theme.palette.common.black, 0.22) },
-                    "&.Mui-focused fieldset": { borderColor: alpha(theme.palette.primary.main, 0.45) },
-                  },
-                  "& .MuiInputBase-input": { color: "text.primary" },
-                  "& .MuiInputBase-input::placeholder": { color: "text.secondary", opacity: 0.7 },
-                }}
+                className="w-full resize-none rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs text-foreground placeholder-muted-foreground/50 focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10 transition-all"
               />
-            </Box>
+            </div>
 
             {/* Ações */}
-            <Box>
-              <Typography variant="caption" fontWeight={700} sx={{ color: "text.secondary", display: "block", mb: 1, textTransform: "uppercase", letterSpacing: 0.5, fontSize: 10 }}>
-                Ações
-              </Typography>
-              <Stack direction="row" flexWrap="wrap" gap={1}>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<ChatIcon sx={{ fontSize: "14px !important" }} />}
-                  onClick={() => setMensagemOpen(true)}
-                  sx={{ fontSize: 11, height: 30, borderColor: "#1a5c3a", color: "#34d399", "&:hover": { backgroundColor: "#0d2d20", borderColor: "#34d399" } }}
-                >
-                  Mensagem
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground">Ações</p>
+              <div className="flex gap-2 flex-wrap">
+                <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={() => setMensagemOpen(true)}>
+                  <MessageCircle className="h-3.5 w-3.5" /> Mensagem
                 </Button>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<BusinessIcon sx={{ fontSize: "14px !important" }} />}
-                  onClick={() => setCrmOpen(true)}
-                  sx={{ fontSize: 11, height: 30, borderColor: "#1e4060", color: "#60a5fa", "&:hover": { backgroundColor: "#1e2d4a", borderColor: "#60a5fa" } }}
-                >
-                  Enviar CRM
+                <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50" onClick={() => setCrmOpen(true)}>
+                  <Building2 className="h-3.5 w-3.5" /> Enviar CRM
                 </Button>
                 {temContatoSDR && !lead.sdr_status && (
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={sdrLoading ? <CircularProgress size={12} /> : <BoltIcon sx={{ fontSize: "14px !important" }} />}
-                    disabled={sdrLoading}
-                    onClick={() => onEnviarSDR(lead.id)}
-                    sx={{ fontSize: 11, height: 30, borderColor: "#3b1f5c", color: "#a78bfa", "&:hover": { backgroundColor: "#1a1028", borderColor: "#a78bfa" } }}
-                  >
+                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50"
+                    disabled={sdrLoading} onClick={() => onEnviarSDR(lead.id)}>
+                    {sdrLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
                     Enviar SDR
                   </Button>
                 )}
                 {lead.sdr_status && (
-                  <Chip
-                    icon={<CheckCircleIcon sx={{ fontSize: "12px !important", "&&": { color: "#34d399" } }} />}
-                    label="Enviado ao SDR"
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontSize: 10, height: 28, borderColor: "#1a5c3a", color: "#34d399", backgroundColor: "#0d2d20" }}
-                  />
+                  <Badge variant="outline" className="text-[11px] border-emerald-200 text-emerald-700 bg-emerald-50 py-1 px-2.5">
+                    <CheckCircle2 className="h-3 w-3 mr-1" /> Enviado ao SDR
+                  </Badge>
                 )}
-              </Stack>
-            </Box>
-          </Stack>
-        </Box>
-      </Drawer>
+              </div>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {mensagemOpen && <MensagemModal empresa={emp} open={mensagemOpen} onClose={() => setMensagemOpen(false)} />}
       <CrmExportModal open={crmOpen} onClose={() => setCrmOpen(false)} empresa={emp} />
@@ -459,8 +319,6 @@ function DetalheSheet({ lead, onClose, onMove, onNotaChange, onEnviarSDR, sdrLoa
 
 /* ── PRINCIPAL ────────────────────────────────────────────────────────────── */
 const Pipeline = () => {
-  const theme = useTheme();
-  const isDark = theme.palette.mode === "dark";
   const navigate = useNavigate();
   const [leads, setLeads] = useState<LeadPipeline[]>([]);
   const [loading, setLoading] = useState(true);
@@ -531,133 +389,101 @@ const Pipeline = () => {
   };
 
   if (loading) return (
-    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", py: 16 }}>
-      <Stack direction="row" alignItems="center" gap={1.5}>
-        <CircularProgress size={16} sx={{ color: "#F97316" }} />
-        <Typography variant="body2" sx={{ color: "text.secondary" }}>Carregando pipeline...</Typography>
-      </Stack>
-    </Box>
+    <div className="flex items-center justify-center py-32">
+      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        Carregando pipeline...
+      </div>
+    </div>
   );
 
   if (leads.length === 0) return (
-    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", py: 16, gap: 2.5 }}>
-      <Box sx={{
-        width: 64, height: 64, borderRadius: 3,
-        backgroundColor: "background.paper", border: "1px solid", borderColor: "divider",
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
-        <TrackChangesIcon sx={{ fontSize: 32, color: "text.secondary" }} />
-      </Box>
-      <Box sx={{ textAlign: "center" }}>
-        <Typography variant="h6" fontWeight={700} sx={{ color: "text.primary" }}>Pipeline vazio</Typography>
-        <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5, maxWidth: 320 }}>
-          Adicione empresas da tela de Resultados para começar.
-        </Typography>
-      </Box>
-      <Button
-        variant="contained"
-        startIcon={<AddIcon />}
-        onClick={() => navigate("/results")}
-        sx={{ backgroundColor: "#F97316", color: "#fff", fontWeight: 600, "&:hover": { backgroundColor: "#ea6c10" } }}
-      >
-        Ir para Resultados
+    <div className="flex flex-col items-center justify-center py-32 gap-5">
+      <div className="h-16 w-16 rounded-2xl bg-muted border border-border flex items-center justify-center">
+        <Target className="h-8 w-8 text-muted-foreground" />
+      </div>
+      <div className="text-center space-y-1.5">
+        <p className="text-lg font-display text-foreground">Pipeline vazio</p>
+        <p className="text-sm text-muted-foreground max-w-xs">Adicione empresas da tela de Resultados para começar.</p>
+      </div>
+      <Button onClick={() => navigate("/results")} className="gap-2 text-white shadow-surface-sm" style={{ background: "var(--pinn-orange)" }}>
+        <Plus className="h-4 w-4" /> Ir para Resultados
       </Button>
-    </Box>
+    </div>
   );
 
   const leadsParaSDR = leads.filter(l => (l.estagio === "novo" || l.estagio === "em_analise") && !l.sdr_status).length;
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+    <div className="space-y-5 animate-in-fade">
+
       {/* Header */}
-      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={2}>
-        <Box>
-          <Typography variant="h5" fontWeight={700} sx={{ color: "text.primary" }}>Pipeline de Leads</Typography>
-          <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black tracking-tighter text-foreground">Pipeline de Leads</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             {leads.length} lead{leads.length !== 1 ? "s" : ""} · Arraste para mover entre estágios
-          </Typography>
-        </Box>
-        <Stack direction="row" gap={1}>
+          </p>
+        </div>
+        <div className="flex gap-2">
           {leadsParaSDR > 0 && (
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={sdrLoading ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : <BoltIcon sx={{ fontSize: "14px !important" }} />}
-              disabled={sdrLoading}
-              onClick={handleEnviarTodosSDR}
-              sx={{ backgroundColor: "#F97316", color: "#fff", fontWeight: 600, fontSize: 12, "&:hover": { backgroundColor: "#ea6c10" } }}
-            >
+            <Button size="sm" className="gap-1.5 shadow-surface-sm"
+              disabled={sdrLoading} onClick={handleEnviarTodosSDR}>
+              {sdrLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
               Enviar {leadsParaSDR} ao SDR
             </Button>
           )}
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<AddIcon sx={{ fontSize: "14px !important" }} />}
-            onClick={() => navigate("/results")}
-            sx={{ fontSize: 12, borderColor: "divider", color: "text.primary", "&:hover": { borderColor: "text.secondary", backgroundColor: "action.hover" } }}
-          >
-            Adicionar leads
+          <Button size="sm" variant="outline" className="gap-1.5 shadow-surface-xs" onClick={() => navigate("/results")}>
+            <Plus className="h-3.5 w-3.5" /> Adicionar leads
           </Button>
-        </Stack>
-      </Stack>
+        </div>
+      </div>
 
       {/* Stats bar */}
-      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 1 }}>
+      <div className="grid grid-cols-5 gap-2">
         {COLUNAS.map(c => {
           const count = leads.filter(l => l.estagio === c.id).length;
           return (
-            <Card key={c.id} sx={{ borderRadius: 2, border: "1px solid", borderColor: "divider", backgroundColor: "background.paper", textAlign: "center" }}>
-              <CardContent sx={{ py: "10px !important", px: "8px !important" }}>
-                <Stack direction="row" alignItems="center" justifyContent="center" gap={0.75} sx={{ mb: 0.25 }}>
-                  <Box sx={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: c.dotColor, flexShrink: 0 }} />
-                  <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 500, fontSize: 10 }}>{c.label}</Typography>
-                </Stack>
-                <Typography variant="h6" fontWeight={600} sx={{ color: "text.primary", fontVariantNumeric: "tabular-nums" }}>{count}</Typography>
-              </CardContent>
-            </Card>
+            <div key={c.id} className={cn("rounded-xl border px-3 py-2.5 text-center", c.headerColor)}>
+              <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                <div className={cn("h-2 w-2 rounded-full", c.dotColor)} />
+                <p className="text-[11px] text-muted-foreground font-medium">{c.label}</p>
+              </div>
+              <p className="text-xl font-semibold tabular-nums text-foreground">{count}</p>
+            </div>
           );
         })}
-      </Box>
+      </div>
 
       {/* Kanban */}
-      <Box sx={{ display: "flex", gap: 1.5, overflowX: "auto", pb: 2, minHeight: "60vh" }}>
+      <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: "60vh" }}>
         {COLUNAS.map(col => {
           const colLeads = leads.filter(l => l.estagio === col.id).sort((a, b) => b.score_icp - a.score_icp);
           const isOver = overCol === col.id;
           return (
-            <Box
-              key={col.id}
+            <div key={col.id}
               onDragOver={e => onDragOver(e, col.id)}
               onDrop={e => onDrop(e, col.id)}
-              sx={{
-                display: "flex", flexDirection: "column", gap: 1,
-                minWidth: 240, width: 240, flexShrink: 0,
-                borderRadius: 2.5, border: "1px solid",
-                p: 1.25, transition: "all 0.15s",
-                borderColor: isOver ? "rgba(249,115,22,0.35)" : "divider",
-                backgroundColor: isOver
-                  ? "rgba(249,115,22,0.06)"
-                  : (isDark ? alpha(theme.palette.common.white, 0.03) : alpha(theme.palette.common.black, 0.03)),
-                boxShadow: isOver ? "0 0 0 2px rgba(249,115,22,0.15)" : "none",
-              }}
+              className={cn(
+                "flex flex-col gap-2 min-w-[240px] w-[240px] shrink-0 rounded-xl border p-2.5 transition-all duration-150",
+                isOver
+                  ? "bg-primary/5 border-primary/30 shadow-surface-sm"
+                  : "bg-muted/30 border-border/60"
+              )}
             >
-              {/* Column header */}
-              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 0.5, pb: 1, borderBottom: "1px solid", borderColor: "divider" }}>
-                <Stack direction="row" alignItems="center" gap={1}>
-                  <Box sx={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: col.dotColor }} />
-                  <Typography variant="caption" fontWeight={700} sx={{ color: "text.primary", fontSize: 12 }}>{col.label}</Typography>
-                </Stack>
-                <Box sx={{
-                  fontSize: 10, fontWeight: 700, px: 1, py: 0.25, borderRadius: "99px",
-                  border: `1px solid ${col.dotColor}40`, backgroundColor: col.badgeBg, color: col.badgeColor,
-                }}>
+              {/* Col header */}
+              <div className="flex items-center justify-between px-1 pb-1.5 border-b border-border/40">
+                <div className="flex items-center gap-2">
+                  <div className={cn("h-2 w-2 rounded-full", col.dotColor)} />
+                  <span className="text-xs font-semibold text-foreground">{col.label}</span>
+                </div>
+                <span className={cn("text-[11px] font-semibold px-1.5 py-0.5 rounded-full border", col.badgeColor)}>
                   {colLeads.length}
-                </Box>
-              </Stack>
+                </span>
+              </div>
 
               {/* Cards */}
-              <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 1, minHeight: 120 }}>
+              <div className="flex-1 space-y-2 min-h-[120px]">
                 {colLeads.map(lead => (
                   <LeadCard key={lead.id} lead={lead}
                     onMove={handleMove} onRemove={id => setConfirmRemove(id)}
@@ -665,60 +491,41 @@ const Pipeline = () => {
                     onDragStart={onDragStart} onDragEnd={onDragEnd} />
                 ))}
                 {colLeads.length === 0 && (
-                  <Box sx={{
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    height: 80, borderRadius: 2, border: "2px dashed",
-                    transition: "all 0.15s",
-                    borderColor: isOver ? "rgba(249,115,22,0.35)" : "divider",
-                    backgroundColor: isOver ? "rgba(249,115,22,0.04)" : "transparent",
-                  }}>
-                    <Typography variant="caption" sx={{ color: isOver ? "primary.main" : "text.disabled", fontSize: 11 }}>
-                      Arraste aqui
-                    </Typography>
-                  </Box>
+                  <div className={cn(
+                    "flex items-center justify-center h-20 rounded-xl border-2 border-dashed text-xs text-muted-foreground/50 transition-all",
+                    isOver ? "border-primary/30 bg-primary/5 text-primary" : "border-border/40"
+                  )}>
+                    Arraste aqui
+                  </div>
                 )}
-              </Box>
-            </Box>
+              </div>
+            </div>
           );
         })}
-      </Box>
+      </div>
 
       <DetalheSheet lead={detalhe} onClose={() => setDetalhe(null)}
         onMove={handleMove} onNotaChange={handleNota}
         onEnviarSDR={handleEnviarSDR} sdrLoading={sdrLoading} />
 
-      {/* Confirm remove dialog */}
-      <Dialog
-        open={!!confirmRemove}
-        onClose={() => setConfirmRemove(null)}
-        PaperProps={{ sx: { backgroundColor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: 2 } }}
-      >
-        <DialogTitle sx={{ color: "text.primary", fontWeight: 700, fontSize: 16 }}>Remover do pipeline?</DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ color: "text.secondary", fontSize: 14 }}>
-            Esta ação remove o lead do board. Ele continuará disponível nos Resultados.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-          <Button
-            onClick={() => setConfirmRemove(null)}
-            variant="outlined"
-            size="small"
-            sx={{ borderColor: "divider", color: "text.primary", fontSize: 12 }}
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={() => confirmRemove && handleRemove(confirmRemove)}
-            variant="contained"
-            size="small"
-            sx={{ backgroundColor: "#dc2626", color: "#fff", fontSize: 12, "&:hover": { backgroundColor: "#b91c1c" } }}
-          >
-            Remover
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+      <AlertDialog open={!!confirmRemove} onOpenChange={v => !v && setConfirmRemove(null)}>
+        <AlertDialogContent className="shadow-surface-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display">Remover do pipeline?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação remove o lead do board. Ele continuará disponível nos Resultados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => confirmRemove && handleRemove(confirmRemove)}>
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 };
 
