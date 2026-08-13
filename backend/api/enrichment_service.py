@@ -238,6 +238,8 @@ APENAS JSON válido."""
         resultado: Dict[str, Any] = {
             "cnpj": cnpj,
             "site": site,
+            "site_confianca": None,
+            "site_score": None,
             "enriquecimento_ia": {},
             "inteligencia_abordagem": {},
             "contatos_web": {},
@@ -285,9 +287,12 @@ APENAS JSON válido."""
                 socios=socios,
                 site_url=site,
                 modo_rapido=modo_rapido,
+                email_receita=email_receita or "",
             )
             if dados_google:
                 resultado["site"] = resultado["site"] or dados_google.get("site")
+                resultado["site_confianca"] = dados_google.get("site_confianca")
+                resultado["site_score"] = dados_google.get("site_score")
                 resultado["linkedin_empresa"] = dados_google.get("linkedin_empresa")
                 resultado["contatos_web"] = {
                     "email_enriquecido": dados_google.get("email"),

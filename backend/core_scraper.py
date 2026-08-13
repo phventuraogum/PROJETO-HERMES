@@ -261,6 +261,142 @@ def _normalizar_url_publica(link: str) -> str:
     return urlunparse(("https", host, caminho_normalizado, "", "", ""))
 
 
+# ==========================================================
+# ✅ VALIDACAO ASSERTIVA DE SITE OFICIAL
+#    Sinais fortes: CNPJ do titular no RDAP (registro.br),
+#    CNPJ impresso na pagina e dominio do email da Receita.
+# ==========================================================
+PROVEDORES_EMAIL_GRATUITOS = {
+    "gmail.com", "hotmail.com", "hotmail.com.br", "outlook.com", "outlook.com.br",
+    "yahoo.com", "yahoo.com.br", "ymail.com", "bol.com.br", "uol.com.br",
+    "terra.com.br", "ig.com.br", "globo.com", "globomail.com", "icloud.com",
+    "live.com", "msn.com", "aol.com", "zipmail.com.br", "r7.com", "oi.com.br",
+    "brturbo.com.br", "veloxmail.com.br", "protonmail.com", "proton.me",
+    "me.com", "mac.com",
+}
+
+# Cache simples de consultas RDAP (dominio -> documento do titular ou "")
+_rdap_cache: Dict[str, str] = {}
+_RDAP_TIMEOUT = 6.0
+
+
+def _somente_digitos(valor: str) -> str:
+    return re.sub(r"[^\d]", "", str(valor or ""))
+
+
+def _raiz_cnpj(cnpj: str) -> str:
+    """Primeiros 8 digitos (raiz), que identificam a empresa em todas as filiais."""
+    digitos = _somente_digitos(cnpj)
+    return digitos[:8] if len(digitos) >= 8 else ""
+
+
+def _formatar_cnpj(cnpj: str) -> str:
+    digitos = _somente_digitos(cnpj)
+    if len(digitos) != 14:
+        return ""
+    return f"{digitos[:2]}.{digitos[2:5]}.{digitos[5:8]}/{digitos[8:12]}-{digitos[12:]}"
+
+
+def _dominio_email_corporativo(email: str) -> str:
+    """Retorna o dominio registravel do email se for corporativo; "" se for provedor gratuito."""
+    email_limpo = str(email or "").strip().lower()
+    if "@" not in email_limpo:
+        return ""
+    dominio = _dominio_registravel(email_limpo.rsplit("@", 1)[1].strip("."))
+    if not dominio or "." not in dominio:
+        return ""
+    if dominio in PROVEDORES_EMAIL_GRATUITOS:
+        return ""
+    if _host_contato_banido(dominio):
+        return ""
+    return dominio
+
+
+def _cnpj_presente_no_html(html: str, cnpj: str) -> bool:
+    """Procura o CNPJ na pagina, formatado ou nao (raiz + filial qualquer)."""
+    raiz = _raiz_cnpj(cnpj)
+    if not raiz or not html:
+        return False
+    digitos_pagina = _somente_digitos(html[:400_000])
+    return raiz in digitos_pagina
+
+
+async def _rdap_documento_titular(dominio: str) -> str:
+    """
+    Consulta o RDAP do registro.br e retorna o documento (CNPJ/CPF, so digitos)
+    do titular do dominio. "" quando nao ha informacao (dominio nao-.br,
+    RDAP fora do ar, dominio inexistente).
+    """
+    dominio_limpo = _dominio_registravel(_extrair_host(dominio) or str(dominio or "").lower())
+    if not dominio_limpo or not dominio_limpo.endswith(".br"):
+        return ""
+    if dominio_limpo in _rdap_cache:
+        return _rdap_cache[dominio_limpo]
+
+    documento = ""
+    try:
+        async with httpx.AsyncClient(timeout=_RDAP_TIMEOUT) as client:
+            resp = await client.get(
+                f"https://rdap.registro.br/domain/{dominio_limpo}",
+                headers={"Accept": "application/json"},
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                for ent in data.get("entities", []):
+                    if "registrant" not in (ent.get("roles") or []):
+                        continue
+                    # registro.br usa o CNPJ/CPF do titular como handle da entidade
+                    candidato = _somente_digitos(ent.get("handle", ""))
+                    if not candidato:
+                        for public_id in ent.get("publicIds", []) or []:
+                            candidato = _somente_digitos(public_id.get("identifier", ""))
+                            if candidato:
+                                break
+                    if len(candidato) in (11, 14):
+                        documento = candidato
+                        break
+    except Exception:
+        return ""  # indisponibilidade nao vira cache
+
+    _rdap_cache[dominio_limpo] = documento
+    return documento
+
+
+async def _dominio_confirmado_rdap(dominio: str, cnpj: str) -> Optional[bool]:
+    """
+    True  -> titular do dominio tem a mesma raiz de CNPJ da empresa (prova forte)
+    False -> titular existe e e OUTRO documento (sinal contra)
+    None  -> sem informacao (nao-.br, RDAP indisponivel, sem CNPJ de referencia)
+    """
+    raiz = _raiz_cnpj(cnpj)
+    if not raiz:
+        return None
+    documento = await _rdap_documento_titular(dominio)
+    if not documento:
+        return None
+    return documento.startswith(raiz)
+
+
+async def _validar_site_por_conteudo(url: str, cnpj: str) -> Optional[bool]:
+    """
+    Busca a home do candidato e verifica se o CNPJ (raiz) aparece impresso.
+    True/False conforme achado; None se a pagina nao pode ser lida.
+    """
+    if not _raiz_cnpj(cnpj) or not url:
+        return None
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=10.0, follow_redirects=True) as client:
+            resp = await client.get(
+                url,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; HermesBot/1.0)"},
+            )
+            if resp.status_code != 200:
+                return None
+            return _cnpj_presente_no_html(resp.text, cnpj)
+    except Exception:
+        return None
+
+
 def _tokens_nome_pessoa(nome: str) -> List[str]:
     return [
         token
@@ -414,15 +550,22 @@ def _pontuar_resultado_site_oficial(resultado: Dict[str, Any], empresa_nome: str
     return score
 
 
-def _querys_site_oficial(empresa_nome: str, cidade: str = "") -> List[str]:
+def _querys_site_oficial(empresa_nome: str, cidade: str = "", cnpj: str = "") -> List[str]:
     base = f'"{empresa_nome}"'
-    queries = [
+    cnpj_formatado = _formatar_cnpj(cnpj)
+    queries = []
+    # CNPJ impresso no rodape do proprio site e um sinal unico: diretorios que
+    # tambem o listam ja caem na blacklist, entao o que sobra tende a ser oficial.
+    if cnpj_formatado:
+        queries.append(f'"{cnpj_formatado}"')
+        queries.append(f"{base} \"{cnpj_formatado}\"")
+    queries.extend([
         f"{base} {cidade} site oficial contato".strip(),
         f"{base} empresa",
         f"{base} site oficial brasil",
         f"{base} site oficial",
         f"{base} contato",
-    ]
+    ])
 
     resultado = []
     for query in queries:
@@ -432,26 +575,101 @@ def _querys_site_oficial(empresa_nome: str, cidade: str = "") -> List[str]:
     return resultado
 
 
-async def _buscar_melhor_site_oficial(empresa_nome: str, cidade: str = "") -> Dict[str, Any]:
-    melhor_match = None
+def _match_confirmado(link: str, score: float, confianca: str, query: str = "") -> Dict[str, Any]:
+    return {
+        "link": _normalizar_url_publica(link),
+        "titulo": "",
+        "descricao": "",
+        "_score_site": score,
+        "_confianca_site": confianca,
+        "_query": query,
+    }
+
+
+async def _buscar_melhor_site_oficial(
+    empresa_nome: str,
+    cidade: str = "",
+    cnpj: str = "",
+    email_receita: str = "",
+    modo_rapido: bool = False,
+) -> Dict[str, Any]:
+    """
+    Descoberta assertiva do site oficial, em ordem de forca do sinal:
+      1. Dominio do email cadastrado na Receita, confirmado por RDAP (registro.br)
+      2. Busca web com queries por CNPJ e nome; top candidatos .br confirmados por RDAP
+      3. CNPJ impresso na pagina do melhor candidato
+      4. Heuristica de score (comportamento anterior) como ultimo recurso
+    """
     emails_encontrados: List[str] = []
     whats_encontrados: List[str] = []
 
-    for query in _querys_site_oficial(empresa_nome, cidade):
+    # ── Sinal 1: dominio do email da Receita ─────────────────────────
+    dominio_hint = _dominio_email_corporativo(email_receita)
+    hint_match: Optional[Dict[str, Any]] = None
+    if dominio_hint:
+        confirmado = await _dominio_confirmado_rdap(dominio_hint, cnpj)
+        if confirmado is True:
+            return {
+                "melhor_match": _match_confirmado(
+                    f"https://{dominio_hint}/", 120.0, "rdap_email_receita"
+                ),
+                "emails_snippet": [],
+                "whats_snippet": [],
+            }
+        if confirmado is None:
+            # Sem prova contra: segue como candidato forte a ser batido pela busca
+            hint_match = _match_confirmado(f"https://{dominio_hint}/", 20.0, "email_receita")
+        # confirmado is False -> dominio de outro dono; descartado
+
+    # ── Sinal 2: busca web ───────────────────────────────────────────
+    melhor_match = hint_match
+    for query in _querys_site_oficial(empresa_nome, cidade, cnpj):
         raw_results = await buscar_google(query, num_results=8)
         for resultado in raw_results:
             emails_encontrados.extend(resultado.get("emails_snippet") or [])
             whats_encontrados.extend(resultado.get("whats_snippet") or [])
 
         candidatos = filtrar_resultados(raw_results, empresa_nome=empresa_nome)
-        if candidatos:
-            candidato = dict(candidatos[0])
+        for candidato_bruto in candidatos[:3]:
+            candidato = dict(candidato_bruto)
             candidato["link"] = _normalizar_url_publica(candidato.get("link", ""))
             candidato["_query"] = query
+            score = float(candidato.get("_score_site", 0.0) or 0.0)
+
+            confirmado = await _dominio_confirmado_rdap(candidato["link"], cnpj)
+            if confirmado is True:
+                candidato["_score_site"] = score + 100.0
+                candidato["_confianca_site"] = "rdap"
+                return {
+                    "melhor_match": candidato,
+                    "emails_snippet": emails_encontrados,
+                    "whats_snippet": whats_encontrados,
+                }
+            if confirmado is False:
+                candidato["_score_site"] = score - 40.0
+                candidato["_confianca_site"] = "rdap_divergente"
+            else:
+                candidato["_confianca_site"] = "heuristica"
+
             if not melhor_match or float(candidato.get("_score_site", 0.0) or 0.0) > float(melhor_match.get("_score_site", 0.0) or 0.0):
                 melhor_match = candidato
-            if float(candidato.get("_score_site", 0.0) or 0.0) >= 18.0:
-                break
+
+        if melhor_match and float(melhor_match.get("_score_site", 0.0) or 0.0) >= 18.0:
+            break
+
+    # ── Sinal 3: CNPJ impresso na pagina do melhor candidato ─────────
+    if (
+        melhor_match
+        and not modo_rapido
+        and melhor_match.get("_confianca_site") in (None, "heuristica", "email_receita")
+    ):
+        na_pagina = await _validar_site_por_conteudo(melhor_match.get("link", ""), cnpj)
+        if na_pagina is True:
+            melhor_match["_score_site"] = float(melhor_match.get("_score_site", 0.0) or 0.0) + 30.0
+            melhor_match["_confianca_site"] = "cnpj_na_pagina"
+
+    if melhor_match and not melhor_match.get("_confianca_site"):
+        melhor_match["_confianca_site"] = "heuristica"
 
     return {
         "melhor_match": melhor_match,
@@ -1340,6 +1558,7 @@ async def processar_empresa_google(
     socios: List[str] = None,
     site_url: str = "",
     modo_rapido: bool = False,
+    email_receita: str = "",
 ) -> Optional[Dict]:
     """
     Logica de enriquecimento focada em site oficial e contatos acionaveis.
@@ -1352,31 +1571,54 @@ async def processar_empresa_google(
         print(f"[SCRAPER] Site conhecido descartado por ser diretório/agregador: {site_conhecido}")
         site_conhecido = ""
     if site_conhecido:
+        # Auditoria do site vindo do banco/usuario: RDAP divergente rebaixa a
+        # confianca (nao descarta — pode ser holding/franquia), RDAP igual confirma.
+        confianca_conhecido = "informado"
+        rdap_conhecido = await _dominio_confirmado_rdap(site_conhecido, cnpj)
+        if rdap_conhecido is True:
+            confianca_conhecido = "rdap"
+        elif rdap_conhecido is False:
+            confianca_conhecido = "informado_rdap_divergente"
         try:
             dados_extraidos = await extrair_contatos_site(site_conhecido, modo_rapido=modo_rapido)
             if not dados_extraidos.get("site"):
                 dados_extraidos["site"] = site_conhecido
             else:
                 dados_extraidos["site"] = _normalizar_url_publica(dados_extraidos["site"])
-            melhor_match = {"link": site_conhecido, "_score_site": 999.0}
+            melhor_match = {"link": site_conhecido, "_score_site": 999.0, "_confianca_site": confianca_conhecido}
         except Exception:
             dados_extraidos = {"site": site_conhecido, "email": "", "telefone": "", "whatsapp": ""}
+            melhor_match = {"link": site_conhecido, "_score_site": 999.0, "_confianca_site": confianca_conhecido}
 
-    busca_site = await _buscar_melhor_site_oficial(empresa_nome, cidade)
+    busca_site = await _buscar_melhor_site_oficial(
+        empresa_nome,
+        cidade,
+        cnpj=cnpj,
+        email_receita=email_receita,
+        modo_rapido=modo_rapido,
+    )
     emails_encontrados = list(busca_site.get("emails_snippet") or [])
     whats_encontrados = list(busca_site.get("whats_snippet") or [])
 
     if (not melhor_match or not dados_extraidos.get("email")) and busca_site.get("melhor_match"):
         candidato_top = busca_site["melhor_match"]
         score_top = float(candidato_top.get("_score_site", 0.0) or 0.0)
-        if score_top >= 3 or not melhor_match:
+        confiancas_fortes = {"rdap", "rdap_email_receita", "cnpj_na_pagina"}
+        conf_atual = (melhor_match or {}).get("_confianca_site") or ""
+        conf_novo = candidato_top.get("_confianca_site") or ""
+        # Site confirmado (RDAP/CNPJ) so cede lugar para outro igualmente confirmado.
+        if conf_atual in confiancas_fortes:
+            substituir = conf_novo in confiancas_fortes and score_top >= 3
+        else:
+            substituir = score_top >= 3 or not melhor_match
+        if substituir:
             melhor_match = candidato_top
             dados_extraidos = await extrair_contatos_site(candidato_top["link"], modo_rapido=modo_rapido)
             if dados_extraidos.get("site"):
                 dados_extraidos["site"] = _normalizar_url_publica(dados_extraidos["site"])
 
     if (not melhor_match or float(melhor_match.get("_score_site", 0.0) or 0.0) < 3) and TAVILY_API_KEY:
-        for query_site in _querys_site_oficial(empresa_nome, cidade):
+        for query_site in _querys_site_oficial(empresa_nome, cidade, cnpj):
             resultados_tavily = await _buscar_tavily(query_site, num_results=5)
             candidatos_tavily = filtrar_resultados(resultados_tavily, empresa_nome=empresa_nome)
             if candidatos_tavily and float(candidatos_tavily[0].get("_score_site", 0.0) or 0.0) > float((melhor_match or {}).get("_score_site", 0.0) or 0.0):
@@ -1430,8 +1672,10 @@ async def processar_empresa_google(
                 })
 
     return {
-        "origem": "google_search_aggressive_v3",
+        "origem": "google_search_assertive_v4",
         "match_site": melhor_match["link"] if melhor_match else None,
+        "site_confianca": (melhor_match or {}).get("_confianca_site") or None,
+        "site_score": float((melhor_match or {}).get("_score_site", 0.0) or 0.0) if melhor_match else None,
         "contatos_source": dados_extraidos.get("source") or None,
         "linkedin_empresa": linkedin_empresa,
         "redes_socios": redes_socios,
