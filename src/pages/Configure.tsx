@@ -537,7 +537,7 @@ const Configure = () => {
           onToggle={() => setKommoOpen(v => !v)}
         >
           <Grid container spacing={2}>
-            <Grid item xs={12} md={8}>
+            <Grid size={{ xs: 12, md: 8 }}>
               <TextField
                 label="Webhook n8n do Kommo"
                 placeholder="https://n8n.seu-dominio/webhook/kommo"
@@ -549,7 +549,7 @@ const Configure = () => {
                 helperText="Cada empresa deve usar o seu próprio workflow no n8n (com as credenciais Kommo dela)."
               />
             </Grid>
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid size={{ xs: 12, sm: 6, md: 2 }}>
               <TextField
                 label="Pipeline ID"
                 placeholder="13230435"
@@ -560,7 +560,7 @@ const Configure = () => {
                 disabled={kommoLoading}
               />
             </Grid>
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid size={{ xs: 12, sm: 6, md: 2 }}>
               <TextField
                 label="Status ID"
                 placeholder="60307615"
@@ -571,7 +571,7 @@ const Configure = () => {
                 disabled={kommoLoading}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Stack direction="row" alignItems="center" spacing={1.5}>
                 <Button
                   variant="contained"
@@ -654,7 +654,7 @@ const Configure = () => {
           </Stack>
           <Grid container spacing={1}>
             {PRESETS.map(p => (
-              <Grid item xs={6} sm={3} key={p.label}>
+              <Grid size={{ xs: 6, sm: 3 }} key={p.label}>
                 <Box
                   component="button"
                   type="button"
@@ -693,7 +693,7 @@ const Configure = () => {
         {/* ── 1. Localização ─────────────────────────────────────────────── */}
         <Section icon={MapPinIcon} title="Localização">
           <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <TextField
                 id="termo"
                 label={<>Palavra-chave <Typography component="span" variant="caption" color="text.secondary">(opcional)</Typography></>}
@@ -705,7 +705,7 @@ const Configure = () => {
                 helperText="Filtro livre na razão social / nome fantasia."
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <TextField
                 id="cidade"
                 label={<>Cidades <Typography component="span" variant="caption" color="text.secondary">(vazio = estado inteiro · digite e Enter)</Typography></>}
@@ -756,7 +756,7 @@ const Configure = () => {
                 </Stack>
               )}
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.75 }}>
                 Estados (UF) <Typography component="span" variant="caption" sx={{ color: "#ef4444" }}>*</Typography>
                 <Typography component="span" variant="caption" color="text.disabled"> · clique para selecionar</Typography>
@@ -803,7 +803,7 @@ const Configure = () => {
         {/* ── 2. Capital Social ─────────────────────────────────────────── */}
         <Section icon={CoinsIcon} title="Capital Social" hint="— usado para ranquear e filtrar">
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 id="capMin"
                 label="Mínimo (R$)"
@@ -815,7 +815,7 @@ const Configure = () => {
                 helperText={<Typography variant="caption" sx={{ color: "#f59e0b", fontWeight: 500 }}>{formatBRL(capitalMinimo)}</Typography>}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 id="capMax"
                 label={<>Máximo (R$) <Typography component="span" variant="caption" color="text.secondary">(opcional)</Typography></>}
@@ -841,7 +841,7 @@ const Configure = () => {
             {PORTES.map(p => {
               const on = portesSelecionados.includes(p.id);
               return (
-                <Grid item xs={12} sm={4} key={p.id}>
+                <Grid size={{ xs: 12, sm: 4 }} key={p.id}>
                   <Box
                     component="button"
                     type="button"
@@ -880,7 +880,7 @@ const Configure = () => {
             {SEGMENTOS.map(seg => {
               const on = segmentosSelecionados.includes(seg.id);
               return (
-                <Grid item xs={6} sm={3} key={seg.id}>
+                <Grid size={{ xs: 6, sm: 3 }} key={seg.id}>
                   <Box
                     component="button"
                     type="button"
@@ -1006,7 +1006,7 @@ const Configure = () => {
           {/* Opções booleanas + limite */}
           <Grid container spacing={1.5}>
             {/* Enriquecimento web */}
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <Box
                 sx={{
                   borderRadius: "8px",
@@ -1039,7 +1039,7 @@ const Configure = () => {
             </Grid>
 
             {/* Só com contato */}
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <Box
                 sx={{
                   borderRadius: "8px",
@@ -1072,7 +1072,7 @@ const Configure = () => {
             </Grid>
 
             {/* Priorizar com contato */}
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <Box
                 sx={{
                   borderRadius: "8px",
@@ -1105,7 +1105,7 @@ const Configure = () => {
             </Grid>
 
             {/* Idade da empresa */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Box
                 sx={{
                   borderRadius: "8px",
@@ -1147,7 +1147,7 @@ const Configure = () => {
             </Grid>
 
             {/* Limite de empresas */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Box
                 sx={{
                   borderRadius: "8px",
@@ -1226,7 +1226,7 @@ const Configure = () => {
                 { label: "WhatsApp",    value: `${preview.comWA} (${preview.total ? Math.round(preview.comWA/preview.total*100) : 0}%)`,          color: "#10b981" },
                 { label: "Score médio", value: `${preview.scoreM.toFixed(1)} pts`,                                                                color: preview.scoreM >= 60 ? "#10b981" : preview.scoreM >= 40 ? "#f59e0b" : "#ef4444" },
               ].map(m => (
-                <Grid item xs={6} sm={3} key={m.label}>
+                <Grid size={{ xs: 6, sm: 3 }} key={m.label}>
                   <Box
                     sx={{
                       borderRadius: "8px",

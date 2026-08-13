@@ -261,7 +261,7 @@ export default function ComprarCreditos() {
         {/* Cards de pacotes */}
         <Grid container spacing={2}>
           {packages.map(pkg => (
-            <Grid item xs={12} sm={6} lg={3} key={pkg.id}>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }} key={pkg.id}>
               <Card
                 onClick={() => setSelected(pkg)}
                 sx={{
@@ -318,7 +318,7 @@ export default function ComprarCreditos() {
 
               <Stack spacing={2}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       label="Nome completo"
                       placeholder="Nome ou razão social"
@@ -328,7 +328,7 @@ export default function ComprarCreditos() {
                       onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       label="E-mail"
                       type="email"

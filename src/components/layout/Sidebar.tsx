@@ -31,7 +31,15 @@ import { LightModeRounded, DarkModeRounded } from "@mui/icons-material";
 
 const DRAWER_WIDTH = 248;
 
-const NAV = [
+type NavItem = {
+  icon: typeof TuneRounded;
+  label: string;
+  path: string;
+  masterOnly?: boolean;
+  adminOnly?: boolean;
+};
+
+const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: "Prospecção",
     items: [

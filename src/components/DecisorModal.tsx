@@ -87,7 +87,7 @@ function SocioRow({ s }: { s: Socio }) {
     setLoading(true);
     try {
       const params = refresh ? "?refresh=true" : "";
-      const res = await apiFetch(`/assertiva/pessoa/${cpfLimpo}${params}`);
+      const res: any = await apiFetch(`/assertiva/pessoa/${cpfLimpo}${params}`);
       setPF(res.dados);
       setOpen(true);
     } catch (e: any) {
@@ -245,7 +245,7 @@ export default function DecisorModal({ open, onClose, cnpj, nomeEmpresa }: Props
     setError(null);
     try {
       const params = refresh ? "?refresh=true" : "";
-      const res = await apiFetch(`/assertiva/decisores/${cnpj}${params}`);
+      const res: any = await apiFetch(`/assertiva/decisores/${cnpj}${params}`);
       setDados(res.dados);
       setFonte(res.fonte);
     } catch (e: any) {

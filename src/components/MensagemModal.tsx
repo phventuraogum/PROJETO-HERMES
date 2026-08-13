@@ -14,6 +14,7 @@ import {
   gerarMensagemAbordagem, type Empresa, type CanalMensagem,
 } from "@/lib/api";
 import { alpha, useTheme } from "@mui/material/styles";
+import { denseOutlinedInput } from "@/theme/themeSx";
 
 // LinkedIn icon not in @mui/icons-material standard — use a simple SVG chip
 function LinkedInSvg({ size = 14 }: { size?: number }) {

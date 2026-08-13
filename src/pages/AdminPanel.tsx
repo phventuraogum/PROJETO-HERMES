@@ -198,7 +198,7 @@ function TabOverview({ orgs, stats }: { orgs: OrgAdmin[]; stats: SystemStats | n
           { label: "Sem tenant",   value: stats?.unconfigured_tenants ?? orgs.filter(o => !o.tenant_configured).length, sub: "pendentes" },
           { label: "Membros",      value: stats?.total_members ?? orgs.reduce((s, o) => s + (Number(o.members_count) || 0), 0), sub: "vínculos org/usuário" },
         ].map(k => (
-          <Grid item xs={6} md={3} key={k.label}>
+          <Grid size={{ xs: 6, md: 3 }} key={k.label}>
             <KpiCard {...k} />
           </Grid>
         ))}
@@ -313,7 +313,7 @@ function TabClientes({
                 { key: "n8n_outbound_webhook", label: "n8n Webhook Outbound",placeholder: "https://..."             },
                 { key: "n8n_kommo_webhook",    label: "n8n Webhook Kommo",   placeholder: "https://..."             },
               ].map(f => (
-                <Grid item xs={12} sm={6} key={f.key}>
+                <Grid size={{ xs: 12, sm: 6 }} key={f.key}>
                   <TextField
                     label={f.label}
                     placeholder={f.placeholder}
@@ -418,7 +418,7 @@ function TabClientes({
                       { key: "assertiva_client_id",       label: "Assertiva Client ID",      placeholder: "client_id" },
                       { key: "assertiva_client_secret",   label: "Assertiva Client Secret",  placeholder: "client_secret", type: "password" },
                     ].map(f => (
-                      <Grid item xs={12} sm={6} key={f.key}>
+                      <Grid size={{ xs: 12, sm: 6 }} key={f.key}>
                         <TextField
                           label={f.label}
                           placeholder={f.placeholder}
