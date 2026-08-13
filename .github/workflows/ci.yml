@@ -1,0 +1,70 @@
+# ============================================================
+#  Hermes — CI
+#
+#  backend  → Python 3.12 (mesma versao do Docker de producao)
+#             - bloqueante: modulos verdes (baseline 12/ago/2026)
+#             - informativo: suite completa (8 modulos legados quebrados
+#               nas duas linhagens — ver task de reconciliacao)
+#  frontend → tsc --noEmit + vite build
+# ============================================================
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      ENVIRONMENT: development
+      HERMES_APP_DB_PATH: /tmp/app.duckdb
+      HERMES_DUCKDB_PATH: /tmp/cnpj.duckdb
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Instalar dependencias
+        run: >
+          pip install --disable-pip-version-check
+          fastapi httpx beautifulsoup4 python-dotenv pydantic pydantic-settings
+          redis dnspython ddgs duckdb supabase pandas openai rq requests PyJWT
+      - name: Testes (baseline verde — bloqueante)
+        run: >
+          python -m unittest -v
+          tests.test_contact_intelligence
+          tests.test_core_scraper
+          tests.test_core_scraper_contacts
+          tests.test_core_scraper_quality
+          tests.test_empresas_router
+          tests.test_enrichment_merge
+          tests.test_jobs_enhanced
+          tests.test_plan_catalog
+          tests.test_public_fiscal_data
+          tests.test_query_translator
+          tests.test_result_store
+          tests.test_site_oficial_assertivo
+          tests.test_validation_service
+      - name: Suite completa (informativo)
+        continue-on-error: true
+        run: python -m unittest discover -s tests -p "test_*.py"
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: TypeScript
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Build
+        run: npx vite build
