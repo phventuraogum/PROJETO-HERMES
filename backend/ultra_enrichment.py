@@ -234,6 +234,15 @@ async def consultar_registrobr_whois(dominio: str) -> Dict:
                     if "registrant" in roles:
                         resultado["proprietario"] = nome_ent
                         resultado["email_proprietario"] = email_ent
+                        # registro.br usa o CNPJ/CPF do titular como handle
+                        documento = re.sub(r"[^\d]", "", ent.get("handle", "") or "")
+                        if not documento:
+                            for public_id in ent.get("publicIds", []) or []:
+                                documento = re.sub(r"[^\d]", "", public_id.get("identifier", "") or "")
+                                if documento:
+                                    break
+                        if len(documento) in (11, 14):
+                            resultado["documento_proprietario"] = documento
                     elif "technical" in roles:
                         resultado["responsavel_tecnico"] = nome_ent
                 return resultado  # after processing ALL entities
