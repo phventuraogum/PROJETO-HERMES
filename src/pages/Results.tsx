@@ -559,6 +559,18 @@ function DetalheEmpresa({
               className="text-xs text-primary hover:underline break-all">
               {company.site}
             </a>
+            {["rdap", "rdap_email_receita", "cnpj_na_pagina"].includes(company.site_confianca ?? "") && (
+              <span title="Site confirmado pelo CNPJ (registro.br ou pagina)"
+                className="flex-shrink-0 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600">
+                verificado
+              </span>
+            )}
+            {["rdap_divergente", "informado_rdap_divergente"].includes(company.site_confianca ?? "") && (
+              <span title="Dominio registrado em outro CNPJ — pode ser holding/franquia ou site errado"
+                className="flex-shrink-0 rounded-md border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-600">
+                dominio de terceiro
+              </span>
+            )}
           </div>
         )}
         {[

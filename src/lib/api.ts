@@ -125,6 +125,8 @@ export type Empresa = {
 
   // ── enriquecimento web ─────────────────────────────────────────
   site?: string | null;
+  /** rdap | rdap_email_receita | cnpj_na_pagina | email_receita | informado | informado_rdap_divergente | rdap_divergente | heuristica */
+  site_confianca?: string | null;
   email_enriquecido?: string | null;
   email_validado?: boolean | null;
   email_status_validacao?: string | null;
@@ -567,6 +569,7 @@ function mapEmpresaApi(raw: Record<string, unknown>): Empresa {
 
     // enriquecimento web
     site: asNullableString(raw.site),
+    site_confianca: asNullableString(raw.site_confianca),
     email_enriquecido: emailEnriquecido,
     email_validado:
       typeof raw.email_validado === "boolean" ? raw.email_validado : null,
@@ -699,6 +702,9 @@ function mergeEmpresaWithEnrichment(
 
     // contatos
     site: asNullableString(enrichment.site) ?? empresa.site,
+    site_confianca:
+      asNullableString((enrichment as { site_confianca?: string | null }).site_confianca) ??
+      empresa.site_confianca,
     email: emailReceita,
     email_final: emailEnriquecido ?? emailReceita ?? empresa.email_final,
     email_enriquecido: emailEnriquecido,
