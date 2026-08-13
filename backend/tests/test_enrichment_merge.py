@@ -325,3 +325,37 @@ class EnrichmentMergeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SiteConfiancaMergeTests(EnrichmentMergeTests):
+    def test_site_confirmado_por_rdap_sobrevive_mesmo_sem_parecer_com_nome(self):
+        existing = {"razao_social": "PADARIA DO JOAO LTDA", "nome_fantasia": "Padaria do Joao"}
+        payload = {"site": "https://delicias.com.br/", "site_confianca": "rdap"}
+
+        merged = self._merge(existing, payload)
+
+        self.assertEqual(merged["site"], "https://delicias.com.br")
+        self.assertEqual(merged["site_confianca"], "rdap")
+
+    def test_site_heuristico_sem_relacao_com_nome_continua_descartado(self):
+        existing = {"razao_social": "PADARIA DO JOAO LTDA", "nome_fantasia": "Padaria do Joao"}
+        payload = {"site": "https://delicias.com.br/", "site_confianca": "heuristica"}
+
+        merged = self._merge(existing, payload)
+
+        self.assertIsNone(merged["site"])
+        self.assertIsNone(merged["site_confianca"])
+
+    def test_site_existente_preserva_confianca_registrada(self):
+        existing = {
+            "razao_social": "ACME TUBOS LTDA",
+            "nome_fantasia": "Acme Tubos",
+            "site": "https://acmetubos.com.br/",
+            "site_confianca": "rdap",
+        }
+        payload = {"site": "", "site_confianca": None}
+
+        merged = self._merge(existing, payload)
+
+        self.assertEqual(merged["site"], "https://acmetubos.com.br")
+        self.assertEqual(merged["site_confianca"], "rdap")
