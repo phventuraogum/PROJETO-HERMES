@@ -492,14 +492,28 @@ def _serializar_redes_socios(socios: List[Dict[str, Any]], redes_existentes: Dic
     return resultado
 
 
+CONFIANCAS_SITE_FORTES = {"rdap", "rdap_email_receita", "cnpj_na_pagina"}
+
+
 def merge_enrichment_payload(existing: Dict[str, Any], payload: Dict[str, Any]) -> Dict[str, Any]:
     razao_social = existing.get("razao_social")
     nome_fantasia = existing.get("nome_fantasia")
     site_payload = _normalizar_url(payload.get("site"))
     site_existente = _normalizar_url(existing.get("site"))
-    site_payload_valido = _site_parece_oficial(site_payload, razao_social, nome_fantasia)
+    confianca_site_payload = str(payload.get("site_confianca") or "")
+    # Site confirmado por CNPJ (RDAP/pagina) nao depende de parecer com o nome:
+    # dominios de marca (ex. "delicias.com.br" de Padaria do Joao) sao legitimos.
+    site_payload_valido = bool(site_payload) and (
+        confianca_site_payload in CONFIANCAS_SITE_FORTES
+        or _site_parece_oficial(site_payload, razao_social, nome_fantasia)
+    )
     site_existente_valido = _site_parece_oficial(site_existente, razao_social, nome_fantasia)
     site = site_payload if site_payload_valido else (site_existente if site_existente_valido else None)
+    site_confianca = (
+        confianca_site_payload
+        if (site_payload_valido and site == site_payload and confianca_site_payload)
+        else (existing.get("site_confianca") if site == site_existente else None)
+    )
     dominio_empresa = _dominio_registravel(_dominio_site(site))
     existing_site_descartado = not site_existente_valido
     permitir_contatos_scraping_payload = bool(site_payload_valido or (not site_payload and site_existente_valido))
@@ -795,6 +809,7 @@ def merge_enrichment_payload(existing: Dict[str, Any], payload: Dict[str, Any]) 
 
     return {
         "site": site,
+        "site_confianca": site_confianca,
         "email_enriquecido": email_principal,
         "telefone_enriquecido": telefone_principal,
         "whatsapp_enriquecido": whatsapp_principal,
