@@ -3,6 +3,7 @@ Endpoints de Empresas Individuais
 Para buscar, validar e enriquecer empresas específicas.
 Todos os endpoints requerem autenticação.
 """
+import re
 from fastapi import APIRouter, HTTPException, Path, Query, Depends, Body, Request
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel
@@ -795,3 +796,245 @@ async def resolver_contact_intelligence(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ══════════════════════════════════════════════════════════════════
+#  DOSSIE HERMES — /empresas/{cnpj}/dossie
+#  Agrega Receita (waterfall OpenCNPJ/BrasilAPI/cnpj.ws), filiais da
+#  base local (mesma raiz de CNPJ) e site oficial assertivo
+#  (RDAP/CNPJ) com contatos extraidos. Recriacao do endpoint perdido
+#  no commit 8c6811e2 (abr/2026), contrato do front preservado.
+# ══════════════════════════════════════════════════════════════════
+
+_dossie_cache: Dict[str, Dict[str, Any]] = {}
+_DOSSIE_CACHE_TTL = 30 * 60  # 30 min
+_DOSSIE_CACHE_MAX = 500
+
+
+def _dossie_cnae(codigo: Any, descricao: Any) -> Dict[str, Any]:
+    sub = str(codigo or "").strip() or None
+    return {
+        "subclasse": sub,
+        "id": sub,
+        "descricao": (str(descricao or "").strip() or None),
+        "secao": None,
+        "divisao": None,
+        "grupo": None,
+        "classe": None,
+    }
+
+
+def _dossie_filiais_from_db(cnpj_raiz: str, cnpj_self: str) -> List[Dict[str, Any]]:
+    try:
+        with get_connection(read_only=True) as conn:
+            rows = conn.execute(
+                """
+                SELECT e.CNPJ_COMPLETO, e.SITUACAO_CADASTRAL, e.UF,
+                       m.NOME_MUNICIPIO, e.TELEFONE1, e.EMAIL, e.CNAE_PRINCIPAL
+                FROM cnpj_empresas e
+                LEFT JOIN municipios m ON m.COD_MUNICIPIO = LPAD(e.MUNICIPIO, 4, '0')
+                WHERE SUBSTR(e.CNPJ_COMPLETO, 1, 8) = ?
+                ORDER BY e.CNPJ_COMPLETO
+                LIMIT 100
+                """,
+                [cnpj_raiz],
+            ).fetchall()
+    except Exception:
+        return []
+
+    filiais: List[Dict[str, Any]] = []
+    for row in rows:
+        cnpj_filial = str(row[0] or "")
+        filiais.append(
+            {
+                "cnpj": cnpj_filial,
+                "tipo": "matriz" if cnpj_filial[8:12] == "0001" else "filial",
+                "situacao": str(row[1] or "") or None,
+                "data_inicio": None,
+                "data_situacao": None,
+                "uf": str(row[2] or "") or None,
+                "cidade": str(row[3] or "") or None,
+                "logradouro": None,
+                "bairro": None,
+                "cep": None,
+                "telefone": str(row[4] or "") or None,
+                "email": str(row[5] or "") or None,
+                "atividade_principal": str(row[6] or "") or None,
+                "is_self": cnpj_filial == cnpj_self,
+            }
+        )
+    return filiais
+
+
+@router.get("/{cnpj}/dossie")
+async def dossie_empresa(
+    cnpj: str = Path(..., description="CNPJ da empresa (com ou sem formatação)"),
+    descobrir_filiais: bool = Query(True, description="Consultar filiais da mesma raiz na base local"),
+    refresh: bool = Query(False, description="Ignora cache e reconsulta as fontes"),
+    _user: dict = Depends(require_auth),
+) -> Dict[str, Any]:
+    """Dossiê consolidado da empresa: Receita, QSA, filiais e site oficial assertivo."""
+    import time as _time
+
+    cnpj_valido, cnpj_limpo = validar_cnpj(cnpj)
+    if not cnpj_valido:
+        raise HTTPException(status_code=400, detail="CNPJ inválido")
+
+    cache_key = f"{cnpj_limpo}:{descobrir_filiais}"
+    if not refresh:
+        em_cache = _dossie_cache.get(cache_key)
+        if em_cache and (_time.time() - em_cache["ts"]) < _DOSSIE_CACHE_TTL:
+            return {"success": True, "dossie": em_cache["dossie"]}
+
+    from enrichment_opencnpj import _fetch_cnpj_raw
+    from core_scraper import (
+        _buscar_melhor_site_oficial,
+        extrair_contatos_site,
+    )
+
+    raw = await _fetch_cnpj_raw(cnpj_limpo) or {}
+    encontrado = bool(raw)
+
+    razao_social = (raw.get("razao_social") or "").strip() or None
+    nome_fantasia = (raw.get("nome_fantasia") or "").strip() or None
+    email_receita = (raw.get("email") or "").strip().lower() or None
+    municipio = (raw.get("municipio") or "").strip() or None
+    uf = (raw.get("uf") or "").strip() or None
+
+    telefone1 = None
+    telefone2 = None
+    telefones_raw = raw.get("telefones") or []
+    if telefones_raw:
+        def _fmt_tel(t: Dict[str, Any]) -> Optional[str]:
+            ddd = str(t.get("ddd") or "").strip()
+            num = str(t.get("numero") or "").strip()
+            return f"({ddd}) {num}" if ddd and num else (num or None)
+        telefone1 = _fmt_tel(telefones_raw[0])
+        if len(telefones_raw) > 1:
+            telefone2 = _fmt_tel(telefones_raw[1])
+    else:
+        ddd1 = str(raw.get("ddd_telefone_1") or "").strip()
+        if ddd1:
+            telefone1 = ddd1
+
+    socios = [
+        {
+            "nome": ((s.get("nome_socio") or "").strip().title() or None),
+            "tipo": ((s.get("identificador_de_socio") and str(s.get("identificador_de_socio"))) or None),
+            "cpf_cnpj": ((s.get("cnpj_cpf_do_socio") or "").strip() or None),
+            "qualificacao": ((s.get("qualificacao_socio") or {}).get("descricao") if isinstance(s.get("qualificacao_socio"), dict) else (s.get("qualificacao_socio") or None)),
+            "data_entrada": s.get("data_entrada_sociedade"),
+            "faixa_etaria": s.get("faixa_etaria"),
+            "representante": ((s.get("nome_representante_legal") or "").strip() or None),
+            "cpf_representante": ((s.get("cpf_representante_legal") or "").strip() or None),
+            "qualificacao_representante": s.get("qualificacao_representante_legal"),
+            "pais": s.get("pais"),
+        }
+        for s in (raw.get("qsa") or [])
+    ]
+
+    cnaes_secundarias = [
+        _dossie_cnae(c.get("codigo"), c.get("descricao"))
+        for c in (raw.get("cnaes_secundarios") or [])
+        if c.get("codigo")
+    ]
+
+    filiais: List[Dict[str, Any]] = []
+    if descobrir_filiais:
+        filiais = _dossie_filiais_from_db(cnpj_limpo[:8], cnpj_limpo)
+
+    # ── Site oficial assertivo (email Receita → RDAP → CNPJ na pagina) ──
+    site_oficial: Optional[Dict[str, Any]] = None
+    try:
+        busca = await _buscar_melhor_site_oficial(
+            nome_fantasia or razao_social or "",
+            municipio or "",
+            cnpj=cnpj_limpo,
+            email_receita=email_receita or "",
+        )
+        match = busca.get("melhor_match")
+        if match and match.get("link"):
+            contatos_site = None
+            try:
+                extraidos = await extrair_contatos_site(match["link"], modo_rapido=True)
+                contatos_site = {
+                    "emails": [e for e in [extraidos.get("email")] if e],
+                    "telefones": [t for t in [extraidos.get("telefone")] if t],
+                    "whatsapps": [w for w in [extraidos.get("whatsapp")] if w],
+                    "redes_sociais": {
+                        k: v
+                        for k, v in {
+                            "linkedin": extraidos.get("linkedin_empresa"),
+                        }.items()
+                        if v
+                    },
+                }
+            except Exception:
+                pass
+            site_oficial = {
+                "url": match["link"],
+                "confianca": match.get("_confianca_site"),
+                "contatos_extraidos": contatos_site,
+            }
+    except Exception:
+        site_oficial = None
+
+    dossie: Dict[str, Any] = {
+        "encontrado": encontrado,
+        "fonte": "brasilapi/opencnpj",
+        "cnpj": cnpj_limpo,
+        "cnpj_raiz": cnpj_limpo[:8],
+        "razao_social": razao_social,
+        "nome_fantasia": nome_fantasia,
+        "tipo": ((raw.get("descricao_identificador_matriz_filial") or "").strip().lower() or None),
+        "capital_social": raw.get("capital_social"),
+        "porte": ((raw.get("porte") or {}).get("descricao") if isinstance(raw.get("porte"), dict) else (raw.get("porte") or None)),
+        "natureza_juridica": ((raw.get("natureza_juridica") or "").strip() or None),
+        "qualificacao_responsavel": ((raw.get("qualificacao_do_responsavel") and str(raw.get("qualificacao_do_responsavel"))) or None),
+        "situacao_cadastral": ((raw.get("descricao_situacao_cadastral") or "").strip() or None),
+        "data_situacao_cadastral": raw.get("data_situacao_cadastral"),
+        "data_inicio_atividade": raw.get("data_inicio_atividade"),
+        "atualizado_em": raw.get("data_situacao_cadastral") or raw.get("data_inicio_atividade"),
+        "endereco": {
+            "tipo_logradouro": ((raw.get("descricao_tipo_de_logradouro") or "").strip() or None),
+            "logradouro": ((raw.get("logradouro") or "").strip() or None),
+            "numero": ((raw.get("numero") or "").strip() or None),
+            "complemento": ((raw.get("complemento") or "").strip() or None),
+            "bairro": ((raw.get("bairro") or "").strip() or None),
+            "cep": (re.sub(r"[^\d]", "", str(raw.get("cep") or "")) or None),
+            "cidade": municipio,
+            "uf": uf,
+            "ibge": raw.get("codigo_municipio_ibge"),
+        },
+        "contatos_receita": {
+            "telefone1": telefone1,
+            "telefone2": telefone2,
+            "fax": ((raw.get("ddd_fax") or "").strip() or None),
+            "email": email_receita,
+        },
+        "cnae_principal": _dossie_cnae(raw.get("cnae_fiscal"), raw.get("cnae_fiscal_descricao")),
+        "cnaes_secundarias": cnaes_secundarias,
+        "inscricoes_estaduais": [
+            {
+                "uf": (ie.get("uf") if isinstance(ie, dict) else None),
+                "ie": (ie.get("inscricao_estadual") if isinstance(ie, dict) else None),
+                "ativa": bool(ie.get("ativo", True)) if isinstance(ie, dict) else True,
+                "atualizado_em": (ie.get("data_atualizacao") if isinstance(ie, dict) else None),
+            }
+            for ie in (raw.get("inscricoes_estaduais") or [])
+        ],
+        "socios": socios,
+        "filiais": filiais,
+        "site_oficial": site_oficial,
+        "fontes_consultadas": {
+            "receita_waterfall": encontrado,
+            "base_local_filiais": bool(filiais),
+            "site_oficial_assertivo": bool(site_oficial),
+        },
+    }
+
+    if len(_dossie_cache) >= _DOSSIE_CACHE_MAX:
+        _dossie_cache.clear()
+    _dossie_cache[cache_key] = {"ts": _time.time(), "dossie": dossie}
+
+    return {"success": True, "dossie": dossie}
