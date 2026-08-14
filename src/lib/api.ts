@@ -97,6 +97,8 @@ export type ContatoCaptado = {
 };
 
 export type Empresa = {
+  /** Payload bruto do backend, para inspecao na UI (RawDataView). */
+  __raw?: Record<string, unknown>;
   // ── identificação ──────────────────────────────────────────────
   cnpj: string;
   razao_social: string;
@@ -127,6 +129,8 @@ export type Empresa = {
 
   // ── enriquecimento web ─────────────────────────────────────────
   site?: string | null;
+  /** rdap | rdap_email_receita | cnpj_na_pagina | email_receita | informado | informado_rdap_divergente | rdap_divergente | heuristica */
+  site_confianca?: string | null;
   email_enriquecido?: string | null;
   email_validado?: boolean | null;
   email_status_validacao?: string | null;
@@ -449,6 +453,7 @@ function mapEmpresaApi(raw: Record<string, unknown>): Empresa {
   const priorizacao = asRecord(raw.priorizacao);
 
   return {
+    __raw: raw,
     cnpj: asNullableString(raw.cnpj) ?? "",
     razao_social: asNullableString(raw.razao_social) ?? "",
     nome_fantasia: asNullableString(raw.nome_fantasia),
@@ -462,6 +467,7 @@ function mapEmpresaApi(raw: Record<string, unknown>): Empresa {
     email: emailReceita,
     email_final: emailFinal,
     site: asNullableString(raw.site),
+    site_confianca: asNullableString(raw.site_confianca),
     email_enriquecido: emailEnriquecido,
     telefone_enriquecido: telefoneEnriquecido,
     telefone_final: telefoneFinal,
@@ -1009,7 +1015,6 @@ export type FiscalPublicLookup = {
   records: FiscalPublicRecord[];
 };
 
-export type DossieHermes = Record<string, unknown>;
 
 export async function buscarEmpresaPorCnpj(cnpj: string): Promise<Empresa> {
   const data = await hermesFetch<BuscarEmpresaResponse>(
@@ -1019,12 +1024,128 @@ export async function buscarEmpresaPorCnpj(cnpj: string): Promise<Empresa> {
   return mapEmpresaApi(data.empresa ?? {});
 }
 
-// Compat: algumas telas legadas importam este helper.
-export async function buscarDossieEmpresa(cnpj: string): Promise<DossieHermes> {
-  return hermesFetch<DossieHermes>(
-    appendFreshQuery(`/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/dossie`),
+export type DossieHermesSocio = {
+  nome: string | null;
+  tipo: string | null;
+  cpf_cnpj: string | null;
+  qualificacao: string | null;
+  data_entrada: string | null;
+  faixa_etaria: string | null;
+  representante: string | null;
+  cpf_representante: string | null;
+  qualificacao_representante: string | null;
+  pais: string | null;
+};
+
+export type DossieHermesFilial = {
+  cnpj: string;
+  tipo: string | null;
+  situacao: string | null;
+  data_inicio: string | null;
+  data_situacao: string | null;
+  uf: string | null;
+  cidade: string | null;
+  logradouro: string | null;
+  bairro: string | null;
+  cep: string | null;
+  telefone: string | null;
+  email: string | null;
+  atividade_principal: string | null;
+  is_self: boolean;
+};
+
+export type DossieHermesCnae = {
+  subclasse: string | null;
+  id: string | null;
+  descricao: string | null;
+  secao: string | null;
+  divisao: string | null;
+  grupo: string | null;
+  classe: string | null;
+};
+
+export type DossieHermesIE = {
+  uf: string | null;
+  ie: string | null;
+  ativa: boolean;
+  atualizado_em: string | null;
+};
+
+export type DossieHermesContatosSite = {
+  emails: string[];
+  telefones: string[];
+  whatsapps: string[];
+  redes_sociais: Record<string, string>;
+};
+
+export type DossieHermesSiteOficial = {
+  url: string | null;
+  confianca?: string | null;
+  contatos_extraidos: DossieHermesContatosSite | null;
+};
+
+export type DossieHermes = {
+  encontrado: boolean;
+  fonte: string;
+  cnpj: string;
+  cnpj_raiz: string | null;
+  razao_social: string | null;
+  nome_fantasia: string | null;
+  tipo: string | null;
+  capital_social: number | null;
+  porte: string | null;
+  natureza_juridica: string | null;
+  qualificacao_responsavel: string | null;
+  situacao_cadastral: string | null;
+  data_situacao_cadastral: string | null;
+  data_inicio_atividade: string | null;
+  atualizado_em: string | null;
+  endereco: {
+    tipo_logradouro: string | null;
+    logradouro: string | null;
+    numero: string | null;
+    complemento: string | null;
+    bairro: string | null;
+    cep: string | null;
+    cidade: string | null;
+    uf: string | null;
+    ibge: number | string | null;
+  };
+  contatos_receita: {
+    telefone1: string | null;
+    telefone2: string | null;
+    fax: string | null;
+    email: string | null;
+  };
+  cnae_principal: DossieHermesCnae;
+  cnaes_secundarias: DossieHermesCnae[];
+  inscricoes_estaduais: DossieHermesIE[];
+  socios: DossieHermesSocio[];
+  filiais: DossieHermesFilial[];
+  site_oficial: DossieHermesSiteOficial | null;
+  fontes_consultadas: Record<string, boolean>;
+};
+
+type DossieResponse = {
+  success: boolean;
+  dossie: DossieHermes;
+};
+
+export async function buscarDossieEmpresa(
+  cnpj: string,
+  opts: { descobrirFiliais?: boolean; refresh?: boolean } = {},
+): Promise<DossieHermes> {
+  const params = new URLSearchParams();
+  if (opts.descobrirFiliais === false) params.set("descobrir_filiais", "false");
+  if (opts.refresh) params.set("refresh", "true");
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const data = await hermesFetch<DossieResponse>(
+    appendFreshQuery(
+      `/empresas/${encodeURIComponent(normalizeCnpjValue(cnpj))}/dossie${qs}`,
+    ),
     { cache: "no-store" },
   );
+  return data.dossie;
 }
 
 export async function enriquecerEmpresaPorCnpj(

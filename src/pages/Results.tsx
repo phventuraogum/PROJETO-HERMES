@@ -1,4 +1,6 @@
 // src/pages/Results.tsx
+import DossieHermesSection from "@/components/DossieHermesSection";
+import RawDataView from "@/components/RawDataView";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
@@ -340,7 +342,7 @@ function mergeAssertivaSociosIntoBase(
     const used = new Set<string>();
     const singletonEx =
       baseList.length === 1 && enriched.length === 1 ? enriched[0] : undefined;
-    const merged = baseList.map((b) => {
+    const merged: SocioEstruturado[] = baseList.map((b) => {
       const k = docKey(b);
       let ex = k ? enrichedByDoc.get(k) : undefined;
       if (!ex && singletonEx) ex = singletonEx;
@@ -948,6 +950,18 @@ function DetalheEmpresa({
               className="text-xs text-primary hover:underline break-all">
               {company.site}
             </a>
+            {["rdap", "rdap_email_receita", "cnpj_na_pagina"].includes(company.site_confianca ?? "") && (
+              <span title="Site confirmado pelo CNPJ (registro.br ou pagina)"
+                className="flex-shrink-0 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600">
+                verificado
+              </span>
+            )}
+            {["rdap_divergente", "informado_rdap_divergente"].includes(company.site_confianca ?? "") && (
+              <span title="Dominio registrado em outro CNPJ — pode ser holding/franquia ou site errado"
+                className="flex-shrink-0 rounded-md border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-600">
+                dominio de terceiro
+              </span>
+            )}
           </div>
         )}
         {[
@@ -1345,6 +1359,14 @@ function DetalheEmpresa({
           </Button>
         </div>
       </section>
+
+      {company.cnpj && <DossieHermesSection cnpj={company.cnpj} />}
+
+      <RawDataView
+        data={company.__raw ?? company}
+        title="Dados brutos do banco"
+        highlight={["telefone", "whatsapp", "email", "cnpj", "cnae", "socio", "score", "site"]}
+      />
 
       <CrmExportModal open={crmOpen} onClose={() => setCrmOpen(false)} empresa={company} />
     </div>
